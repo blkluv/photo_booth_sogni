@@ -9,7 +9,7 @@ body {
   box-sizing: border-box;
 }
 
-/* Extra styling for our new countdown, flash effect, and gallery */
+/* Extra styling for countdown, flash effect, and gallery */
 .countdown-overlay {
   @apply absolute inset-0 flex items-center justify-center text-7xl font-bold bg-black bg-opacity-50;
   z-index: 50;
@@ -30,27 +30,47 @@ body {
   }
 }
 
+/* Thumbnail gallery at the bottom */
 .thumbnail-gallery {
   @apply flex gap-2 p-2 overflow-x-auto bg-black bg-opacity-70;
 }
 
+/* Container for each thumbnail */
+.thumbnail-container {
+  @apply relative flex-shrink-0;
+}
+
+/* The actual thumbnail image */
 .thumbnail {
   @apply cursor-pointer w-20 h-20 object-cover border-2 border-transparent hover:border-blue-500;
 }
 
-.modal-overlay {
-  @apply fixed inset-0 flex items-center justify-center bg-black bg-opacity-80;
-  z-index: 100;
+/* If this thumbnail is currently selected, add a blue outline */
+.thumbnail.selected {
+  @apply border-blue-500;
 }
 
-.modal-content {
-  @apply relative max-w-4xl max-h-screen;
+/* "X" delete button in top-left corner of the thumbnail */
+.thumbnail-delete-button {
+  @apply absolute top-0 left-0 text-red-500 bg-gray-900 bg-opacity-70 p-1 rounded-br cursor-pointer hover:bg-opacity-90;
+  font-weight: bold;
 }
 
-.modal-content img {
-  @apply w-full h-auto;
+/* A small "xN" badge in bottom-right corner to show stacked images */
+.stack-count {
+  @apply absolute bottom-0 right-0 bg-black bg-opacity-70 text-xs text-white px-1 py-0.5 rounded-tl;
 }
 
-.close-button {
-  @apply absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded;
+/* Fullscreen photo container replaces the video when we have a selected photo */
+.fullscreen-photo-container {
+  @apply w-full h-full flex items-center justify-center relative;
+}
+
+/* Photo stack index indicator top-right corner (e.g. "1/4") */
+.stack-index-indicator {
+  @apply absolute top-4 right-4 text-xl bg-black bg-opacity-70 py-1 px-2 rounded;
+}
+
+.video-hidden {
+  @apply hidden;
 }

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { SogniClient } from "@sogni-ai/sogni-client";
 
 /**
@@ -17,11 +17,16 @@ const App = () => {
   const [selectedStyle, setSelectedStyle] = useState('anime');
 
   // An array of photos the user has generated:
-  // each item is { id, generating, url (generated image), error }.
+  // Each item is { id, generating, images: array of strings, error }.
   const [photos, setPhotos] = useState([]);
 
-  // For a full-screen modal of a selected photo.
+  // The currently selected photo index (for "fullscreen" mode).
+  // If null, we're showing the live webcam.
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(null);
+
+  // Within a selected photo, which image in its stack are we displaying?
+  // e.g. 0 => first, 1 => second, etc.
+  const [selectedSubIndex, setSelectedSubIndex] = useState(0);
 
   // Countdown state: if > 0, shows countdown overlay, then triggers capture.
   const [countdown, setCountdown] = useState(0);
@@ -33,6 +38,9 @@ const App = () => {
   const [sogniClient, setSogniClient] = useState(null);
   const [isSogniReady, setIsSogniReady] = useState(false);
 
+  // --------------------------
+  //  Initialization
+  // --------------------------
   useEffect(() => {
     // Start the webcam feed when the component mounts.
     navigator.mediaDevices.getUserMedia({ video: true })
@@ -70,6 +78,55 @@ const App = () => {
     initSogni();
   }, []);
 
+  // Handle keyboard events for cycling photos/sub-images
+  const handleKeyDown = useCallback((e) => {
+    // Only if a photo is selected
+    if (selectedPhotoIndex !== null) {
+      // Left arrow: show previous photo in the strip
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setSelectedPhotoIndex((idx) => {
+          const newIdx = Math.max(0, idx - 1);
+          setSelectedSubIndex(0); // reset sub-index
+          return newIdx;
+        });
+      }
+      // Right arrow: show next photo in the strip
+      else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setSelectedPhotoIndex((idx) => {
+          const newIdx = Math.min(photos.length - 1, idx + 1);
+          setSelectedSubIndex(0); // reset sub-index
+          return newIdx;
+        });
+      }
+      // Up arrow: previous image in stack
+      else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedSubIndex((subIdx) => {
+          const maxImages = photos[selectedPhotoIndex]?.images.length || 1;
+          return Math.max(0, subIdx - 1);
+        });
+      }
+      // Down arrow: next image in stack
+      else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedSubIndex((subIdx) => {
+          const maxImages = photos[selectedPhotoIndex]?.images.length || 1;
+          return Math.min(maxImages - 1, subIdx + 1);
+        });
+      }
+    }
+  }, [photos, selectedPhotoIndex]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  // --------------------------
+  //  Capturing / Sogni logic
+  // --------------------------
   /**
    * Handles the entire "take photo" sequence:
    * 1) Start countdown from 3 to 1
@@ -111,14 +168,14 @@ const App = () => {
 
   /**
    * Captures the current frame from webcam, sends it to Sogni for generation,
-   * and adds a new item to the 'photos' list.
+   * and adds a new item to the 'photos' list. (Now with numberOfImages=4)
    */
   const captureAndSend = async () => {
     // Create a placeholder photo entry for "generating" in the photos array.
     const newPhoto = {
       id: Date.now(),
       generating: true,
-      url: null,
+      images: [],
       error: null
     };
     setPhotos(prev => [...prev, newPhoto]);
@@ -142,21 +199,22 @@ const App = () => {
           sizePreset: "landscape_9_7",
           steps: 4,
           guidance: 3,
-          numberOfImages: 1,
+          numberOfImages: 4, // generate a stack of 4 images
           startingImage: new Uint8Array(arrayBuffer),
           startingImageStrength: 0.50,
           scheduler: 'DPM Solver Multistep (DPM-Solver++)',
           timeStepSpacing: 'Karras',
         });
 
-        // When generation completes, store the final image in our photos array
+        // When generation completes, store the final images in our photos array
         project.on('completed', (data) => {
+          // data is an array of 4 images
           setPhotos(prevPhotos => {
             const updated = [...prevPhotos];
             updated[newPhotoIndex] = {
               ...updated[newPhotoIndex],
               generating: false,
-              url: data[0],
+              images: data, // store the 4 resulting images
               error: null
             };
             return updated;
@@ -170,7 +228,7 @@ const App = () => {
             updated[newPhotoIndex] = {
               ...updated[newPhotoIndex],
               generating: false,
-              url: null,
+              images: [],
               error: `Generation failed: ${err}`
             };
             return updated;
@@ -184,7 +242,7 @@ const App = () => {
           updated[newPhotoIndex] = {
             ...updated[newPhotoIndex],
             generating: false,
-            url: null,
+            images: [],
             error: `Capture/Send error: ${err}`
           };
           return updated;
@@ -193,87 +251,81 @@ const App = () => {
     }, 'image/png');
   };
 
-  /**
-   * Renders the thumbnail gallery for all generated photos.
-   */
-  const renderGallery = () => {
-    return (
-      <div className="thumbnail-gallery absolute bottom-0 left-0 right-0">
-        {photos.map((photo, i) => {
-          // If no URL but generating or error, show placeholders
-          if (!photo.url) {
-            if (photo.error) {
-              // Error placeholder
-              return (
-                <div
-                  key={photo.id}
-                  className="flex items-center justify-center text-red-500 bg-gray-700 w-20 h-20"
-                >
-                  Err
-                </div>
-              );
-            } else {
-              // Generating placeholder
-              return (
-                <div
-                  key={photo.id}
-                  className="flex items-center justify-center text-gray-300 bg-gray-700 w-20 h-20 animate-pulse"
-                >
-                  ...
-                </div>
-              );
-            }
-          }
-
-          // Normal thumbnail image
-          return (
-            <img
-              key={photo.id}
-              src={photo.url}
-              alt={`Generated ${i}`}
-              className="thumbnail"
-              onClick={() => setSelectedPhotoIndex(i)}
-            />
-          );
-        })}
-      </div>
-    );
+  // --------------------------
+  //  Deletion
+  // --------------------------
+  const handleDeletePhoto = (photoIndex) => {
+    setPhotos(prev => prev.filter((_, i) => i !== photoIndex));
+    // If the deleted photo is selected, revert to webcam
+    if (photoIndex === selectedPhotoIndex) {
+      setSelectedPhotoIndex(null);
+      setSelectedSubIndex(0);
+    } else if (photoIndex < selectedPhotoIndex) {
+      // If we delete something before the current selection, shift the selection index by -1
+      setSelectedPhotoIndex((idx) => idx - 1);
+    }
   };
 
-  /**
-   * Renders a modal if a photo is selected for full screen.
-   */
-  const renderModal = () => {
-    if (selectedPhotoIndex === null) return null;
-    const photo = photos[selectedPhotoIndex];
-    if (!photo || !photo.url) return null;
+  // --------------------------
+  //  Rendering
+  // --------------------------
 
+  /**
+   * Render the main area:
+   * - If no photo is selected, show the live video
+   * - If a photo is selected, show that subIndex image
+   */
+  const renderMainArea = () => {
+    if (selectedPhotoIndex == null) {
+      // Show the video feed
+      return (
+        <video
+          ref={videoRef}
+          autoPlay
+          className="w-full h-full object-cover"
+        />
+      );
+    }
+    // Show the selected photo
+    const currentPhoto = photos[selectedPhotoIndex];
+    if (!currentPhoto || currentPhoto.images.length === 0) {
+      // If no images or there's an error (or still generating), we can show a placeholder
+      // but let's just show an empty area or an error message
+      if (currentPhoto?.error) {
+        return (
+          <div className="fullscreen-photo-container">
+            <div className="text-red-500 p-4">
+              {currentPhoto.error}
+            </div>
+          </div>
+        );
+      } else {
+        // Generating
+        return (
+          <div className="fullscreen-photo-container">
+            <div className="animate-pulse text-gray-300 text-3xl">Generating...</div>
+          </div>
+        );
+      }
+    }
+    // Show the selected image from the stack
+    const imageUrl = currentPhoto.images[selectedSubIndex];
     return (
-      <div className="modal-overlay" onClick={() => setSelectedPhotoIndex(null)}>
-        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-          <img src={photo.url} alt="Full Screen" />
-          <button
-            className="close-button"
-            onClick={() => setSelectedPhotoIndex(null)}
-          >
-            X
-          </button>
+      <div className="fullscreen-photo-container">
+        <img src={imageUrl} alt="Selected" className="max-h-full max-w-full object-contain" />
+        {/* Show "X/Y" in top-right corner */}
+        <div className="stack-index-indicator">
+          {selectedSubIndex + 1}/{currentPhoto.images.length}
         </div>
       </div>
     );
   };
 
-  return (
-    <div className="relative flex flex-col w-full h-screen items-center justify-center">
-      <video
-        ref={videoRef}
-        autoPlay
-        className="w-full h-full object-cover"
-      />
-
-      <canvas ref={canvasRef} className="hidden" />
-
-      {/* Style selector and "Take Photo" button */}
+  /**
+   * Renders the floating style selector + "Take Photo" button
+   */
+  const renderControls = () => {
+    return (
       <div className="absolute top-4 left-4 bg-gray-800 bg-opacity-70 p-4 rounded-lg shadow-xl">
         <select
           className="px-4 py-2 rounded bg-gray-700 mb-2 outline-none"
@@ -301,6 +353,97 @@ const App = () => {
           </button>
         )}
       </div>
+    );
+  };
+
+  /**
+   * Renders the thumbnail gallery for all generated photos (bottom strip).
+   */
+  const renderGallery = () => {
+    return (
+      <div className="thumbnail-gallery absolute bottom-0 left-0 right-0">
+        {photos.map((photo, i) => {
+          const isSelected = i === selectedPhotoIndex;
+
+          // If still generating or has error, we show placeholders
+          if (photo.generating && photo.images.length === 0) {
+            return (
+              <div
+                key={photo.id}
+                className="flex items-center justify-center text-gray-300 bg-gray-700 w-20 h-20 animate-pulse"
+              >
+                ...
+              </div>
+            );
+          }
+
+          if (photo.error && photo.images.length === 0) {
+            // Error placeholder
+            return (
+              <div
+                key={photo.id}
+                className="flex items-center justify-center text-red-500 bg-gray-700 w-20 h-20"
+              >
+                Err
+              </div>
+            );
+          }
+
+          // Show the first image in the stack as the thumbnail preview
+          // If we have images, pick the 0th. If empty, fallback to placeholder
+          const thumbnailUrl = photo.images[0] || '';
+
+          return (
+            <div
+              key={photo.id}
+              className="thumbnail-container"
+            >
+              {/* "X" delete button in top-left corner of the thumbnail */}
+              {isSelected && (
+                <div
+                  className="thumbnail-delete-button"
+                  onClick={() => handleDeletePhoto(i)}
+                >
+                  X
+                </div>
+              )}
+
+              <img
+                src={thumbnailUrl}
+                alt={`Generated #${i}`}
+                className={`thumbnail ${isSelected ? 'selected' : ''}`}
+                onClick={() => {
+                  setSelectedPhotoIndex(i);
+                  setSelectedSubIndex(0);
+                }}
+              />
+
+              {/* If there's a stack of images, show "xN" in bottom-right corner */}
+              {photo.images.length > 1 && (
+                <div className="stack-count">
+                  x{photo.images.length}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // --------------------------
+  //  Main Component Return
+  // --------------------------
+  return (
+    <div className="relative flex flex-col w-full h-screen items-center justify-center">
+      {/* Main area: either video or selected photo */}
+      {renderMainArea()}
+
+      {/* Hidden canvas for capturing frames */}
+      <canvas ref={canvasRef} className="hidden" />
+
+      {/* Floating controls in top-left */}
+      {renderControls()}
 
       {/* Countdown overlay */}
       {countdown > 0 && (
@@ -316,9 +459,6 @@ const App = () => {
 
       {/* Thumbnail gallery at the bottom */}
       {renderGallery()}
-
-      {/* Full-screen image modal */}
-      {renderModal()}
     </div>
   );
 };
