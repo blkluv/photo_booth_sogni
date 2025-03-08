@@ -5,23 +5,26 @@ import { SogniClient } from "@sogni-ai/sogni-client";
  * Prompts for each style, used when generating images with Sogni
  */
 const stylePrompts = {
-  gorillaz: `A vibrant, stylized cartoon band portrait inspired by the edgy, urban comic style of "Gorillaz." Bold, inky outlines and gritty details, with slightly exaggerated facial features and a rebellious attitude. A blend of punk, hip-hop, and futuristic aesthetics. Characters posed in front of a graffiti-covered cityscape, evoking the moody, dystopian vibe of modern pop culture. Sharp contrasts and dramatic shadows, muted yet punchy color palette, clean character silhouettes, high detail, cinematic lighting. 4K resolution, high-quality illustration.`,
-  anime: `A colorful and vibrant anime-style portrait, highly detailed with smooth shading, expressive large eyes, dynamic pose, and clean lines. Soft yet vivid color palette, captivating expression, detailed background with Japanese-inspired elements, cinematic lighting, and high-resolution.`
+  anime: `A colorful and vibrant anime-style portrait, highly detailed with smooth shading, expressive large eyes, dynamic pose, and clean lines. Soft yet vivid color palette, captivating expression, detailed background with Japanese-inspired elements, cinematic lighting, and high-resolution.`,
+  gorillaz: `A vibrant, stylized cartoon band portrait inspired by the edgy, urban comic style of "Gorillaz." Bold, inky outlines and gritty details, with slightly exaggerated facial features and a rebellious attitude. A blend of punk, hip-hop, and futuristic aesthetics, set against a graffiti-covered cityscape.`,
+  disney: `A magical, whimsical Disney-inspired portrait with bright colors, large expressive eyes, soft outlines, and a fairytale atmosphere. Princess-like attire, dreamy background elements, and a charming, uplifting mood.`,
+  pixelArt: `A retro pixel art style portrait with 8-bit color palette, blocky forms, and visible pixelation. Nostalgic and charming, reminiscent of classic arcade or console games from the 80s and 90s.`,
+  steampunk: `A retro-futuristic steampunk style portrait featuring brass goggles, gears, clockwork elements, Victorian fashion, and a smoky, industrial atmosphere. Intricate mechanical details, warm metallic tones, and a sense of invention.`,
+  vaporwave: `A dreamy, neon vaporwave portrait with pastel gradients, retro 80s aesthetics, glitch effects, palm trees, and classic Greek statue motifs. Vibrant pink, purple, and cyan color palette, set in a cyber-futuristic cityscape.`
 };
 
 const App = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
-  // The style selected by the user (anime/gorillaz).
+  // The style selected by the user
   const [selectedStyle, setSelectedStyle] = useState('anime');
 
   // An array of photos the user has generated:
   // Each item is { id, generating, images: array of strings, error }.
   const [photos, setPhotos] = useState([]);
 
-  // The currently selected photo index (for "fullscreen" mode).
-  // If null, we're showing the live webcam.
+  // The currently selected photo index in the strip (null => live webcam)
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(null);
 
   // Within a selected photo, which image in its stack are we displaying?
@@ -43,13 +46,19 @@ const App = () => {
   // --------------------------
   useEffect(() => {
     // Start the webcam feed when the component mounts.
-    navigator.mediaDevices.getUserMedia({ video: true })
+    navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: 'user' // front-facing camera
+      }
+    })
       .then(stream => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
         }
       })
-      .catch(err => alert(`Error accessing webcam: ${err}`));
+      .catch(err => {
+        alert(`Error accessing webcam: ${err}`);
+      });
   }, []);
 
   useEffect(() => {
@@ -78,7 +87,9 @@ const App = () => {
     initSogni();
   }, []);
 
-  // Handle keyboard events for cycling photos/sub-images
+  // --------------------------
+  //  Keyboard Navigation
+  // --------------------------
   const handleKeyDown = useCallback((e) => {
     // Only if a photo is selected
     if (selectedPhotoIndex !== null) {
@@ -100,7 +111,7 @@ const App = () => {
           return newIdx;
         });
       }
-      // Up arrow: previous image in stack
+      // Up arrow: previous image in the current photo's stack
       else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setSelectedSubIndex((subIdx) => {
@@ -108,7 +119,7 @@ const App = () => {
           return Math.max(0, subIdx - 1);
         });
       }
-      // Down arrow: next image in stack
+      // Down arrow: next image in the stack
       else if (e.key === 'ArrowDown') {
         e.preventDefault();
         setSelectedSubIndex((subIdx) => {
@@ -168,10 +179,10 @@ const App = () => {
 
   /**
    * Captures the current frame from webcam, sends it to Sogni for generation,
-   * and adds a new item to the 'photos' list. (Now with numberOfImages=4)
+   * and adds a new item to the 'photos' list. (With numberOfImages=4)
    */
   const captureAndSend = async () => {
-    // Create a placeholder photo entry for "generating" in the photos array.
+    // Create a placeholder photo entry for "generating"
     const newPhoto = {
       id: Date.now(),
       generating: true,
@@ -261,27 +272,29 @@ const App = () => {
       setSelectedPhotoIndex(null);
       setSelectedSubIndex(0);
     } else if (photoIndex < selectedPhotoIndex) {
-      // If we delete something before the current selection, shift the selection index by -1
+      // If we delete something before the current selection, shift the selection index
       setSelectedPhotoIndex((idx) => idx - 1);
     }
   };
 
   // --------------------------
-  //  Rendering
+  //  Main Area Rendering
   // --------------------------
-
   /**
-   * Render the main area:
+   * Renders the main area:
    * - If no photo is selected, show the live video
    * - If a photo is selected, show that subIndex image
+   *   (clicking on it cycles to the next image in its stack)
    */
   const renderMainArea = () => {
     if (selectedPhotoIndex == null) {
-      // Show the video feed
+      // Show the video feed (with iOS Safari fix: playsInline, muted)
       return (
         <video
           ref={videoRef}
           autoPlay
+          playsInline
+          muted
           className="w-full h-full object-cover"
         />
       );
@@ -289,8 +302,7 @@ const App = () => {
     // Show the selected photo
     const currentPhoto = photos[selectedPhotoIndex];
     if (!currentPhoto || currentPhoto.images.length === 0) {
-      // If no images or there's an error (or still generating), we can show a placeholder
-      // but let's just show an empty area or an error message
+      // If no images or there's an error (or still generating), show a placeholder
       if (currentPhoto?.error) {
         return (
           <div className="fullscreen-photo-container">
@@ -310,9 +322,23 @@ const App = () => {
     }
     // Show the selected image from the stack
     const imageUrl = currentPhoto.images[selectedSubIndex];
+
+    // When we click on the image, go to next index in the stack (wrap around)
+    const handleImageClick = () => {
+      setSelectedSubIndex((prev) => {
+        const max = currentPhoto.images.length;
+        return (prev + 1) % max;
+      });
+    };
+
     return (
       <div className="fullscreen-photo-container">
-        <img src={imageUrl} alt="Selected" className="max-h-full max-w-full object-contain" />
+        <img
+          src={imageUrl}
+          alt="Selected"
+          className="max-h-full max-w-full object-contain cursor-pointer"
+          onClick={handleImageClick}
+        />
         {/* Show "X/Y" in top-right corner */}
         <div className="stack-index-indicator">
           {selectedSubIndex + 1}/{currentPhoto.images.length}
@@ -321,10 +347,30 @@ const App = () => {
     );
   };
 
+  // --------------------------
+  //  Controls Rendering
+  // --------------------------
   /**
-   * Renders the floating style selector + "Take Photo" button
+   * We keep the label "Take Photo" on the button at all times,
+   * but if a photo is selected, the button is half-dimmed
+   * and clicking it simply goes back to the camera feed (instead of capturing).
+   * Once the camera feed is showing, the next click does the normal capture flow.
    */
+  const handleTakePhotoButtonClick = () => {
+    if (selectedPhotoIndex !== null) {
+      // Currently in "preview mode"
+      // => Switch back to camera feed
+      setSelectedPhotoIndex(null);
+      setSelectedSubIndex(0);
+    } else {
+      // Currently in camera mode => proceed with normal "take photo" flow
+      handleTakePhoto();
+    }
+  };
+
   const renderControls = () => {
+    const isInPreview = selectedPhotoIndex !== null;
+
     return (
       <div className="absolute top-4 left-4 bg-gray-800 bg-opacity-70 p-4 rounded-lg shadow-xl">
         <select
@@ -334,30 +380,30 @@ const App = () => {
         >
           <option value="anime">Anime</option>
           <option value="gorillaz">Gorillaz</option>
+          <option value="disney">Disney</option>
+          <option value="pixelArt">Pixel Art</option>
+          <option value="steampunk">Steampunk</option>
+          <option value="vaporwave">Vaporwave</option>
         </select>
 
-        {countdown > 0 ? (
-          <button
-            className="px-4 py-2 bg-blue-600 rounded opacity-50 cursor-default"
-            disabled
-          >
-            {countdown}
-          </button>
-        ) : (
-          <button
-            className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700 transition"
-            onClick={handleTakePhoto}
-            disabled={!isSogniReady}
-          >
-            {isSogniReady ? 'Take Photo' : 'Loading...'}
-          </button>
-        )}
+        <button
+          className={`px-4 py-2 rounded hover:bg-blue-700 transition ${
+            isSogniReady ? 'bg-blue-600' : 'bg-gray-500 cursor-not-allowed'
+          } ${isInPreview ? 'opacity-50' : ''}`}
+          onClick={handleTakePhotoButtonClick}
+          disabled={!isSogniReady}
+        >
+          Take Photo
+        </button>
       </div>
     );
   };
 
+  // --------------------------
+  //  Thumbnails Rendering
+  // --------------------------
   /**
-   * Renders the thumbnail gallery for all generated photos (bottom strip).
+   * Renders the thumbnail gallery at the bottom
    */
   const renderGallery = () => {
     return (
@@ -390,7 +436,6 @@ const App = () => {
           }
 
           // Show the first image in the stack as the thumbnail preview
-          // If we have images, pick the 0th. If empty, fallback to placeholder
           const thumbnailUrl = photo.images[0] || '';
 
           return (
@@ -398,7 +443,7 @@ const App = () => {
               key={photo.id}
               className="thumbnail-container"
             >
-              {/* "X" delete button in top-left corner of the thumbnail */}
+              {/* "X" delete button in top-left corner if selected */}
               {isSelected && (
                 <div
                   className="thumbnail-delete-button"

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build-prod": "npm run build && rsync -ar --progress dist/ sogni:/var/www/superapps.sogni.ai/webcam/",
+    "build-prod": "npm run build && rsync -ar --progress dist/ sogni:/var/www/superapps.sogni.ai/photobooth/",
     "preview": "vite preview"
   },
   "dependencies": {
