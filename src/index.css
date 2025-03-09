@@ -51,8 +51,9 @@ body {
 }
 
 /* "X" delete button in top-left corner of the thumbnail */
+/* Changed from text-red-500 to text-white */
 .thumbnail-delete-button {
-  @apply absolute top-0 left-0 text-red-500 bg-gray-900 bg-opacity-70 p-1 rounded-br cursor-pointer hover:bg-opacity-90;
+  @apply absolute top-0 left-0 text-white bg-gray-900 bg-opacity-70 p-1 rounded-br cursor-pointer hover:bg-opacity-90;
   font-weight: bold;
 }
 
