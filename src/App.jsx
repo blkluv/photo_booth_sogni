@@ -42,15 +42,40 @@ const App = () => {
   // Realism from 0-100, default 45 -> used for startingImageStrength
   const [realism, setRealism] = useState(45);
 
-  // Reuse a single Sogni client instance across captures
+  // Sogni client state
   const [sogniClient, setSogniClient] = useState(null);
   const [isSogniReady, setIsSogniReady] = useState(false);
+
+  // --------------------------
+  //  Sogni Initialization Function
+  // --------------------------
+  const initializeSogni = async () => {
+    try {
+      const sogni = await SogniClient.createInstance({
+        appId: import.meta.env.VITE_SOGNI_APP_ID,
+        testnet: true,
+        network: 'fast',
+        logLevel: 'warn',
+      });
+
+      await sogni.account.login(
+        import.meta.env.VITE_SOGNI_USERNAME,
+        import.meta.env.VITE_SOGNI_PASSWORD
+      );
+
+      setSogniClient(sogni);
+      setIsSogniReady(true);
+    } catch (error) {
+      alert(`Failed initializing Sogni client: ${error}`);
+    }
+  };
 
   // --------------------------
   //  Initialization
   // --------------------------
   useEffect(() => {
-    // Start the webcam feed when the component mounts
+    // Start the webcam feed when the component mounts.
+    // The video element is always mounted so the stream stays active.
     navigator.mediaDevices
       .getUserMedia({ video: { facingMode: 'user' } })
       .then(stream => {
@@ -64,39 +89,14 @@ const App = () => {
       .catch(err => {
         alert(`Error accessing webcam: ${err}`);
       });
-  }, []);
-
-  useEffect(() => {
-    // Create and log into Sogni once
-    const initSogni = async () => {
-      try {
-        const sogni = await SogniClient.createInstance({
-          appId: import.meta.env.VITE_SOGNI_APP_ID,
-          testnet: true,
-          network: 'fast',
-          logLevel: 'warn',
-        });
-
-        await sogni.account.login(
-          import.meta.env.VITE_SOGNI_USERNAME,
-          import.meta.env.VITE_SOGNI_PASSWORD
-        );
-
-        setSogniClient(sogni);
-        setIsSogniReady(true);
-      } catch (error) {
-        alert(`Failed initializing Sogni client: ${error}`);
-      }
-    };
-
-    initSogni();
+    
+    // Initialize Sogni client on mount.
+    initializeSogni();
   }, []);
 
   // --------------------------
-  //  Ensure Webcam Resumes
+  //  (Optional) Ensure Webcam Resumes
   // --------------------------
-  // Whenever we return to "camera mode" (selectedPhotoIndex = null),
-  // try to play the video feed again in case the browser paused it.
   useEffect(() => {
     if (selectedPhotoIndex === null && videoRef.current) {
       videoRef.current.play().catch(err => {
@@ -115,7 +115,6 @@ const App = () => {
     });
   };
 
-  // If user selects a new photo, preload its images
   useEffect(() => {
     if (selectedPhotoIndex !== null && photos[selectedPhotoIndex]) {
       preloadImages(photos[selectedPhotoIndex].images);
@@ -126,12 +125,10 @@ const App = () => {
   //  Keyboard Navigation
   // --------------------------
   const handleKeyDown = useCallback((e) => {
-    // If a photo is selected, we can navigate or close
     if (selectedPhotoIndex !== null) {
       const currentPhoto = photos[selectedPhotoIndex];
       const maxImages = currentPhoto?.images?.length || 1;
 
-      // Close on Escape
       if (e.key === 'Escape') {
         setSelectedPhotoIndex(null);
         setSelectedSubIndex(0);
@@ -139,19 +136,15 @@ const App = () => {
       }
 
       if (maxImages > 1) {
-        // Up arrow: previous image in the stack (loop around)
         if (e.key === 'ArrowUp') {
           e.preventDefault();
           setSelectedSubIndex((subIdx) => (subIdx - 1 + maxImages) % maxImages);
-        }
-        // Down arrow: next image in the stack (loop around)
-        else if (e.key === 'ArrowDown') {
+        } else if (e.key === 'ArrowDown') {
           e.preventDefault();
           setSelectedSubIndex((subIdx) => (subIdx + 1) % maxImages);
         }
       }
 
-      // Left arrow: previous photo in the strip
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
         setSelectedPhotoIndex((idx) => {
@@ -159,9 +152,7 @@ const App = () => {
           setSelectedSubIndex(0);
           return newIdx;
         });
-      }
-      // Right arrow: next photo in the strip
-      else if (e.key === 'ArrowRight') {
+      } else if (e.key === 'ArrowRight') {
         e.preventDefault();
         setSelectedPhotoIndex((idx) => {
           const newIdx = Math.min(photos.length - 1, idx + 1);
@@ -273,6 +264,12 @@ const App = () => {
           });
         });
       } catch (err) {
+        // Check for the socket error and reinitialize Sogni if needed.
+        if (err && err.code === 4015) {
+          console.warn("Socket error detected (code 4015). Reinitializing Sogni client.");
+          setIsSogniReady(false);
+          initializeSogni();
+        }
         setPhotos((prevPhotos) => {
           const updated = [...prevPhotos];
           updated[newPhotoIndex] = {
@@ -299,22 +296,12 @@ const App = () => {
 
     setSelectedPhotoIndex((currentIndex) => {
       if (currentIndex === null) return null;
-
       if (currentIndex === photoIndex) {
-        // Deleting the currently selected photo
         const newIndex = currentIndex - 1;
-        if (newIndex < 0) {
-          // There's no previous -> revert to camera
-          return null;
-        } else {
-          // Select the previous thumbnail
-          return newIndex;
-        }
+        return newIndex < 0 ? null : newIndex;
       } else if (photoIndex < currentIndex) {
-        // If we removed a photo before the current, shift index left
         return currentIndex - 1;
       }
-      // Else no change
       return currentIndex;
     });
     setSelectedSubIndex(0);
@@ -323,86 +310,79 @@ const App = () => {
   // --------------------------
   //  Main Area
   // --------------------------
-  /**
-   * Renders the main area:
-   * - If no photo selected => show <video>
-   * - If a photo is selected => show that image (with subIndex)
-   */
   const renderMainArea = () => {
-    if (selectedPhotoIndex === null) {
-      // Show webcam
-      return (
+    return (
+      <div className="relative w-full h-full">
+        {/* Always rendered video element */}
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted
-          className="w-full h-full object-cover"
-        />
-      );
-    }
-
-    // Show the selected photo
-    const currentPhoto = photos[selectedPhotoIndex];
-    if (!currentPhoto) {
-      return null; // Shouldn't happen, but safe guard
-    }
-
-    // If still generating or if there's an error with no images
-    if (currentPhoto.generating && currentPhoto.images.length === 0) {
-      return (
-        <div className="fullscreen-photo-container">
-          <button
-            onClick={() => setSelectedPhotoIndex(null)}
-            className="absolute top-4 right-4 bg-gray-800 text-white px-2 py-1 rounded shadow"
-          >
-            Close
-          </button>
-          <div className="animate-pulse text-gray-300 text-3xl">Generating...</div>
-        </div>
-      );
-    }
-    if (currentPhoto.error && currentPhoto.images.length === 0) {
-      return (
-        <div className="fullscreen-photo-container">
-          <button
-            onClick={() => setSelectedPhotoIndex(null)}
-            className="absolute top-4 right-4 bg-gray-800 text-white px-2 py-1 rounded shadow"
-          >
-            Close
-          </button>
-          <div className="text-red-500 p-4">{currentPhoto.error}</div>
-        </div>
-      );
-    }
-
-    // If we have images, show the selected one
-    const imageUrl = currentPhoto.images[selectedSubIndex];
-    const handleImageClick = () => {
-      // Cycle to next image in the stack, if multiple
-      const max = currentPhoto.images.length;
-      setSelectedSubIndex((prev) => (prev + 1) % max);
-    };
-
-    return (
-      <div className="fullscreen-photo-container">
-        <button
-          onClick={() => setSelectedPhotoIndex(null)}
-          className="absolute top-4 right-4 bg-gray-800 text-white px-2 py-1 rounded shadow"
-        >
-          Close
-        </button>
-
-        <img
-          src={imageUrl}
-          alt="Selected"
-          className="max-h-full max-w-full object-contain cursor-pointer"
-          onClick={handleImageClick}
+          className="w-full h-full object-cover absolute inset-0"
         />
 
-        <div className="stack-index-indicator">
-          {selectedSubIndex + 1}/{currentPhoto.images.length}
-        </div>
+        {/* Photo viewer overlay */}
+        {selectedPhotoIndex !== null && (() => {
+          const currentPhoto = photos[selectedPhotoIndex];
+          if (!currentPhoto) return null;
+
+          if (currentPhoto.generating && currentPhoto.images.length === 0) {
+            return (
+              <div className="fullscreen-photo-container absolute inset-0 flex flex-col items-center justify-center">
+                <button
+                  onClick={() => setSelectedPhotoIndex(null)}
+                  className="absolute top-4 right-4 bg-gray-800 text-white px-2 py-1 rounded shadow"
+                >
+                  Close
+                </button>
+                <div className="animate-pulse text-gray-300 text-3xl">Generating...</div>
+              </div>
+            );
+          }
+
+          if (currentPhoto.error && currentPhoto.images.length === 0) {
+            return (
+              <div className="fullscreen-photo-container absolute inset-0 flex flex-col items-center justify-center">
+                <button
+                  onClick={() => setSelectedPhotoIndex(null)}
+                  className="absolute top-4 right-4 bg-gray-800 text-white px-2 py-1 rounded shadow"
+                >
+                  Close
+                </button>
+                <div className="text-red-500 p-4">{currentPhoto.error}</div>
+              </div>
+            );
+          }
+
+          const imageUrl = currentPhoto.images[selectedSubIndex];
+          const handleImageClick = () => {
+            const max = currentPhoto.images.length;
+            setSelectedSubIndex((prev) => (prev + 1) % max);
+          };
+
+          return (
+            <div className="fullscreen-photo-container absolute inset-0 flex items-center justify-center">
+              <button
+                onClick={() => setSelectedPhotoIndex(null)}
+                className="absolute top-4 right-4 bg-gray-800 text-white px-2 py-1 rounded shadow"
+              >
+                Close
+              </button>
+
+              <img
+                src={imageUrl}
+                alt="Selected"
+                className="max-h-full max-w-full object-contain cursor-pointer"
+                onClick={handleImageClick}
+              />
+
+              <div className="stack-index-indicator absolute top-4 right-16 text-xl bg-black bg-opacity-70 py-1 px-2 rounded">
+                {selectedSubIndex + 1}/{currentPhoto.images.length}
+              </div>
+            </div>
+          );
+        })()}
       </div>
     );
   };
@@ -410,18 +390,11 @@ const App = () => {
   // --------------------------
   //  Controls
   // --------------------------
-  /**
-   * "Take Photo" toggles:
-   * - If a photo is selected -> revert to camera
-   * - Else, actually take photo
-   */
   const handleTakePhotoButtonClick = () => {
     if (selectedPhotoIndex !== null) {
-      // Close the selected photo
       setSelectedPhotoIndex(null);
       setSelectedSubIndex(0);
     } else {
-      // Take a photo
       handleTakePhoto();
     }
   };
@@ -473,7 +446,6 @@ const App = () => {
         {/* Settings panel */}
         {showSettings && (
           <div className="bg-gray-700 p-3 rounded mt-2">
-            {/* Flash toggle */}
             <label className="flex items-center space-x-2 mb-2">
               <input
                 type="checkbox"
@@ -482,7 +454,6 @@ const App = () => {
               />
               <span>Flash</span>
             </label>
-            {/* Realism slider */}
             <label className="flex flex-col space-y-1">
               <span>Realism: {realism}%</span>
               <input
@@ -508,7 +479,6 @@ const App = () => {
         {photos.map((photo, i) => {
           const isSelected = i === selectedPhotoIndex;
 
-          // If still generating or error
           if (photo.generating && photo.images.length === 0) {
             return (
               <div
@@ -530,20 +500,14 @@ const App = () => {
             );
           }
 
-          // Show the first image in the stack as the thumbnail preview
           const thumbUrl = photo.images[0] || '';
-
-          // Clicking a thumbnail => select it
           const handleThumbClick = () => {
             setSelectedPhotoIndex(i);
             setSelectedSubIndex(0);
           };
 
           return (
-            <div
-              key={photo.id}
-              className="thumbnail-container"
-            >
+            <div key={photo.id} className="thumbnail-container">
               {isSelected && (
                 <div
                   className="thumbnail-delete-button"
@@ -577,26 +541,15 @@ const App = () => {
   // --------------------------
   return (
     <div className="relative flex flex-col w-full h-screen items-center justify-center">
-      {/* Main area (video or selected photo) */}
       {renderMainArea()}
-
-      {/* Hidden canvas for capturing frames */}
       <canvas ref={canvasRef} className="hidden" />
-
-      {/* Floating controls in top-left */}
       {renderControls()}
-
-      {/* Countdown overlay */}
       {countdown > 0 && (
         <div className="countdown-overlay">
           {countdown}
         </div>
       )}
-
-      {/* Flash overlay */}
       {showFlash && <div className="flash-overlay" />}
-
-      {/* Thumbnail gallery at the bottom */}
       {renderGallery()}
     </div>
   );
