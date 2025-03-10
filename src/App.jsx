@@ -1,3 +1,5 @@
+// ./src/App.jsx
+
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { SogniClient } from "@sogni-ai/sogni-client";
 
@@ -47,6 +49,34 @@ async function resizeDataUrl(dataUrl, width, height) {
     };
     img.src = dataUrl;
   });
+}
+
+/**
+ * Calls the describe_image_upload API to get a textual description
+ * of the given photo blob.
+ */
+async function describeImage(photoBlob) {
+  const formData = new FormData();
+  formData.append("file", photoBlob, "photo.png");
+
+  try {
+    const response = await fetch("https://prompt.sogni.ai/describe_image_upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      console.warn("API describe_image_upload returned non-OK", response.statusText);
+      return "";
+    }
+
+    const json = await response.json();
+    // the API returns { "description": "...some text..." }
+    return json.description || "";
+  } catch (error) {
+    console.error("Error describing image:", error);
+    return "";
+  }
 }
 
 const App = () => {
@@ -276,14 +306,24 @@ const App = () => {
     canvas.toBlob(async (blob) => {
       if (!blob) return;
       try {
-        const arrayBuffer = await blob.arrayBuffer();
+        // 1) Get the style prompt
         const stylePrompt = (selectedStyle === 'custom')
           ? (customPrompt || 'A custom style portrait')
           : defaultStylePrompts[selectedStyle];
 
+        // 2) Call the describeImage API to get a textual description of the photo
+        const photoDescription = await describeImage(blob);
+
+        // 3) Combine them for a more relevant final prompt
+        //    For example, append them: style + “\n” + description
+        const combinedPrompt = stylePrompt + '\n' + photoDescription;
+
+        // 4) Send to Sogni
+        const arrayBuffer = await blob.arrayBuffer();
         const project = await sogniClient.projects.create({
           modelId: 'flux1-schnell-fp8',
-          positivePrompt: stylePrompt,
+          // Use the combined prompt
+          positivePrompt: combinedPrompt,
           sizePreset,
           steps: 4,
           guidance: 1,
