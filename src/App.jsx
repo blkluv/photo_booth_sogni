@@ -2,53 +2,91 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { SogniClient } from "@sogni-ai/sogni-client";
 
 /**
- * Prompts for each style, used when generating images with Sogni
+ * Default style prompts
  */
-const stylePrompts = {
+const defaultStylePrompts = {
   anime: `A colorful and vibrant anime-style portrait, highly detailed with smooth shading, expressive large eyes, dynamic pose, and clean lines. Soft yet vivid color palette, captivating expression, detailed background with Japanese-inspired elements, cinematic lighting, and high-resolution.`,
   gorillaz: `A vibrant, stylized cartoon band portrait inspired by the edgy, urban comic style of "Gorillaz." Bold, inky outlines and gritty details, with slightly exaggerated facial features and a rebellious attitude. A blend of punk, hip-hop, and futuristic aesthetics, set against a graffiti-covered cityscape.`,
   disney: `A magical, whimsical Disney-inspired portrait with bright colors, large expressive eyes, soft outlines, and a fairytale atmosphere. Princess-like attire, dreamy background elements, and a charming, uplifting mood.`,
   pixelArt: `A retro pixel art style portrait with 8-bit color palette, blocky forms, and visible pixelation. Nostalgic and charming, reminiscent of classic arcade or console games from the 80s and 90s.`,
   steampunk: `A retro-futuristic steampunk style portrait featuring brass goggles, gears, clockwork elements, Victorian fashion, and a smoky, industrial atmosphere. Intricate mechanical details, warm metallic tones, and a sense of invention.`,
-  vaporwave: `A dreamy, neon vaporwave portrait with pastel gradients, retro 80s aesthetics, glitch effects, palm trees, and classic Greek statue motifs. Vibrant pink, purple, and cyan color palette, set in a cyber-futuristic cityscape.`
+  vaporwave: `A dreamy, neon vaporwave portrait with pastel gradients, retro 80s aesthetics, glitch effects, palm trees, and classic Greek statue motifs. Vibrant pink, purple, and cyan color palette, set in a cyber-futuristic cityscape.`,
+  custom: ``,
 };
+
+/** 
+ * Return width/height for a given Sogni sizePreset 
+ */
+function getSizeForPreset(preset) {
+  switch (preset) {
+    case 'portrait_7_9':
+      return { width: 512, height: 640 };
+    case 'landscape_9_7':
+      return { width: 640, height: 512 };
+    default:
+      return { width: 512, height: 640 };
+  }
+}
+
+/** 
+ * Helper: resize dataURL to match Sogni output dimension
+ */
+async function resizeDataUrl(dataUrl, width, height) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      // fill black to avoid any transparent edges
+      ctx.fillStyle = 'black';
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.src = dataUrl;
+  });
+}
 
 const App = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
-  // The style selected by the user
+  // Style selection
   const [selectedStyle, setSelectedStyle] = useState('anime');
+  const [customPrompt, setCustomPrompt] = useState('');
 
-  // An array of photos the user has generated:
-  // Each item is { id, generating, images: array of strings, error }.
+  // Photos array
+  // Each => { id, generating, images: string[], error, originalDataUrl?, newlyArrived?: boolean }
   const [photos, setPhotos] = useState([]);
 
-  // The currently selected photo index in the strip (null => show webcam)
+  // Index of currently selected photo (null => show webcam)
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(null);
-  // Which image in that photo's stack are we displaying?
+  // Which sub-image are we showing from that photo?
   const [selectedSubIndex, setSelectedSubIndex] = useState(0);
+  // Remember last rendered index for toggling with spacebar
+  const [lastViewedIndex, setLastViewedIndex] = useState(0);
 
-  // Countdown state: if > 0, shows countdown overlay, then triggers capture.
+  // Countdown 3..2..1
   const [countdown, setCountdown] = useState(0);
-
-  // Track whether we should show a flash overlay.
+  // Show flash overlay
   const [showFlash, setShowFlash] = useState(false);
 
-  // Show/hide the settings panel
+  // advanced settings
   const [showSettings, setShowSettings] = useState(false);
-  // Toggle flash on/off
   const [flashEnabled, setFlashEnabled] = useState(true);
-  // Realism from 0-100, default 45 -> used for startingImageStrength
   const [realism, setRealism] = useState(45);
+  // keep original (5th) by default
+  const [keepOriginalPhoto, setKeepOriginalPhoto] = useState(true);
 
-  // Sogni client state
+  // Sogni
   const [sogniClient, setSogniClient] = useState(null);
   const [isSogniReady, setIsSogniReady] = useState(false);
 
-  // --------------------------
-  //  Sogni Initialization Function
-  // --------------------------
+  // -------------------------
+  //   Sogni initialization
+  // -------------------------
   const initializeSogni = async () => {
     try {
       const sogni = await SogniClient.createInstance({
@@ -70,12 +108,8 @@ const App = () => {
     }
   };
 
-  // --------------------------
-  //  Initialization
-  // --------------------------
+  // On mount: start webcam + init sogni
   useEffect(() => {
-    // Start the webcam feed when the component mounts.
-    // The video element is always mounted so the stream stays active.
     navigator.mediaDevices
       .getUserMedia({ video: { facingMode: 'user' } })
       .then(stream => {
@@ -90,13 +124,10 @@ const App = () => {
         alert(`Error accessing webcam: ${err}`);
       });
     
-    // Initialize Sogni client on mount.
     initializeSogni();
   }, []);
 
-  // --------------------------
-  //  (Optional) Ensure Webcam Resumes
-  // --------------------------
+  // If we return to camera, ensure the video is playing
   useEffect(() => {
     if (selectedPhotoIndex === null && videoRef.current) {
       videoRef.current.play().catch(err => {
@@ -105,46 +136,41 @@ const App = () => {
     }
   }, [selectedPhotoIndex]);
 
-  // --------------------------
-  //  Preload Images
-  // --------------------------
-  const preloadImages = (urls) => {
-    urls.forEach((url) => {
-      const img = new Image();
-      img.src = url; // This starts loading in the background
-    });
-  };
-
+  // Preload images for the selected photo
   useEffect(() => {
     if (selectedPhotoIndex !== null && photos[selectedPhotoIndex]) {
-      preloadImages(photos[selectedPhotoIndex].images);
+      photos[selectedPhotoIndex].images.forEach((url) => {
+        const img = new Image();
+        img.src = url;
+      });
     }
   }, [selectedPhotoIndex, photos]);
 
-  // --------------------------
-  //  Keyboard Navigation
-  // --------------------------
+  // Keyboard navigation
   const handleKeyDown = useCallback((e) => {
     if (selectedPhotoIndex !== null) {
       const currentPhoto = photos[selectedPhotoIndex];
       const maxImages = currentPhoto?.images?.length || 1;
 
+      // ESC => close viewer
       if (e.key === 'Escape') {
         setSelectedPhotoIndex(null);
         setSelectedSubIndex(0);
         return;
       }
 
+      // up/down => subIndex
       if (maxImages > 1) {
         if (e.key === 'ArrowUp') {
           e.preventDefault();
-          setSelectedSubIndex((subIdx) => (subIdx - 1 + maxImages) % maxImages);
+          setSelectedSubIndex((prev) => (prev - 1 + maxImages) % maxImages);
         } else if (e.key === 'ArrowDown') {
           e.preventDefault();
-          setSelectedSubIndex((subIdx) => (subIdx + 1) % maxImages);
+          setSelectedSubIndex((prev) => (prev + 1) % maxImages);
         }
       }
 
+      // left/right => previous/next photo
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
         setSelectedPhotoIndex((idx) => {
@@ -160,29 +186,44 @@ const App = () => {
           return newIdx;
         });
       }
+
+      // space => toggle original (5th) if present
+      if (e.key === ' ' && maxImages === 5) {
+        e.preventDefault();
+        setSelectedSubIndex((prev) => {
+          if (prev === 4) {
+            // if on original, go back
+            return lastViewedIndex;
+          } else {
+            // if on a rendered image, store that, go original
+            setLastViewedIndex(prev);
+            return 4;
+          }
+        });
+      }
     }
-  }, [selectedPhotoIndex, photos]);
+  }, [selectedPhotoIndex, photos, lastViewedIndex]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  // --------------------------
-  //  Capturing / Sogni logic
-  // --------------------------
+  // -------------------------
+  //   Capture / Sogni logic
+  // -------------------------
   const handleTakePhoto = () => {
     if (!isSogniReady) {
-      alert('Sogni is not ready yet. Try again in a moment.');
+      alert('Sogni is not ready yet.');
       return;
     }
 
-    // Start countdown from 3
+    // Start a 3-second countdown
     setCountdown(3);
-    const countdownInterval = setInterval(() => {
+    const interval = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          clearInterval(countdownInterval);
+          clearInterval(interval);
           triggerFlashAndCapture();
           return 0;
         }
@@ -204,31 +245,46 @@ const App = () => {
   };
 
   const captureAndSend = async () => {
+    // orientation for Sogni
+    const isPortrait = window.innerHeight > window.innerWidth;
+    const sizePreset = isPortrait ? "portrait_7_9" : "landscape_9_7";
+
+    // Create new photo object
     const newPhoto = {
       id: Date.now(),
       generating: true,
       images: [],
       error: null,
+      originalDataUrl: null,
+      newlyArrived: false,
     };
     setPhotos((prev) => [...prev, newPhoto]);
-    const newPhotoIndex = photos.length; // index for this new photo
+    const newPhotoIndex = photos.length;
 
-    // Draw the current video frame onto a canvas
+    // Draw from video
     const canvas = canvasRef.current;
     const video = videoRef.current;
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Convert canvas to blob -> array buffer -> send to Sogni
-    canvas.toBlob(async (snapshotBlob) => {
+    // store original dataURL
+    const dataUrl = canvas.toDataURL('image/png');
+    newPhoto.originalDataUrl = dataUrl;
+
+    // Convert to arrayBuffer -> Sogni
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
       try {
-        const arrayBuffer = await snapshotBlob.arrayBuffer();
+        const arrayBuffer = await blob.arrayBuffer();
+        const stylePrompt = (selectedStyle === 'custom')
+          ? (customPrompt || 'A custom style portrait')
+          : defaultStylePrompts[selectedStyle];
 
         const project = await sogniClient.projects.create({
           modelId: 'flux1-schnell-fp8',
-          positivePrompt: stylePrompts[selectedStyle],
-          sizePreset: "landscape_9_7",
+          positivePrompt: stylePrompt,
+          sizePreset,
           steps: 4,
           guidance: 1,
           numberOfImages: 4,
@@ -238,14 +294,25 @@ const App = () => {
           timeStepSpacing: 'Karras',
         });
 
-        project.on('completed', (data) => {
+        project.on('completed', async (generated) => {
+          let finalImages = [...generated];
+
+          // If keep original, resize + add as 5th
+          if (keepOriginalPhoto && newPhoto.originalDataUrl) {
+            const { width, height } = getSizeForPreset(sizePreset);
+            const resizedOriginal = await resizeDataUrl(
+              newPhoto.originalDataUrl, width, height
+            );
+            finalImages.push(resizedOriginal);
+          }
+
           setPhotos((prevPhotos) => {
             const updated = [...prevPhotos];
             updated[newPhotoIndex] = {
               ...updated[newPhotoIndex],
               generating: false,
-              images: data,
-              error: null,
+              images: finalImages,
+              newlyArrived: true,
             };
             return updated;
           });
@@ -264,9 +331,9 @@ const App = () => {
           });
         });
       } catch (err) {
-        // Check for the socket error and reinitialize Sogni if needed.
+        // possibly re-init on socket error
         if (err && err.code === 4015) {
-          console.warn("Socket error detected (code 4015). Reinitializing Sogni client.");
+          console.warn("Socket error (4015). Re-initializing Sogni.");
           setIsSogniReady(false);
           initializeSogni();
         }
@@ -284,9 +351,7 @@ const App = () => {
     }, 'image/png');
   };
 
-  // --------------------------
-  //  Deletion
-  // --------------------------
+  // Delete photo
   const handleDeletePhoto = (photoIndex) => {
     setPhotos((prev) => {
       const newPhotos = [...prev];
@@ -294,118 +359,95 @@ const App = () => {
       return newPhotos;
     });
 
-    setSelectedPhotoIndex((currentIndex) => {
-      if (currentIndex === null) return null;
-      if (currentIndex === photoIndex) {
-        const newIndex = currentIndex - 1;
-        return newIndex < 0 ? null : newIndex;
-      } else if (photoIndex < currentIndex) {
-        return currentIndex - 1;
+    setSelectedPhotoIndex((current) => {
+      if (current === null) return null;
+      if (current === photoIndex) {
+        const newIdx = current - 1;
+        return newIdx < 0 ? null : newIdx;
+      } else if (photoIndex < current) {
+        return current - 1;
       }
-      return currentIndex;
+      return current;
     });
     setSelectedSubIndex(0);
   };
 
-  // --------------------------
-  //  Main Area
-  // --------------------------
-  const renderMainArea = () => {
+  // -------------------------
+  //   Main area (video)
+  // -------------------------
+  const renderMainArea = () => (
+    <div className="relative w-full h-full">
+      {/* The video behind everything */}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        className="w-full h-full object-cover"
+        style={{ height: '100%' }}
+      />
+    </div>
+  );
+
+  // -------------------------
+  //   Selected Photo Display
+  // -------------------------
+  const renderSelectedPhoto = () => {
+    const currentPhoto = photos[selectedPhotoIndex];
+    if (!currentPhoto) return null;
+
+    // If still generating and no images, show "Generating"
+    if (currentPhoto.generating && currentPhoto.images.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center">
+          <div className="animate-pulse text-gray-300 text-3xl">
+            Generating...
+          </div>
+        </div>
+      );
+    }
+
+    // If error and no images, show error
+    if (currentPhoto.error && currentPhoto.images.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center">
+          <div className="text-red-500 p-4">{currentPhoto.error}</div>
+        </div>
+      );
+    }
+
+    // Show whichever subIndex
+    const imageUrl = currentPhoto.images[selectedSubIndex];
+    const handleImageClick = () => {
+      if (currentPhoto.images.length > 1) {
+        setSelectedSubIndex((prev) => (prev + 1) % currentPhoto.images.length);
+      }
+    };
+
     return (
-      <div className="relative w-full h-full">
-        {/* Always rendered video element */}
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          className="w-full h-full object-cover absolute inset-0"
+      <>
+        <img
+          src={imageUrl}
+          alt="Selected"
+          className="max-h-full max-w-full object-contain cursor-pointer"
+          onClick={handleImageClick}
         />
-
-        {/* Photo viewer overlay */}
-        {selectedPhotoIndex !== null && (() => {
-          const currentPhoto = photos[selectedPhotoIndex];
-          if (!currentPhoto) return null;
-
-          if (currentPhoto.generating && currentPhoto.images.length === 0) {
-            return (
-              <div className="fullscreen-photo-container absolute inset-0 flex flex-col items-center justify-center">
-                <button
-                  onClick={() => setSelectedPhotoIndex(null)}
-                  className="absolute top-4 right-4 bg-gray-800 text-white px-2 py-1 rounded shadow"
-                >
-                  Close
-                </button>
-                <div className="animate-pulse text-gray-300 text-3xl">Generating...</div>
-              </div>
-            );
-          }
-
-          if (currentPhoto.error && currentPhoto.images.length === 0) {
-            return (
-              <div className="fullscreen-photo-container absolute inset-0 flex flex-col items-center justify-center">
-                <button
-                  onClick={() => setSelectedPhotoIndex(null)}
-                  className="absolute top-4 right-4 bg-gray-800 text-white px-2 py-1 rounded shadow"
-                >
-                  Close
-                </button>
-                <div className="text-red-500 p-4">{currentPhoto.error}</div>
-              </div>
-            );
-          }
-
-          const imageUrl = currentPhoto.images[selectedSubIndex];
-          const handleImageClick = () => {
-            const max = currentPhoto.images.length;
-            setSelectedSubIndex((prev) => (prev + 1) % max);
-          };
-
-          return (
-            <div className="fullscreen-photo-container absolute inset-0 flex items-center justify-center">
-              <button
-                onClick={() => setSelectedPhotoIndex(null)}
-                className="absolute top-4 right-4 bg-gray-800 text-white px-2 py-1 rounded shadow"
-              >
-                Close
-              </button>
-
-              <img
-                src={imageUrl}
-                alt="Selected"
-                className="max-h-full max-w-full object-contain cursor-pointer"
-                onClick={handleImageClick}
-              />
-
-              <div className="stack-index-indicator absolute top-4 right-16 text-xl bg-black bg-opacity-70 py-1 px-2 rounded">
-                {selectedSubIndex + 1}/{currentPhoto.images.length}
-              </div>
-            </div>
-          );
-        })()}
-      </div>
+        <div className="stack-index-indicator">
+          {selectedSubIndex + 1}/{currentPhoto.images.length}
+        </div>
+      </>
     );
   };
 
-  // --------------------------
-  //  Controls
-  // --------------------------
-  const handleTakePhotoButtonClick = () => {
-    if (selectedPhotoIndex !== null) {
-      setSelectedPhotoIndex(null);
-      setSelectedSubIndex(0);
-    } else {
-      handleTakePhoto();
-    }
-  };
-
-  const renderControls = () => {
-    const isInPreview = selectedPhotoIndex !== null;
-
-    return (
-      <div className="absolute top-4 left-4 bg-gray-800 bg-opacity-70 p-4 rounded-lg shadow-xl">
+  // -------------------------
+  //   Control Panel
+  // -------------------------
+  const renderControlPanel = () => (
+    <div className="control-panel">
+      {/* Row 1: style select + optional custom input */}
+      <div className="control-panel-row">
         <select
-          className="px-4 py-2 rounded bg-gray-700 mb-2 outline-none"
+          className="px-4 py-2 rounded bg-gray-700 outline-none"
           value={selectedStyle}
           onChange={(e) => setSelectedStyle(e.target.value)}
         >
@@ -415,142 +457,190 @@ const App = () => {
           <option value="pixelArt">Pixel Art</option>
           <option value="steampunk">Steampunk</option>
           <option value="vaporwave">Vaporwave</option>
+          <option value="custom">Custom...</option>
         </select>
 
+        {selectedStyle === 'custom' && (
+          <input
+            type="text"
+            placeholder="Custom style..."
+            className="px-4 py-2 rounded bg-gray-600 text-white outline-none"
+            value={customPrompt}
+            onChange={(e) => setCustomPrompt(e.target.value)}
+          />
+        )}
+      </div>
+
+      {/* Row 2: Take Photo + Settings button side by side */}
+      <div className="control-panel-row">
         <button
           className={`px-4 py-2 rounded hover:bg-blue-700 transition ${
             isSogniReady ? 'bg-blue-600' : 'bg-gray-500 cursor-not-allowed'
-          } ${isInPreview ? 'opacity-50' : ''}`}
-          onClick={handleTakePhotoButtonClick}
+          }`}
+          onClick={() => {
+            if (selectedPhotoIndex !== null) {
+              setSelectedPhotoIndex(null);
+              setSelectedSubIndex(0);
+            } else {
+              handleTakePhoto();
+            }
+          }}
           disabled={!isSogniReady}
         >
-          Take Photo
+          {selectedPhotoIndex !== null ? 'Back to Camera' : 'Take Photo'}
         </button>
 
-        {/* Settings (cog) button */}
+        {/* Settings gear icon: narrower button */}
         <button
-          className="ml-2 text-gray-300 hover:text-white"
+          className="text-gray-300 hover:text-white bg-gray-700 px-3 py-2 rounded flex items-center justify-center"
           onClick={() => setShowSettings(!showSettings)}
           title="Settings"
+          style={{ width: '42px' }}
         >
-          <svg
-            width="22"
-            height="22"
-            fill="currentColor"
-            viewBox="0 0 24 24"
-          >
+          <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
             <path d="M11 2v2.07a7.962 7.962 0 0 0-5.66 3.3l-1.48-.85-2 3.46 1.48.85a8.033 8.033 0 0 0 0 6.18l-1.48.85 2 3.46 1.48-.85A7.962 7.962 0 0 0 11 19.93V22h2v-2.07a7.962 7.962 0 0 0 5.66-3.3l1.48.85 2-3.46-1.48-.85a8.033 8.033 0 0 0 0-6.18l1.48-.85-2-3.46-1.48.85A7.962 7.962 0 0 0 13 4.07V2h-2Zm1 6a4 4 0 1 1-4 4 4.002 4.002 0 0 1 4-4Z"/>
           </svg>
         </button>
-
-        {/* Settings panel */}
-        {showSettings && (
-          <div className="bg-gray-700 p-3 rounded mt-2">
-            <label className="flex items-center space-x-2 mb-2">
-              <input
-                type="checkbox"
-                checked={flashEnabled}
-                onChange={(e) => setFlashEnabled(e.target.checked)}
-              />
-              <span>Flash</span>
-            </label>
-            <label className="flex flex-col space-y-1">
-              <span>Realism: {realism}%</span>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={realism}
-                onChange={(e) => setRealism(parseInt(e.target.value))}
-              />
-            </label>
-          </div>
-        )}
       </div>
-    );
-  };
 
-  // --------------------------
-  //  Thumbnails
-  // --------------------------
-  const renderGallery = () => {
-    return (
-      <div className="thumbnail-gallery absolute bottom-0 left-0 right-0">
-        {photos.map((photo, i) => {
-          const isSelected = i === selectedPhotoIndex;
+      {showSettings && (
+        <div className="bg-gray-700 p-3 rounded mt-2 space-y-3">
+          <label className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              checked={flashEnabled}
+              onChange={(e) => setFlashEnabled(e.target.checked)}
+            />
+            <span>Flash</span>
+          </label>
 
-          if (photo.generating && photo.images.length === 0) {
-            return (
-              <div
-                key={photo.id}
-                className="flex items-center justify-center text-gray-300 bg-gray-700 w-20 h-20 animate-pulse"
-              >
-                ...
-              </div>
-            );
-          }
-          if (photo.error && photo.images.length === 0) {
-            return (
-              <div
-                key={photo.id}
-                className="flex items-center justify-center text-red-500 bg-gray-700 w-20 h-20"
-              >
-                Err
-              </div>
-            );
-          }
+          <label className="flex flex-col space-y-1">
+            <span>Realism: {realism}%</span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={realism}
+              onChange={(e) => setRealism(parseInt(e.target.value))}
+            />
+          </label>
 
-          const thumbUrl = photo.images[0] || '';
-          const handleThumbClick = () => {
-            setSelectedPhotoIndex(i);
-            setSelectedSubIndex(0);
-          };
+          <label className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              checked={keepOriginalPhoto}
+              onChange={(e) => setKeepOriginalPhoto(e.target.checked)}
+            />
+            <span>Keep Original (5th Image)</span>
+          </label>
+        </div>
+      )}
+    </div>
+  );
 
+  // -------------------------
+  //   Thumbnails at bottom
+  // -------------------------
+  const renderGallery = () => (
+    <div className="thumbnail-gallery">
+      {photos.map((photo, i) => {
+        const isSelected = i === selectedPhotoIndex;
+
+        // If generating + no images => "..."
+        if (photo.generating && photo.images.length === 0) {
           return (
-            <div key={photo.id} className="thumbnail-container">
-              {isSelected && (
-                <div
-                  className="thumbnail-delete-button"
-                  onClick={() => handleDeletePhoto(i)}
-                >
-                  X
-                </div>
-              )}
-
-              <img
-                src={thumbUrl}
-                alt={`Generated #${i}`}
-                className={`thumbnail ${isSelected ? 'selected' : ''}`}
-                onClick={handleThumbClick}
-              />
-
-              {photo.images.length > 1 && (
-                <div className="stack-count">
-                  x{photo.images.length}
-                </div>
-              )}
+            <div
+              key={photo.id}
+              className="flex items-center justify-center text-gray-300 bg-gray-700 w-20 h-20 animate-pulse"
+            >
+              ...
             </div>
           );
-        })}
-      </div>
-    );
-  };
+        }
 
-  // --------------------------
-  //  Render
-  // --------------------------
+        // If error + no images => "Err"
+        if (photo.error && photo.images.length === 0) {
+          return (
+            <div
+              key={photo.id}
+              className="flex items-center justify-center text-red-500 bg-gray-700 w-20 h-20"
+            >
+              Err
+            </div>
+          );
+        }
+
+        // otherwise show the first image as thumbnail
+        const thumbUrl = photo.images[0] || '';
+        const handleThumbClick = () => {
+          setSelectedPhotoIndex(i);
+          setSelectedSubIndex(0);
+        };
+
+        return (
+          <div key={photo.id} className="thumbnail-container">
+            {/* Show an X if selected */}
+            {isSelected && (
+              <div
+                className="thumbnail-delete-button"
+                onClick={() => handleDeletePhoto(i)}
+              >
+                X
+              </div>
+            )}
+
+            <img
+              src={thumbUrl}
+              alt={`Generated #${i}`}
+              className={
+                `thumbnail ${isSelected ? 'selected' : ''} ` +
+                (photo.newlyArrived ? 'thumbnail-fade' : '')
+              }
+              onClick={handleThumbClick}
+            />
+
+            {/* If multiple images, show stack count */}
+            {photo.images.length > 1 && (
+              <div className="stack-count">
+                x{photo.images.length}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  // -------------------------
+  //   Render
+  // -------------------------
   return (
-    <div className="relative flex flex-col w-full h-screen items-center justify-center">
+    <div className="relative w-full h-screen">
+      {/* Main area with video in the background */}
       {renderMainArea()}
+
       <canvas ref={canvasRef} className="hidden" />
-      {renderControls()}
+
+      {/* Control panel (top-left) */}
+      {renderControlPanel()}
+
+      {/* Overlays */}
       {countdown > 0 && (
         <div className="countdown-overlay">
           {countdown}
         </div>
       )}
       {showFlash && <div className="flash-overlay" />}
+
+      {/* Thumbnail strip at bottom */}
       {renderGallery()}
+
+      {/* Selected photo placed in normal flow below pinned elements */}
+      {selectedPhotoIndex !== null && (
+        <div className="selected-photo-container">
+          {renderSelectedPhoto()}
+        </div>
+      )}
     </div>
   );
 };
