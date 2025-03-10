@@ -88,7 +88,7 @@ const App = () => {
   const [customPrompt, setCustomPrompt] = useState('');
 
   // Photos array
-  // Each => { id, generating, images: string[], error, originalDataUrl?, newlyArrived?: boolean }
+  // Each => { id, generating, images: string[], error, originalDataUrl?, newlyArrived?: boolean, generationCountdown?: number }
   const [photos, setPhotos] = useState([]);
 
   // Index of currently selected photo (null => show webcam)
@@ -98,7 +98,7 @@ const App = () => {
   // Remember last rendered index for toggling with spacebar
   const [lastViewedIndex, setLastViewedIndex] = useState(0);
 
-  // Countdown 3..2..1
+  // Countdown 3..2..1 for shutter
   const [countdown, setCountdown] = useState(0);
   // Show flash overlay
   const [showFlash, setShowFlash] = useState(false);
@@ -113,6 +113,10 @@ const App = () => {
   // Sogni
   const [sogniClient, setSogniClient] = useState(null);
   const [isSogniReady, setIsSogniReady] = useState(false);
+
+  // Camera devices
+  const [cameraDevices, setCameraDevices] = useState([]);
+  const [selectedCameraDeviceId, setSelectedCameraDeviceId] = useState(null);
 
   // -------------------------
   //   Sogni initialization
@@ -138,24 +142,49 @@ const App = () => {
     }
   };
 
-  // On mount: start webcam + init sogni
-  useEffect(() => {
-    navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: 'user' } })
-      .then(stream => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play().catch(err => {
-            console.warn("Video play error:", err);
-          });
-        }
-      })
-      .catch(err => {
-        alert(`Error accessing webcam: ${err}`);
-      });
-    
-    initializeSogni();
+  /**
+   * Start the camera stream for a given deviceId or fallback.
+   */
+  const startCamera = useCallback(async (deviceId) => {
+    // If no deviceId, fallback to the default facingMode: 'user'
+    const constraints = deviceId
+      ? { video: { deviceId } }
+      : { video: { facingMode: 'user' } };
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+    } catch (err) {
+      alert(`Error accessing webcam: ${err}`);
+    }
   }, []);
+
+  /**
+   * Enumerate devices and store them in state.
+   */
+  const listCameras = useCallback(async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(d => d.kind === 'videoinput');
+      setCameraDevices(videoDevices);
+    } catch (err) {
+      console.warn('Error enumerating devices', err);
+    }
+  }, []);
+
+  // On mount: init sogni, enumerate devices, start default camera
+  useEffect(() => {
+    (async () => {
+      await listCameras();
+      // Start default camera (facingMode: user)
+      await startCamera(null);
+      // Initialize sogni
+      await initializeSogni();
+    })();
+  }, [startCamera, listCameras]);
 
   // If we return to camera, ensure the video is playing
   useEffect(() => {
@@ -240,6 +269,24 @@ const App = () => {
   }, [handleKeyDown]);
 
   // -------------------------
+  //   Global 1s timer for generation countdown
+  // -------------------------
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPhotos((prevPhotos) => {
+        return prevPhotos.map((p) => {
+          if (p.generating && p.generationCountdown > 0) {
+            return { ...p, generationCountdown: p.generationCountdown - 1 };
+          }
+          return p;
+        });
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // -------------------------
   //   Capture / Sogni logic
   // -------------------------
   const handleTakePhoto = () => {
@@ -248,7 +295,7 @@ const App = () => {
       return;
     }
 
-    // Start a 3-second countdown
+    // Start a 3-second countdown for the shutter
     setCountdown(3);
     const interval = setInterval(() => {
       setCountdown((prev) => {
@@ -287,6 +334,8 @@ const App = () => {
       error: null,
       originalDataUrl: null,
       newlyArrived: false,
+      // Our new 10-second countdown for generation
+      generationCountdown: 10,
     };
     setPhotos((prev) => [...prev, newPhoto]);
     const newPhotoIndex = photos.length;
@@ -315,7 +364,6 @@ const App = () => {
         const photoDescription = await describeImage(blob);
 
         // 3) Combine them for a more relevant final prompt
-        //    For example, append them: style + “\n” + description
         const combinedPrompt = stylePrompt + '\n' + photoDescription;
 
         // 4) Send to Sogni
@@ -351,6 +399,7 @@ const App = () => {
             updated[newPhotoIndex] = {
               ...updated[newPhotoIndex],
               generating: false,
+              generationCountdown: 0,  // Done generating
               images: finalImages,
               newlyArrived: true,
             };
@@ -364,6 +413,7 @@ const App = () => {
             updated[newPhotoIndex] = {
               ...updated[newPhotoIndex],
               generating: false,
+              generationCountdown: 0,
               images: [],
               error: `Generation failed: ${err}`,
             };
@@ -382,6 +432,7 @@ const App = () => {
           updated[newPhotoIndex] = {
             ...updated[newPhotoIndex],
             generating: false,
+            generationCountdown: 0,
             images: [],
             error: `Capture/Send error: ${err}`,
           };
@@ -412,6 +463,16 @@ const App = () => {
     setSelectedSubIndex(0);
   };
 
+  /**
+   * Handle user selection of a different camera device.
+   */
+  const handleCameraSelection = async (e) => {
+    const deviceId = e.target.value;
+    setSelectedCameraDeviceId(deviceId);
+    // Start new stream on that device
+    await startCamera(deviceId);
+  };
+
   // -------------------------
   //   Main area (video)
   // -------------------------
@@ -436,12 +497,12 @@ const App = () => {
     const currentPhoto = photos[selectedPhotoIndex];
     if (!currentPhoto) return null;
 
-    // If still generating and no images, show "Generating"
+    // If still generating and no images, show "..."
     if (currentPhoto.generating && currentPhoto.images.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center">
           <div className="animate-pulse text-gray-300 text-3xl">
-            Generating...
+            ...
           </div>
         </div>
       );
@@ -545,6 +606,26 @@ const App = () => {
 
       {showSettings && (
         <div className="bg-gray-700 p-3 rounded mt-2 space-y-3">
+          {/* Camera selector if more than 1 device found */}
+          {cameraDevices.length > 0 && (
+            <label className="flex flex-col">
+              <span>Camera:</span>
+              <select
+                className="px-2 py-1 mt-1 rounded bg-gray-600 text-white outline-none"
+                onChange={handleCameraSelection}
+                value={selectedCameraDeviceId || ''}
+              >
+                {/* If user wants default, we allow a "Default" option */}
+                <option value="">Default (user-facing)</option>
+                {cameraDevices.map((dev) => (
+                  <option key={dev.deviceId} value={dev.deviceId}>
+                    {dev.label || `Camera ${dev.deviceId}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
           <label className="flex items-center space-x-2">
             <input
               type="checkbox"
@@ -586,14 +667,18 @@ const App = () => {
       {photos.map((photo, i) => {
         const isSelected = i === selectedPhotoIndex;
 
-        // If generating + no images => "..."
+        // If generating + no images => show numeric countdown only
         if (photo.generating && photo.images.length === 0) {
           return (
             <div
               key={photo.id}
               className="flex items-center justify-center text-gray-300 bg-gray-700 w-20 h-20 animate-pulse"
             >
-              ...
+              {photo.generationCountdown > 0 ? (
+                <div className="text-xl">{photo.generationCountdown}</div>
+              ) : (
+                <div className="text-xl">...</div>
+              )}
             </div>
           );
         }
