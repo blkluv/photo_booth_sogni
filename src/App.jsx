@@ -13,25 +13,27 @@ const defaultStylePrompts = {
   pixelArt: `Attractive, A retro pixel art style portrait with 8-bit color palette, blocky forms, and visible pixelation. Nostalgic and charming, reminiscent of classic arcade or console games from the 80s and 90s.`,
   steampunk: `Attractive, A retro-futuristic steampunk style portrait featuring brass goggles, gears, clockwork elements, Victorian fashion, and a smoky, industrial atmosphere. Intricate mechanical details, warm metallic tones, and a sense of invention.`,
   vaporwave: `Attractive, A dreamy, neon vaporwave portrait with pastel gradients, retro 80s aesthetics, glitch effects, palm trees, and classic Greek statue motifs. Vibrant pink, purple, and cyan color palette, set in a cyber-futuristic cityscape.`,
+  astronaut: `Attractive, astronaut floating near a spaceship window; confined interior contrasts with vast starfield outside. soft moonlight highlights the suited figure against inky blackness, shimmering starlight. deep indigo, silver, neon-tech blues. serene awe. centered astronaut, expansive view. stunning hyper-detailed realism`,
   custom: ``,
 };
 
-/** 
- * Return width/height for a given Sogni sizePreset 
+/**
+ * Returns 1280×720 (landscape) or 720×1280 (portrait)
+ * so that Sogni returns images that match the orientation.
+ * These must be integers between 256 and 2048.
  */
-function getSizeForPreset(preset) {
-  switch (preset) {
-    case 'portrait_7_9':
-      return { width: 512, height: 640 };
-    case 'landscape_9_7':
-      return { width: 640, height: 512 };
-    default:
-      return { width: 512, height: 640 };
+function getCustomDimensions() {
+  const isPortrait = window.innerHeight > window.innerWidth;
+  if (isPortrait) {
+    return { width: 720, height: 1280 };
+  } else {
+    return { width: 1280, height: 720 };
   }
 }
 
 /** 
- * Helper: resize dataURL to match Sogni output dimension
+ * Helper: resize dataURL so original matches the Sogni dimension 
+ * for easy side-by-side comparison (no skew).
  */
 async function resizeDataUrl(dataUrl, width, height) {
   return new Promise((resolve) => {
@@ -118,16 +120,21 @@ const App = () => {
   const [cameraDevices, setCameraDevices] = useState([]);
   const [selectedCameraDeviceId, setSelectedCameraDeviceId] = useState(null);
 
+  // Determine the desired dimensions for Sogni (and camera constraints)
+  const { width: desiredWidth, height: desiredHeight } = getCustomDimensions();
+
   // -------------------------
   //   Sogni initialization
   // -------------------------
   const initializeSogni = async () => {
     try {
+      let appId = import.meta.env.VITE_SOGNI_APP_ID + crypto.randomUUID();
+      console.log('appId', appId);
       const sogni = await SogniClient.createInstance({
-        appId: import.meta.env.VITE_SOGNI_APP_ID,
+        appId: appId,
         testnet: true,
         network: 'fast',
-        logLevel: 'warn',
+        logLevel: 'debug',
       });
 
       await sogni.account.login(
@@ -144,12 +151,24 @@ const App = () => {
 
   /**
    * Start the camera stream for a given deviceId or fallback.
+   * Try to capture at "desiredWidth x desiredHeight".
    */
   const startCamera = useCallback(async (deviceId) => {
-    // If no deviceId, fallback to the default facingMode: 'user'
     const constraints = deviceId
-      ? { video: { deviceId } }
-      : { video: { facingMode: 'user' } };
+      ? {
+          video: {
+            deviceId,
+            width: { ideal: desiredWidth },
+            height: { ideal: desiredHeight },
+          },
+        }
+      : {
+          video: {
+            facingMode: 'user',
+            width: { ideal: desiredWidth },
+            height: { ideal: desiredHeight },
+          },
+        };
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -160,7 +179,7 @@ const App = () => {
     } catch (err) {
       alert(`Error accessing webcam: ${err}`);
     }
-  }, []);
+  }, [desiredWidth, desiredHeight]);
 
   /**
    * Enumerate devices and store them in state.
@@ -287,6 +306,19 @@ const App = () => {
   }, []);
 
   // -------------------------
+  //   iOS detection for orientation fix
+  // -------------------------
+  useEffect(() => {
+    function isIOS() {
+      return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    }
+    if (isIOS() && videoRef.current) {
+      // Add a special class so CSS can rotate it if in portrait
+      videoRef.current.classList.add('ios-fix');
+    }
+  }, []);
+
+  // -------------------------
   //   Capture / Sogni logic
   // -------------------------
   const handleTakePhoto = () => {
@@ -322,9 +354,8 @@ const App = () => {
   };
 
   const captureAndSend = async () => {
-    // orientation for Sogni
-    const isPortrait = window.innerHeight > window.innerWidth;
-    const sizePreset = isPortrait ? "portrait_7_9" : "landscape_9_7";
+    // We'll pass sizePreset: 'custom' to Sogni
+    // and the orientation-based desiredWidth/desiredHeight.
 
     // Create new photo object
     const newPhoto = {
@@ -343,6 +374,8 @@ const App = () => {
     // Draw from video
     const canvas = canvasRef.current;
     const video = videoRef.current;
+
+    // We'll likely get the actual dimension from the camera (whatever it can do).
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -360,19 +393,22 @@ const App = () => {
           ? (customPrompt || 'A custom style portrait')
           : defaultStylePrompts[selectedStyle];
 
-        // 2) Call the describeImage API to get a textual description of the photo
+        // 2) Call the describeImage API to get a textual description
         const photoDescription = await describeImage(blob);
-
+        console.log('photoDescription', photoDescription);
         // 3) Combine them for a more relevant final prompt
         const combinedPrompt = stylePrompt + '\n' + photoDescription;
+        console.log('stylePrompt', stylePrompt);
 
         // 4) Send to Sogni
         const arrayBuffer = await blob.arrayBuffer();
         const project = await sogniClient.projects.create({
           modelId: 'flux1-schnell-fp8',
-          // Use the combined prompt
           positivePrompt: combinedPrompt,
-          sizePreset,
+          // use custom size preset + explicit width/height
+          sizePreset: 'custom',
+          width: desiredWidth,
+          height: desiredHeight,
           steps: 4,
           guidance: 1,
           numberOfImages: 4,
@@ -385,11 +421,10 @@ const App = () => {
         project.on('completed', async (generated) => {
           let finalImages = [...generated];
 
-          // If keep original, resize + add as 5th
+          // If keepOriginal, resize the original to the same dimension as the AI images
           if (keepOriginalPhoto && newPhoto.originalDataUrl) {
-            const { width, height } = getSizeForPreset(sizePreset);
             const resizedOriginal = await resizeDataUrl(
-              newPhoto.originalDataUrl, width, height
+              newPhoto.originalDataUrl, desiredWidth, desiredHeight
             );
             finalImages.push(resizedOriginal);
           }
@@ -477,19 +512,13 @@ const App = () => {
   //   Main area (video)
   // -------------------------
   const renderMainArea = () => (
-    <div className="relative w-full h-full">
-      {/* 
-          If you want to rely on your #webcam CSS in index.css, 
-          you could do: <video id="webcam" ref={videoRef} ... />
-          and remove the inline styles / extra classes.
-      */}
+    <div className="video-container">
       <video
+        id="webcam"
         ref={videoRef}
         autoPlay
         playsInline
         muted
-        className="w-full h-full object-cover"
-        style={{ height: '100%' }}
       />
     </div>
   );
@@ -562,6 +591,7 @@ const App = () => {
           <option value="pixelArt">Pixel Art</option>
           <option value="steampunk">Steampunk</option>
           <option value="vaporwave">Vaporwave</option>
+          <option value="astronaut">Astronaut</option>
           <option value="custom">Custom...</option>
         </select>
 

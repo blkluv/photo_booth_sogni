@@ -97,8 +97,7 @@ body {
 }
 
 /* 
-   Instead of forcing height: 100%, we use Tailwind's max-h-full, max-w-full,
-   and object-contain to preserve the original aspect ratio.
+   Preserve the original aspect ratio for the enlarged image
 */
 .selected-photo-container img {
   @apply max-h-full max-w-full object-contain;
@@ -109,16 +108,57 @@ body {
   @apply absolute top-4 right-4 text-xl bg-black bg-opacity-70 py-1 px-2 rounded;
 }
 
-/* Force the video element to fill or preserve aspect ratio. Choose one:
+/* 
+   We wrap the <video> in a .video-container that is full size,
+   so we can position/transform the video as needed. 
+*/
+.video-container {
+  @apply absolute inset-0 overflow-hidden;
+}
 
-   Option A (Fill screen but can get cropped or distort if container aspect ratio mismatches):
-   #webcam { @apply w-full h-full object-cover; }
-
-   Option B (Preserve aspect ratio with black bars):
-   #webcam { @apply w-full h-auto object-contain; }
-
-   Below is Option A if you want it to fill the container:
+/*
+   The #webcam itself: fill container and preserve aspect ratio. 
+   By default, we use object-fit: cover so it’s as large as possible
+   (this avoids letterboxing, but note it may crop a bit). 
 */
 #webcam {
   @apply w-full h-full object-cover;
+}
+
+/* 
+   -------------------------------
+   iOS Safari fix for orientation
+   -------------------------------
+   If on iOS in portrait, the feed typically arrives sideways.
+   We rotate the video 90deg to correct. We also swap width/height 
+   to fill the container. 
+*/
+#webcam.ios-fix {
+  /* Absolutely position within .video-container. */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-origin: center center;
+  /* We'll further tweak in the @media below */
+}
+
+/* Only apply this if iOS (through -webkit-touch-callout) AND in portrait mode */
+@supports (-webkit-touch-callout: none) {
+  @media screen and (orientation: portrait) {
+    #webcam.ios-fix {
+      transform: translate(-50%, -50%) rotate(90deg);
+      width: 100vh;  /* we swap these to fill the screen in portrait */
+      height: 100vw;
+    }
+  }
+
+  @media screen and (orientation: landscape) {
+    /* iOS in landscape might not need rotation, but let's keep it
+       centered and fill horizontally. */
+    #webcam.ios-fix {
+      transform: translate(-50%, -50%) rotate(0deg);
+      width: 100vw;
+      height: 100vh;
+    }
+  }
 }
