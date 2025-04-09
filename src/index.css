@@ -162,3 +162,16 @@ body {
     }
   }
 }
+
+/* -------------------------
+   Drag-and-drop overlay
+   ------------------------- */
+.drag-overlay {
+  @apply absolute inset-0 flex items-center justify-center bg-black bg-opacity-70 text-white;
+  z-index: 100;
+  pointer-events: none; /* This ensures the overlay doesn't block the drop itself */
+}
+
+.drag-overlay p {
+  @apply text-2xl;
+}

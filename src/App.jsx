@@ -14,6 +14,7 @@ const defaultStylePrompts = {
   steampunk: `Attractive, A retro-futuristic steampunk style portrait featuring brass goggles, gears, clockwork elements, Victorian fashion, and a smoky, industrial atmosphere. Intricate mechanical details, warm metallic tones, and a sense of invention.`,
   vaporwave: `Attractive, A dreamy, neon vaporwave portrait with pastel gradients, retro 80s aesthetics, glitch effects, palm trees, and classic Greek statue motifs. Vibrant pink, purple, and cyan color palette, set in a cyber-futuristic cityscape.`,
   astronaut: `Attractive, astronaut floating near a spaceship window; confined interior contrasts with vast starfield outside. soft moonlight highlights the suited figure against inky blackness, shimmering starlight. deep indigo, silver, neon-tech blues. serene awe. centered astronaut, expansive view. stunning hyper-detailed realism`,
+  tiger: `A person transforming into a tiger with stripes`,
   custom: ``,
 };
 
@@ -85,9 +86,23 @@ const App = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
-  // Style selection
+  // Style selection -- default to "anime"
   const [selectedStyle, setSelectedStyle] = useState('anime');
   const [customPrompt, setCustomPrompt] = useState('');
+
+  // Each style can have a different realism value
+  const initialStyleRealism = {
+    anime: 45,
+    gorillaz: 45,
+    disney: 45,
+    pixelArt: 45,
+    steampunk: 45,
+    vaporwave: 45,
+    astronaut: 45,
+    tiger: 28,
+    custom: 45,
+  };
+  const [styleRealism, setStyleRealism] = useState(initialStyleRealism);
 
   // Photos array
   // Each => { id, generating, images: string[], error, originalDataUrl?, newlyArrived?: boolean, generationCountdown?: number }
@@ -108,8 +123,7 @@ const App = () => {
   // advanced settings
   const [showSettings, setShowSettings] = useState(false);
   const [flashEnabled, setFlashEnabled] = useState(true);
-  const [realism, setRealism] = useState(45);
-  // keep original (5th) by default
+  // Removed the single `realism` state in favor of styleRealism
   const [keepOriginalPhoto, setKeepOriginalPhoto] = useState(true);
 
   // Sogni
@@ -122,6 +136,9 @@ const App = () => {
 
   // Determine the desired dimensions for Sogni (and camera constraints)
   const { width: desiredWidth, height: desiredHeight } = getCustomDimensions();
+
+  // Drag-and-drop state
+  const [dragActive, setDragActive] = useState(false);
 
   // -------------------------
   //   Sogni initialization
@@ -273,7 +290,7 @@ const App = () => {
             // if on original, go back
             return lastViewedIndex;
           } else {
-            // if on a rendered image, store that, go original
+            // if on a rendered image, store that, go to original
             setLastViewedIndex(prev);
             return 4;
           }
@@ -287,9 +304,7 @@ const App = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  // -------------------------
-  //   Global 1s timer for generation countdown
-  // -------------------------
+  // Global 1s timer for generation countdown
   useEffect(() => {
     const interval = setInterval(() => {
       setPhotos((prevPhotos) => {
@@ -301,13 +316,10 @@ const App = () => {
         });
       });
     }, 1000);
-
     return () => clearInterval(interval);
   }, []);
 
-  // -------------------------
-  //   iOS detection for orientation fix
-  // -------------------------
+  // iOS orientation fix
   useEffect(() => {
     function isIOS() {
       return /iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -319,7 +331,156 @@ const App = () => {
   }, []);
 
   // -------------------------
-  //   Capture / Sogni logic
+  //   Shared logic for generating images from a Blob
+  // -------------------------
+  const generateFromBlob = async (photoBlob, newPhotoIndex, dataUrl) => {
+    try {
+      // 1) Get the style prompt
+      const stylePrompt = (selectedStyle === 'custom')
+        ? (customPrompt || 'A custom style portrait')
+        : defaultStylePrompts[selectedStyle];
+
+      // 2) Call the describeImage API to get a textual description
+      const photoDescription = await describeImage(photoBlob);
+      console.log('photoDescription', photoDescription);
+
+      // 3) Combine them for a more relevant final prompt
+      const combinedPrompt = stylePrompt + '\n' + photoDescription;
+      console.log('stylePrompt', stylePrompt);
+
+      // 4) Send to Sogni
+      const arrayBuffer = await photoBlob.arrayBuffer();
+      const project = await sogniClient.projects.create({
+        modelId: 'flux1-schnell-fp8',
+        positivePrompt: combinedPrompt,
+        sizePreset: 'custom',
+        width: desiredWidth,
+        height: desiredHeight,
+        steps: 4,
+        guidance: 1,
+        numberOfImages: 4,
+        startingImage: new Uint8Array(arrayBuffer),
+        // use the realism for the currently selected style
+        startingImageStrength: styleRealism[selectedStyle] / 100,
+        scheduler: 'DPM Solver Multistep (DPM-Solver++)',
+        timeStepSpacing: 'Karras',
+      });
+
+      project.on('completed', async (generated) => {
+        let finalImages = [...generated];
+        // If keepOriginal, resize the original to the same dimension
+        if (keepOriginalPhoto && dataUrl) {
+          const resizedOriginal = await resizeDataUrl(
+            dataUrl, desiredWidth, desiredHeight
+          );
+          finalImages.push(resizedOriginal);
+        }
+
+        setPhotos((prevPhotos) => {
+          const updated = [...prevPhotos];
+          updated[newPhotoIndex] = {
+            ...updated[newPhotoIndex],
+            generating: false,
+            generationCountdown: 0,  // Done
+            images: finalImages,
+            newlyArrived: true,
+          };
+          return updated;
+        });
+      });
+
+      project.on('failed', (err) => {
+        setPhotos((prevPhotos) => {
+          const updated = [...prevPhotos];
+          updated[newPhotoIndex] = {
+            ...updated[newPhotoIndex],
+            generating: false,
+            generationCountdown: 0,
+            images: [],
+            error: `Generation failed: ${err}`,
+          };
+          return updated;
+        });
+      });
+    } catch (err) {
+      // possibly re-init on socket error
+      if (err && err.code === 4015) {
+        console.warn("Socket error (4015). Re-initializing Sogni.");
+        setIsSogniReady(false);
+        initializeSogni();
+      }
+      setPhotos((prevPhotos) => {
+        const updated = [...prevPhotos];
+        updated[newPhotoIndex] = {
+          ...updated[newPhotoIndex],
+          generating: false,
+          generationCountdown: 0,
+          images: [],
+          error: `Capture/Send error: ${err}`,
+        };
+        return updated;
+      });
+    }
+  };
+
+  // -------------------------
+  //   Drag and Drop handling
+  // -------------------------
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setDragActive(true);
+  };
+
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    setDragActive(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setDragActive(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragActive(false);
+
+    if (!isSogniReady) {
+      alert('Sogni is not ready yet.');
+      return;
+    }
+
+    // If user dropped multiple files, just take the first
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!file) return;
+
+    // Create a new photo item
+    const newPhoto = {
+      id: Date.now(),
+      generating: true,
+      images: [],
+      error: null,
+      originalDataUrl: null,
+      newlyArrived: false,
+      generationCountdown: 10,
+    };
+    setPhotos((prev) => [...prev, newPhoto]);
+    const newPhotoIndex = photos.length;
+
+    // Read the file as dataURL so we can keep it (originalDataUrl)
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target.result;
+      newPhoto.originalDataUrl = dataUrl;
+
+      // Now feed the Blob itself into the generator
+      generateFromBlob(file, newPhotoIndex, dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // -------------------------
+  //   Capture (webcam)
   // -------------------------
   const handleTakePhoto = () => {
     if (!isSogniReady) {
@@ -354,9 +515,6 @@ const App = () => {
   };
 
   const captureAndSend = async () => {
-    // We'll pass sizePreset: 'custom' to Sogni
-    // and the orientation-based desiredWidth/desiredHeight.
-
     // Create new photo object
     const newPhoto = {
       id: Date.now(),
@@ -375,7 +533,6 @@ const App = () => {
     const canvas = canvasRef.current;
     const video = videoRef.current;
 
-    // We'll likely get the actual dimension from the camera (whatever it can do).
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -384,100 +541,16 @@ const App = () => {
     const dataUrl = canvas.toDataURL('image/png');
     newPhoto.originalDataUrl = dataUrl;
 
-    // Convert to arrayBuffer -> Sogni
-    canvas.toBlob(async (blob) => {
+    // Convert to Blob -> generate
+    canvas.toBlob((blob) => {
       if (!blob) return;
-      try {
-        // 1) Get the style prompt
-        const stylePrompt = (selectedStyle === 'custom')
-          ? (customPrompt || 'A custom style portrait')
-          : defaultStylePrompts[selectedStyle];
-
-        // 2) Call the describeImage API to get a textual description
-        const photoDescription = await describeImage(blob);
-        console.log('photoDescription', photoDescription);
-        // 3) Combine them for a more relevant final prompt
-        const combinedPrompt = stylePrompt + '\n' + photoDescription;
-        console.log('stylePrompt', stylePrompt);
-
-        // 4) Send to Sogni
-        const arrayBuffer = await blob.arrayBuffer();
-        const project = await sogniClient.projects.create({
-          modelId: 'flux1-schnell-fp8',
-          positivePrompt: combinedPrompt,
-          // use custom size preset + explicit width/height
-          sizePreset: 'custom',
-          width: desiredWidth,
-          height: desiredHeight,
-          steps: 4,
-          guidance: 1,
-          numberOfImages: 4,
-          startingImage: new Uint8Array(arrayBuffer),
-          startingImageStrength: realism / 100,
-          scheduler: 'DPM Solver Multistep (DPM-Solver++)',
-          timeStepSpacing: 'Karras',
-        });
-
-        project.on('completed', async (generated) => {
-          let finalImages = [...generated];
-
-          // If keepOriginal, resize the original to the same dimension as the AI images
-          if (keepOriginalPhoto && newPhoto.originalDataUrl) {
-            const resizedOriginal = await resizeDataUrl(
-              newPhoto.originalDataUrl, desiredWidth, desiredHeight
-            );
-            finalImages.push(resizedOriginal);
-          }
-
-          setPhotos((prevPhotos) => {
-            const updated = [...prevPhotos];
-            updated[newPhotoIndex] = {
-              ...updated[newPhotoIndex],
-              generating: false,
-              generationCountdown: 0,  // Done generating
-              images: finalImages,
-              newlyArrived: true,
-            };
-            return updated;
-          });
-        });
-
-        project.on('failed', (err) => {
-          setPhotos((prevPhotos) => {
-            const updated = [...prevPhotos];
-            updated[newPhotoIndex] = {
-              ...updated[newPhotoIndex],
-              generating: false,
-              generationCountdown: 0,
-              images: [],
-              error: `Generation failed: ${err}`,
-            };
-            return updated;
-          });
-        });
-      } catch (err) {
-        // possibly re-init on socket error
-        if (err && err.code === 4015) {
-          console.warn("Socket error (4015). Re-initializing Sogni.");
-          setIsSogniReady(false);
-          initializeSogni();
-        }
-        setPhotos((prevPhotos) => {
-          const updated = [...prevPhotos];
-          updated[newPhotoIndex] = {
-            ...updated[newPhotoIndex],
-            generating: false,
-            generationCountdown: 0,
-            images: [],
-            error: `Capture/Send error: ${err}`,
-          };
-          return updated;
-        });
-      }
+      generateFromBlob(blob, newPhotoIndex, dataUrl);
     }, 'image/png');
   };
 
-  // Delete photo
+  // -------------------------
+  //   Delete photo
+  // -------------------------
   const handleDeletePhoto = (photoIndex) => {
     setPhotos((prev) => {
       const newPhotos = [...prev];
@@ -592,6 +665,7 @@ const App = () => {
           <option value="steampunk">Steampunk</option>
           <option value="vaporwave">Vaporwave</option>
           <option value="astronaut">Astronaut</option>
+          <option value="tiger">Tiger</option>
           <option value="custom">Custom...</option>
         </select>
 
@@ -669,14 +743,21 @@ const App = () => {
             <span>Flash</span>
           </label>
 
+          {/* Per-style realism slider */}
           <label className="flex flex-col space-y-1">
-            <span>Realism: {realism}%</span>
+            <span>Realism for {selectedStyle}: {styleRealism[selectedStyle]}%</span>
             <input
               type="range"
               min={0}
               max={100}
-              value={realism}
-              onChange={(e) => setRealism(parseInt(e.target.value))}
+              value={styleRealism[selectedStyle]}
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
+                setStyleRealism((prev) => ({
+                  ...prev,
+                  [selectedStyle]: val
+                }));
+              }}
             />
           </label>
 
@@ -701,7 +782,7 @@ const App = () => {
       {photos.map((photo, i) => {
         const isSelected = i === selectedPhotoIndex;
 
-        // If generating + no images => show numeric countdown only
+        // If generating + no images => show numeric countdown
         if (photo.generating && photo.images.length === 0) {
           return (
             <div
@@ -774,7 +855,20 @@ const App = () => {
   //   Render
   // -------------------------
   return (
-    <div className="relative w-full h-screen">
+    <div
+      className="relative w-full h-screen"
+      onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Drag overlay */}
+      {dragActive && (
+        <div className="drag-overlay">
+          <p>Drop your image here to generate!</p>
+        </div>
+      )}
+
       {/* Main area with video in the background */}
       {renderMainArea()}
 
