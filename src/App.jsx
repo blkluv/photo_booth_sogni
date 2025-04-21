@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { SogniClient } from "@sogni-ai/sogni-client";
+import { API_CONFIG } from './config/cors';
 
 /**
  * Default style prompts
@@ -82,6 +83,14 @@ async function describeImage(photoBlob) {
   }
 }
 
+const generateUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 const App = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -145,15 +154,15 @@ const App = () => {
   // -------------------------
   const initializeSogni = async () => {
     try {
-      let appId = import.meta.env.VITE_SOGNI_APP_ID + crypto.randomUUID();
+      let appId = import.meta.env.VITE_SOGNI_APP_ID + generateUUID();
       console.log('appId', appId);
+
       const sogni = await SogniClient.createInstance({
         appId: appId,
         testnet: true,
         network: 'fast',
-        logLevel: 'debug',
+        logLevel: 'debug'
       });
-
       await sogni.account.login(
         import.meta.env.VITE_SOGNI_USERNAME,
         import.meta.env.VITE_SOGNI_PASSWORD
@@ -162,7 +171,8 @@ const App = () => {
       setSogniClient(sogni);
       setIsSogniReady(true);
     } catch (error) {
-      alert(`Failed initializing Sogni client: ${error}`);
+      console.error('Failed initializing Sogni client:', error);
+      // alert(`Failed initializing Sogni client: ${error.message}`);
     }
   };
 
@@ -191,10 +201,16 @@ const App = () => {
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        // Add a small delay before playing to prevent the AbortError
+        setTimeout(() => {
+          videoRef.current.play().catch(err => {
+            console.warn("Video play error:", err);
+          });
+        }, 100);
       }
     } catch (err) {
-      alert(`Error accessing webcam: ${err}`);
+      console.error(`Error accessing webcam: ${err}`);
+      alert(`Error accessing webcam: ${err.message}`);
     }
   }, [desiredWidth, desiredHeight]);
 
