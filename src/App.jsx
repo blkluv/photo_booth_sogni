@@ -367,19 +367,24 @@ const App = () => {
       // 4) Send to Sogni
       const arrayBuffer = await photoBlob.arrayBuffer();
       const project = await sogniClient.projects.create({
-        modelId: 'flux1-schnell-fp8',
+        modelId: 'coreml-sogniXLturbo_alpha1_ad',
         positivePrompt: combinedPrompt,
         sizePreset: 'custom',
         width: desiredWidth,
         height: desiredHeight,
-        steps: 4,
-        guidance: 1,
+        steps: 7,
+        guidance: 2,
         numberOfImages: 4,
-        startingImage: new Uint8Array(arrayBuffer),
-        // use the realism for the currently selected style
-        startingImageStrength: styleRealism[selectedStyle] / 100,
         scheduler: 'DPM Solver Multistep (DPM-Solver++)',
         timeStepSpacing: 'Karras',
+        controlNet: {
+          name: 'instantid',
+          image: new Uint8Array(arrayBuffer),
+          strength: 0.6,
+          mode: 'cn_priority', // 'balanced' | 'prompt_priority' | 'cn_priority';
+          guidanceStart: 0.0,
+          guidanceEnd: 0.6,
+        }
       });
 
       project.on('completed', async (generated) => {
