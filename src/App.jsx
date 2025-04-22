@@ -172,15 +172,15 @@ const App = () => {
   const projectStateRef = useRef({
     currentPhotoIndex: 0,
     jobs: new Map(), // Map<jobId, {index: number, status: string, resultUrl?: string}>
-    startedJobIndices: new Set(), // Track which indices have started jobs
+    startedJobs: new Set(), // Track which indices have started jobs
     completedJobs: new Map(), // Store completed jobs that arrive before start
     pendingCompletions: new Map() // Store completions that arrive before we have the mapping
   });
 
   // Calculate aspect ratio for loading boxes
   const isPortrait = desiredHeight > desiredWidth;
-  const thumbnailWidth = isPortrait ? 120 : 212; // Wider for landscape (doubled)
-  const thumbnailHeight = isPortrait ? 212 : 120; // Taller for portrait (doubled)
+  const thumbnailWidth = 220; // Wider for landscape
+  const thumbnailHeight = 130; // Shorter for landscape
 
   // First, add the model options at the top of the file
   const modelOptions = [
@@ -192,9 +192,14 @@ const App = () => {
   // At the top of App component, add new state variables
   const [selectedModel, setSelectedModel] = useState('coreml-sogniXLturbo_alpha1_ad');
   const [numImages, setNumImages] = useState(8);
-  const [promptGuidance, setPromptGuidance] = useState(2.5);
-  const [controlNetStrength, setControlNetStrength] = useState(0.9);
-  const [controlNetGuidanceEnd, setControlNetGuidanceEnd] = useState(0.7);
+  const [promptGuidance, setPromptGuidance] = useState(2);
+  const [controlNetStrength, setControlNetStrength] = useState(0.8);
+  const [controlNetGuidanceEnd, setControlNetGuidanceEnd] = useState(0.6);
+
+  // Add a state to control the visibility of the overlay panel
+  const [showControlOverlay, setShowControlOverlay] = useState(false);
+  // Add a state to control the custom dropdown visibility
+  const [showStyleDropdown, setShowStyleDropdown] = useState(false);
 
   // -------------------------
   //   Sogni initialization
@@ -762,13 +767,350 @@ const App = () => {
   // -------------------------
   const renderMainArea = () => (
     <div className="video-container">
-      <video
-        id="webcam"
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
-      />
+      <div className="photobooth-frame">
+        <div className="photobooth-header">
+          <h1 className="photobooth-title">SOGNI PHOTOBOOTH</h1>
+          <div className="photobooth-header-controls">
+            <div className="style-selector">
+              <button 
+                className="header-style-select" 
+                onClick={() => setShowStyleDropdown(!showStyleDropdown)}
+              >
+                {/* Keep label consistent, regardless of custom input */}
+                {selectedStyle === 'custom' ? 'STYLE: Custom...' : `STYLE: ${selectedStyle}`}
+              </button>
+              
+              {showStyleDropdown && (
+                <div className="style-dropdown">
+                  <div 
+                    className={`style-option ${selectedStyle === 'random' ? 'selected' : ''}`} 
+                    onClick={() => { 
+                      setSelectedStyle('random'); 
+                      setShowStyleDropdown(false);
+                    }}
+                  >
+                    Random
+                  </div>
+                  <div 
+                    className={`style-option ${selectedStyle === 'anime' ? 'selected' : ''}`} 
+                    onClick={() => { 
+                      setSelectedStyle('anime'); 
+                      setShowStyleDropdown(false);
+                    }}
+                  >
+                    Anime
+                  </div>
+                  <div 
+                    className={`style-option ${selectedStyle === 'gorillaz' ? 'selected' : ''}`} 
+                    onClick={() => { 
+                      setSelectedStyle('gorillaz'); 
+                      setShowStyleDropdown(false);
+                    }}
+                  >
+                    Gorillaz
+                  </div>
+                  <div 
+                    className={`style-option ${selectedStyle === 'disney' ? 'selected' : ''}`} 
+                    onClick={() => { 
+                      setSelectedStyle('disney'); 
+                      setShowStyleDropdown(false);
+                    }}
+                  >
+                    Disney
+                  </div>
+                  <div 
+                    className={`style-option ${selectedStyle === 'pixelArt' ? 'selected' : ''}`} 
+                    onClick={() => { 
+                      setSelectedStyle('pixelArt'); 
+                      setShowStyleDropdown(false);
+                    }}
+                  >
+                    Pixel Art
+                  </div>
+                  <div 
+                    className={`style-option ${selectedStyle === 'steampunk' ? 'selected' : ''}`} 
+                    onClick={() => { 
+                      setSelectedStyle('steampunk'); 
+                      setShowStyleDropdown(false);
+                    }}
+                  >
+                    Steampunk
+                  </div>
+                  <div 
+                    className={`style-option ${selectedStyle === 'vaporwave' ? 'selected' : ''}`} 
+                    onClick={() => { 
+                      setSelectedStyle('vaporwave'); 
+                      setShowStyleDropdown(false);
+                    }}
+                  >
+                    Vaporwave
+                  </div>
+                  <div 
+                    className={`style-option ${selectedStyle === 'astronaut' ? 'selected' : ''}`} 
+                    onClick={() => { 
+                      setSelectedStyle('astronaut'); 
+                      setShowStyleDropdown(false);
+                    }}
+                  >
+                    Astronaut
+                  </div>
+                  <div 
+                    className={`style-option ${selectedStyle === 'sketch' ? 'selected' : ''}`} 
+                    onClick={() => { 
+                      setSelectedStyle('sketch'); 
+                      setShowStyleDropdown(false);
+                    }}
+                  >
+                    Sketch
+                  </div>
+                  <div 
+                    className={`style-option ${selectedStyle === 'statue' ? 'selected' : ''}`} 
+                    onClick={() => { 
+                      setSelectedStyle('statue'); 
+                      setShowStyleDropdown(false);
+                    }}
+                  >
+                    Statue
+                  </div>
+                  <div 
+                    className={`style-option ${selectedStyle === 'clown' ? 'selected' : ''}`} 
+                    onClick={() => { 
+                      setSelectedStyle('clown'); 
+                      setShowStyleDropdown(false);
+                    }}
+                  >
+                    Clown
+                  </div>
+                  <div 
+                    className={`style-option ${selectedStyle === 'relax' ? 'selected' : ''}`} 
+                    onClick={() => { 
+                      setSelectedStyle('relax'); 
+                      setShowStyleDropdown(false);
+                    }}
+                  >
+                    Relax
+                  </div>
+                  <div 
+                    className={`style-option ${selectedStyle === 'custom' ? 'selected' : ''}`} 
+                    onClick={() => { 
+                      setSelectedStyle('custom'); 
+                      setShowStyleDropdown(false);
+                    }}
+                  >
+                    Custom...
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <button
+              className={`header-take-photo-btn ${isSogniReady ? '' : 'disabled'}`}
+              onClick={handleTakePhoto}
+              disabled={!isSogniReady}
+            >
+              {isSogniReady ? 'Take Photo 📸' : 'Initializing...'}
+            </button>
+            <button 
+              className="header-config-btn"
+              onClick={() => {
+                setShowControlOverlay(!showControlOverlay);
+                // Hide dropdown when showing control overlay
+                if (!showControlOverlay) {
+                  setShowStyleDropdown(false);
+                }
+              }}
+            >
+              {showControlOverlay ? '✕' : '⚙️'}
+            </button>
+          </div>
+        </div>
+        <div className="photobooth-screen">
+          <video
+            id="webcam"
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+          />
+          {countdown > 0 && (
+            <div className="countdown-overlay">
+              {countdown}
+            </div>
+          )}
+          {showFlash && <div className="flash-overlay" />}
+        </div>
+        
+        {/* Add custom style input below camera feed */}
+        {selectedStyle === 'custom' && (
+          <div className="custom-style-input-container">
+            <input
+              type="text"
+              placeholder="Enter your custom style here..."
+              className="custom-style-input-below"
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+            />
+          </div>
+        )}
+        
+        {/* Control overlay that slides down when visible */}
+        <div className={`control-overlay ${showControlOverlay ? 'visible' : ''}`}>
+          <div className="control-overlay-content">
+            <h2 className="settings-title">Advanced Settings</h2>
+            
+            <button 
+              className="dismiss-overlay-btn"
+              onClick={() => setShowControlOverlay(false)}
+            >
+              Close Settings
+            </button>
+            
+            {selectedStyle === 'custom' && (
+              <div className="control-option">
+                <label className="control-label">Custom style prompt:</label>
+                <input
+                  type="text"
+                  placeholder="Enter custom style prompt..."
+                  className="custom-style-input"
+                  value={customPrompt}
+                  onChange={(e) => setCustomPrompt(e.target.value)}
+                />
+              </div>
+            )}
+            
+            {/* Camera selector if more than 1 device found */}
+            {cameraDevices.length > 0 && (
+              <div className="control-option">
+                <label className="control-label">Camera:</label>
+                <select
+                  className="camera-select"
+                  onChange={handleCameraSelection}
+                  value={selectedCameraDeviceId || ''}
+                >
+                  {/* If user wants default, we allow a "Default" option */}
+                  <option value="">Default (user-facing)</option>
+                  {cameraDevices.map((dev) => (
+                    <option key={dev.deviceId} value={dev.deviceId}>
+                      {dev.label || `Camera ${dev.deviceId}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Model selector */}
+            <div className="control-option">
+              <label className="control-label">Pick an Image Model:</label>
+              <select
+                className="model-select"
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+              >
+                {modelOptions.map((model) => (
+                  <option key={model.value} value={model.value}>
+                    {model.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Number of Images slider */}
+            <div className="control-option">
+              <label className="control-label">Number of Images: {numImages}</label>
+              <input
+                type="range"
+                min={1}
+                max={16}
+                step={1}
+                value={numImages}
+                onChange={(e) => setNumImages(parseInt(e.target.value))}
+                className="slider-input"
+              />
+            </div>
+
+            {/* Prompt Guidance slider */}
+            <div className="control-option">
+              <label className="control-label">Prompt Guidance: {promptGuidance.toFixed(1)}</label>
+              <input
+                type="range"
+                min={2}
+                max={3}
+                step={0.1}
+                value={promptGuidance}
+                onChange={(e) => setPromptGuidance(parseFloat(e.target.value))}
+                className="slider-input"
+              />
+            </div>
+
+            {/* Instant ID Strength slider */}
+            <div className="control-option">
+              <label className="control-label">Instant ID Strength: {controlNetStrength.toFixed(1)}</label>
+              <input
+                type="range"
+                min={0.4}
+                max={1}
+                step={0.1}
+                value={controlNetStrength}
+                onChange={(e) => setControlNetStrength(parseFloat(e.target.value))}
+                className="slider-input"
+              />
+            </div>
+
+            {/* Instant ID Impact Stop slider */}
+            <div className="control-option">
+              <label className="control-label">Instant ID Impact Stop: {controlNetGuidanceEnd.toFixed(1)}</label>
+              <input
+                type="range"
+                min={0.2}
+                max={0.8}
+                step={0.1}
+                value={controlNetGuidanceEnd}
+                onChange={(e) => setControlNetGuidanceEnd(parseFloat(e.target.value))}
+                className="slider-input"
+              />
+            </div>
+
+            <div className="control-option checkbox">
+              <input
+                type="checkbox"
+                id="flash-toggle"
+                checked={flashEnabled}
+                onChange={(e) => setFlashEnabled(e.target.checked)}
+              />
+              <label htmlFor="flash-toggle" className="control-label">Flash</label>
+            </div>
+
+            {/* Per-style realism slider */}
+            <div className="control-option">
+              <label className="control-label">Realism for {selectedStyle}: {styleRealism[selectedStyle]}%</label>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={styleRealism[selectedStyle]}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  setStyleRealism((prev) => ({
+                    ...prev,
+                    [selectedStyle]: val
+                  }));
+                }}
+                className="slider-input"
+              />
+            </div>
+
+            <div className="control-option checkbox">
+              <input
+                type="checkbox"
+                id="keep-original-toggle"
+                checked={keepOriginalPhoto}
+                onChange={(e) => setKeepOriginalPhoto(e.target.checked)}
+              />
+              <label htmlFor="keep-original-toggle" className="control-label">Keep Original Image</label>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 
@@ -828,208 +1170,9 @@ const App = () => {
   // -------------------------
   //   Control Panel
   // -------------------------
-  const renderControlPanel = () => (
-    <div className="control-panel">
-      {/* Row 1: style select + optional custom input */}
-      <div className="control-panel-row">
-        <div className="flex flex-col">
-          <label className="text-white mb-1">Photobooth style:</label>
-          <select
-            className="px-4 py-2 rounded bg-gray-700 outline-none"
-            value={selectedStyle}
-            onChange={(e) => setSelectedStyle(e.target.value)}
-          >
-            <option value="random">Random</option>
-            <option value="anime">Anime</option>
-            <option value="gorillaz">Gorillaz</option>
-            <option value="disney">Disney</option>
-            <option value="pixelArt">Pixel Art</option>
-            <option value="steampunk">Steampunk</option>
-            <option value="vaporwave">Vaporwave</option>
-            <option value="astronaut">Astronaut</option>
-            <option value="sketch">Sketch</option>
-            <option value="statue">Statue</option>
-            <option value="clown">Clown</option>
-            <option value="relax">Relax</option>
-            <option value="custom">Custom...</option>
-          </select>
-        </div>
-        {selectedStyle === 'custom' && (
-          <input
-            type="text"
-            placeholder="Custom style..."
-            className="px-4 py-2 rounded bg-gray-600 text-white outline-none ml-2"
-            value={customPrompt}
-            onChange={(e) => setCustomPrompt(e.target.value)}
-          />
-        )}
-      </div>
-
-      {/* Row 2: Take Photo + Settings button side by side */}
-      <div className="control-panel-row">
-        <button
-          className={`px-4 py-2 rounded hover:bg-blue-700 transition ${
-            isSogniReady ? 'bg-blue-600' : 'bg-gray-500 cursor-not-allowed'
-          }`}
-          onClick={() => {
-            if (selectedPhotoIndex !== null) {
-              setSelectedPhotoIndex(null);
-              setSelectedSubIndex(0);
-            } else {
-              handleTakePhoto();
-            }
-          }}
-          disabled={!isSogniReady}
-        >
-          {selectedPhotoIndex !== null ? 'Back to Camera' : 'Take Photo'}
-        </button>
-
-        {/* Settings gear icon: narrower button */}
-        <button
-          className="text-gray-300 hover:text-white bg-gray-700 px-3 py-2 rounded flex items-center justify-center"
-          onClick={() => setShowSettings(!showSettings)}
-          title="Settings"
-          style={{ width: '42px' }}
-        >
-          <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M11 2v2.07a7.962 7.962 0 0 0-5.66 3.3l-1.48-.85-2 3.46 1.48.85a8.033 8.033 0 0 0 0 6.18l-1.48.85 2 3.46 1.48-.85A7.962 7.962 0 0 0 11 19.93V22h2v-2.07a7.962 7.962 0 0 0 5.66-3.3l1.48.85 2-3.46-1.48-.85a8.033 8.033 0 0 0 0-6.18l1.48-.85-2-3.46-1.48.85A7.962 7.962 0 0 0 13 4.07V2h-2Zm1 6a4 4 0 1 1-4 4 4.002 4.002 0 0 1 4-4Z"/>
-          </svg>
-        </button>
-      </div>
-
-      {showSettings && (
-        <div className="bg-gray-700 p-3 rounded mt-2 space-y-3">
-          {/* Camera selector if more than 1 device found */}
-          {cameraDevices.length > 0 && (
-            <label className="flex flex-col">
-              <span>Camera:</span>
-              <select
-                className="px-2 py-1 mt-1 rounded bg-gray-600 text-white outline-none"
-                onChange={handleCameraSelection}
-                value={selectedCameraDeviceId || ''}
-              >
-                {/* If user wants default, we allow a "Default" option */}
-                <option value="">Default (user-facing)</option>
-                {cameraDevices.map((dev) => (
-                  <option key={dev.deviceId} value={dev.deviceId}>
-                    {dev.label || `Camera ${dev.deviceId}`}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-
-          {/* Model selector */}
-          <label className="flex flex-col">
-            <span>Pick an Image Model:</span>
-            <select
-              className="px-2 py-1 mt-1 rounded bg-gray-600 text-white outline-none"
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-            >
-              {modelOptions.map((model) => (
-                <option key={model.value} value={model.value}>
-                  {model.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {/* Number of Images slider */}
-          <label className="flex flex-col space-y-1">
-            <span>Number of Images: {numImages}</span>
-            <input
-              type="range"
-              min={1}
-              max={16}
-              step={1}
-              value={numImages}
-              onChange={(e) => setNumImages(parseInt(e.target.value))}
-              className="w-full"
-            />
-          </label>
-
-          {/* Prompt Guidance slider */}
-          <label className="flex flex-col space-y-1">
-            <span>Prompt Guidance: {promptGuidance.toFixed(1)}</span>
-            <input
-              type="range"
-              min={2}
-              max={3}
-              step={0.1}
-              value={promptGuidance}
-              onChange={(e) => setPromptGuidance(parseFloat(e.target.value))}
-              className="w-full"
-            />
-          </label>
-
-          {/* Instant ID Strength slider */}
-          <label className="flex flex-col space-y-1">
-            <span>Instant ID Strength: {controlNetStrength.toFixed(1)}</span>
-            <input
-              type="range"
-              min={0.4}
-              max={1}
-              step={0.1}
-              value={controlNetStrength}
-              onChange={(e) => setControlNetStrength(parseFloat(e.target.value))}
-              className="w-full"
-            />
-          </label>
-
-          {/* Instant ID Impact Stop slider */}
-          <label className="flex flex-col space-y-1">
-            <span>Instant ID Impact Stop: {controlNetGuidanceEnd.toFixed(1)}</span>
-            <input
-              type="range"
-              min={0.2}
-              max={0.8}
-              step={0.1}
-              value={controlNetGuidanceEnd}
-              onChange={(e) => setControlNetGuidanceEnd(parseFloat(e.target.value))}
-              className="w-full"
-            />
-          </label>
-
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              checked={flashEnabled}
-              onChange={(e) => setFlashEnabled(e.target.checked)}
-            />
-            <span>Flash</span>
-          </label>
-
-          {/* Per-style realism slider */}
-          <label className="flex flex-col space-y-1">
-            <span>Realism for {selectedStyle}: {styleRealism[selectedStyle]}%</span>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={styleRealism[selectedStyle]}
-              onChange={(e) => {
-                const val = parseInt(e.target.value);
-                setStyleRealism((prev) => ({
-                  ...prev,
-                  [selectedStyle]: val
-                }));
-              }}
-            />
-          </label>
-
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              checked={keepOriginalPhoto}
-              onChange={(e) => setKeepOriginalPhoto(e.target.checked)}
-            />
-            <span>Keep Original Image</span>
-          </label>
-        </div>
-      )}
-    </div>
-  );
+  const renderControlPanel = () => {
+    return null;
+  };
 
   // -------------------------
   //   Thumbnails at bottom
@@ -1047,56 +1190,16 @@ const App = () => {
       overflow: 'hidden'
     }}>
       {photos.length > 0 && (
-        <div style={{
-          background: 'black',
-          position: 'relative',
-          overflow: 'visible',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-          maxWidth: 'calc(100vw - 40px)',
-          borderRadius: '0',
-          padding: '0',
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
+        <div className="film-strip-container">
           {/* Top sprocket holes */}
-          <div style={{
-            height: '16px',
-            backgroundColor: 'black',
-            display: 'flex',
-            justifyContent: 'space-evenly',
-            alignItems: 'center',
-            padding: '0 3px'
-          }}>
+          <div className="film-strip-holes top">
             {Array(20).fill(null).map((_, i) => (
-              <div key={`hole-top-${i}`} style={{
-                width: '14px',
-                height: '8px',
-                backgroundColor: 'transparent',
-                border: '1px solid #333',
-                borderRadius: '1px'
-              }} />
+              <div key={`hole-top-${i}`} className="sprocket-hole" />
             ))}
           </div>
           
           {/* Film content area */}
-          <div style={{
-            display: 'flex',
-            flexDirection: 'row',
-            backgroundColor: '#221b15',
-            borderTop: '1px solid #444',
-            borderBottom: '1px solid #444',
-            paddingTop: '3px',
-            paddingBottom: '3px',
-            paddingLeft: '5px',
-            paddingRight: '5px',
-            overflowX: 'auto',
-            overflowY: 'hidden',
-            maxWidth: 'calc(100vw - 40px)',
-            scrollbarWidth: 'thin',
-            scrollbarColor: '#444 #221b15',
-            msOverflowStyle: 'none' /* IE and Edge */
-          }}
-          className="hide-scrollbar" /* Add custom class for webkit browsers */
+          <div className="film-strip-content"
           onWheel={(e) => {
             // Prevent vertical scroll of the page
             if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
@@ -1108,51 +1211,17 @@ const App = () => {
             {photos.map((photo, i) => {
               const isSelected = i === selectedPhotoIndex;
               const frameNumber = i + 1;
+              const isReference = photo.isOriginal;
 
               // If generating + no images => show loading animation
               if (photo.loading && photo.images.length === 0) {
                 return (
                   <div
                     key={photo.id}
-                    className="flex flex-col items-center justify-center bg-gray-700 relative overflow-hidden"
-                    style={{ 
-                      width: `${thumbnailWidth}px`, 
-                      height: `${thumbnailHeight}px`,
-                      borderRadius: '2px',
-                      flexShrink: 0,
-                      border: '1px solid #111',
-                      boxShadow: 'inset 0 0 5px rgba(0,0,0,0.5)',
-                      backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 250 250\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")',
-                      backgroundBlendMode: 'overlay',
-                      opacity: 0.9,
-                      margin: '0 5px'
-                    }}
+                    className="film-frame loading"
                   >
-                    {/* Film grain overlay */}
-                    <div style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      backgroundColor: 'rgba(40, 40, 40, 0.6)',
-                    }}></div>
-                    
-                    {/* Frame number */}
-                    <div style={{
-                      position: 'absolute',
-                      top: '8px',
-                      left: '8px',
-                      fontSize: '14px',
-                      color: '#999',
-                      backgroundColor: 'rgba(0,0,0,0.5)',
-                      padding: '2px 6px',
-                      borderRadius: '3px',
-                      zIndex: 5
-                    }}>
-                      {frameNumber}
-                    </div>
-                    <div className="w-20 h-20 border-4 border-gray-700 border-t-transparent rounded-full animate-spin" style={{zIndex: 6}}></div>
+                    <div className="frame-number">{frameNumber}</div>
+                    <div className="loading-spinner"></div>
                   </div>
                 );
               }
@@ -1162,45 +1231,10 @@ const App = () => {
                 return (
                   <div
                     key={photo.id}
-                    className="flex items-center justify-center text-red-500 bg-gray-700"
-                    style={{ 
-                      width: `${thumbnailWidth}px`, 
-                      height: `${thumbnailHeight}px`,
-                      borderRadius: '2px',
-                      flexShrink: 0,
-                      border: '1px solid #111',
-                      boxShadow: 'inset 0 0 5px rgba(0,0,0,0.5)',
-                      backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 250 250\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")',
-                      backgroundBlendMode: 'overlay',
-                      opacity: 0.9,
-                      margin: '0 5px'
-                    }}
+                    className="film-frame error"
                   >
-                    {/* Film grain overlay */}
-                    <div style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      backgroundColor: 'rgba(60, 20, 20, 0.6)',
-                    }}></div>
-                    
-                    {/* Frame number */}
-                    <div style={{
-                      position: 'absolute',
-                      top: '8px',
-                      left: '8px',
-                      fontSize: '14px',
-                      color: '#999',
-                      backgroundColor: 'rgba(0,0,0,0.5)',
-                      padding: '2px 6px',
-                      borderRadius: '3px',
-                      zIndex: 5
-                    }}>
-                      {frameNumber}
-                    </div>
-                    <div className="text-lg text-center px-3 py-1 font-bold" style={{zIndex: 6, textShadow: '0 0 4px #000'}}>Error</div>
+                    <div className="frame-number">{frameNumber}</div>
+                    <div className="error-text">Error</div>
                   </div>
                 );
               }
@@ -1215,107 +1249,34 @@ const App = () => {
               return (
                 <div 
                   key={photo.id}
-                  className="thumbnail-container"
-                  style={{ 
-                    width: `${thumbnailWidth}px`, 
-                    height: `${thumbnailHeight}px`,
-                    flexShrink: 0,
-                    position: 'relative',
-                    border: '1px solid #111',
-                    boxShadow: '0 3px 6px rgba(0,0,0,0.5)',
-                    backgroundColor: '#333',
-                    overflow: 'hidden',
-                    margin: '0 5px'
-                  }}
+                  className={`film-frame ${isSelected ? 'selected' : ''}`}
                 >
-                  {/* Film grain overlay for completed images */}
-                  <div style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 250 250\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'1.4\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")',
-                    backgroundBlendMode: 'overlay',
-                    opacity: 0.15,
-                    pointerEvents: 'none',
-                    zIndex: 4
-                  }}></div>
-
-                  {/* Frame number */}
-                  <div style={{
-                    position: 'absolute',
-                    top: '8px',
-                    left: '8px',
-                    fontSize: '14px',
-                    color: '#fff',
-                    backgroundColor: 'rgba(0,0,0,0.5)',
-                    padding: '2px 6px',
-                    borderRadius: '3px',
-                    zIndex: 5
-                  }}>
-                    {frameNumber}
-                  </div>
-
-                  {/* Show an X if selected */}
                   {isSelected && (
-                    <div
-                      className="thumbnail-delete-button"
-                      style={{
-                        position: 'absolute',
-                        top: '8px',
-                        right: '8px',
-                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                        color: 'white',
-                        width: '30px',
-                        height: '30px',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        zIndex: 10,
-                        fontSize: '16px'
-                      }}
+                    <button
+                      className="delete-frame-btn"
                       onClick={() => handleDeletePhoto(i)}
                     >
                       X
-                    </div>
+                    </button>
                   )}
 
+                  <div className="frame-number">{frameNumber}</div>
+                  
                   <img
                     src={thumbUrl}
                     alt={`Generated #${i}`}
-                    className={
-                      `thumbnail ${isSelected ? 'selected' : ''} ` +
-                      (photo.newlyArrived ? 'thumbnail-fade' : '')
-                    }
-                    style={{ 
-                      width: '100%', 
-                      height: '100%', 
-                      objectFit: 'cover',
-                      borderRadius: '2px',
-                      border: isSelected ? '3px solid #f59e0b' : 'none'
-                    }}
+                    className={photo.newlyArrived ? 'thumbnail-fade' : ''}
                     onClick={handleThumbClick}
                   />
 
+                  {/* Show REF label for original photo */}
+                  {isReference && (
+                    <div className="ref-label">REF</div>
+                  )}
+
                   {/* If multiple images, show stack count */}
                   {photo.images.length > 1 && (
-                    <div className="stack-count" style={{
-                      position: 'absolute',
-                      bottom: '8px',
-                      right: '8px',
-                      backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                      color: 'white',
-                      padding: '3px 8px',
-                      borderRadius: '12px',
-                      fontSize: '14px',
-                      fontWeight: 'bold',
-                      zIndex: 10
-                    }}>
-                      x{photo.images.length}
-                    </div>
+                    <div className="stack-count">x{photo.images.length}</div>
                   )}
                 </div>
               );
@@ -1323,22 +1284,9 @@ const App = () => {
           </div>
           
           {/* Bottom sprocket holes */}
-          <div style={{
-            height: '16px',
-            backgroundColor: 'black',
-            display: 'flex',
-            justifyContent: 'space-evenly',
-            alignItems: 'center',
-            padding: '0 3px'
-          }}>
+          <div className="film-strip-holes bottom">
             {Array(20).fill(null).map((_, i) => (
-              <div key={`hole-bottom-${i}`} style={{
-                width: '14px',
-                height: '8px',
-                backgroundColor: 'transparent',
-                border: '1px solid #333',
-                borderRadius: '1px'
-              }} />
+              <div key={`hole-bottom-${i}`} className="sprocket-hole" />
             ))}
           </div>
         </div>
@@ -1346,12 +1294,42 @@ const App = () => {
     </div>
   );
 
+  // Add an effect to close dropdown when clicking outside
+  useEffect(() => {
+    if (showStyleDropdown) {
+      const handleClickOutside = (e) => {
+        const dropdown = document.querySelector('.style-dropdown');
+        const button = document.querySelector('.header-style-select');
+        
+        // If click is outside dropdown and button, close dropdown
+        if (dropdown && 
+            button && 
+            !dropdown.contains(e.target) && 
+            !button.contains(e.target)) {
+          setShowStyleDropdown(false);
+        }
+      };
+      
+      document.addEventListener('click', handleClickOutside);
+      
+      // Make sure selected option is scrolled into view
+      setTimeout(() => {
+        const selectedOption = document.querySelector('.style-option.selected');
+        if (selectedOption) {
+          selectedOption.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+      
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [showStyleDropdown]);
+
   // -------------------------
   //   Render
   // -------------------------
   return (
     <div
-      className="relative w-full h-screen"
+      className="relative w-full h-screen photobooth-app"
       onDragOver={handleDragOver}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
@@ -1365,30 +1343,28 @@ const App = () => {
       )}
 
       {/* Main area with video in the background */}
-      {renderMainArea()}
-
-      <canvas ref={canvasRef} className="hidden" />
-
-      {/* Control panel (top-left) */}
-      {renderControlPanel()}
-
-      {/* Overlays */}
-      {countdown > 0 && (
-        <div className="countdown-overlay">
-          {countdown}
-        </div>
-      )}
-      {showFlash && <div className="flash-overlay" />}
-
-      {/* Thumbnail strip at bottom */}
-      {renderGallery()}
-
-      {/* Selected photo placed in normal flow below pinned elements */}
-      {selectedPhotoIndex !== null && (
-        <div className="selected-photo-container" style={{ zIndex: 200 }}>
+      {selectedPhotoIndex === null ? renderMainArea() : (
+        <div className="selected-photo-container photobooth-photo-viewer" style={{ zIndex: 200 }}>
+          <div className="photobooth-header">
+            <h1 className="photobooth-title">SOGNI PHOTOBOOTH</h1>
+            <button
+              className="back-to-camera-btn"
+              onClick={() => {
+                setSelectedPhotoIndex(null);
+                setSelectedSubIndex(0);
+              }}
+            >
+              Back to Camera
+            </button>
+          </div>
           {renderSelectedPhoto()}
         </div>
       )}
+
+      <canvas ref={canvasRef} className="hidden" />
+
+      {/* Thumbnail strip at bottom */}
+      {renderGallery()}
 
       {/* Camera shutter sound */}
       <audio ref={shutterSoundRef} preload="auto">
@@ -1406,4 +1382,3 @@ const App = () => {
 };
 
 export default App;
-

@@ -196,3 +196,1507 @@ body {
     display: none;
   }
 }
+
+/* Photobooth App Styling */
+.photobooth-app {
+  background: linear-gradient(135deg, #ff61d5 0%, #7132e8 100%);
+  font-family: 'Arial', sans-serif;
+  overflow: hidden;
+}
+
+/* Photobooth Frame */
+.photobooth-frame {
+  background-color: #ff3366;
+  border-radius: 20px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3), 0 0 0 8px #ffd301, 0 0 0 16px #ff3366;
+  max-width: 900px;
+  margin: 40px auto 0;
+  padding: 15px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Photobooth Header */
+.photobooth-header {
+  background-color: #ffd301;
+  border-radius: 12px 12px 0 0;
+  padding: 10px 20px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  margin-bottom: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  flex-wrap: wrap;
+}
+
+.photobooth-title {
+  font-family: 'Impact', 'Arial Black', sans-serif;
+  font-size: 32px;
+  color: #ff3366;
+  text-align: center;
+  text-shadow: 2px 2px 0 #fff, 4px 4px 0 rgba(0, 0, 0, 0.2);
+  margin: 0;
+  letter-spacing: 2px;
+  transform: rotate(-2deg);
+  flex-shrink: 0;
+}
+
+/* Header Controls */
+.photobooth-header-controls {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  flex-grow: 1;
+  margin-left: 15px;
+  flex-wrap: wrap;
+}
+
+.style-selector {
+  position: relative !important;
+  z-index: 9999;
+  flex-grow: 1;
+  max-width: 240px;
+}
+
+/* Restore original button style but keep custom dropdown */
+.header-style-select {
+  width: 100%;
+  padding: 10px 15px;
+  border-radius: 12px;
+  background-color: #ff3366;
+  color: white;
+  border: 3px solid white;
+  font-weight: bold;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #96143d, inset 0 0 10px rgba(255, 255, 255, 0.3);
+  text-align: center;
+  text-shadow: 1px 1px 0 #96143d;
+  transform: rotate(-1deg);
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  position: relative;
+  padding-right: 35px;
+}
+
+.header-style-select:hover {
+  background-color: #ff5e8a;
+  transform: rotate(0deg) scale(1.05);
+}
+
+.header-style-select:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #96143d, inset 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+/* Dropdown Arrow */
+.header-style-select::after {
+  content: '▼';
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: white;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}
+
+/* Animated Border Effect */
+.style-selector::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  border-radius: 15px;
+  background: linear-gradient(45deg, #ffd301, #ff3366, #7132e8, #ffd301);
+  background-size: 400% 400%;
+  z-index: -1;
+  animation: gradientBorder 3s ease infinite;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.style-selector:hover::before {
+  opacity: 1;
+}
+
+@keyframes gradientBorder {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Completely revised dropdown styling */
+.custom-dropdown {
+  position: fixed !important; /* Use fixed for more reliable positioning */
+  top: auto !important; /* Will be set by JS */
+  left: auto !important; /* Will be set by JS */
+  width: 250px !important; /* Fixed wider width */
+  max-height: 80vh !important; /* Taller to allow scrolling */
+  background-color: #333;
+  border-radius: 12px;
+  overflow-y: auto !important; /* Force scrolling */
+  overflow-x: hidden;
+  z-index: 9999 !important;
+  border: 3px solid #ffcc00;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.5), 0 0 0 3px #ffd301;
+  animation: none !important;
+  padding: 5px 0; /* Add padding to the top and bottom */
+}
+
+/* Ensure dropdown options have more space for checkmarks */
+.custom-dropdown-option {
+  padding: 12px 15px 12px 38px; /* More padding on the left */
+  background-color: #333 !important;
+  color: white;
+  border-bottom: 1px solid #444;
+  position: relative;
+  z-index: 1;
+  cursor: pointer;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 16px;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box !important;
+}
+
+/* Fix checkmark position to avoid overlap */
+.custom-dropdown-option.selected::before {
+  content: '✓';
+  position: absolute;
+  left: 15px; /* Move further left */
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: white;
+}
+
+/* Fix scrolling behavior */
+.custom-dropdown::-webkit-scrollbar {
+  width: 8px;
+  background-color: #222;
+}
+
+.custom-dropdown::-webkit-scrollbar-thumb {
+  background: #ff3366;
+  border-radius: 4px;
+}
+
+/* Remove all custom-dropdown-option styles and consolidate them here */
+.custom-dropdown-option {
+  padding: 10px 15px 10px 35px;
+  background-color: #333 !important;
+  color: white;
+  border-bottom: 1px solid #444;
+  position: relative;
+  z-index: 1;
+  cursor: pointer;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 16px;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box !important;
+}
+
+/* Last item has no border */
+.custom-dropdown-option:last-child {
+  border-bottom: none;
+}
+
+/* Define hover state */
+.custom-dropdown-option:hover {
+  background-color: #ff3366 !important;
+}
+
+/* Ensure only selected items have the checkmark */
+.custom-dropdown-option::before {
+  content: none;
+}
+
+/* Colored items */
+.custom-dropdown-option.selected,
+.custom-dropdown-option:first-child, /* ANIME */
+.custom-dropdown-option:nth-child(8), /* SKETCH */
+.custom-dropdown-option:nth-child(11) { /* RELAX */
+  background-color: #ff3366 !important;
+}
+
+/* Specifically target the CLOWN option to fix any issues */
+.custom-dropdown-option:nth-child(10) { /* CLOWN */
+  background-color: #333 !important;
+  border-bottom: 1px solid #444;
+}
+
+/* Mobile styling */
+@media (max-width: 768px) {
+  .custom-dropdown {
+    max-width: 95vw !important;
+    width: auto !important;
+  }
+  
+  .custom-dropdown-option {
+    font-size: 14px;
+    padding: 8px 10px 8px 30px;
+  }
+  
+  .custom-dropdown-option.selected::before {
+    left: 10px;
+  }
+}
+
+/* Photobooth Screen */
+.photobooth-screen {
+  background-color: black;
+  border: 6px solid white;
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 0 auto;
+  position: relative;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.photobooth-screen video {
+  width: 100%;
+  display: block;
+}
+
+/* Controls Section */
+.photobooth-controls {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #ffd301;
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Make the control panel more colorful */
+.control-panel {
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  margin: 0;
+  padding: 15px;
+  width: 100%;
+}
+
+.control-panel-row {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.control-panel select,
+.control-panel input[type="text"],
+.control-panel button {
+  border: 3px solid #ff3366;
+  border-radius: 8px;
+  background-color: white;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+.control-panel button {
+  background-color: #ff3366;
+  color: white;
+  font-weight: bold;
+}
+
+.control-panel button:hover {
+  background-color: #ff5e8a;
+  transform: scale(1.05);
+}
+
+/* Selected Photo Viewer */
+.photobooth-photo-viewer {
+  background-color: #ff3366;
+  border-radius: 20px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3), 0 0 0 8px #ffd301, 0 0 0 16px #ff3366;
+  max-width: 900px;
+  margin: 40px auto 0;
+  padding: 15px;
+  height: calc(100vh - 200px);
+  display: flex;
+  flex-direction: column;
+}
+
+.photobooth-photo-viewer img {
+  border: 6px solid white;
+  border-radius: 10px;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+  flex: 1;
+  max-height: calc(100% - 80px);
+}
+
+.back-to-camera-btn {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: #ff3366;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 15px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.back-to-camera-btn:hover {
+  background-color: #ff5e8a;
+}
+
+/* Film Strip Enhancement */
+div[style*="film content area"] {
+  border-radius: 10px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Make countdown more fun */
+.countdown-overlay {
+  background: rgba(255, 51, 102, 0.6);
+  border-radius: 50%;
+  width: 150px;
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Impact', sans-serif;
+  font-size: 72px;
+  color: white;
+  text-shadow: 3px 3px 0 #ff3366;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+/* Brighten up the flash */
+.flash-overlay {
+  background-color: white;
+  animation: flash 0.3s ease-out;
+}
+
+@keyframes flash {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Hide scrollbars but allow scrolling */
+.hide-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .photobooth-frame, .photobooth-photo-viewer {
+    margin: 20px 15px;
+    padding: 10px;
+  }
+  
+  .photobooth-header {
+    flex-direction: column;
+    padding: 10px;
+  }
+  
+  .photobooth-title {
+    font-size: 24px;
+    margin-bottom: 10px;
+  }
+  
+  .photobooth-header-controls {
+    width: 100%;
+    margin-left: 0;
+    justify-content: center;
+  }
+  
+  .style-selector {
+    position: relative !important;
+    max-width: none;
+    width: 100%;
+  }
+  
+  .header-take-photo-btn {
+    width: 100%;
+  }
+  
+  .header-config-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 36px;
+    height: 36px;
+  }
+}
+
+/* Full-screen Control Overlay */
+.control-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 51, 102, 0.95) 0%, rgba(113, 50, 232, 0.95) 100%);
+  padding: 20px;
+  transform: translateY(-100%);
+  transition: transform 0.3s ease-in-out;
+  z-index: 10000 !important;
+  overflow-y: auto;
+  backdrop-filter: blur(10px);
+}
+
+.control-overlay.visible {
+  transform: translateY(0);
+}
+
+.control-overlay-content {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.settings-title {
+  text-align: center;
+  color: white;
+  font-family: 'Impact', 'Arial Black', sans-serif;
+  font-size: 32px;
+  margin: 0 0 20px 0;
+  text-shadow: 2px 2px 0 #ff3366, 4px 4px 0 rgba(0, 0, 0, 0.2);
+  letter-spacing: 2px;
+}
+
+.dismiss-overlay-btn {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin: 0 0 20px 0;
+  background-color: #ffd301;
+  color: #ff3366;
+  border: none;
+  border-radius: 30px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #ff3366;
+  transition: all 0.1s;
+  text-transform: uppercase;
+}
+
+.dismiss-overlay-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #ff3366;
+}
+
+.dismiss-overlay-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #ff3366;
+}
+
+/* Control Options */
+.control-option {
+  margin-bottom: 20px;
+  background-color: rgba(255, 255, 255, 0.15);
+  border-radius: 15px;
+  padding: 15px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.2s;
+}
+
+.control-option:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.control-label {
+  display: block;
+  color: white;
+  margin-bottom: 8px;
+  font-weight: bold;
+  font-size: 16px;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Style inputs */
+.custom-style-input,
+.camera-select,
+.model-select {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  font-weight: bold;
+  font-size: 16px;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.custom-style-input {
+  width: 100%;
+  padding: 12px 15px;
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #333;
+  font-weight: bold;
+  border: 2px solid #ff3366;
+  border-radius: 10px;
+  font-size: 16px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2), inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.custom-style-input:focus {
+  outline: none;
+  border-color: #ffd301;
+  box-shadow: 0 0 0 3px rgba(255, 211, 1, 0.3), inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.custom-style-input::placeholder {
+  color: #999;
+  font-weight: normal;
+  font-style: italic;
+}
+
+/* Sliders */
+.slider-input {
+  width: 100%;
+  height: 16px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  outline: none;
+  margin: 15px 0;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
+  padding: 0;
+}
+
+.slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #ffd301;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  margin-top: -7px; /* Center the thumb vertically */
+}
+
+.slider-input::-moz-range-thumb {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #ffd301;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.slider-input::-webkit-slider-runnable-track {
+  height: 16px;
+  border-radius: 8px;
+}
+
+.slider-input::-moz-range-track {
+  height: 16px;
+  border-radius: 8px;
+}
+
+/* Checkboxes */
+.control-option.checkbox {
+  display: flex;
+  align-items: center;
+}
+
+.control-option.checkbox input[type="checkbox"] {
+  margin-right: 15px;
+  width: 24px;
+  height: 24px;
+  accent-color: #ffd301;
+}
+
+.control-option.checkbox .control-label {
+  margin-bottom: 0;
+}
+
+/* Film Strip Styling */
+.film-strip-container {
+  background: linear-gradient(to right, #ff3366, #7132e8);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  position: relative;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  max-width: calc(100vw - 40px);
+  border: 3px solid #ffd301;
+}
+
+.film-strip-holes {
+  height: 20px;
+  background-color: black;
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  padding: 0 5px;
+  position: relative;
+}
+
+.film-strip-holes.top {
+  border-bottom: 2px dotted rgba(255, 255, 255, 0.2);
+}
+
+.film-strip-holes.bottom {
+  border-top: 2px dotted rgba(255, 255, 255, 0.2);
+}
+
+.sprocket-hole {
+  width: 16px;
+  height: 10px;
+  background-color: transparent;
+  border: 1px solid rgba(255, 211, 1, 0.5);
+  border-radius: 2px;
+}
+
+.film-strip-content {
+  display: flex;
+  flex-direction: row;
+  background: linear-gradient(90deg, #221b15 0%, #442f22 50%, #221b15 100%);
+  padding: 5px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 211, 1, 0.7) rgba(34, 27, 21, 0.5);
+}
+
+.film-strip-content::-webkit-scrollbar {
+  height: 6px;
+}
+
+.film-strip-content::-webkit-scrollbar-track {
+  background: rgba(34, 27, 21, 0.5);
+}
+
+.film-strip-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 211, 1, 0.7);
+  border-radius: 3px;
+}
+
+.film-frame {
+  width: 220px;
+  height: 130px;
+  flex-shrink: 0;
+  position: relative;
+  border: 2px solid #111;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+  background-color: #333;
+  overflow: hidden;
+  margin: 0 5px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.film-frame:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+}
+
+.film-frame.selected {
+  border: 2px solid #ffd301;
+  box-shadow: 0 0 20px rgba(255, 211, 1, 0.5);
+}
+
+.film-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: all 0.3s;
+}
+
+.film-frame.selected img {
+  opacity: 0.9;
+}
+
+.film-frame .frame-number {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background-color: rgba(255, 51, 102, 0.8);
+  color: white;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: bold;
+  z-index: 5;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.film-frame .ref-label {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background-color: #ffd301;
+  color: #ff3366;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: bold;
+  z-index: 5;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.film-frame .stack-count {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+  z-index: 5;
+}
+
+.film-frame .delete-frame-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: rgba(255, 51, 102, 0.8);
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  font-size: 14px;
+  font-weight: bold;
+  border: 1px solid white;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.film-frame.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  background-blend-mode: overlay;
+  background-color: rgba(40, 40, 40, 0.6);
+}
+
+.film-frame .loading-spinner {
+  width: 60px;
+  height: 60px;
+  border: 5px solid rgba(255, 211, 1, 0.3);
+  border-top: 5px solid #ffd301;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.film-frame.error {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(60, 20, 20, 0.6);
+}
+
+.film-frame .error-text {
+  color: #ff3366;
+  font-size: 18px;
+  font-weight: bold;
+  text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* thumbnail fade animation */
+.thumbnail-fade {
+  animation: fadeInThumb 0.8s ease-in;
+}
+
+/* Fix alternating colors for dropdown options */
+.custom-dropdown-option:nth-child(odd) {
+  background-color: #444;
+}
+
+.custom-dropdown-option:nth-child(even) {
+  background-color: #333;
+}
+
+/* Make sure Anime is visible in dropdown */
+.custom-dropdown-option.selected {
+  background-color: #ff3366 !important;
+  position: relative;
+}
+
+/* Add gradient to fade bottom if content is scrollable */
+.custom-dropdown::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(to top, rgba(51, 51, 51, 0.9), transparent);
+  pointer-events: none;
+  z-index: 5;
+  border-radius: 0 0 12px 12px;
+}
+
+/* Improve mobile scrolling */
+@media (max-width: 768px) {
+  .custom-dropdown {
+    max-height: 350px;
+    width: 100%;
+  }
+  
+  .custom-dropdown-option {
+    padding: 16px 20px;
+    font-size: 16px;
+  }
+}
+
+/* Restore the last-child border styling */
+.custom-dropdown-option:last-child {
+  border-bottom: none;
+}
+
+/* Restore selected option checkmark */
+.custom-dropdown-option.selected::before {
+  content: '✓';
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: white;
+}
+
+/* Fix additional styling for the dropdown */
+.custom-dropdown::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(to top, rgba(34, 34, 34, 0.9), transparent);
+  pointer-events: none;
+  z-index: 5;
+  border-radius: 0 0 12px 12px;
+}
+
+/* Make dropdown taller to ensure all options show */
+.custom-dropdown {
+  max-height: 550px; /* Further increased to show all options */
+}
+
+/* Media query for mobile */
+@media (max-width: 768px) {
+  .custom-dropdown {
+    max-height: 550px; /* Match the desktop value */
+  }
+}
+
+/* Restore missing header button styles */
+.header-take-photo-btn {
+  padding: 8px 16px;
+  background-color: #ff3366;
+  color: white;
+  border: 2px solid white;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.header-take-photo-btn:hover {
+  background-color: #ff5e8a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.header-take-photo-btn.disabled {
+  background-color: #ccc;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.header-config-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #ff3366;
+  color: white;
+  font-size: 20px;
+  border: 2px solid white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.header-config-btn:hover {
+  transform: scale(1.1);
+  background-color: #ff5e8a;
+}
+
+/* Restore dropdown toggle button styling */
+.header-style-select {
+  width: 100%;
+  padding: 10px 15px;
+  border-radius: 12px;
+  background-color: #ff3366;
+  color: white;
+  border: 3px solid white;
+  font-weight: bold;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #96143d, inset 0 0 10px rgba(255, 255, 255, 0.3);
+  text-align: center;
+  text-shadow: 1px 1px 0 #96143d;
+  transform: rotate(-1deg);
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  position: relative;
+  padding-right: 35px;
+}
+
+.header-style-select:hover {
+  background-color: #ff5e8a;
+  transform: rotate(0deg) scale(1.05);
+}
+
+.header-style-select:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #96143d, inset 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+/* Dropdown Arrow */
+.header-style-select::after {
+  content: '▼';
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: white;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}
+
+/* Fix dropdown position to be relative to button */
+.custom-dropdown {
+  position: absolute !important;
+  top: 100% !important;
+  left: 0 !important;
+  margin-top: 8px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+  background-color: #333;
+  border-radius: 12px;
+  overflow: hidden;
+  z-index: 9999 !important;
+  height: auto;
+  max-height: 70vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 3px solid #ffcc00;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.5), 0 0 0 3px #ffd301;
+}
+
+/* Add an animated border to the dropdown */
+@keyframes borderPulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 211, 1, 0.4), 0 10px 25px rgba(0,0,0,0.5), 0 0 0 3px #ff3366; }
+  70% { box-shadow: 0 0 0 10px rgba(255, 211, 1, 0), 0 10px 25px rgba(0,0,0,0.5), 0 0 0 3px #ff3366; }
+  100% { box-shadow: 0 0 0 0 rgba(255, 211, 1, 0), 0 10px 25px rgba(0,0,0,0.5), 0 0 0 3px #ff3366; }
+}
+
+.custom-dropdown {
+  animation: none;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5), 0 0 0 3px #ff3366, 0 0 0 5px #ffd301;
+}
+
+/* Restore dropdown option styles */
+.custom-dropdown-option {
+  padding: 12px 16px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-bottom: 1px solid rgba(255, 211, 1, 0.3); /* Yellow tinted dividers */
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(to right, #333, #444); /* Subtle gradient background */
+}
+
+.custom-dropdown-option:last-child {
+  border-bottom: none;
+}
+
+.custom-dropdown-option:hover {
+  background: linear-gradient(to right, #ff3366, #ff5e8a); /* Pink gradient on hover */
+  padding-left: 24px;
+  color: white;
+  text-shadow: 0 0 5px rgba(255, 255, 255, 0.5); /* Glow effect on text */
+}
+
+/* Selected option checkmark */
+.custom-dropdown-option.selected::before {
+  content: '✓';
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: white;
+  text-shadow: none;
+}
+
+/* Add hover ripple effect */
+.custom-dropdown-option::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.5);
+  opacity: 0;
+  border-radius: 100%;
+  transform: translate(-50%, -50%) scale(1);
+  transition: 0.5s all ease;
+}
+
+.custom-dropdown-option:hover::after {
+  display: none;
+}
+
+/* Fun colorful scrollbar */
+.custom-dropdown::-webkit-scrollbar {
+  width: 6px;
+  background-color: #222; /* Dark background for scrollbar */
+}
+
+.custom-dropdown::-webkit-scrollbar-thumb {
+  background: #ff3366; /* Pink scrollbar thumb */
+  border-radius: 3px;
+}
+
+/* Checkmark styling */
+.custom-dropdown-option.selected::before {
+  content: '✓';
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: white;
+  text-shadow: none;
+}
+
+/* Remove the border outline from the hover effect */
+.custom-dropdown-option:hover::after {
+  display: none;
+}
+
+/* Fix ANIME style showing checkmark in the screenshot */
+.custom-dropdown-option:first-child {
+  padding-left: 24px; /* Indent for checkmark */
+}
+
+/* Fix box shadow animation on the dropdown */
+.custom-dropdown {
+  animation: none; /* Remove the pulsing animation */
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5), 0 0 0 3px #ff3366, 0 0 0 5px #ffd301;
+}
+
+/* Ensure ANIME shows white checkmark */
+.custom-dropdown-option:first-child:before {
+  content: '✓';
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: white;
+}
+
+/* Make sure ANIME is pink/selected like in screenshot */
+.custom-dropdown-option:first-child {
+  background-color: #ff3366 !important; 
+}
+
+/* Last border fix */
+.custom-dropdown-option:last-child {
+  border-bottom: none;
+}
+
+/* Restore gradient fade at bottom to prevent cutoff text */
+.custom-dropdown::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(to top, rgba(51, 51, 51, 0.9), transparent);
+  pointer-events: none;
+  z-index: 5;
+  border-radius: 0 0 12px 12px;
+}
+
+/* Remove the fixed checkmark from first item and use only selected class checkmark */
+.custom-dropdown-option:first-child:before {
+  content: none;
+}
+
+/* Increase z-index significantly to ensure dropdown is above everything */
+.custom-dropdown {
+  z-index: 9999 !important; /* Very high z-index to ensure it's above everything */
+  position: fixed; /* Use fixed positioning to break out of any stacking contexts */
+  top: auto; /* Reset top position */
+  margin-top: 8px; /* Add margin instead */
+}
+
+/* Handle position relative to the style selector */
+.style-selector {
+  position: relative;
+  z-index: 9999; /* Higher z-index to ensure dropdown shows above other elements */
+}
+
+/* Ensure checkmark only appears on selected elements */
+.custom-dropdown-option.selected::before {
+  content: '✓';
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: white;
+}
+
+.custom-dropdown-option::before {
+  content: none; /* Remove checkmark from all non-selected options */
+}
+
+/* Make sure dropdown is properly positioned */
+.photobooth-header {
+  position: relative;
+  z-index: 1000;
+}
+
+/* Fix stacking context issues with any potential parents */
+.photobooth-frame, 
+.photobooth-app,
+.photobooth-header-controls {
+  position: relative;
+  z-index: auto;
+}
+
+/* Make sure dropdown width is explicitly set */
+.custom-dropdown {
+  width: 100% !important;
+}
+
+/* Ensure dropdown stays within viewport */
+.custom-dropdown {
+  max-width: calc(100vw - 20px) !important; /* Ensure dropdown never exceeds viewport width minus margin */
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .custom-dropdown {
+    max-width: 95vw !important; /* Slightly narrower on mobile */
+    left: 2.5vw !important; /* Center on screen */
+    right: 2.5vw !important;
+    width: auto !important; /* Allow flexible width */
+  }
+
+  /* Adjust font size for smaller screens */
+  .custom-dropdown-option {
+    font-size: 14px;
+    padding: 8px 10px 8px 30px; /* Smaller padding */
+  }
+
+  /* Move checkmark closer to text */
+  .custom-dropdown-option.selected::before {
+    left: 10px;
+  }
+}
+
+/* Ensure dropdown doesn't have any width: 100% rules */
+.custom-dropdown {
+  width: auto !important;
+}
+
+/* Mobile dropdown styling */
+@media (max-width: 768px) {
+  .style-selector {
+    position: relative !important;
+    max-width: none;
+    width: 100%;
+  }
+
+  .custom-dropdown {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+/* Remove all other dropdown-option and selected styles */
+.custom-dropdown-option:first-child:before {
+  content: none; /* Remove duplicate checkmark */
+}
+
+/* Fix mobile view */
+@media (max-width: 768px) {
+  .custom-dropdown {
+    width: 85vw !important; /* Wider on mobile */
+    max-width: 300px !important;
+  }
+  
+  .custom-dropdown-option {
+    padding: 14px 15px 14px 40px; /* Larger touch targets on mobile */
+    font-size: 16px;
+  }
+  
+  .custom-dropdown-option.selected::before {
+    left: 15px;
+    font-size: 16px;
+  }
+}
+
+/* Remove any other overlapping styles */
+.custom-dropdown-option:nth-child(10),
+.custom-dropdown-option:first-child {
+  background-color: #333 !important; /* Reset background */
+}
+
+/* Ensure proper styling for ANIME, SKETCH, and RELAX */
+.custom-dropdown-option.selected {
+  background-color: #ff3366 !important;
+}
+
+/* Brand new dropdown styling */
+.style-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  width: 280px;
+  max-height: 450px;
+  background: linear-gradient(145deg, #333333 0%, #222222 100%); /* Gradient background for entire dropdown */
+  border-radius: 12px;
+  border: 3px solid #ffcc00;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.5), 0 0 0 3px #ffd301;
+  overflow-y: auto;
+  z-index: 9999;
+}
+
+/* Style dropdown options */
+.style-option {
+  padding: 12px 15px 12px 40px;
+  background-color: transparent; /* Make transparent to show the parent gradient */
+  color: white;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-bottom: 1px solid rgba(255, 211, 1, 0.2); /* Subtle gold-tinted dividers */
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.style-option:last-child {
+  border-bottom: none;
+}
+
+/* Selected style */
+.style-option.selected {
+  background-color: rgba(255, 51, 102, 0.9); /* Semi-transparent to blend with gradient */
+}
+
+/* Hover effect */
+.style-option:hover {
+  background-color: #ff3366;
+}
+
+/* Checkmark for selected item */
+.style-option.selected::before {
+  content: "✓";
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: white;
+}
+
+/* Scrollbar styling */
+.style-dropdown::-webkit-scrollbar {
+  width: 8px;
+}
+
+.style-dropdown::-webkit-scrollbar-track {
+  background: #222;
+  border-radius: 4px;
+}
+
+.style-dropdown::-webkit-scrollbar-thumb {
+  background: #ff3366;
+  border-radius: 4px;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .style-dropdown {
+    width: 100%;
+    left: 0;
+    right: 0;
+  }
+}
+
+/* Custom style input in header */
+.header-custom-input {
+  display: none;
+}
+
+.header-custom-style-input {
+  width: 100%;
+  padding: 10px 12px;
+  background-color: white;
+  color: #333;
+  border: 2px solid #ff3366;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+.header-custom-style-input:focus {
+  outline: none;
+  border-color: #ffd301;
+  box-shadow: 0 0 0 2px rgba(255, 211, 1, 0.3);
+}
+
+.header-custom-style-input::placeholder {
+  color: #999;
+  font-weight: normal;
+}
+
+/* Adjust header controls for the new input */
+.photobooth-header-controls {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  flex-grow: 1;
+  margin-left: 15px;
+  flex-wrap: wrap;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .header-custom-input {
+    max-width: none;
+    width: 100%;
+    order: 1;
+    margin: 10px 0 0;
+  }
+  
+  .header-custom-style-input {
+    width: 100%;
+  }
+}
+
+/* Custom style input below camera */
+.custom-style-input-container {
+  width: 100%;
+  padding: 15px;
+  background-color: #ffd301;
+  border-top: 3px solid #ff3366;
+  margin-top: -5px;
+  border-radius: 0 0 12px 12px;
+  text-align: center;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.custom-style-input-below {
+  width: 90%;
+  max-width: 600px;
+  padding: 12px 15px;
+  background-color: white;
+  color: #333;
+  border: 3px solid #ff3366;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: bold;
+  box-shadow: 0 3px 0 #ff3366, 0 4px 10px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+.custom-style-input-below:focus {
+  outline: none;
+  border-color: #ff3366;
+  box-shadow: 0 3px 0 #ff3366, 0 0 0 3px rgba(255, 51, 102, 0.3);
+  transform: translateY(-2px);
+}
+
+.custom-style-input-below::placeholder {
+  color: #999;
+  font-weight: normal;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .custom-style-input-below {
+    width: 100%;
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+}
