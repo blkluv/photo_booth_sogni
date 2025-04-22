@@ -123,21 +123,24 @@ body {
   position: relative !important;
   display: block !important;
   text-align: center !important;
-  max-width: 85vw !important;
-  max-height: 75vh !important;
+  min-width: 320px !important; /* Minimum width */
+  min-height: 240px !important; /* Minimum height */
+  max-width: 80vw !important;
+  max-height: 70vh !important;
   transform: none !important;
 }
 
 .selected-photo-container img {
-  max-width: 85vw !important;
-  max-height: 75vh !important;
+  max-width: 80vw !important;
+  max-height: 70vh !important;
   object-fit: contain !important;
   margin: 0 auto !important;
-  border: 6px solid white !important;
+  border: 12px solid white !important; /* Larger white border */
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.7) !important;
   border-radius: 4px !important;
   animation: photoGlow 2s infinite alternate !important;
   display: block !important;
+  transition: transform 0.4s ease-out !important; /* For sliding animation */
 }
 
 .photo-close-btn {
@@ -972,7 +975,7 @@ div[style*="film content area"] {
 /* Film Strip Styling */
 .film-strip-container {
   background: linear-gradient(to right, #ff3366, #7132e8);
-  border-radius: 16px 16px 0 0;
+  border-radius: 0; /* Removed rounded corners */
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
   overflow: hidden;
   position: relative;
@@ -980,7 +983,7 @@ div[style*="film content area"] {
   display: flex;
   flex-direction: column;
   max-width: calc(100vw - 40px);
-  border: 3px solid #ffd301;
+  border: 3px solid #333;
   margin-bottom: 20px;
 }
 
@@ -1035,8 +1038,9 @@ div[style*="film content area"] {
 }
 
 .film-frame {
-  width: 220px;
-  height: 130px;
+  width: 220px; /* Base width */
+  height: auto; /* Height will be determined by aspect ratio */
+  aspect-ratio: var(--camera-aspect-ratio, 16/9); /* Default to 16:9 if not set */
   flex-shrink: 0;
   position: relative;
   border: 2px solid #111;
@@ -1054,20 +1058,19 @@ div[style*="film content area"] {
 }
 
 .film-frame.selected {
-  border: 2px solid #ffd301;
-  box-shadow: 0 0 20px rgba(255, 211, 1, 0.5);
+  border: 2px solid #ff3366; /* Keep pink highlight for selected frame */
+  box-shadow: 0 0 20px rgba(255, 51, 102, 0.5);
+}
+
+.film-frame.selected img {
+  opacity: 0.9;
 }
 
 .film-frame img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center;
   transition: all 0.3s;
-}
-
-.film-frame.selected img {
-  opacity: 0.9;
 }
 
 .film-frame .frame-number {
@@ -2034,4 +2037,153 @@ div[style*="film content area"] {
   color: #ff3366 !important;
   font-size: 16px !important;
   max-width: 300px !important;
+}
+
+/* Photos carousel container */
+.photos-carousel {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: visible !important; /* Changed from hidden to visible */
+}
+
+/* Preview edges of next/prev photos - fix overlap */
+.photo-preview {
+  position: absolute !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 40px !important; /* Reduced from 80px */
+  height: 180px !important;
+  background-color: rgba(0,0,0,0.5) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important; /* For prev */
+  cursor: pointer !important;
+  z-index: 10001 !important;
+  opacity: 0.7 !important;
+  transition: opacity 0.3s ease !important;
+  border-radius: 4px !important;
+  overflow: hidden !important; /* Hide overflow to show only edge */
+}
+
+.photo-preview:hover {
+  opacity: 1 !important;
+}
+
+.photo-preview.prev {
+  left: -20px !important; /* Show only a small portion */
+  justify-content: flex-end !important; /* Align content to right */
+}
+
+.photo-preview.next {
+  right: -20px !important; /* Show only a small portion */
+  justify-content: flex-start !important; /* Align content to left */
+}
+
+.photo-preview-img {
+  max-width: none !important; /* Override max-width */
+  width: 180px !important; /* Fixed width based on original */
+  height: 160px !important; /* Fixed height */
+  object-fit: cover !important; /* Changed from contain to cover */
+  border: 3px solid white !important;
+  border-radius: 2px !important;
+}
+
+/* Navigation buttons - adjust position */
+.photo-nav-btn.prev {
+  left: 10px !important; /* Moved closer to edge */
+}
+
+.photo-nav-btn.next {
+  right: 10px !important; /* Moved closer to edge */
+}
+
+/* Photo sliding animation */
+@keyframes slideInFromRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideInFromLeft {
+  from { transform: translateX(-100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOutToLeft {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(-100%); opacity: 0; }
+}
+
+@keyframes slideOutToRight {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
+}
+
+.slide-in-right {
+  animation: slideInFromRight 0.4s forwards !important;
+}
+
+.slide-in-left {
+  animation: slideInFromLeft 0.4s forwards !important;
+}
+
+.slide-out-left {
+  animation: slideOutToLeft 0.4s forwards !important;
+}
+
+.slide-out-right {
+  animation: slideOutToRight 0.4s forwards !important;
+}
+
+/* Loading indicator for photos still loading */
+.photo-loading {
+  width: 320px !important; /* Match min-width of image-wrapper */
+  height: 240px !important; /* Match min-height of image-wrapper */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: rgba(0,0,0,0.7) !important;
+  border-radius: 10px !important;
+  border: 12px solid white !important; /* Match main image border */
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.7) !important;
+}
+
+.spinner {
+  width: 50px !important;
+  height: 50px !important;
+  border: 5px solid rgba(255,255,255,0.3) !important;
+  border-radius: 50% !important;
+  border-top-color: #ff3366 !important;
+  animation: spin 1s ease-in-out infinite !important;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Navigation buttons */
+.photo-nav-btn {
+  position: absolute !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  background: rgba(0,0,0,0.5) !important;
+  color: white !important;
+  width: 50px !important;
+  height: 50px !important;
+  border-radius: 25px !important;
+  border: none !important;
+  font-size: 24px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  z-index: 10002 !important;
+  transition: background-color 0.3s ease !important;
+}
+
+.photo-nav-btn:hover {
+  background: rgba(255,51,102,0.8) !important;
 }

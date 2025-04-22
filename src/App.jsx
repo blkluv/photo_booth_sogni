@@ -211,6 +211,44 @@ const App = () => {
   const [showSlothicorn, setShowSlothicorn] = useState(true); // Always keep this true
   const [slothicornActive, setSlothicornActive] = useState(false); // This controls visibility
 
+  // Add state for tracking slide animation direction
+  const [slideDirection, setSlideDirection] = useState(''); // 'left', 'right', or ''
+
+  // Add useEffect to set camera aspect ratio CSS variable
+  useEffect(() => {
+    // When video is loaded, set the CSS variable for aspect ratio
+    const handleVideoLoaded = () => {
+      if (videoRef.current) {
+        const { videoWidth, videoHeight } = videoRef.current;
+        if (videoWidth && videoHeight) {
+          // Set CSS variable for camera aspect ratio
+          document.documentElement.style.setProperty(
+            '--camera-aspect-ratio', 
+            `${videoWidth}/${videoHeight}`
+          );
+          console.log(`Camera aspect ratio set to ${videoWidth}/${videoHeight}`);
+        }
+      }
+    };
+
+    // Add event listener for when video metadata is loaded
+    const videoElement = videoRef.current;
+    if (videoElement) {
+      videoElement.addEventListener('loadedmetadata', handleVideoLoaded);
+      // If already loaded, set it now
+      if (videoElement.videoWidth) {
+        handleVideoLoaded();
+      }
+    }
+
+    // Cleanup
+    return () => {
+      if (videoElement) {
+        videoElement.removeEventListener('loadedmetadata', handleVideoLoaded);
+      }
+    };
+  }, [videoRef.current]); // Re-run when video element changes
+
   // -------------------------
   //   Sogni initialization
   // -------------------------
@@ -1161,13 +1199,11 @@ const App = () => {
     const currentPhoto = photos[selectedPhotoIndex];
     if (!currentPhoto) return null;
 
-    // If still generating and no images, show "..."
+    // If still generating and no images, show loading animation
     if (currentPhoto.generating && currentPhoto.images.length === 0) {
       return (
-        <div className="loading-indicator">
-          <div className="animate-pulse">
-            ...
-          </div>
+        <div className="photo-loading">
+          <div className="spinner"></div>
         </div>
       );
     }
@@ -1377,7 +1413,48 @@ const App = () => {
       setPhotoViewerClosing(false);
       setSelectedPhotoIndex(null);
       setSelectedSubIndex(0);
+      setSlideDirection(''); // Reset slide direction
     }, 300); // Match animation duration in CSS
+  };
+
+  // Add function to navigate to previous photo with looping
+  const goToPrevPhoto = () => {
+    setSlideDirection('left');
+    setTimeout(() => {
+      setSelectedPhotoIndex((current) => {
+        // Loop back to the last photo if at the beginning
+        return current === 0 ? photos.length - 1 : current - 1;
+      });
+      setSelectedSubIndex(0);
+      
+      // Reset slide direction after a short delay to prepare for next animation
+      setTimeout(() => setSlideDirection(''), 50);
+    }, 200); // Half of the animation duration
+  };
+
+  // Add function to navigate to next photo with looping
+  const goToNextPhoto = () => {
+    setSlideDirection('right');
+    setTimeout(() => {
+      setSelectedPhotoIndex((current) => {
+        // Loop back to the first photo if at the end
+        return current === photos.length - 1 ? 0 : current + 1;
+      });
+      setSelectedSubIndex(0);
+      
+      // Reset slide direction after a short delay to prepare for next animation
+      setTimeout(() => setSlideDirection(''), 50);
+    }, 200); // Half of the animation duration
+  };
+
+  // Get previous photo index with looping
+  const getPrevPhotoIndex = (currentIndex) => {
+    return currentIndex === 0 ? photos.length - 1 : currentIndex - 1;
+  };
+
+  // Get next photo index with looping
+  const getNextPhotoIndex = (currentIndex) => {
+    return currentIndex === photos.length - 1 ? 0 : currentIndex + 1;
   };
 
   // -------------------------
@@ -1407,9 +1484,10 @@ const App = () => {
       {/* Main area with video */}
       {renderMainArea()}
 
-      {/* Photo viewer - completely rewritten as an independent overlay */}
+      {/* Photo viewer - with previews and next/prev navigation */}
       {(selectedPhotoIndex !== null || photoViewerClosing) && (
         <div className={`selected-photo-container ${photoViewerClosing ? 'fade-out' : ''}`}>
+          {/* Close button */}
           <button
             className="photo-close-btn"
             onClick={handleClosePhoto}
@@ -1417,8 +1495,49 @@ const App = () => {
             ×
           </button>
           
-          <div className="image-wrapper">
-            {selectedPhotoIndex !== null && renderSelectedPhoto()}
+          {/* Photos carousel with prev/next previews */}
+          <div className="photos-carousel">
+            {/* Previous photo preview */}
+            {photos.length > 1 && selectedPhotoIndex !== null && (
+              <div className="photo-preview prev" onClick={goToPrevPhoto}>
+                <img 
+                  src={photos[getPrevPhotoIndex(selectedPhotoIndex)]?.images?.[0] || ''}
+                  alt="Previous"
+                  className="photo-preview-img"
+                />
+              </div>
+            )}
+            
+            {/* Navigation buttons */}
+            {photos.length > 1 && selectedPhotoIndex !== null && (
+              <>
+                <button className="photo-nav-btn prev" onClick={goToPrevPhoto}>
+                  &#8249;
+                </button>
+                <button className="photo-nav-btn next" onClick={goToNextPhoto}>
+                  &#8250;
+                </button>
+              </>
+            )}
+            
+            {/* Current photo with slide animation classes */}
+            <div className={`image-wrapper ${
+              slideDirection === 'right' ? 'slide-in-right' : 
+              slideDirection === 'left' ? 'slide-in-left' : ''
+            }`}>
+              {selectedPhotoIndex !== null && renderSelectedPhoto()}
+            </div>
+            
+            {/* Next photo preview */}
+            {photos.length > 1 && selectedPhotoIndex !== null && (
+              <div className="photo-preview next" onClick={goToNextPhoto}>
+                <img 
+                  src={photos[getNextPhotoIndex(selectedPhotoIndex)]?.images?.[0] || ''}
+                  alt="Next"
+                  className="photo-preview-img"
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
