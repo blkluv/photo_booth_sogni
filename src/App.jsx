@@ -37,9 +37,9 @@ defaultStylePrompts.random = `{${['anime', 'gorillaz', 'pixelArt', 'vaporwave', 
 function getCustomDimensions() {
   const isPortrait = window.innerHeight > window.innerWidth;
   if (isPortrait) {
-    return { width: 720, height: 1280 };
+    return { width: 896, height: 1152 };
   } else {
-    return { width: 1280, height: 720 };
+    return { width: 1152, height: 896 };
   }
 }
 
@@ -1044,38 +1044,56 @@ const App = () => {
   };
 
   const captureAndSend = async () => {
-    // Draw from video first
     const canvas = canvasRef.current;
     const video = videoRef.current;
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-    if (isMobile) {
-      // For mobile: ensure we capture a square image regardless of camera feed
-      const size = Math.min(video.videoWidth, video.videoHeight);
-      const startX = (video.videoWidth - size) / 2;
-      const startY = (video.videoHeight - size) / 2;
-      
-      // Set canvas to square dimensions
-      canvas.width = size;
-      canvas.height = size;
-      
-      // Draw only the center square portion of the video
-      canvas.getContext('2d').drawImage(
-        video, 
-        startX, startY, size, size, // Source coordinates (centered square)
-        0, 0, size, size // Destination coordinates (full canvas)
-      );
+    const isPortrait = window.innerHeight > window.innerWidth;
+    
+    // Set canvas dimensions to 1152x896 for landscape (or 896x1152 for portrait)
+    if (isPortrait) {
+      canvas.width = 896;
+      canvas.height = 1152;
     } else {
-      // For desktop: use full video dimensions as before
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.width = 1152;
+      canvas.height = 896;
+    }
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Fill with black to prevent transparency
+    ctx.fillStyle = 'black';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Calculate dimensions to maintain aspect ratio without stretching
+    const videoAspect = video.videoWidth / video.videoHeight;
+    const canvasAspect = canvas.width / canvas.height;
+    
+    let sourceWidth = video.videoWidth;
+    let sourceHeight = video.videoHeight;
+    let destX = 0;
+    let destY = 0;
+    let destWidth = canvas.width;
+    let destHeight = canvas.height;
+    
+    // If video aspect is wider than desired, crop width
+    if (videoAspect > canvasAspect) {
+      sourceWidth = video.videoHeight * canvasAspect;
+      const sourceX = (video.videoWidth - sourceWidth) / 2;
+      ctx.drawImage(video, 
+        sourceX, 0, sourceWidth, sourceHeight,
+        destX, destY, destWidth, destHeight
+      );
+    } 
+    // If video aspect is taller than desired, crop height
+    else {
+      sourceHeight = video.videoWidth / canvasAspect;
+      const sourceY = (video.videoHeight - sourceHeight) / 2;
+      ctx.drawImage(video, 
+        0, sourceY, sourceWidth, sourceHeight,
+        destX, destY, destWidth, destHeight
+      );
     }
 
-    // Get dataUrl and blob first
     const dataUrl = canvas.toDataURL('image/png');
-    
-    // Convert to blob
     const blob = await new Promise(resolve => {
       canvas.toBlob(resolve, 'image/png');
     });
@@ -1085,7 +1103,6 @@ const App = () => {
       return;
     }
 
-    // Start generation with the blob
     generateFromBlob(blob, photos.length, dataUrl);
   };
 
