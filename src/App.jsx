@@ -106,6 +106,7 @@ const App = () => {
   const canvasRef = useRef(null);
   const shutterSoundRef = useRef(null);
   const cameraWindSoundRef = useRef(null);
+  const slothicornRef = useRef(null);
 
   // Style selection -- default to "random" instead of "anime"
   const [selectedStyle, setSelectedStyle] = useState('random');
@@ -194,7 +195,7 @@ const App = () => {
 
   // At the top of App component, add new state variables
   const [selectedModel, setSelectedModel] = useState('coreml-sogniXLturbo_alpha1_ad');
-  const [numImages, setNumImages] = useState(8);
+  const [numImages, setNumImages] = useState(5);
   const [promptGuidance, setPromptGuidance] = useState(2);
   const [controlNetStrength, setControlNetStrength] = useState(0.8);
   const [controlNetGuidanceEnd, setControlNetGuidanceEnd] = useState(0.6);
@@ -207,9 +208,9 @@ const App = () => {
   // Add state for controlling the animation
   const [photoViewerClosing, setPhotoViewerClosing] = useState(false);
 
-  // Update the initial state values for slothicorn
-  const [showSlothicorn, setShowSlothicorn] = useState(true); // Always keep this true
-  const [slothicornActive, setSlothicornActive] = useState(false); // This controls visibility
+  // Remove unneeded slothicorn state variables
+  // Keep only what we need for other parts of the code
+  const [showSlothicorn, setShowSlothicorn] = useState(true); // Just keep this for possible toggling
 
   // Add state for film strip visibility
   const [showFilmStrip, setShowFilmStrip] = useState(true);
@@ -854,8 +855,20 @@ const App = () => {
       setCountdown(i);
       
       // Show slothicorn when countdown reaches 2
-      if (i === 2) {
-        setSlothicornActive(true);
+      if (i === 2 && slothicornRef.current) {
+        console.log('Animating slothicorn up');
+        
+        // Start hidden (if not already)
+        slothicornRef.current.style.bottom = '-240px';
+        
+        // Animate with a timeout for visibility
+        setTimeout(() => {
+          // Apply a transition temporarily (will be removed later)
+          slothicornRef.current.style.transition = 'bottom 1s cubic-bezier(0.34, 1.2, 0.64, 1)';
+          
+          // Move up
+          slothicornRef.current.style.bottom = '0px';
+        }, 50);
       }
       
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -864,9 +877,22 @@ const App = () => {
     setCountdown(0);
     triggerFlashAndCapture();
     
-    // Make slothicorn return more gradually - increase from 800ms to 1200ms
+    // Make slothicorn return more gradually
     setTimeout(() => {
-      setSlothicornActive(false);
+      if (slothicornRef.current) {
+        console.log('Animating slothicorn down');
+        
+        // Apply a different transition for going down
+        slothicornRef.current.style.transition = 'bottom 1.5s cubic-bezier(0.25, 0.1, 0.25, 1)';
+        
+        // Move down
+        slothicornRef.current.style.bottom = '-240px';
+        
+        // Remove the transition after animation completes
+        setTimeout(() => {
+          slothicornRef.current.style.transition = 'none';
+        }, 1500);
+      }
     }, 1200);
   };
 
@@ -1565,6 +1591,31 @@ const App = () => {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      {/* Add meta tag for mobile viewport - this runs once on mount */}
+      {useEffect(() => {
+        // Check if viewport meta tag exists
+        let viewportMeta = document.querySelector('meta[name="viewport"]');
+        
+        // If it doesn't exist, create it
+        if (!viewportMeta) {
+          viewportMeta = document.createElement('meta');
+          viewportMeta.name = 'viewport';
+          document.head.appendChild(viewportMeta);
+        }
+        
+        // Set properties for proper mobile scaling with notch support
+        viewportMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+        
+        // Add meta tag for Apple devices to use full screen
+        let appleMeta = document.querySelector('meta[name="apple-mobile-web-app-capable"]');
+        if (!appleMeta) {
+          appleMeta = document.createElement('meta');
+          appleMeta.name = 'apple-mobile-web-app-capable';
+          appleMeta.content = 'yes';
+          document.head.appendChild(appleMeta);
+        }
+      }, [])}
+      
       {/* Studio lights - permanent background elements */}
       <div className="studio-lights-container">
         <img src={light1Image} alt="Studio Light" className="studio-light left" />
@@ -1633,16 +1684,18 @@ const App = () => {
 
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Slothicorn mascot - just the horn visible when inactive, full visibility when active */}
-      {showSlothicorn && (
-        <div className={`slothicorn-container ${slothicornActive ? 'active' : ''}`}>
-          <img 
-            src={slothicornImage} 
-            alt="Slothicorn mascot" 
-            className="slothicorn-image" 
-          />
-        </div>
-      )}
+      {/* Slothicorn mascot with direct DOM manipulation */}
+      <div 
+        ref={slothicornRef}
+        className="slothicorn-container"
+        style={{ bottom: '-240px' }} // Start hidden
+      >
+        <img 
+          src={slothicornImage} 
+          alt="Slothicorn mascot" 
+          className="slothicorn-image" 
+        />
+      </div>
 
       {/* Thumbnail strip at bottom */}
       {renderGallery()}

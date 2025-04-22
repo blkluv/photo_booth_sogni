@@ -1887,30 +1887,83 @@ div[style*="film content area"] {
   }
 }
 
-/* Slothicorn mascot styling */
+/* Slothicorn styling - completely simplified for direct DOM manipulation */
 .slothicorn-container {
   position: fixed;
-  bottom: -240px;
+  bottom: -240px; /* Start hidden below the screen */
   left: 50%;
-  transform: translateX(-50%) translateY(0);
-  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); /* Slightly slower bouncy entrance */
+  transform: translateX(-50%);
   z-index: 150;
   pointer-events: none;
   filter: drop-shadow(0 5px 15px rgba(0,0,0,0.4));
 }
 
-.slothicorn-container.active {
-  transform: translateX(-50%) translateY(-240px);
-}
-
-/* When transitioning out, use a more gradual transition */
-.slothicorn-container:not(.active) {
-  transition: transform 0.4s ease-out !important; /* Slower, more gradual exit */
-}
-
 .slothicorn-image {
   width: 240px;
   height: auto;
+}
+
+@media (max-width: 768px) {
+  .slothicorn-container {
+    bottom: -180px; /* Adjust hidden position for smaller screens */
+  }
+  
+  .slothicorn-image {
+    width: 180px;
+  }
+}
+
+/* Only fidget animation for non-moving state */
+.slothicorn-container:not(.animating) {
+  animation: fidget 4s ease-in-out infinite;
+}
+
+/* Subtle fidget animation for dormant state */
+@keyframes fidget {
+  0% {
+    transform: translateX(-50%) rotate(0deg);
+  }
+  25% {
+    transform: translateX(-51%) rotate(-1deg);
+  }
+  50% {
+    transform: translateX(-50%) rotate(0deg);
+  }
+  75% {
+    transform: translateX(-49%) rotate(1deg);
+  }
+  100% {
+    transform: translateX(-50%) rotate(0deg);
+  }
+}
+
+/* The image wiggle */
+.slothicorn-image {
+  width: 240px;
+  height: auto;
+  transform-origin: top center;
+  animation: hornWiggle 5s ease-in-out infinite;
+}
+
+/* Subtle horn wiggle animation */
+@keyframes hornWiggle {
+  0% {
+    transform: rotate(0deg);
+  }
+  30% {
+    transform: rotate(-0.8deg);
+  }
+  60% {
+    transform: rotate(0.8deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+/* When active, turn off the wiggle animation */
+.slothicorn-container.animating .slothicorn-image {
+  animation: none;
 }
 
 /* Studio Light Styling */
@@ -2260,4 +2313,133 @@ div[style*="film content area"] {
   background-color: #7132e8;
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Mobile responsiveness for portrait orientation */
+@media (max-width: 768px) {
+  /* Adjust photobooth frame for smaller screens */
+  .photobooth-frame {
+    margin: 10px 10px 0;
+    padding: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3), 0 0 0 5px #ffd301, 0 0 0 10px #ff3366;
+  }
+  
+  /* Adjust header for mobile */
+  .photobooth-title {
+    font-size: 24px;
+  }
+  
+  /* Make buttons more tappable on mobile */
+  .header-take-photo-btn,
+  .header-style-select,
+  .header-config-btn {
+    padding: 12px;
+    min-height: 44px; /* Apple's recommended minimum touch target size */
+    min-width: 44px;
+  }
+  
+  /* Ensure filmstrip is properly sized and positioned on mobile */
+  .film-strip-container {
+    max-width: calc(100vw - 20px);
+    margin-top: 30px; /* More space for close button */
+  }
+  
+  /* Make close button more tappable on mobile */
+  .film-strip-close-btn {
+    width: 36px;
+    height: 36px;
+    top: -18px;
+    right: 5px;
+    font-size: 20px;
+  }
+  
+  /* Make restore button more tappable */
+  .film-strip-restore-btn {
+    padding: 12px 20px;
+    min-height: 44px;
+  }
+  
+  /* Adjust slothicorn size/position for mobile */
+  .slothicorn-container {
+    bottom: -180px;
+  }
+  
+  .slothicorn-container.active {
+    transform: translateX(-50%) translateY(-180px);
+  }
+  
+  .slothicorn-image {
+    width: 180px;
+  }
+  
+  /* Adjust custom style input for mobile */
+  .custom-style-input-below {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px; /* Minimum font size to prevent iOS zoom on focus */
+  }
+  
+  /* Fix photo viewer for mobile */
+  .selected-photo-container img {
+    max-width: 90vw;
+    max-height: 70vh;
+    border: 8px solid white; /* Slightly smaller border */
+  }
+  
+  /* Make navigation buttons more tappable on mobile */
+  .photo-nav-btn {
+    width: 44px;
+    height: 44px;
+  }
+  
+  /* Ensure navigation previews don't cause horizontal scroll */
+  .photo-preview.prev {
+    left: -90% !important;
+  }
+  
+  .photo-preview.next {
+    right: -90% !important;
+  }
+
+  /* Adjust film frames for mobile viewing */
+  .film-frame {
+    width: 160px; /* Slightly smaller on mobile */
+  }
+  
+  /* Ensure the control overlay is fully accessible on mobile */
+  .control-overlay-content {
+    padding: 15px;
+    margin-top: 20px;
+  }
+  
+  /* Ensure form controls are properly sized for touch */
+  .slider-input, 
+  .camera-select, 
+  .model-select {
+    height: 44px;
+  }
+  
+  /* Fix countdown for mobile */
+  .countdown-overlay {
+    width: 120px;
+    height: 120px;
+    font-size: 60px;
+  }
+}
+
+/* Fix for iPhone X and newer with notches */
+@supports (padding: max(0px)) {
+  .photobooth-app {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .selected-photo-container {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-top: env(safe-area-inset-top);
+  }
 }
