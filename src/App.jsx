@@ -332,23 +332,24 @@ const App = () => {
     let constraints;
     
     if (isMobile) {
-      // For mobile devices, always use square aspect ratio regardless of orientation
+      // For mobile devices, use 9:7 aspect ratio
+      const aspectRatio = isPortrait ? 7/9 : 9/7;
       constraints = deviceId
         ? {
             video: {
               deviceId,
               facingMode: 'user',
-              width: { ideal: 1080 },
-              height: { ideal: 1080 },
-              aspectRatio: { ideal: 1/1 }
+              width: { ideal: isPortrait ? 896 : 1152 },
+              height: { ideal: isPortrait ? 1152 : 896 },
+              aspectRatio: { ideal: aspectRatio }
             }
           }
         : {
             video: {
               facingMode: 'user',
-              width: { ideal: 1080 },
-              height: { ideal: 1080 },
-              aspectRatio: { ideal: 1/1 }
+              width: { ideal: isPortrait ? 896 : 1152 },
+              height: { ideal: isPortrait ? 1152 : 896 },
+              aspectRatio: { ideal: aspectRatio }
             }
           };
     } else {
