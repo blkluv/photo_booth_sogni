@@ -6,6 +6,9 @@ import { API_CONFIG } from './config/cors';
 import { SOGNI_URLS } from './config/sogni';
 import clickSound from './click.mp3';
 import cameraWindSound from './camera-wind.mp3';
+import slothicornImage from './slothicorn-camera.png';
+import light1Image from './light1.png';
+import light2Image from './light2.png';
 
 /**
  * Default style prompts
@@ -203,6 +206,10 @@ const App = () => {
 
   // Add state for controlling the animation
   const [photoViewerClosing, setPhotoViewerClosing] = useState(false);
+
+  // Update the initial state values for slothicorn
+  const [showSlothicorn, setShowSlothicorn] = useState(true); // Always keep this true
+  const [slothicornActive, setSlothicornActive] = useState(false); // This controls visibility
 
   // -------------------------
   //   Sogni initialization
@@ -693,6 +700,9 @@ const App = () => {
 
     console.log('handleTakePhoto called');
     
+    // Show and activate slothicorn animation
+    setSlothicornActive(true);
+    
     // Simple countdown with await
     for (let i = 3; i > 0; i--) {
       setCountdown(i);
@@ -701,6 +711,11 @@ const App = () => {
     
     setCountdown(0);
     triggerFlashAndCapture();
+    
+    // Make slothicorn return more quickly - reduce from 3000ms to 1500ms
+    setTimeout(() => {
+      setSlothicornActive(false);
+    }, 1500);
   };
 
   const triggerFlashAndCapture = () => {
@@ -1149,8 +1164,8 @@ const App = () => {
     // If still generating and no images, show "..."
     if (currentPhoto.generating && currentPhoto.images.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center">
-          <div className="animate-pulse text-gray-300 text-3xl">
+        <div className="loading-indicator">
+          <div className="animate-pulse">
             ...
           </div>
         </div>
@@ -1160,8 +1175,10 @@ const App = () => {
     // If error and no images, show error
     if (currentPhoto.error && currentPhoto.images.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center">
-          <div className="text-red-500 p-4">{currentPhoto.error}</div>
+        <div className="error-indicator">
+          <div className="text-red-500">
+            {currentPhoto.error}
+          </div>
         </div>
       );
     }
@@ -1179,14 +1196,11 @@ const App = () => {
 
     return (
       <>
-        <div className="image-wrapper">
-          <img
-            src={imageUrl}
-            alt="Selected"
-            className="max-h-full max-w-full object-contain cursor-pointer"
-            onClick={handleImageClick}
-          />
-        </div>
+        <img
+          src={imageUrl}
+          alt="Selected"
+          onClick={handleImageClick}
+        />
         <div className="photo-frame-number">#{frameNumber}</div>
         <div className="stack-index-indicator">
           {currentPhoto.images.length > 1 ? 
@@ -1377,6 +1391,12 @@ const App = () => {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      {/* Studio lights - permanent background elements */}
+      <div className="studio-lights-container">
+        <img src={light1Image} alt="Studio Light" className="studio-light left" />
+        <img src={light2Image} alt="Studio Light" className="studio-light right" />
+      </div>
+      
       {/* Drag overlay */}
       {dragActive && (
         <div className="drag-overlay">
@@ -1387,21 +1407,34 @@ const App = () => {
       {/* Main area with video */}
       {renderMainArea()}
 
-      {/* Photo viewer that overlays without hiding background */}
+      {/* Photo viewer - completely rewritten as an independent overlay */}
       {(selectedPhotoIndex !== null || photoViewerClosing) && (
-        <div className={`selected-photo-container photobooth-photo-viewer ${photoViewerClosing ? 'fade-out' : ''}`}>
-          {/* Close button */}
+        <div className={`selected-photo-container ${photoViewerClosing ? 'fade-out' : ''}`}>
           <button
             className="photo-close-btn"
             onClick={handleClosePhoto}
           >
             ×
           </button>
-          {renderSelectedPhoto()}
+          
+          <div className="image-wrapper">
+            {selectedPhotoIndex !== null && renderSelectedPhoto()}
+          </div>
         </div>
       )}
 
       <canvas ref={canvasRef} className="hidden" />
+
+      {/* Slothicorn mascot - just the horn visible when inactive, full visibility when active */}
+      {showSlothicorn && (
+        <div className={`slothicorn-container ${slothicornActive ? 'active' : ''}`}>
+          <img 
+            src={slothicornImage} 
+            alt="Slothicorn mascot" 
+            className="slothicorn-image" 
+          />
+        </div>
+      )}
 
       {/* Thumbnail strip at bottom */}
       {renderGallery()}
