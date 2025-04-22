@@ -63,7 +63,7 @@ async function resizeDataUrl(dataUrl, width, height) {
 async function describeImage(photoBlob) {
   const formData = new FormData();
   formData.append("file", photoBlob, "photo.png");
-
+  
   try {
     const response = await fetch("https://prompt.sogni.ai/describe_image_upload", {
       method: "POST",
@@ -149,6 +149,21 @@ const App = () => {
 
   // Drag-and-drop state
   const [dragActive, setDragActive] = useState(false);
+
+  // First, let's create a proper job tracking map at the top of the App component:
+  const jobMapRef = useRef(new Map());
+
+  // First, let's track project setup progress properly
+  const [projectSetupProgress, setProjectSetupProgress] = useState(0);
+
+  // At the top of App component, add a new ref for tracking project state
+  const projectStateRef = useRef({
+    currentPhotoIndex: 0,
+    jobs: new Map(), // Map<jobId, {index: number, status: string, resultUrl?: string}>
+    startedJobIndices: new Set(), // Track which indices have started jobs
+    completedJobs: new Map(), // Store completed jobs that arrive before start
+    pendingCompletions: new Map() // Store completions that arrive before we have the mapping
+  });
 
   // -------------------------
   //   Sogni initialization
@@ -361,89 +376,169 @@ const App = () => {
         : defaultStylePrompts[selectedStyle];
 
       // 2) Call the describeImage API to get a textual description
-      const photoDescription = await describeImage(photoBlob);
-      console.log('photoDescription', photoDescription);
+      // const photoDescription = await describeImage(photoBlob);
+      // with instant-id controlnet we don't need to describe the existing image, it will make the image boring
+      // console.log('photoDescription', photoDescription);
 
       // 3) Combine them for a more relevant final prompt
-      const combinedPrompt = stylePrompt + '\n' + photoDescription;
+      // const combinedPrompt = stylePrompt + ' ' + photoDescription;
+      const combinedPrompt = stylePrompt;
       console.log('stylePrompt', stylePrompt);
 
-      // 4) Send to Sogni
+      // Initialize project state BEFORE setting up event handlers
+      projectStateRef.current = {
+        currentPhotoIndex: newPhotoIndex,
+        pendingCompletions: new Map() // Store completed jobs until we can show them
+      };
+
+      // Clear previous photos and create new ones with proper initial state
+      setPhotos(prev => {
+        // Only keep photos before the current index (clear any previous generations)
+        const basePhotos = prev.slice(0, newPhotoIndex);
+        
+        const newPhotos = Array(8).fill(null).map((_, index) => ({
+          id: Date.now() + index,
+          generating: true,
+          images: [],
+          error: null,
+          originalDataUrl: index === 0 ? dataUrl : null,
+          newlyArrived: false,
+          loading: true // Use this flag to show loading animation
+        }));
+
+        return [...basePhotos, ...newPhotos];
+      });
+
+      // Set up event handlers BEFORE creating the project
+      const handleJobCompleted = (job) => {
+        console.log('Job completed:', job.id, job.resultUrl);
+        if (!job.resultUrl) {
+          console.error('Missing resultUrl for job:', job.id);
+          return;
+        }
+        
+        const { pendingCompletions, currentPhotoIndex } = projectStateRef.current;
+        
+        // Assign the next available index
+        const jobIndex = pendingCompletions.size;
+        
+        // Store the completed job
+        pendingCompletions.set(job.id, {
+          resultUrl: job.resultUrl,
+          index: jobIndex
+        });
+        
+        // Update UI immediately with this job
+        const photoIndex = currentPhotoIndex + jobIndex;
+        console.log(`Loading image for job ${job.id} into box ${photoIndex}`);
+        
+        // Pre-load the image
+        const img = new Image();
+        img.onload = () => {
+          setPhotos(prev => {
+            const updated = [...prev];
+            if (!updated[photoIndex]) {
+              console.error(`No photo box found at index ${photoIndex}`);
+              return prev;
+            }
+            
+            updated[photoIndex] = {
+              ...updated[photoIndex],
+              generating: false,
+              loading: false,
+              images: [job.resultUrl],
+              newlyArrived: true
+            };
+            return updated;
+          });
+        };
+        img.src = job.resultUrl;
+      };
+
+      // Set up event handlers
       const arrayBuffer = await photoBlob.arrayBuffer();
       const project = await sogniClient.projects.create({
         modelId: 'coreml-sogniXLturbo_alpha1_ad',
         positivePrompt: combinedPrompt,
-        negativePrompt: 'lowres, worst quality, low quality',
         sizePreset: 'custom',
         width: desiredWidth,
         height: desiredHeight,
-        steps: 8,
-        guidance: 2,
-        numberOfImages: 4,
+        steps: 7,
+        guidance: 2.5,
+        numberOfImages: 8,
         scheduler: 'DPM Solver Multistep (DPM-Solver++)',
         timeStepSpacing: 'Karras',
         controlNet: {
           name: 'instantid',
           image: new Uint8Array(arrayBuffer),
-          strength: 0.4,
-          mode: 'balanced', // 'balanced' | 'prompt_priority' | 'cn_priority';
+          strength: 0.9,
+          mode: 'prompt_priority',// balanced cn_priority
           guidanceStart: 0.0,
-          guidanceEnd: 0.5,
+          guidanceEnd: 0.7,
         }
       });
 
-      project.on('completed', async (generated) => {
-        let finalImages = [...generated];
-        // If keepOriginal, resize the original to the same dimension
-        if (keepOriginalPhoto && dataUrl) {
-          const resizedOriginal = await resizeDataUrl(
-            dataUrl, desiredWidth, desiredHeight
-          );
-          finalImages.push(resizedOriginal);
-        }
-
-        setPhotos((prevPhotos) => {
-          const updated = [...prevPhotos];
-          updated[newPhotoIndex] = {
-            ...updated[newPhotoIndex],
-            generating: false,
-            generationCountdown: 0,  // Done
-            images: finalImages,
-            newlyArrived: true,
-          };
-          return updated;
+      // Set up event handlers
+      project.on('jobCompleted', handleJobCompleted);
+      
+      // Handle project completion (backup)
+      project.on('completed', (urls) => {
+        console.log('Project completed:', urls);
+        if (urls.length === 0) return;
+        
+        // Update UI with all completed jobs if we somehow missed them
+        urls.forEach((url, index) => {
+          const photoIndex = newPhotoIndex + index;
+          
+          setPhotos(prev => {
+            const updated = [...prev];
+            if (!updated[photoIndex]) return prev;
+            
+            if (!updated[photoIndex].images || updated[photoIndex].images.length === 0) {
+              updated[photoIndex] = {
+                ...updated[photoIndex],
+                generating: false,
+                images: [url],
+                newlyArrived: true,
+                progress: {
+                  step: 8,
+                  totalSteps: 8,
+                  percentage: 100,
+                  status: 'Complete'
+                }
+              };
+            }
+            return updated;
+          });
         });
       });
 
-      project.on('failed', (err) => {
-        setPhotos((prevPhotos) => {
-          const updated = [...prevPhotos];
-          updated[newPhotoIndex] = {
-            ...updated[newPhotoIndex],
-            generating: false,
-            generationCountdown: 0,
-            images: [],
-            error: `Generation failed: ${err}`,
-          };
-          return updated;
-        });
-      });
     } catch (err) {
-      // possibly re-init on socket error
+      // Handle initialization errors
       if (err && err.code === 4015) {
         console.warn("Socket error (4015). Re-initializing Sogni.");
         setIsSogniReady(false);
         initializeSogni();
       }
-      setPhotos((prevPhotos) => {
-        const updated = [...prevPhotos];
-        updated[newPhotoIndex] = {
-          ...updated[newPhotoIndex],
-          generating: false,
-          generationCountdown: 0,
-          images: [],
-          error: `Capture/Send error: ${err}`,
-        };
+      setPhotos(prev => {
+        const updated = [...prev];
+        // Mark all photos in this batch as failed
+        for (let i = 0; i < 8; i++) {
+          const photoIndex = newPhotoIndex + i;
+          updated[photoIndex] = {
+            ...updated[photoIndex],
+            generating: false,
+            generationCountdown: 0,
+            images: [],
+            error: `Capture/Send error: ${err}`,
+            progress: {
+              step: 0,
+              totalSteps: 8,
+              percentage: 0,
+              status: 'Failed'
+            }
+          };
+        }
         return updated;
       });
     }
@@ -539,43 +634,29 @@ const App = () => {
   };
 
   const captureAndSend = async () => {
-    // Create new photo object
-    const newPhoto = {
-      id: Date.now(),
-      generating: true,
-      images: [],
-      error: null,
-      originalDataUrl: null,
-      newlyArrived: false,
-      generationCountdown: 10,
-    };
+    // Draw from video first
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
 
-    setPhotos((prev) => {
-      console.log('Setting photos, current length:', prev.length);
-      const newPhotos = [...prev, newPhoto];
-      const newPhotoIndex = newPhotos.length - 1;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // Draw from video
-      const canvas = canvasRef.current;
-      const video = videoRef.current;
-
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      // store original dataURL
-      const dataUrl = canvas.toDataURL('image/png');
-      newPhoto.originalDataUrl = dataUrl;
-
-      // Convert to Blob -> generate
-      canvas.toBlob((blob) => {
-        if (!blob) return;
-        console.log('Generating from blob for index:', newPhotoIndex);
-        generateFromBlob(blob, newPhotoIndex, dataUrl);
-      }, 'image/png');
-
-      return newPhotos;
+    // Get dataUrl and blob first
+    const dataUrl = canvas.toDataURL('image/png');
+    
+    // Convert to blob
+    const blob = await new Promise(resolve => {
+      canvas.toBlob(resolve, 'image/png');
     });
+    
+    if (!blob) {
+      console.error('Failed to create blob from canvas');
+      return;
+    }
+
+    // Start generation with the blob
+    generateFromBlob(blob, photos.length, dataUrl);
   };
 
   // -------------------------
@@ -812,18 +893,14 @@ const App = () => {
       {photos.map((photo, i) => {
         const isSelected = i === selectedPhotoIndex;
 
-        // If generating + no images => show numeric countdown
-        if (photo.generating && photo.images.length === 0) {
+        // If generating + no images => show loading animation
+        if (photo.loading && photo.images.length === 0) {
           return (
             <div
               key={photo.id}
-              className="flex items-center justify-center text-gray-300 bg-gray-700 w-20 h-20 animate-pulse"
+              className="flex flex-col items-center justify-center bg-gray-700 w-20 h-20 relative overflow-hidden"
             >
-              {photo.generationCountdown > 0 ? (
-                <div className="text-xl">{photo.generationCountdown}</div>
-              ) : (
-                <div className="text-xl">...</div>
-              )}
+              <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
           );
         }
@@ -835,7 +912,7 @@ const App = () => {
               key={photo.id}
               className="flex items-center justify-center text-red-500 bg-gray-700 w-20 h-20"
             >
-              Err
+              <div className="text-xs text-center px-1">{photo.error}</div>
             </div>
           );
         }
@@ -929,3 +1006,4 @@ const App = () => {
 };
 
 export default App;
+
