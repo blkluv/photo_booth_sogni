@@ -4,6 +4,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { SogniClient } from "@sogni-ai/sogni-client";
 import { API_CONFIG } from './config/cors';
 import { SOGNI_URLS } from './config/sogni';
+import clickSound from './click.mp3';
 
 /**
  * Default style prompts
@@ -99,6 +100,7 @@ const generateUUID = () => {
 const App = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  const shutterSoundRef = useRef(null);
 
   // Style selection -- default to "anime"
   const [selectedStyle, setSelectedStyle] = useState('anime');
@@ -669,6 +671,13 @@ const App = () => {
   };
 
   const triggerFlashAndCapture = () => {
+    // Play camera shutter sound
+    if (shutterSoundRef.current) {
+      shutterSoundRef.current.play().catch(err => {
+        console.warn("Error playing shutter sound:", err);
+      });
+    }
+
     if (flashEnabled) {
       setShowFlash(true);
       setTimeout(() => {
@@ -814,30 +823,33 @@ const App = () => {
     <div className="control-panel">
       {/* Row 1: style select + optional custom input */}
       <div className="control-panel-row">
-        <select
-          className="px-4 py-2 rounded bg-gray-700 outline-none"
-          value={selectedStyle}
-          onChange={(e) => setSelectedStyle(e.target.value)}
-        >
-          <option value="random">Random</option>
-          <option value="anime">Anime</option>
-          <option value="gorillaz">Gorillaz</option>
-          <option value="disney">Disney</option>
-          <option value="pixelArt">Pixel Art</option>
-          <option value="steampunk">Steampunk</option>
-          <option value="vaporwave">Vaporwave</option>
-          <option value="astronaut">Astronaut</option>
-          <option value="sketch">Sketch</option>
-          <option value="statue">Statue</option>
-          <option value="clown">Clown</option>
-          <option value="relax">Relax</option>
-          <option value="custom">Custom...</option>
-        </select>
+        <div className="flex flex-col">
+          <label className="text-white mb-1">Photobooth style:</label>
+          <select
+            className="px-4 py-2 rounded bg-gray-700 outline-none"
+            value={selectedStyle}
+            onChange={(e) => setSelectedStyle(e.target.value)}
+          >
+            <option value="random">Random</option>
+            <option value="anime">Anime</option>
+            <option value="gorillaz">Gorillaz</option>
+            <option value="disney">Disney</option>
+            <option value="pixelArt">Pixel Art</option>
+            <option value="steampunk">Steampunk</option>
+            <option value="vaporwave">Vaporwave</option>
+            <option value="astronaut">Astronaut</option>
+            <option value="sketch">Sketch</option>
+            <option value="statue">Statue</option>
+            <option value="clown">Clown</option>
+            <option value="relax">Relax</option>
+            <option value="custom">Custom...</option>
+          </select>
+        </div>
         {selectedStyle === 'custom' && (
           <input
             type="text"
             placeholder="Custom style..."
-            className="px-4 py-2 rounded bg-gray-600 text-white outline-none"
+            className="px-4 py-2 rounded bg-gray-600 text-white outline-none ml-2"
             value={customPrompt}
             onChange={(e) => setCustomPrompt(e.target.value)}
           />
@@ -1368,6 +1380,12 @@ const App = () => {
           {renderSelectedPhoto()}
         </div>
       )}
+
+      {/* Camera shutter sound */}
+      <audio ref={shutterSoundRef} preload="auto">
+        <source src={clickSound} type="audio/mpeg" />
+        Your browser does not support the audio element.
+      </audio>
     </div>
   );
 };
