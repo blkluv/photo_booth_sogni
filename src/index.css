@@ -1969,52 +1969,53 @@ div[style*="film content area"] {
 /* Studio Light Styling */
 .studio-light {
   position: fixed;
-  bottom: 0;
-  height: 80vh;
-  max-height: 800px;
-  width: auto;
-  z-index: 1;
+  height: 140vh; /* Extend beyond the bottom of the screen */
+  max-width: none;
   opacity: 0.7;
+  z-index: 0;
+  bottom: -40vh; /* Position to partially crop at the bottom */
   pointer-events: none;
-  mix-blend-mode: darken;
-  filter: contrast(1.1);
 }
 
 .studio-light.left {
-  left: -2%;
+  left: -15%; /* Slightly overlap the left edge */
   transform: translateX(0);
 }
 
 .studio-light.right {
-  right: -2%;
+  right: -15%; /* Slightly overlap the right edge */
   transform: translateX(0);
 }
 
-/* Mobile adjustments */
+/* Mobile adjustments for studio lights */
 @media (max-width: 768px) {
-  .slothicorn-container {
-    bottom: -180px;
-  }
-  
-  .slothicorn-container.active {
-    transform: translateX(-50%) translateY(-180px);
-  }
-  
-  .slothicorn-image {
-    width: 180px;
-  }
-  
-  .studio-light {
-    height: 60vh;
+  body.portrait .studio-light {
+    height: 140vh;
     opacity: 0.65;
+    bottom: -40vh;
   }
   
-  .studio-light.left {
-    left: -5%;
+  body.portrait .studio-light.left {
+    left: -60%;
+    transform: translateX(30%) scale(0.9);
   }
   
-  .studio-light.right {
-    right: -5%;
+  body.portrait .studio-light.right {
+    right: -60%;
+    transform: translateX(-30%) scale(0.9);
+  }
+  
+  body.landscape .studio-light {
+    height: 160vh;
+    bottom: -60vh;
+  }
+  
+  body.landscape .studio-light.left {
+    left: -50%;
+  }
+  
+  body.landscape .studio-light.right {
+    right: -50%;
   }
 }
 
@@ -2317,16 +2318,81 @@ div[style*="film content area"] {
 
 /* Mobile responsiveness for portrait orientation */
 @media (max-width: 768px) {
-  /* Adjust photobooth frame for smaller screens */
+  /* Core layout adjustments */
   .photobooth-frame {
-    margin: 10px 10px 0;
+    margin: 10px;
     padding: 10px;
+    max-width: 100%;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3), 0 0 0 5px #ffd301, 0 0 0 10px #ff3366;
   }
   
-  /* Adjust header for mobile */
+  /* Header adjustments */
+  .photobooth-header {
+    padding: 8px 12px;
+    margin-bottom: 8px;
+  }
+  
   .photobooth-title {
     font-size: 24px;
+    margin-bottom: 8px;
+    transform: rotate(-1deg);
+  }
+  
+  /* Video container */
+  .photobooth-screen {
+    width: 100%;
+    border: 4px solid white;
+    aspect-ratio: 9/16; /* Portrait orientation for mobile */
+  }
+  
+  /* Force the camera to full height in portrait mode */
+  #webcam {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  
+  /* Fix the iOS camera rotation issues more aggressively */
+  @supports (-webkit-touch-callout: none) {
+    .photobooth-screen {
+      width: 100%;
+      aspect-ratio: 9/16;
+    }
+    
+    #webcam.ios-fix {
+      position: absolute;
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover;
+      transform: none;
+      top: 0;
+      left: 0;
+    }
+  }
+  
+  /* Fix the film strip size */
+  .film-strip-container {
+    max-width: calc(100vw - 20px);
+    margin-top: 30px;
+    margin-bottom: 15px;
+  }
+  
+  /* Reduce the number of sprocket holes */
+  .film-strip-holes {
+    height: 16px;
+  }
+  
+  .sprocket-hole {
+    width: 12px;
+    height: 8px;
+    margin: 0 8px;
+  }
+  
+  /* Make film frames smaller and more appropriate for mobile */
+  .film-frame {
+    width: 140px;
+    margin: 0 3px;
   }
   
   /* Make buttons more tappable on mobile */
@@ -2336,110 +2402,112 @@ div[style*="film content area"] {
     padding: 12px;
     min-height: 44px; /* Apple's recommended minimum touch target size */
     min-width: 44px;
+    font-size: 16px;
   }
   
-  /* Ensure filmstrip is properly sized and positioned on mobile */
-  .film-strip-container {
-    max-width: calc(100vw - 20px);
-    margin-top: 30px; /* More space for close button */
-  }
-  
-  /* Make close button more tappable on mobile */
-  .film-strip-close-btn {
-    width: 36px;
-    height: 36px;
-    top: -18px;
-    right: 5px;
-    font-size: 20px;
-  }
-  
-  /* Make restore button more tappable */
-  .film-strip-restore-btn {
-    padding: 12px 20px;
-    min-height: 44px;
-  }
-  
-  /* Adjust slothicorn size/position for mobile */
-  .slothicorn-container {
-    bottom: -180px;
-  }
-  
-  .slothicorn-container.active {
-    transform: translateX(-50%) translateY(-180px);
-  }
-  
-  .slothicorn-image {
-    width: 180px;
-  }
-  
-  /* Adjust custom style input for mobile */
-  .custom-style-input-below {
-    width: 100%;
-    padding: 12px;
-    font-size: 16px; /* Minimum font size to prevent iOS zoom on focus */
-  }
-  
-  /* Fix photo viewer for mobile */
-  .selected-photo-container img {
-    max-width: 90vw;
-    max-height: 70vh;
-    border: 8px solid white; /* Slightly smaller border */
-  }
-  
-  /* Make navigation buttons more tappable on mobile */
-  .photo-nav-btn {
-    width: 44px;
-    height: 44px;
-  }
-  
-  /* Ensure navigation previews don't cause horizontal scroll */
-  .photo-preview.prev {
-    left: -90% !important;
-  }
-  
-  .photo-preview.next {
-    right: -90% !important;
-  }
-
-  /* Adjust film frames for mobile viewing */
-  .film-frame {
-    width: 160px; /* Slightly smaller on mobile */
-  }
-  
-  /* Ensure the control overlay is fully accessible on mobile */
-  .control-overlay-content {
-    padding: 15px;
-    margin-top: 20px;
-  }
-  
-  /* Ensure form controls are properly sized for touch */
+  /* Ensure all form elements are properly sized for touch */
   .slider-input, 
   .camera-select, 
   .model-select {
     height: 44px;
   }
   
-  /* Fix countdown for mobile */
-  .countdown-overlay {
-    width: 120px;
-    height: 120px;
-    font-size: 60px;
+  /* Improve the photo viewer for mobile */
+  .selected-photo-container img {
+    max-width: 90vw;
+    max-height: 70vh;
+    border: 8px solid white;
   }
 }
 
-/* Fix for iPhone X and newer with notches */
+/* Fix for iPhone notches and modern devices */
 @supports (padding: max(0px)) {
   .photobooth-app {
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
-    padding-bottom: env(safe-area-inset-bottom);
-    padding-top: env(safe-area-inset-top);
+    padding-bottom: max(env(safe-area-inset-bottom), 15px);
+    padding-top: max(env(safe-area-inset-top), 5px);
+  }
+}
+
+/* iOS Safari fix for video orientation */
+body.portrait #webcam.ios-fix {
+  /* Reset any transforms that might be applied */
+  transform: none !important;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+}
+
+body.portrait .photobooth-screen {
+  aspect-ratio: 9/16;
+  width: 100%;
+}
+
+body.landscape .photobooth-screen {
+  aspect-ratio: 16/9;
+  width: 100%;
+}
+
+/* Improve aspect ratio handling of film frames */
+body.portrait .film-frame {
+  aspect-ratio: 9/16;
+}
+
+body.landscape .film-frame {
+  aspect-ratio: 16/9;
+}
+
+/* Improve header controls for mobile */
+@media (max-width: 768px) {
+  .photobooth-header {
+    padding: 8px 10px;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
   }
   
-  .selected-photo-container {
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
-    padding-bottom: env(safe-area-inset-bottom);
-    padding-top: env(safe-area-inset-top);
+  .photobooth-header-controls {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+  }
+  
+  /* Make both buttons consistent width */
+  .header-style-select,
+  .header-take-photo-btn {
+    font-size: 0.9rem;
+    padding: 8px 12px;
+    width: 130px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+  }
+  
+  .header-config-btn {
+    padding: 8px;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+  }
+  
+  /* For very small screens */
+  @media (max-width: 360px) {
+    .photobooth-header-controls {
+      flex-direction: column;
+      align-items: center;
+    }
+    
+    .header-style-select,
+    .header-take-photo-btn,
+    .header-config-btn {
+      width: 90%;
+      max-width: 250px;
+      margin: 4px 0;
+    }
   }
 }

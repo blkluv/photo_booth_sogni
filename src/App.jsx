@@ -285,26 +285,63 @@ const App = () => {
    * Try to capture at "desiredWidth x desiredHeight".
    */
   const startCamera = useCallback(async (deviceId) => {
-    const constraints = deviceId
-      ? {
-          video: {
-            deviceId,
-            width: { ideal: desiredWidth },
-            height: { ideal: desiredHeight },
-          },
-        }
-      : {
-          video: {
-            facingMode: 'user',
-            width: { ideal: desiredWidth },
-            height: { ideal: desiredHeight },
-          },
-        };
+    // Check if we're on mobile
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isPortrait = window.innerHeight > window.innerWidth;
+    
+    // Determine appropriate constraints based on device/orientation
+    let constraints;
+    
+    if (isMobile && isPortrait) {
+      // For mobile in portrait orientation, prioritize height and aspect ratio
+      constraints = deviceId
+        ? {
+            video: {
+              deviceId,
+              facingMode: 'user',
+              width: { ideal: 720 },
+              height: { ideal: 1280 },
+              aspectRatio: { ideal: 9/16 }
+            },
+          }
+        : {
+            video: {
+              facingMode: 'user',
+              width: { ideal: 720 },
+              height: { ideal: 1280 },
+              aspectRatio: { ideal: 9/16 }
+            },
+          };
+    } else {
+      // For desktop or landscape orientation
+      constraints = deviceId
+        ? {
+            video: {
+              deviceId,
+              width: { ideal: desiredWidth },
+              height: { ideal: desiredHeight },
+            },
+          }
+        : {
+            video: {
+              facingMode: 'user',
+              width: { ideal: desiredWidth },
+              height: { ideal: desiredHeight },
+            },
+          };
+    }
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        
+        // Add proper class for iOS
+        if (isIOS) {
+          videoRef.current.classList.add('ios-fix');
+        }
+        
         // Add a small delay before playing to prevent the AbortError
         setTimeout(() => {
           videoRef.current.play().catch(err => {
@@ -1398,145 +1435,152 @@ const App = () => {
   // -------------------------
   //   Thumbnails at bottom
   // -------------------------
-  const renderGallery = () => (
-    <div style={{ 
-      position: 'absolute', 
-      bottom: '30px', 
-      left: '0', 
-      right: '0', 
-      display: 'flex',
-      justifyContent: 'center',
-      zIndex: 50,
-      maxWidth: '100vw',
-      overflow: 'visible',
-      paddingTop: '20px'
-    }}>
-      {photos.length > 0 && showFilmStrip && (
-        <div className="film-strip-container">
-          {/* Close button for film strip */}
-          <button 
-            className="film-strip-close-btn" 
-            onClick={() => setShowFilmStrip(false)}
-            aria-label="Close film strip"
-          >
-            ×
-          </button>
-          
-          {/* Top sprocket holes */}
-          <div className="film-strip-holes top">
-            {Array(20).fill(null).map((_, i) => (
-              <div key={`hole-top-${i}`} className="sprocket-hole" />
-            ))}
-          </div>
-          
-          {/* Film content area */}
-          <div className="film-strip-content"
-          onWheel={(e) => {
-            // Prevent vertical scroll of the page
-            if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
-              e.preventDefault();
-              e.currentTarget.scrollLeft += e.deltaY;
-            }
-          }}
-          >
-            {photos.map((photo, i) => {
-              const isSelected = i === selectedPhotoIndex;
-              const frameNumber = i + 1;
-              const isReference = photo.isOriginal;
+  const renderGallery = () => {
+    // Check if on mobile
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    // Generate an appropriate number of sprocket holes
+    const holeCount = isMobile ? 8 : 20;
+    
+    return (
+      <div style={{ 
+        position: 'absolute', 
+        bottom: '30px', 
+        left: '0', 
+        right: '0', 
+        display: 'flex',
+        justifyContent: 'center',
+        zIndex: 50,
+        maxWidth: '100vw',
+        overflow: 'visible',
+        paddingTop: '20px'
+      }}>
+        {photos.length > 0 && showFilmStrip && (
+          <div className="film-strip-container">
+            {/* Close button for film strip */}
+            <button 
+              className="film-strip-close-btn" 
+              onClick={() => setShowFilmStrip(false)}
+              aria-label="Close film strip"
+            >
+              ×
+            </button>
+            
+            {/* Top sprocket holes - reduced for mobile */}
+            <div className="film-strip-holes top">
+              {Array(holeCount).fill(null).map((_, i) => (
+                <div key={`hole-top-${i}`} className="sprocket-hole" />
+              ))}
+            </div>
+            
+            {/* Film content area */}
+            <div className="film-strip-content"
+              onWheel={(e) => {
+                // Prevent vertical scroll of the page
+                if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
+                  e.preventDefault();
+                  e.currentTarget.scrollLeft += e.deltaY;
+                }
+              }}
+            >
+              {photos.map((photo, i) => {
+                const isSelected = i === selectedPhotoIndex;
+                const frameNumber = i + 1;
+                const isReference = photo.isOriginal;
 
-              // If generating + no images => show loading animation
-              if (photo.loading && photo.images.length === 0) {
-                return (
-                  <div
-                    key={photo.id}
-                    className="film-frame loading"
-                  >
-                    <div className="frame-number">{frameNumber}</div>
-                    <div className="loading-spinner"></div>
-                  </div>
-                );
-              }
-
-              // If error + no images => "Err"
-              if (photo.error && photo.images.length === 0) {
-                return (
-                  <div
-                    key={photo.id}
-                    className="film-frame error"
-                  >
-                    <div className="frame-number">{frameNumber}</div>
-                    <div className="error-text">Error</div>
-                  </div>
-                );
-              }
-
-              // otherwise show the first image as thumbnail
-              const thumbUrl = photo.images[0] || '';
-              const handleThumbClick = () => {
-                setSelectedPhotoIndex(i);
-                setSelectedSubIndex(0);
-              };
-
-              return (
-                <div 
-                  key={photo.id}
-                  className={`film-frame ${isSelected ? 'selected' : ''}`}
-                >
-                  {isSelected && (
-                    <button
-                      className="delete-frame-btn"
-                      onClick={() => handleDeletePhoto(i)}
+                // If generating + no images => show loading animation
+                if (photo.loading && photo.images.length === 0) {
+                  return (
+                    <div
+                      key={photo.id}
+                      className="film-frame loading"
                     >
-                      X
-                    </button>
-                  )}
+                      <div className="frame-number">{frameNumber}</div>
+                      <div className="loading-spinner"></div>
+                    </div>
+                  );
+                }
 
-                  <div className="frame-number">{frameNumber}</div>
-                  
-                  <img
-                    src={thumbUrl}
-                    alt={`Generated #${i}`}
-                    className={photo.newlyArrived ? 'thumbnail-fade' : ''}
-                    onClick={handleThumbClick}
-                  />
+                // If error + no images => "Err"
+                if (photo.error && photo.images.length === 0) {
+                  return (
+                    <div
+                      key={photo.id}
+                      className="film-frame error"
+                    >
+                      <div className="frame-number">{frameNumber}</div>
+                      <div className="error-text">Error</div>
+                    </div>
+                  );
+                }
 
-                  {/* Show REF label for original photo */}
-                  {isReference && (
-                    <div className="ref-label">REF</div>
-                  )}
+                // otherwise show the first image as thumbnail
+                const thumbUrl = photo.images[0] || '';
+                const handleThumbClick = () => {
+                  setSelectedPhotoIndex(i);
+                  setSelectedSubIndex(0);
+                };
 
-                  {/* If multiple images, show stack count */}
-                  {photo.images.length > 1 && (
-                    <div className="stack-count">x{photo.images.length}</div>
-                  )}
-                </div>
-              );
-            })}
+                return (
+                  <div 
+                    key={photo.id}
+                    className={`film-frame ${isSelected ? 'selected' : ''}`}
+                  >
+                    {isSelected && (
+                      <button
+                        className="delete-frame-btn"
+                        onClick={() => handleDeletePhoto(i)}
+                      >
+                        X
+                      </button>
+                    )}
+
+                    <div className="frame-number">{frameNumber}</div>
+                    
+                    <img
+                      src={thumbUrl}
+                      alt={`Generated #${i}`}
+                      className={photo.newlyArrived ? 'thumbnail-fade' : ''}
+                      onClick={handleThumbClick}
+                    />
+
+                    {/* Show REF label for original photo */}
+                    {isReference && (
+                      <div className="ref-label">REF</div>
+                    )}
+
+                    {/* If multiple images, show stack count */}
+                    {photo.images.length > 1 && (
+                      <div className="stack-count">x{photo.images.length}</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* Bottom sprocket holes - reduced for mobile */}
+            <div className="film-strip-holes bottom">
+              {Array(holeCount).fill(null).map((_, i) => (
+                <div key={`hole-bottom-${i}`} className="sprocket-hole" />
+              ))}
+            </div>
           </div>
-          
-          {/* Bottom sprocket holes */}
-          <div className="film-strip-holes bottom">
-            {Array(20).fill(null).map((_, i) => (
-              <div key={`hole-bottom-${i}`} className="sprocket-hole" />
-            ))}
+        )}
+        
+        {/* Show a button to restore the film strip if it's hidden */}
+        {photos.length > 0 && !showFilmStrip && (
+          <div style={{ marginBottom: '15px' }}>
+            <button 
+              className="film-strip-restore-btn"
+              onClick={() => setShowFilmStrip(true)}
+              aria-label="Show film strip"
+            >
+              Show Photos
+            </button>
           </div>
-        </div>
-      )}
-      
-      {/* Show a button to restore the film strip if it's hidden */}
-      {photos.length > 0 && !showFilmStrip && (
-        <div style={{ marginBottom: '15px' }}>
-          <button 
-            className="film-strip-restore-btn"
-            onClick={() => setShowFilmStrip(true)}
-            aria-label="Show film strip"
-          >
-            Show Photos
-          </button>
-        </div>
-      )}
-    </div>
-  );
+        )}
+      </div>
+    );
+  };
 
   // Add an effect to close dropdown when clicking outside
   useEffect(() => {
@@ -1614,6 +1658,27 @@ const App = () => {
           appleMeta.content = 'yes';
           document.head.appendChild(appleMeta);
         }
+        
+        // Set body class based on orientation
+        const setOrientation = () => {
+          if (window.innerHeight > window.innerWidth) {
+            document.body.classList.add('portrait');
+            document.body.classList.remove('landscape');
+          } else {
+            document.body.classList.add('landscape');
+            document.body.classList.remove('portrait');
+          }
+        };
+        
+        // Set initial orientation
+        setOrientation();
+        
+        // Listen for orientation changes
+        window.addEventListener('resize', setOrientation);
+        
+        return () => {
+          window.removeEventListener('resize', setOrientation);
+        };
       }, [])}
       
       {/* Studio lights - permanent background elements */}
