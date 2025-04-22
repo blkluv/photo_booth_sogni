@@ -92,7 +92,7 @@ body {
 /* Selected photo container styled as a full-screen overlay */
 .selected-photo-container {
   @apply fixed inset-0 flex items-center justify-center;
-  z-index: 90;
+  z-index: 1000;
   background: rgba(0, 0, 0, 0.85);
 }
 
@@ -118,7 +118,7 @@ body {
 
 /*
    The #webcam itself: fill container and preserve aspect ratio. 
-   By default, we use object-fit: cover so it’s as large as possible
+   By default, we use object-fit: cover so it's as large as possible
    (this avoids letterboxing, but note it may crop a bit). 
 */
 #webcam {

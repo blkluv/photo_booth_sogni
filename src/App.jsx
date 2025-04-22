@@ -165,6 +165,11 @@ const App = () => {
     pendingCompletions: new Map() // Store completions that arrive before we have the mapping
   });
 
+  // Calculate aspect ratio for loading boxes
+  const isPortrait = desiredHeight > desiredWidth;
+  const thumbnailWidth = isPortrait ? 120 : 212; // Wider for landscape (doubled)
+  const thumbnailHeight = isPortrait ? 212 : 120; // Taller for portrait (doubled)
+
   // -------------------------
   //   Sogni initialization
   // -------------------------
@@ -391,22 +396,37 @@ const App = () => {
         pendingCompletions: new Map() // Store completed jobs until we can show them
       };
 
-      // Clear previous photos and create new ones with proper initial state
+      // Clear all previous photos and create new ones with proper initial state
       setPhotos(prev => {
-        // Only keep photos before the current index (clear any previous generations)
-        const basePhotos = prev.slice(0, newPhotoIndex);
+        // Add the original photo if keepOriginalPhoto is checked
+        const newPhotos = [];
         
-        const newPhotos = Array(8).fill(null).map((_, index) => ({
-          id: Date.now() + index,
-          generating: true,
-          images: [],
-          error: null,
-          originalDataUrl: index === 0 ? dataUrl : null,
-          newlyArrived: false,
-          loading: true // Use this flag to show loading animation
-        }));
+        if (keepOriginalPhoto) {
+          newPhotos.push({
+            id: Date.now(),
+            generating: false,
+            loading: false,
+            images: [dataUrl],
+            originalDataUrl: dataUrl,
+            newlyArrived: false,
+            isOriginal: true
+          });
+        }
+        
+        // Add placeholder boxes for the generated images
+        for (let i = 0; i < 8; i++) {
+          newPhotos.push({
+            id: Date.now() + i + 1,
+            generating: true,
+            loading: true,
+            images: [],
+            error: null,
+            originalDataUrl: null,
+            newlyArrived: false
+          });
+        }
 
-        return [...basePhotos, ...newPhotos];
+        return newPhotos;
       });
 
       // Set up event handlers BEFORE creating the project
@@ -429,7 +449,9 @@ const App = () => {
         });
         
         // Update UI immediately with this job
-        const photoIndex = currentPhotoIndex + jobIndex;
+        // Add 1 to the photo index if we have the original photo
+        const offset = keepOriginalPhoto ? 1 : 0;
+        const photoIndex = jobIndex + offset;
         console.log(`Loading image for job ${job.id} into box ${photoIndex}`);
         
         // Pre-load the image
@@ -488,24 +510,20 @@ const App = () => {
         
         // Update UI with all completed jobs if we somehow missed them
         urls.forEach((url, index) => {
-          const photoIndex = newPhotoIndex + index;
+          const offset = keepOriginalPhoto ? 1 : 0;
+          const photoIndex = index + offset;
           
           setPhotos(prev => {
             const updated = [...prev];
             if (!updated[photoIndex]) return prev;
             
-            if (!updated[photoIndex].images || updated[photoIndex].images.length === 0) {
+            if (updated[photoIndex].loading || updated[photoIndex].images.length === 0) {
               updated[photoIndex] = {
                 ...updated[photoIndex],
                 generating: false,
+                loading: false,
                 images: [url],
-                newlyArrived: true,
-                progress: {
-                  step: 8,
-                  totalSteps: 8,
-                  percentage: 100,
-                  status: 'Complete'
-                }
+                newlyArrived: true
               };
             }
             return updated;
@@ -521,24 +539,31 @@ const App = () => {
         initializeSogni();
       }
       setPhotos(prev => {
-        const updated = [...prev];
-        // Mark all photos in this batch as failed
-        for (let i = 0; i < 8; i++) {
-          const photoIndex = newPhotoIndex + i;
-          updated[photoIndex] = {
-            ...updated[photoIndex],
-            generating: false,
-            generationCountdown: 0,
-            images: [],
-            error: `Capture/Send error: ${err}`,
-            progress: {
-              step: 0,
-              totalSteps: 8,
-              percentage: 0,
-              status: 'Failed'
-            }
-          };
+        // For errors, replace all loading placeholders with error state
+        // but keep original photo if it exists
+        const updated = [];
+        
+        // Keep original photo if it exists
+        if (keepOriginalPhoto) {
+          // Find existing original photo if any
+          const originalPhoto = prev.find(p => p.isOriginal);
+          if (originalPhoto) {
+            updated.push(originalPhoto);
+          }
         }
+        
+        // Add error placeholders
+        for (let i = 0; i < 8; i++) {
+          updated.push({
+            id: Date.now() + i,
+            generating: false,
+            loading: false,
+            images: [],
+            error: `Error: ${err.message || err}`,
+            originalDataUrl: null
+          });
+        }
+        
         return updated;
       });
     }
@@ -735,7 +760,7 @@ const App = () => {
     }
 
     // Show whichever subIndex
-    const imageUrl = currentPhoto.images[selectedSubIndex];
+    const imageUrl = currentPhoto.images[selectedSubIndex] || (currentPhoto.originalDataUrl || '');
     const handleImageClick = () => {
       if (currentPhoto.images.length > 1) {
         setSelectedSubIndex((prev) => (prev + 1) % currentPhoto.images.length);
@@ -751,7 +776,10 @@ const App = () => {
           onClick={handleImageClick}
         />
         <div className="stack-index-indicator">
-          {selectedSubIndex + 1}/{currentPhoto.images.length}
+          {currentPhoto.images.length > 1 ? 
+            `${selectedSubIndex + 1}/${currentPhoto.images.length}` : 
+            currentPhoto.isOriginal ? "Original" : ""
+          }
         </div>
       </>
     );
@@ -878,7 +906,7 @@ const App = () => {
               checked={keepOriginalPhoto}
               onChange={(e) => setKeepOriginalPhoto(e.target.checked)}
             />
-            <span>Keep Original (5th Image)</span>
+            <span>Keep Original Image</span>
           </label>
         </div>
       )}
@@ -889,72 +917,312 @@ const App = () => {
   //   Thumbnails at bottom
   // -------------------------
   const renderGallery = () => (
-    <div className="thumbnail-gallery">
-      {photos.map((photo, i) => {
-        const isSelected = i === selectedPhotoIndex;
-
-        // If generating + no images => show loading animation
-        if (photo.loading && photo.images.length === 0) {
-          return (
-            <div
-              key={photo.id}
-              className="flex flex-col items-center justify-center bg-gray-700 w-20 h-20 relative overflow-hidden"
-            >
-              <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          );
-        }
-
-        // If error + no images => "Err"
-        if (photo.error && photo.images.length === 0) {
-          return (
-            <div
-              key={photo.id}
-              className="flex items-center justify-center text-red-500 bg-gray-700 w-20 h-20"
-            >
-              <div className="text-xs text-center px-1">{photo.error}</div>
-            </div>
-          );
-        }
-
-        // otherwise show the first image as thumbnail
-        const thumbUrl = photo.images[0] || '';
-        const handleThumbClick = () => {
-          setSelectedPhotoIndex(i);
-          setSelectedSubIndex(0);
-        };
-
-        return (
-          <div key={photo.id} className="thumbnail-container">
-            {/* Show an X if selected */}
-            {isSelected && (
-              <div
-                className="thumbnail-delete-button"
-                onClick={() => handleDeletePhoto(i)}
-              >
-                X
-              </div>
-            )}
-
-            <img
-              src={thumbUrl}
-              alt={`Generated #${i}`}
-              className={
-                `thumbnail ${isSelected ? 'selected' : ''} ` +
-                (photo.newlyArrived ? 'thumbnail-fade' : '')
-              }
-              onClick={handleThumbClick}
-            />
-
-            {/* If multiple images, show stack count */}
-            {photo.images.length > 1 && (
-              <div className="stack-count">
-                x{photo.images.length}
-              </div>
-            )}
+    <div style={{ 
+      position: 'absolute', 
+      bottom: '30px', 
+      left: '0', 
+      right: '0', 
+      display: 'flex',
+      justifyContent: 'center',
+      zIndex: 50,
+      maxWidth: '100vw',
+      overflow: 'hidden'
+    }}>
+      {photos.length > 0 && (
+        <div style={{
+          background: 'black',
+          position: 'relative',
+          overflow: 'visible',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          maxWidth: 'calc(100vw - 40px)',
+          borderRadius: '0',
+          padding: '0',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          {/* Top sprocket holes */}
+          <div style={{
+            height: '16px',
+            backgroundColor: 'black',
+            display: 'flex',
+            justifyContent: 'space-evenly',
+            alignItems: 'center',
+            padding: '0 3px'
+          }}>
+            {Array(20).fill(null).map((_, i) => (
+              <div key={`hole-top-${i}`} style={{
+                width: '14px',
+                height: '8px',
+                backgroundColor: 'transparent',
+                border: '1px solid #333',
+                borderRadius: '1px'
+              }} />
+            ))}
           </div>
-        );
-      })}
+          
+          {/* Film content area */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'row',
+            backgroundColor: '#221b15',
+            borderTop: '1px solid #444',
+            borderBottom: '1px solid #444',
+            paddingTop: '3px',
+            paddingBottom: '3px'
+          }}>
+            {photos.map((photo, i) => {
+              const isSelected = i === selectedPhotoIndex;
+              const frameNumber = i + 1;
+
+              // Add vertical divider after each photo except the last one
+              const renderVerticalDivider = i < photos.length - 1 ? (
+                <div style={{
+                  width: '3px',
+                  height: `${thumbnailHeight}px`,
+                  backgroundColor: 'black',
+                  marginLeft: '10px',
+                  marginRight: '10px',
+                  flexShrink: 0
+                }} />
+              ) : null;
+
+              // If generating + no images => show loading animation
+              if (photo.loading && photo.images.length === 0) {
+                return (
+                  <React.Fragment key={photo.id}>
+                    <div
+                      className="flex flex-col items-center justify-center bg-gray-700 relative overflow-hidden"
+                      style={{ 
+                        width: `${thumbnailWidth}px`, 
+                        height: `${thumbnailHeight}px`,
+                        borderRadius: '2px',
+                        flexShrink: 0,
+                        border: '1px solid #111',
+                        boxShadow: 'inset 0 0 5px rgba(0,0,0,0.5)',
+                        backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 250 250\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")',
+                        backgroundBlendMode: 'overlay',
+                        opacity: 0.9
+                      }}
+                    >
+                      {/* Film grain overlay */}
+                      <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(40, 40, 40, 0.6)',
+                      }}></div>
+                      
+                      {/* Frame number */}
+                      <div style={{
+                        position: 'absolute',
+                        top: '8px',
+                        left: '8px',
+                        fontSize: '14px',
+                        color: '#999',
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        zIndex: 5
+                      }}>
+                        {frameNumber}
+                      </div>
+                      <div className="w-20 h-20 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" style={{zIndex: 6}}></div>
+                    </div>
+                    {renderVerticalDivider}
+                  </React.Fragment>
+                );
+              }
+
+              // If error + no images => "Err"
+              if (photo.error && photo.images.length === 0) {
+                return (
+                  <React.Fragment key={photo.id}>
+                    <div
+                      className="flex items-center justify-center text-red-500 bg-gray-700"
+                      style={{ 
+                        width: `${thumbnailWidth}px`, 
+                        height: `${thumbnailHeight}px`,
+                        borderRadius: '2px',
+                        flexShrink: 0,
+                        border: '1px solid #111',
+                        boxShadow: 'inset 0 0 5px rgba(0,0,0,0.5)',
+                        backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 250 250\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")',
+                        backgroundBlendMode: 'overlay',
+                        opacity: 0.9
+                      }}
+                    >
+                      {/* Film grain overlay */}
+                      <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(60, 20, 20, 0.6)',
+                      }}></div>
+                      
+                      {/* Frame number */}
+                      <div style={{
+                        position: 'absolute',
+                        top: '8px',
+                        left: '8px',
+                        fontSize: '14px',
+                        color: '#999',
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        zIndex: 5
+                      }}>
+                        {frameNumber}
+                      </div>
+                      <div className="text-lg text-center px-3 py-1 font-bold" style={{zIndex: 6, textShadow: '0 0 4px #000'}}>Error</div>
+                    </div>
+                    {renderVerticalDivider}
+                  </React.Fragment>
+                );
+              }
+
+              // otherwise show the first image as thumbnail
+              const thumbUrl = photo.images[0] || '';
+              const handleThumbClick = () => {
+                setSelectedPhotoIndex(i);
+                setSelectedSubIndex(0);
+              };
+
+              return (
+                <React.Fragment key={photo.id}>
+                  <div 
+                    className="thumbnail-container"
+                    style={{ 
+                      width: `${thumbnailWidth}px`, 
+                      height: `${thumbnailHeight}px`,
+                      flexShrink: 0,
+                      position: 'relative',
+                      border: '1px solid #111',
+                      boxShadow: '0 3px 6px rgba(0,0,0,0.5)',
+                      backgroundColor: '#333',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {/* Film grain overlay for completed images */}
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 250 250\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'1.4\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")',
+                      backgroundBlendMode: 'overlay',
+                      opacity: 0.15,
+                      pointerEvents: 'none',
+                      zIndex: 4
+                    }}></div>
+
+                    {/* Frame number */}
+                    <div style={{
+                      position: 'absolute',
+                      top: '8px',
+                      left: '8px',
+                      fontSize: '14px',
+                      color: '#fff',
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      padding: '2px 6px',
+                      borderRadius: '3px',
+                      zIndex: 5
+                    }}>
+                      {frameNumber}
+                    </div>
+
+                    {/* Show an X if selected */}
+                    {isSelected && (
+                      <div
+                        className="thumbnail-delete-button"
+                        style={{
+                          position: 'absolute',
+                          top: '8px',
+                          right: '8px',
+                          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                          color: 'white',
+                          width: '30px',
+                          height: '30px',
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          zIndex: 10,
+                          fontSize: '16px'
+                        }}
+                        onClick={() => handleDeletePhoto(i)}
+                      >
+                        X
+                      </div>
+                    )}
+
+                    <img
+                      src={thumbUrl}
+                      alt={`Generated #${i}`}
+                      className={
+                        `thumbnail ${isSelected ? 'selected' : ''} ` +
+                        (photo.newlyArrived ? 'thumbnail-fade' : '')
+                      }
+                      style={{ 
+                        width: '100%', 
+                        height: '100%', 
+                        objectFit: 'cover',
+                        borderRadius: '2px',
+                        border: isSelected ? '3px solid #f59e0b' : 'none'
+                      }}
+                      onClick={handleThumbClick}
+                    />
+
+                    {/* If multiple images, show stack count */}
+                    {photo.images.length > 1 && (
+                      <div className="stack-count" style={{
+                        position: 'absolute',
+                        bottom: '8px',
+                        right: '8px',
+                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                        color: 'white',
+                        padding: '3px 8px',
+                        borderRadius: '12px',
+                        fontSize: '14px',
+                        fontWeight: 'bold',
+                        zIndex: 10
+                      }}>
+                        x{photo.images.length}
+                      </div>
+                    )}
+                  </div>
+                  {renderVerticalDivider}
+                </React.Fragment>
+              );
+            })}
+          </div>
+          
+          {/* Bottom sprocket holes */}
+          <div style={{
+            height: '16px',
+            backgroundColor: 'black',
+            display: 'flex',
+            justifyContent: 'space-evenly',
+            alignItems: 'center',
+            padding: '0 3px'
+          }}>
+            {Array(20).fill(null).map((_, i) => (
+              <div key={`hole-bottom-${i}`} style={{
+                width: '14px',
+                height: '8px',
+                backgroundColor: 'transparent',
+                border: '1px solid #333',
+                borderRadius: '1px'
+              }} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -997,7 +1265,7 @@ const App = () => {
 
       {/* Selected photo placed in normal flow below pinned elements */}
       {selectedPhotoIndex !== null && (
-        <div className="selected-photo-container">
+        <div className="selected-photo-container" style={{ zIndex: 200 }}>
           {renderSelectedPhoto()}
         </div>
       )}
