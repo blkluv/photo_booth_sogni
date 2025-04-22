@@ -201,6 +201,9 @@ const App = () => {
   // Add a state to control the custom dropdown visibility
   const [showStyleDropdown, setShowStyleDropdown] = useState(false);
 
+  // Add state for controlling the animation
+  const [photoViewerClosing, setPhotoViewerClosing] = useState(false);
+
   // -------------------------
   //   Sogni initialization
   // -------------------------
@@ -324,14 +327,20 @@ const App = () => {
 
   // Keyboard navigation
   const handleKeyDown = useCallback((e) => {
+    // Close settings with ESC if they're open
+    if (e.key === 'Escape' && showControlOverlay) {
+      e.preventDefault();
+      setShowControlOverlay(false);
+      return;
+    }
+
     if (selectedPhotoIndex !== null) {
       const currentPhoto = photos[selectedPhotoIndex];
       const maxImages = currentPhoto?.images?.length || 1;
 
-      // ESC => close viewer
+      // ESC => close viewer with animation
       if (e.key === 'Escape') {
-        setSelectedPhotoIndex(null);
-        setSelectedSubIndex(0);
+        handleClosePhoto();
         return;
       }
 
@@ -378,7 +387,7 @@ const App = () => {
         });
       }
     }
-  }, [selectedPhotoIndex, photos, lastViewedIndex]);
+  }, [selectedPhotoIndex, photos, lastViewedIndex, showControlOverlay]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -1165,14 +1174,20 @@ const App = () => {
       }
     };
 
+    // Frame number for display (1-based)
+    const frameNumber = selectedPhotoIndex + 1;
+
     return (
       <>
-        <img
-          src={imageUrl}
-          alt="Selected"
-          className="max-h-full max-w-full object-contain cursor-pointer"
-          onClick={handleImageClick}
-        />
+        <div className="image-wrapper">
+          <img
+            src={imageUrl}
+            alt="Selected"
+            className="max-h-full max-w-full object-contain cursor-pointer"
+            onClick={handleImageClick}
+          />
+        </div>
+        <div className="photo-frame-number">#{frameNumber}</div>
         <div className="stack-index-indicator">
           {currentPhoto.images.length > 1 ? 
             `${selectedSubIndex + 1}/${currentPhoto.images.length}` : 
@@ -1340,6 +1355,17 @@ const App = () => {
     }
   }, [showStyleDropdown]);
 
+  // Update the close photo handler to include animation
+  const handleClosePhoto = () => {
+    setPhotoViewerClosing(true);
+    // Wait for animation to complete before actually changing view
+    setTimeout(() => {
+      setPhotoViewerClosing(false);
+      setSelectedPhotoIndex(null);
+      setSelectedSubIndex(0);
+    }, 300); // Match animation duration in CSS
+  };
+
   // -------------------------
   //   Render
   // -------------------------
@@ -1358,16 +1384,16 @@ const App = () => {
         </div>
       )}
 
-      {/* Main area with video in the background */}
-      {selectedPhotoIndex === null ? renderMainArea() : (
-        <div className="selected-photo-container photobooth-photo-viewer" style={{ zIndex: 200 }}>
-          {/* Remove header and just use a close button */}
+      {/* Main area with video */}
+      {renderMainArea()}
+
+      {/* Photo viewer that overlays without hiding background */}
+      {(selectedPhotoIndex !== null || photoViewerClosing) && (
+        <div className={`selected-photo-container photobooth-photo-viewer ${photoViewerClosing ? 'fade-out' : ''}`}>
+          {/* Close button */}
           <button
             className="photo-close-btn"
-            onClick={() => {
-              setSelectedPhotoIndex(null);
-              setSelectedSubIndex(0);
-            }}
+            onClick={handleClosePhoto}
           >
             ×
           </button>
