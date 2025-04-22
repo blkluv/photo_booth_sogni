@@ -3,6 +3,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { SogniClient } from "@sogni-ai/sogni-client";
 import { API_CONFIG } from './config/cors';
+import { SOGNI_URLS } from './config/sogni';
 
 /**
  * Default style prompts
@@ -156,23 +157,26 @@ const App = () => {
     try {
       let appId = import.meta.env.VITE_SOGNI_APP_ID + generateUUID();
       console.log('appId', appId);
-
-      const sogni = await SogniClient.createInstance({
+      
+      // Pass only the required parameters that match the SDK's createInstance method
+      const client = await SogniClient.createInstance({
         appId: appId,
         testnet: true,
         network: 'fast',
-        logLevel: 'debug'
+        logLevel: 'debug',
+        restEndpoint: SOGNI_URLS.api,
+        socketEndpoint: SOGNI_URLS.socket
       });
-      await sogni.account.login(
+
+      await client.account.login(
         import.meta.env.VITE_SOGNI_USERNAME,
         import.meta.env.VITE_SOGNI_PASSWORD
       );
 
-      setSogniClient(sogni);
+      setSogniClient(client);
       setIsSogniReady(true);
     } catch (error) {
       console.error('Failed initializing Sogni client:', error);
-      // alert(`Failed initializing Sogni client: ${error.message}`);
     }
   };
 
@@ -369,10 +373,11 @@ const App = () => {
       const project = await sogniClient.projects.create({
         modelId: 'coreml-sogniXLturbo_alpha1_ad',
         positivePrompt: combinedPrompt,
+        negativePrompt: 'lowres, worst quality, low quality',
         sizePreset: 'custom',
         width: desiredWidth,
         height: desiredHeight,
-        steps: 7,
+        steps: 8,
         guidance: 2,
         numberOfImages: 4,
         scheduler: 'DPM Solver Multistep (DPM-Solver++)',
@@ -380,10 +385,10 @@ const App = () => {
         controlNet: {
           name: 'instantid',
           image: new Uint8Array(arrayBuffer),
-          strength: 0.6,
-          mode: 'cn_priority', // 'balanced' | 'prompt_priority' | 'cn_priority';
+          strength: 0.4,
+          mode: 'balanced', // 'balanced' | 'prompt_priority' | 'cn_priority';
           guidanceStart: 0.0,
-          guidanceEnd: 0.6,
+          guidanceEnd: 0.5,
         }
       });
 
