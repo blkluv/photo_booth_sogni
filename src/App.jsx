@@ -16,9 +16,13 @@ const defaultStylePrompts = {
   steampunk: `Attractive, A retro-futuristic steampunk style portrait featuring brass goggles, gears, clockwork elements, Victorian fashion, and a smoky, industrial atmosphere. Intricate mechanical details, warm metallic tones, and a sense of invention.`,
   vaporwave: `Attractive, A dreamy, neon vaporwave portrait with pastel gradients, retro 80s aesthetics, glitch effects, palm trees, and classic Greek statue motifs. Vibrant pink, purple, and cyan color palette, set in a cyber-futuristic cityscape.`,
   astronaut: `Attractive, astronaut wearing helmet, floating near a spaceship window; confined interior contrasts with vast starfield outside. soft moonlight highlights the suited figure against inky blackness, shimmering starlight. deep indigo, silver, neon-tech blues. serene awe. centered astronaut, expansive view. stunning hyper-detailed realism`,
-  statue: `A marble statue, roman, greek, masterpiece, detailed texture, sculpted muscles, beautiful form, shadows and lights, contrast`,
+  sketch: 'Caricature sketch',
+  statue: 'roman statue',
+  clown: 'a clown in full makeup, balloon animals',
+  relax: 'in bubble bath submerged to face, white bubbles, pink bathtub, 35mm cinematic film',
   custom: ``,
 };
+defaultStylePrompts.random = `{${['anime', 'gorillaz', 'pixelArt', 'vaporwave', 'sketch', 'statue', 'clown', 'relax'].map(style => defaultStylePrompts[style]).join('|')}}`;
 
 /**
  * Returns 1280×720 (landscape) or 720×1280 (portrait)
@@ -111,6 +115,10 @@ const App = () => {
     astronaut: 45,
     statue: 45,
     custom: 45,
+    random: 45,
+    sketch: 45,
+    clown: 45,
+    relax: 45,
   };
   const [styleRealism, setStyleRealism] = useState(initialStyleRealism);
 
@@ -797,6 +805,7 @@ const App = () => {
           value={selectedStyle}
           onChange={(e) => setSelectedStyle(e.target.value)}
         >
+          <option value="random">Random</option>
           <option value="anime">Anime</option>
           <option value="gorillaz">Gorillaz</option>
           <option value="disney">Disney</option>
@@ -804,10 +813,12 @@ const App = () => {
           <option value="steampunk">Steampunk</option>
           <option value="vaporwave">Vaporwave</option>
           <option value="astronaut">Astronaut</option>
+          <option value="sketch">Sketch</option>
           <option value="statue">Statue</option>
+          <option value="clown">Clown</option>
+          <option value="relax">Relax</option>
           <option value="custom">Custom...</option>
         </select>
-
         {selectedStyle === 'custom' && (
           <input
             type="text"
