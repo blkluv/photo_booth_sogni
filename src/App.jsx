@@ -250,6 +250,42 @@ const App = () => {
     };
   }, [videoRef.current]); // Re-run when video element changes
 
+  // Fix for iOS viewport height issues
+  useEffect(() => {
+    // First, set the value to the actual viewport height
+    const setVh = () => {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+    
+    // Set it initially
+    setVh();
+    
+    // Update on orientation change or resize
+    window.addEventListener('resize', setVh);
+    window.addEventListener('orientationchange', () => {
+      // Small delay to ensure new dimensions are available
+      setTimeout(setVh, 100);
+    });
+    
+    // On iOS, add a class to handle content safely with notches
+    if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      document.body.classList.add('ios-device');
+      
+      // When showing the photo viewer, prevent background scrolling
+      if (selectedPhotoIndex !== null) {
+        document.body.classList.add('prevent-scroll');
+      } else {
+        document.body.classList.remove('prevent-scroll');
+      }
+    }
+    
+    return () => {
+      window.removeEventListener('resize', setVh);
+      window.removeEventListener('orientationchange', setVh);
+    };
+  }, [selectedPhotoIndex]);
+
   // -------------------------
   //   Sogni initialization
   // -------------------------
@@ -282,58 +318,84 @@ const App = () => {
 
   /**
    * Start the camera stream for a given deviceId or fallback.
-   * Try to capture at "desiredWidth x desiredHeight".
+   * Try to capture at appropriate dimensions based on device and orientation.
    */
   const startCamera = useCallback(async (deviceId) => {
-    // Check if we're on mobile
+    // Check if we're on mobile and iOS
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
     const isPortrait = window.innerHeight > window.innerWidth;
     
+    console.log(`Camera setup - isMobile: ${isMobile}, isIOS: ${isIOS}, isPortrait: ${isPortrait}`);
+    
     // Determine appropriate constraints based on device/orientation
     let constraints;
     
-    if (isMobile && isPortrait) {
-      // For mobile in portrait orientation, prioritize height and aspect ratio
-      constraints = deviceId
-        ? {
-            video: {
-              deviceId,
-              facingMode: 'user',
-              width: { ideal: 720 },
-              height: { ideal: 1280 },
-              aspectRatio: { ideal: 9/16 }
-            },
-          }
-        : {
-            video: {
-              facingMode: 'user',
-              width: { ideal: 720 },
-              height: { ideal: 1280 },
-              aspectRatio: { ideal: 9/16 }
-            },
-          };
+    if (isMobile) {
+      if (isPortrait) {
+        // For mobile in portrait orientation
+        constraints = deviceId
+          ? {
+              video: {
+                deviceId,
+                facingMode: 'user',
+                width: { ideal: 720 },
+                height: { ideal: 1280 },
+                aspectRatio: { ideal: 9/16 }
+              }
+            }
+          : {
+              video: {
+                facingMode: 'user',
+                width: { ideal: 720 },
+                height: { ideal: 1280 },
+                aspectRatio: { ideal: 9/16 }
+              }
+            };
+      } else {
+        // For mobile in landscape orientation
+        constraints = deviceId
+          ? {
+              video: {
+                deviceId,
+                facingMode: 'user',
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                aspectRatio: { ideal: 16/9 }
+              }
+            }
+          : {
+              video: {
+                facingMode: 'user',
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                aspectRatio: { ideal: 16/9 }
+              }
+            };
+      }
     } else {
-      // For desktop or landscape orientation
+      // For desktop
       constraints = deviceId
         ? {
             video: {
               deviceId,
               width: { ideal: desiredWidth },
               height: { ideal: desiredHeight },
-            },
+            }
           }
         : {
             video: {
               facingMode: 'user',
               width: { ideal: desiredWidth },
               height: { ideal: desiredHeight },
-            },
+            }
           };
     }
 
     try {
+      console.log('Getting user media with constraints:', JSON.stringify(constraints));
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         
@@ -342,16 +404,46 @@ const App = () => {
           videoRef.current.classList.add('ios-fix');
         }
         
-        // Add a small delay before playing to prevent the AbortError
+        // Get actual stream dimensions for debugging
+        const videoTrack = stream.getVideoTracks()[0];
+        const capabilities = videoTrack.getCapabilities();
+        const settings = videoTrack.getSettings();
+        console.log('Stream capabilities:', capabilities);
+        console.log('Stream settings:', settings);
+        
+        // Add a small delay before playing to prevent potential errors
         setTimeout(() => {
-          videoRef.current.play().catch(err => {
-            console.warn("Video play error:", err);
-          });
+          if (videoRef.current) {
+            videoRef.current.play().catch(err => {
+              console.warn("Video play error:", err);
+            });
+          }
         }, 100);
       }
     } catch (err) {
       console.error(`Error accessing webcam: ${err}`);
-      alert(`Error accessing webcam: ${err.message}`);
+      
+      // If failed with ideal settings, try again with more flexible constraints
+      if (!deviceId && err.name === 'OverconstrainedError') {
+        console.log('Trying with more flexible constraints');
+        try {
+          const backupConstraints = { video: true };
+          const stream = await navigator.mediaDevices.getUserMedia(backupConstraints);
+          
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            if (isIOS) videoRef.current.classList.add('ios-fix');
+            
+            setTimeout(() => {
+              videoRef.current?.play().catch(e => console.warn("Backup video play error:", e));
+            }, 100);
+          }
+        } catch (backupErr) {
+          alert(`Could not access camera: ${backupErr.message}`);
+        }
+      } else {
+        alert(`Error accessing webcam: ${err.message}`);
+      }
     }
   }, [desiredWidth, desiredHeight]);
 
