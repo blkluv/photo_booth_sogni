@@ -211,8 +211,8 @@ const App = () => {
   const [showSlothicorn, setShowSlothicorn] = useState(true); // Always keep this true
   const [slothicornActive, setSlothicornActive] = useState(false); // This controls visibility
 
-  // Add state for tracking slide animation direction
-  const [slideDirection, setSlideDirection] = useState(''); // 'left', 'right', or ''
+  // Add state for film strip visibility
+  const [showFilmStrip, setShowFilmStrip] = useState(true);
 
   // Add useEffect to set camera aspect ratio CSS variable
   useEffect(() => {
@@ -370,7 +370,126 @@ const App = () => {
     }
   }, [selectedPhotoIndex, photos]);
 
-  // Keyboard navigation
+  // Update the close photo handler to simplify it
+  const handleClosePhoto = () => {
+    setPhotoViewerClosing(true);
+    // Wait for animation to complete before actually changing view
+    setTimeout(() => {
+      setPhotoViewerClosing(false);
+      setSelectedPhotoIndex(null);
+      setSelectedSubIndex(0);
+    }, 300); // Match animation duration in CSS
+  };
+
+  // Simplified function to navigate to previous photo with looping
+  const goToPrevPhoto = () => {
+    // Check if there are any loaded photos to navigate to
+    if (photos.length <= 1) return;
+    
+    // Find the previous loaded photo
+    let prevIndex = selectedPhotoIndex;
+    let iterations = 0;
+    
+    // Only try once around the array to avoid infinite loop
+    while (iterations < photos.length) {
+      prevIndex = prevIndex === 0 ? photos.length - 1 : prevIndex - 1;
+      iterations++;
+      
+      // Skip photos that are still loading or have errors
+      const prevPhoto = photos[prevIndex];
+      if (prevPhoto && 
+          ((prevPhoto.images && prevPhoto.images.length > 0) || 
+           prevPhoto.isOriginal)) {
+        // We found a valid photo
+        break;
+      }
+    }
+    
+    // Only proceed if we found a valid previous photo
+    if (prevIndex !== selectedPhotoIndex && iterations < photos.length) {
+      setSelectedPhotoIndex(prevIndex);
+      setSelectedSubIndex(0);
+    }
+  };
+
+  // Simplified function to navigate to next photo with looping
+  const goToNextPhoto = () => {
+    // Check if there are any loaded photos to navigate to
+    if (photos.length <= 1) return;
+    
+    // Find the next loaded photo
+    let nextIndex = selectedPhotoIndex;
+    let iterations = 0;
+    
+    // Only try once around the array to avoid infinite loop
+    while (iterations < photos.length) {
+      nextIndex = nextIndex === photos.length - 1 ? 0 : nextIndex + 1;
+      iterations++;
+      
+      // Skip photos that are still loading or have errors
+      const nextPhoto = photos[nextIndex];
+      if (nextPhoto && 
+          ((nextPhoto.images && nextPhoto.images.length > 0) || 
+           nextPhoto.isOriginal)) {
+        // We found a valid photo
+        break;
+      }
+    }
+    
+    // Only proceed if we found a valid next photo
+    if (nextIndex !== selectedPhotoIndex && iterations < photos.length) {
+      setSelectedPhotoIndex(nextIndex);
+      setSelectedSubIndex(0);
+    }
+  };
+
+  // Get previous photo index with looping
+  const getPrevPhotoIndex = (currentIndex) => {
+    // Find previous valid photo
+    let prevIndex = currentIndex;
+    let iterations = 0;
+    
+    while (iterations < photos.length) {
+      prevIndex = prevIndex === 0 ? photos.length - 1 : prevIndex - 1;
+      iterations++;
+      
+      const prevPhoto = photos[prevIndex];
+      if (prevPhoto && 
+          ((prevPhoto.images && prevPhoto.images.length > 0) || 
+           prevPhoto.isOriginal)) {
+        // We found a valid photo
+        return prevIndex;
+      }
+    }
+    
+    // If we get here, there's no valid previous photo
+    return currentIndex;
+  };
+
+  // Get next photo index with looping
+  const getNextPhotoIndex = (currentIndex) => {
+    // Find next valid photo
+    let nextIndex = currentIndex;
+    let iterations = 0;
+    
+    while (iterations < photos.length) {
+      nextIndex = nextIndex === photos.length - 1 ? 0 : nextIndex + 1;
+      iterations++;
+      
+      const nextPhoto = photos[nextIndex];
+      if (nextPhoto && 
+          ((nextPhoto.images && nextPhoto.images.length > 0) || 
+           nextPhoto.isOriginal)) {
+        // We found a valid photo
+        return nextIndex;
+      }
+    }
+    
+    // If we get here, there's no valid next photo
+    return currentIndex;
+  };
+
+  // Now update the keyboard handler to use these functions
   const handleKeyDown = useCallback((e) => {
     // Close settings with ESC if they're open
     if (e.key === 'Escape' && showControlOverlay) {
@@ -400,21 +519,13 @@ const App = () => {
         }
       }
 
-      // left/right => previous/next photo
+      // left/right => previous/next photo with looping
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        setSelectedPhotoIndex((idx) => {
-          const newIdx = Math.max(0, idx - 1);
-          setSelectedSubIndex(0);
-          return newIdx;
-        });
+        goToPrevPhoto(); // Use the looping function instead
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
-        setSelectedPhotoIndex((idx) => {
-          const newIdx = Math.min(photos.length - 1, idx + 1);
-          setSelectedSubIndex(0);
-          return newIdx;
-        });
+        goToNextPhoto(); // Use the looping function instead
       }
 
       // space => toggle original (5th) if present
@@ -432,7 +543,7 @@ const App = () => {
         });
       }
     }
-  }, [selectedPhotoIndex, photos, lastViewedIndex, showControlOverlay]);
+  }, [selectedPhotoIndex, photos, lastViewedIndex, showControlOverlay, photos.length]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -738,22 +849,25 @@ const App = () => {
 
     console.log('handleTakePhoto called');
     
-    // Show and activate slothicorn animation
-    setSlothicornActive(true);
-    
-    // Simple countdown with await
+    // Start countdown without slothicorn initially
     for (let i = 3; i > 0; i--) {
       setCountdown(i);
+      
+      // Show slothicorn when countdown reaches 2
+      if (i === 2) {
+        setSlothicornActive(true);
+      }
+      
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
     
     setCountdown(0);
     triggerFlashAndCapture();
     
-    // Make slothicorn return more quickly - reduce from 3000ms to 1500ms
+    // Make slothicorn return more gradually - increase from 800ms to 1200ms
     setTimeout(() => {
       setSlothicornActive(false);
-    }, 1500);
+    }, 1200);
   };
 
   const triggerFlashAndCapture = () => {
@@ -1268,10 +1382,20 @@ const App = () => {
       justifyContent: 'center',
       zIndex: 50,
       maxWidth: '100vw',
-      overflow: 'hidden'
+      overflow: 'visible',
+      paddingTop: '20px'
     }}>
-      {photos.length > 0 && (
+      {photos.length > 0 && showFilmStrip && (
         <div className="film-strip-container">
+          {/* Close button for film strip */}
+          <button 
+            className="film-strip-close-btn" 
+            onClick={() => setShowFilmStrip(false)}
+            aria-label="Close film strip"
+          >
+            ×
+          </button>
+          
           {/* Top sprocket holes */}
           <div className="film-strip-holes top">
             {Array(20).fill(null).map((_, i) => (
@@ -1372,6 +1496,19 @@ const App = () => {
           </div>
         </div>
       )}
+      
+      {/* Show a button to restore the film strip if it's hidden */}
+      {photos.length > 0 && !showFilmStrip && (
+        <div style={{ marginBottom: '15px' }}>
+          <button 
+            className="film-strip-restore-btn"
+            onClick={() => setShowFilmStrip(true)}
+            aria-label="Show film strip"
+          >
+            Show Photos
+          </button>
+        </div>
+      )}
     </div>
   );
 
@@ -1405,56 +1542,16 @@ const App = () => {
     }
   }, [showStyleDropdown]);
 
-  // Update the close photo handler to include animation
-  const handleClosePhoto = () => {
-    setPhotoViewerClosing(true);
-    // Wait for animation to complete before actually changing view
-    setTimeout(() => {
-      setPhotoViewerClosing(false);
-      setSelectedPhotoIndex(null);
-      setSelectedSubIndex(0);
-      setSlideDirection(''); // Reset slide direction
-    }, 300); // Match animation duration in CSS
-  };
-
-  // Add function to navigate to previous photo with looping
-  const goToPrevPhoto = () => {
-    setSlideDirection('left');
-    setTimeout(() => {
-      setSelectedPhotoIndex((current) => {
-        // Loop back to the last photo if at the beginning
-        return current === 0 ? photos.length - 1 : current - 1;
-      });
-      setSelectedSubIndex(0);
-      
-      // Reset slide direction after a short delay to prepare for next animation
-      setTimeout(() => setSlideDirection(''), 50);
-    }, 200); // Half of the animation duration
-  };
-
-  // Add function to navigate to next photo with looping
-  const goToNextPhoto = () => {
-    setSlideDirection('right');
-    setTimeout(() => {
-      setSelectedPhotoIndex((current) => {
-        // Loop back to the first photo if at the end
-        return current === photos.length - 1 ? 0 : current + 1;
-      });
-      setSelectedSubIndex(0);
-      
-      // Reset slide direction after a short delay to prepare for next animation
-      setTimeout(() => setSlideDirection(''), 50);
-    }, 200); // Half of the animation duration
-  };
-
-  // Get previous photo index with looping
-  const getPrevPhotoIndex = (currentIndex) => {
-    return currentIndex === 0 ? photos.length - 1 : currentIndex - 1;
-  };
-
-  // Get next photo index with looping
-  const getNextPhotoIndex = (currentIndex) => {
-    return currentIndex === photos.length - 1 ? 0 : currentIndex + 1;
+  // Add handler for clicks outside the image
+  const handlePhotoViewerClick = (e) => {
+    // Check if the click is outside the image
+    const imageWrapperEl = e.target.closest('.image-wrapper');
+    const navButtonEl = e.target.closest('.photo-nav-btn');
+    const previewEl = e.target.closest('.photo-preview');
+    
+    if (!imageWrapperEl && !navButtonEl && !previewEl) {
+      handleClosePhoto();
+    }
   };
 
   // -------------------------
@@ -1486,15 +1583,10 @@ const App = () => {
 
       {/* Photo viewer - with previews and next/prev navigation */}
       {(selectedPhotoIndex !== null || photoViewerClosing) && (
-        <div className={`selected-photo-container ${photoViewerClosing ? 'fade-out' : ''}`}>
-          {/* Close button */}
-          <button
-            className="photo-close-btn"
-            onClick={handleClosePhoto}
-          >
-            ×
-          </button>
-          
+        <div 
+          className={`selected-photo-container ${photoViewerClosing ? 'fade-out' : ''}`}
+          onClick={handlePhotoViewerClick}
+        >
           {/* Photos carousel with prev/next previews */}
           <div className="photos-carousel">
             {/* Previous photo preview */}
@@ -1520,11 +1612,8 @@ const App = () => {
               </>
             )}
             
-            {/* Current photo with slide animation classes */}
-            <div className={`image-wrapper ${
-              slideDirection === 'right' ? 'slide-in-right' : 
-              slideDirection === 'left' ? 'slide-in-left' : ''
-            }`}>
+            {/* Current photo - remove animation classes */}
+            <div className="image-wrapper">
               {selectedPhotoIndex !== null && renderSelectedPhoto()}
             </div>
             
