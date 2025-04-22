@@ -332,47 +332,25 @@ const App = () => {
     let constraints;
     
     if (isMobile) {
-      if (isPortrait) {
-        // For mobile in portrait orientation
-        constraints = deviceId
-          ? {
-              video: {
-                deviceId,
-                facingMode: 'user',
-                width: { ideal: 720 },
-                height: { ideal: 1280 },
-                aspectRatio: { ideal: 9/16 }
-              }
+      // For mobile devices, always use square aspect ratio regardless of orientation
+      constraints = deviceId
+        ? {
+            video: {
+              deviceId,
+              facingMode: 'user',
+              width: { ideal: 1080 },
+              height: { ideal: 1080 },
+              aspectRatio: { ideal: 1/1 }
             }
-          : {
-              video: {
-                facingMode: 'user',
-                width: { ideal: 720 },
-                height: { ideal: 1280 },
-                aspectRatio: { ideal: 9/16 }
-              }
-            };
-      } else {
-        // For mobile in landscape orientation
-        constraints = deviceId
-          ? {
-              video: {
-                deviceId,
-                facingMode: 'user',
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-                aspectRatio: { ideal: 16/9 }
-              }
+          }
+        : {
+            video: {
+              facingMode: 'user',
+              width: { ideal: 1080 },
+              height: { ideal: 1080 },
+              aspectRatio: { ideal: 1/1 }
             }
-          : {
-              video: {
-                facingMode: 'user',
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-                aspectRatio: { ideal: 16/9 }
-              }
-            };
-      }
+          };
     } else {
       // For desktop
       constraints = deviceId
@@ -1069,10 +1047,30 @@ const App = () => {
     // Draw from video first
     const canvas = canvasRef.current;
     const video = videoRef.current;
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    if (isMobile) {
+      // For mobile: ensure we capture a square image regardless of camera feed
+      const size = Math.min(video.videoWidth, video.videoHeight);
+      const startX = (video.videoWidth - size) / 2;
+      const startY = (video.videoHeight - size) / 2;
+      
+      // Set canvas to square dimensions
+      canvas.width = size;
+      canvas.height = size;
+      
+      // Draw only the center square portion of the video
+      canvas.getContext('2d').drawImage(
+        video, 
+        startX, startY, size, size, // Source coordinates (centered square)
+        0, 0, size, size // Destination coordinates (full canvas)
+      );
+    } else {
+      // For desktop: use full video dimensions as before
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    }
 
     // Get dataUrl and blob first
     const dataUrl = canvas.toDataURL('image/png');
