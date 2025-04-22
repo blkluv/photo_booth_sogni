@@ -508,24 +508,22 @@ const App = () => {
   // -------------------------
   //   Capture (webcam)
   // -------------------------
-  const handleTakePhoto = () => {
+  const handleTakePhoto = async () => {
     if (!isSogniReady) {
       alert('Sogni is not ready yet.');
       return;
     }
 
-    // Start a 3-second countdown for the shutter
-    setCountdown(3);
-    const interval = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          triggerFlashAndCapture();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    console.log('handleTakePhoto called');
+    
+    // Simple countdown with await
+    for (let i = 3; i > 0; i--) {
+      setCountdown(i);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    setCountdown(0);
+    triggerFlashAndCapture();
   };
 
   const triggerFlashAndCapture = () => {
@@ -549,29 +547,35 @@ const App = () => {
       error: null,
       originalDataUrl: null,
       newlyArrived: false,
-      // Our new 10-second countdown for generation
       generationCountdown: 10,
     };
-    setPhotos((prev) => [...prev, newPhoto]);
-    const newPhotoIndex = photos.length;
 
-    // Draw from video
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
+    setPhotos((prev) => {
+      console.log('Setting photos, current length:', prev.length);
+      const newPhotos = [...prev, newPhoto];
+      const newPhotoIndex = newPhotos.length - 1;
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      // Draw from video
+      const canvas = canvasRef.current;
+      const video = videoRef.current;
 
-    // store original dataURL
-    const dataUrl = canvas.toDataURL('image/png');
-    newPhoto.originalDataUrl = dataUrl;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Convert to Blob -> generate
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      generateFromBlob(blob, newPhotoIndex, dataUrl);
-    }, 'image/png');
+      // store original dataURL
+      const dataUrl = canvas.toDataURL('image/png');
+      newPhoto.originalDataUrl = dataUrl;
+
+      // Convert to Blob -> generate
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        console.log('Generating from blob for index:', newPhotoIndex);
+        generateFromBlob(blob, newPhotoIndex, dataUrl);
+      }, 'image/png');
+
+      return newPhotos;
+    });
   };
 
   // -------------------------
