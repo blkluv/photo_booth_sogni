@@ -968,119 +968,122 @@ const App = () => {
             borderTop: '1px solid #444',
             borderBottom: '1px solid #444',
             paddingTop: '3px',
-            paddingBottom: '3px'
-          }}>
+            paddingBottom: '3px',
+            paddingLeft: '5px',
+            paddingRight: '5px',
+            overflowX: 'auto',
+            overflowY: 'hidden',
+            maxWidth: 'calc(100vw - 40px)',
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#444 #221b15',
+            msOverflowStyle: 'none' /* IE and Edge */
+          }}
+          className="hide-scrollbar" /* Add custom class for webkit browsers */
+          onWheel={(e) => {
+            // Prevent vertical scroll of the page
+            if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
+              e.preventDefault();
+              e.currentTarget.scrollLeft += e.deltaY;
+            }
+          }}
+          >
             {photos.map((photo, i) => {
               const isSelected = i === selectedPhotoIndex;
               const frameNumber = i + 1;
 
-              // Add vertical divider after each photo except the last one
-              const renderVerticalDivider = i < photos.length - 1 ? (
-                <div style={{
-                  width: '3px',
-                  height: `${thumbnailHeight}px`,
-                  backgroundColor: 'black',
-                  marginLeft: '10px',
-                  marginRight: '10px',
-                  flexShrink: 0
-                }} />
-              ) : null;
-
               // If generating + no images => show loading animation
               if (photo.loading && photo.images.length === 0) {
                 return (
-                  <React.Fragment key={photo.id}>
-                    <div
-                      className="flex flex-col items-center justify-center bg-gray-700 relative overflow-hidden"
-                      style={{ 
-                        width: `${thumbnailWidth}px`, 
-                        height: `${thumbnailHeight}px`,
-                        borderRadius: '2px',
-                        flexShrink: 0,
-                        border: '1px solid #111',
-                        boxShadow: 'inset 0 0 5px rgba(0,0,0,0.5)',
-                        backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 250 250\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")',
-                        backgroundBlendMode: 'overlay',
-                        opacity: 0.9
-                      }}
-                    >
-                      {/* Film grain overlay */}
-                      <div style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundColor: 'rgba(40, 40, 40, 0.6)',
-                      }}></div>
-                      
-                      {/* Frame number */}
-                      <div style={{
-                        position: 'absolute',
-                        top: '8px',
-                        left: '8px',
-                        fontSize: '14px',
-                        color: '#999',
-                        backgroundColor: 'rgba(0,0,0,0.5)',
-                        padding: '2px 6px',
-                        borderRadius: '3px',
-                        zIndex: 5
-                      }}>
-                        {frameNumber}
-                      </div>
-                      <div className="w-20 h-20 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" style={{zIndex: 6}}></div>
+                  <div
+                    key={photo.id}
+                    className="flex flex-col items-center justify-center bg-gray-700 relative overflow-hidden"
+                    style={{ 
+                      width: `${thumbnailWidth}px`, 
+                      height: `${thumbnailHeight}px`,
+                      borderRadius: '2px',
+                      flexShrink: 0,
+                      border: '1px solid #111',
+                      boxShadow: 'inset 0 0 5px rgba(0,0,0,0.5)',
+                      backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 250 250\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")',
+                      backgroundBlendMode: 'overlay',
+                      opacity: 0.9,
+                      margin: '0 5px'
+                    }}
+                  >
+                    {/* Film grain overlay */}
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: 'rgba(40, 40, 40, 0.6)',
+                    }}></div>
+                    
+                    {/* Frame number */}
+                    <div style={{
+                      position: 'absolute',
+                      top: '8px',
+                      left: '8px',
+                      fontSize: '14px',
+                      color: '#999',
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      padding: '2px 6px',
+                      borderRadius: '3px',
+                      zIndex: 5
+                    }}>
+                      {frameNumber}
                     </div>
-                    {renderVerticalDivider}
-                  </React.Fragment>
+                    <div className="w-20 h-20 border-4 border-gray-700 border-t-transparent rounded-full animate-spin" style={{zIndex: 6}}></div>
+                  </div>
                 );
               }
 
               // If error + no images => "Err"
               if (photo.error && photo.images.length === 0) {
                 return (
-                  <React.Fragment key={photo.id}>
-                    <div
-                      className="flex items-center justify-center text-red-500 bg-gray-700"
-                      style={{ 
-                        width: `${thumbnailWidth}px`, 
-                        height: `${thumbnailHeight}px`,
-                        borderRadius: '2px',
-                        flexShrink: 0,
-                        border: '1px solid #111',
-                        boxShadow: 'inset 0 0 5px rgba(0,0,0,0.5)',
-                        backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 250 250\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")',
-                        backgroundBlendMode: 'overlay',
-                        opacity: 0.9
-                      }}
-                    >
-                      {/* Film grain overlay */}
-                      <div style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundColor: 'rgba(60, 20, 20, 0.6)',
-                      }}></div>
-                      
-                      {/* Frame number */}
-                      <div style={{
-                        position: 'absolute',
-                        top: '8px',
-                        left: '8px',
-                        fontSize: '14px',
-                        color: '#999',
-                        backgroundColor: 'rgba(0,0,0,0.5)',
-                        padding: '2px 6px',
-                        borderRadius: '3px',
-                        zIndex: 5
-                      }}>
-                        {frameNumber}
-                      </div>
-                      <div className="text-lg text-center px-3 py-1 font-bold" style={{zIndex: 6, textShadow: '0 0 4px #000'}}>Error</div>
+                  <div
+                    key={photo.id}
+                    className="flex items-center justify-center text-red-500 bg-gray-700"
+                    style={{ 
+                      width: `${thumbnailWidth}px`, 
+                      height: `${thumbnailHeight}px`,
+                      borderRadius: '2px',
+                      flexShrink: 0,
+                      border: '1px solid #111',
+                      boxShadow: 'inset 0 0 5px rgba(0,0,0,0.5)',
+                      backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 250 250\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")',
+                      backgroundBlendMode: 'overlay',
+                      opacity: 0.9,
+                      margin: '0 5px'
+                    }}
+                  >
+                    {/* Film grain overlay */}
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: 'rgba(60, 20, 20, 0.6)',
+                    }}></div>
+                    
+                    {/* Frame number */}
+                    <div style={{
+                      position: 'absolute',
+                      top: '8px',
+                      left: '8px',
+                      fontSize: '14px',
+                      color: '#999',
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      padding: '2px 6px',
+                      borderRadius: '3px',
+                      zIndex: 5
+                    }}>
+                      {frameNumber}
                     </div>
-                    {renderVerticalDivider}
-                  </React.Fragment>
+                    <div className="text-lg text-center px-3 py-1 font-bold" style={{zIndex: 6, textShadow: '0 0 4px #000'}}>Error</div>
+                  </div>
                 );
               }
 
@@ -1092,112 +1095,111 @@ const App = () => {
               };
 
               return (
-                <React.Fragment key={photo.id}>
-                  <div 
-                    className="thumbnail-container"
-                    style={{ 
-                      width: `${thumbnailWidth}px`, 
-                      height: `${thumbnailHeight}px`,
-                      flexShrink: 0,
-                      position: 'relative',
-                      border: '1px solid #111',
-                      boxShadow: '0 3px 6px rgba(0,0,0,0.5)',
-                      backgroundColor: '#333',
-                      overflow: 'hidden'
-                    }}
-                  >
-                    {/* Film grain overlay for completed images */}
-                    <div style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 250 250\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'1.4\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")',
-                      backgroundBlendMode: 'overlay',
-                      opacity: 0.15,
-                      pointerEvents: 'none',
-                      zIndex: 4
-                    }}></div>
+                <div 
+                  key={photo.id}
+                  className="thumbnail-container"
+                  style={{ 
+                    width: `${thumbnailWidth}px`, 
+                    height: `${thumbnailHeight}px`,
+                    flexShrink: 0,
+                    position: 'relative',
+                    border: '1px solid #111',
+                    boxShadow: '0 3px 6px rgba(0,0,0,0.5)',
+                    backgroundColor: '#333',
+                    overflow: 'hidden',
+                    margin: '0 5px'
+                  }}
+                >
+                  {/* Film grain overlay for completed images */}
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 250 250\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'1.4\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")',
+                    backgroundBlendMode: 'overlay',
+                    opacity: 0.15,
+                    pointerEvents: 'none',
+                    zIndex: 4
+                  }}></div>
 
-                    {/* Frame number */}
-                    <div style={{
-                      position: 'absolute',
-                      top: '8px',
-                      left: '8px',
-                      fontSize: '14px',
-                      color: '#fff',
-                      backgroundColor: 'rgba(0,0,0,0.5)',
-                      padding: '2px 6px',
-                      borderRadius: '3px',
-                      zIndex: 5
-                    }}>
-                      {frameNumber}
-                    </div>
+                  {/* Frame number */}
+                  <div style={{
+                    position: 'absolute',
+                    top: '8px',
+                    left: '8px',
+                    fontSize: '14px',
+                    color: '#fff',
+                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    padding: '2px 6px',
+                    borderRadius: '3px',
+                    zIndex: 5
+                  }}>
+                    {frameNumber}
+                  </div>
 
-                    {/* Show an X if selected */}
-                    {isSelected && (
-                      <div
-                        className="thumbnail-delete-button"
-                        style={{
-                          position: 'absolute',
-                          top: '8px',
-                          right: '8px',
-                          backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                          color: 'white',
-                          width: '30px',
-                          height: '30px',
-                          borderRadius: '50%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                          zIndex: 10,
-                          fontSize: '16px'
-                        }}
-                        onClick={() => handleDeletePhoto(i)}
-                      >
-                        X
-                      </div>
-                    )}
-
-                    <img
-                      src={thumbUrl}
-                      alt={`Generated #${i}`}
-                      className={
-                        `thumbnail ${isSelected ? 'selected' : ''} ` +
-                        (photo.newlyArrived ? 'thumbnail-fade' : '')
-                      }
-                      style={{ 
-                        width: '100%', 
-                        height: '100%', 
-                        objectFit: 'cover',
-                        borderRadius: '2px',
-                        border: isSelected ? '3px solid #f59e0b' : 'none'
-                      }}
-                      onClick={handleThumbClick}
-                    />
-
-                    {/* If multiple images, show stack count */}
-                    {photo.images.length > 1 && (
-                      <div className="stack-count" style={{
+                  {/* Show an X if selected */}
+                  {isSelected && (
+                    <div
+                      className="thumbnail-delete-button"
+                      style={{
                         position: 'absolute',
-                        bottom: '8px',
+                        top: '8px',
                         right: '8px',
                         backgroundColor: 'rgba(0, 0, 0, 0.7)',
                         color: 'white',
-                        padding: '3px 8px',
-                        borderRadius: '12px',
-                        fontSize: '14px',
-                        fontWeight: 'bold',
-                        zIndex: 10
-                      }}>
-                        x{photo.images.length}
-                      </div>
-                    )}
-                  </div>
-                  {renderVerticalDivider}
-                </React.Fragment>
+                        width: '30px',
+                        height: '30px',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        zIndex: 10,
+                        fontSize: '16px'
+                      }}
+                      onClick={() => handleDeletePhoto(i)}
+                    >
+                      X
+                    </div>
+                  )}
+
+                  <img
+                    src={thumbUrl}
+                    alt={`Generated #${i}`}
+                    className={
+                      `thumbnail ${isSelected ? 'selected' : ''} ` +
+                      (photo.newlyArrived ? 'thumbnail-fade' : '')
+                    }
+                    style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      objectFit: 'cover',
+                      borderRadius: '2px',
+                      border: isSelected ? '3px solid #f59e0b' : 'none'
+                    }}
+                    onClick={handleThumbClick}
+                  />
+
+                  {/* If multiple images, show stack count */}
+                  {photo.images.length > 1 && (
+                    <div className="stack-count" style={{
+                      position: 'absolute',
+                      bottom: '8px',
+                      right: '8px',
+                      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                      color: 'white',
+                      padding: '3px 8px',
+                      borderRadius: '12px',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      zIndex: 10
+                    }}>
+                      x{photo.images.length}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>

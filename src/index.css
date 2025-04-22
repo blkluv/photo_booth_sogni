@@ -175,3 +175,24 @@ body {
 .drag-overlay p {
   @apply text-2xl;
 }
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.hide-scrollbar::-webkit-scrollbar {
+  height: 4px;
+}
+
+.hide-scrollbar::-webkit-scrollbar-track {
+  background: #221b15;
+}
+
+.hide-scrollbar::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 2px;
+}
+
+/* For mobile devices - completely hide scrollbar */
+@media (max-width: 768px) {
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
