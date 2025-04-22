@@ -9,14 +9,14 @@ import { SOGNI_URLS } from './config/sogni';
  * Default style prompts
  */
 const defaultStylePrompts = {
-  anime: `Attractive, A colorful and vibrant anime-style portrait, highly detailed with smooth shading, expressive large eyes, dynamic pose, and clean lines. Soft yet vivid color palette, captivating expression, detailed background with Japanese-inspired elements, cinematic lighting, and high-resolution.`,
+  anime: `Charismatic adventurer, Studio Ghibli style anime, hayo miyazaki, masterpiece, whimsical, 90s anime, cute`,
   gorillaz: `Attractive, A vibrant, stylized cartoon band portrait inspired by the edgy, urban comic style of "Gorillaz." Bold, inky outlines and gritty details, with slightly exaggerated facial features and a rebellious attitude. A blend of punk, hip-hop, and futuristic aesthetics, set against a graffiti-covered cityscape.`,
   disney: `Attractive, A magical, whimsical Disney-inspired portrait with bright colors, large expressive eyes, soft outlines, and a fairytale atmosphere. Princess-like attire, dreamy background elements, and a charming, uplifting mood.`,
   pixelArt: `Attractive, A retro pixel art style portrait with 8-bit color palette, blocky forms, and visible pixelation. Nostalgic and charming, reminiscent of classic arcade or console games from the 80s and 90s.`,
   steampunk: `Attractive, A retro-futuristic steampunk style portrait featuring brass goggles, gears, clockwork elements, Victorian fashion, and a smoky, industrial atmosphere. Intricate mechanical details, warm metallic tones, and a sense of invention.`,
   vaporwave: `Attractive, A dreamy, neon vaporwave portrait with pastel gradients, retro 80s aesthetics, glitch effects, palm trees, and classic Greek statue motifs. Vibrant pink, purple, and cyan color palette, set in a cyber-futuristic cityscape.`,
-  astronaut: `Attractive, astronaut floating near a spaceship window; confined interior contrasts with vast starfield outside. soft moonlight highlights the suited figure against inky blackness, shimmering starlight. deep indigo, silver, neon-tech blues. serene awe. centered astronaut, expansive view. stunning hyper-detailed realism`,
-  tiger: `A person transforming into a tiger with stripes`,
+  astronaut: `Attractive, astronaut wearing helmet, floating near a spaceship window; confined interior contrasts with vast starfield outside. soft moonlight highlights the suited figure against inky blackness, shimmering starlight. deep indigo, silver, neon-tech blues. serene awe. centered astronaut, expansive view. stunning hyper-detailed realism`,
+  statue: `A marble statue, roman, greek, masterpiece, detailed texture, sculpted muscles, beautiful form, shadows and lights, contrast`,
   custom: ``,
 };
 
@@ -109,7 +109,7 @@ const App = () => {
     steampunk: 45,
     vaporwave: 45,
     astronaut: 45,
-    tiger: 28,
+    statue: 45,
     custom: 45,
   };
   const [styleRealism, setStyleRealism] = useState(initialStyleRealism);
@@ -804,7 +804,7 @@ const App = () => {
           <option value="steampunk">Steampunk</option>
           <option value="vaporwave">Vaporwave</option>
           <option value="astronaut">Astronaut</option>
-          <option value="tiger">Tiger</option>
+          <option value="statue">Statue</option>
           <option value="custom">Custom...</option>
         </select>
 
