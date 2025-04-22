@@ -333,16 +333,17 @@ body {
   background: linear-gradient(135deg, #ff61d5 0%, #7132e8 100%);
   font-family: 'Arial', sans-serif;
   overflow: hidden;
+  padding: 5px !important; /* Reduced padding */
 }
 
 /* Photobooth Frame */
 .photobooth-frame {
   background-color: #ff3366;
-  border-radius: 20px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3), 0 0 0 8px #ffd301, 0 0 0 16px #ff3366;
-  max-width: 900px;
-  margin: 40px auto 0;
-  padding: 15px;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
+  max-width: 1000px !important; /* Limit max width */
+  margin: 0 auto !important;
+  padding: 10px !important; /* Reduced padding */
   position: relative;
   overflow: hidden;
   z-index: 2;
@@ -352,27 +353,31 @@ body {
 .photobooth-header {
   background-color: #ffd301;
   border-radius: 12px 12px 0 0;
-  padding: 10px 20px;
+  padding: 5px 10px !important; /* Reduced padding */
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
   position: relative;
-  margin-bottom: 10px;
+  margin-bottom: 10px !important; /* Reduced margin */
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   flex-wrap: wrap;
 }
 
+/* Fix Sogni Photobooth title styling */
 .photobooth-title {
-  font-family: 'Impact', 'Arial Black', sans-serif;
-  font-size: 32px;
-  color: #ff3366;
-  text-align: center;
-  text-shadow: 2px 2px 0 #fff, 4px 4px 0 rgba(0, 0, 0, 0.2);
-  margin: 0;
-  letter-spacing: 2px;
-  transform: rotate(-2deg);
-  flex-shrink: 0;
+  color: #FF99CC !important; /* Lighter pink color for better contrast */
+  font-size: 2.2rem !important;
+  font-weight: bold !important;
+  text-transform: uppercase !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  letter-spacing: 2px !important;
+  text-shadow: 
+    3px 3px 0 #ff3366, 
+    -1px -1px 0 #ffd301,
+    0 0 10px rgba(255, 255, 255, 0.6) !important; /* Add glow effect */
+  -webkit-text-stroke: 1px #ff3366 !important; /* Text outline */
 }
 
 /* Header Controls */
@@ -388,31 +393,37 @@ body {
 
 .style-selector {
   position: relative !important;
-  z-index: 9999;
-  flex-grow: 1;
-  max-width: 240px;
+  display: inline-block !important;
 }
 
-/* Restore original button style but keep custom dropdown */
+/* Style button appearance to match the design */
 .header-style-select {
-  width: 100%;
-  padding: 10px 15px;
-  border-radius: 12px;
-  background-color: #ff3366;
-  color: white;
-  border: 3px solid white;
-  font-weight: bold;
-  font-size: 14px;
-  cursor: pointer;
-  box-shadow: 0 4px 0 #96143d, inset 0 0 10px rgba(255, 255, 255, 0.3);
-  text-align: center;
-  text-shadow: 1px 1px 0 #96143d;
-  transform: rotate(-1deg);
-  transition: all 0.2s;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  position: relative;
-  padding-right: 35px;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: relative !important;
+  background-color: #ff3366 !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 30px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 0 0 3px white !important;
+}
+
+.header-style-select::after {
+  content: "▼" !important;
+  font-size: 0.7em !important;
+  margin-left: 8px !important;
+}
+
+/* Ensure header controls don't overflow in any view */
+@media screen and (min-width: 769px) {
+  .style-selector {
+    max-width: 250px !important;
+    flex: 0 0 auto !important;
+  }
 }
 
 .header-style-select:hover {
@@ -438,22 +449,7 @@ body {
   pointer-events: none;
 }
 
-/* Animated Border Effect */
-.style-selector::before {
-  content: '';
-  position: absolute;
-  top: -3px;
-  left: -3px;
-  right: -3px;
-  bottom: -3px;
-  border-radius: 15px;
-  background: linear-gradient(45deg, #ffd301, #ff3366, #7132e8, #ffd301);
-  background-size: 400% 400%;
-  z-index: -1;
-  animation: gradientBorder 3s ease infinite;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
+
 
 .style-selector:hover::before {
   opacity: 1;
@@ -475,10 +471,9 @@ body {
   background-color: #333;
   border-radius: 12px;
   overflow-y: auto !important; /* Force scrolling */
-  overflow-x: hidden;
   z-index: 9999 !important;
-  border: 3px solid #ffcc00;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.5), 0 0 0 3px #ffd301;
+  border: 3px solid #ffffff;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.5), 0 0 0 3px #ffffff;
   animation: none !important;
   padding: 5px 0; /* Add padding to the top and bottom */
 }
@@ -1670,7 +1665,6 @@ div[style*="film content area"] {
 
 /* Style dropdown options */
 .style-option {
-  padding: 12px 15px 12px 40px;
   background-color: transparent; /* Make transparent to show the parent gradient */
   color: white;
   font-weight: bold;
@@ -1706,18 +1700,10 @@ div[style*="film content area"] {
   color: white;
 }
 
-/* Scrollbar styling */
-.style-dropdown::-webkit-scrollbar {
-  width: 8px;
-}
+
 
 .style-dropdown::-webkit-scrollbar-track {
   background: #222;
-  border-radius: 4px;
-}
-
-.style-dropdown::-webkit-scrollbar-thumb {
-  background: #ff3366;
   border-radius: 4px;
 }
 
@@ -2321,15 +2307,19 @@ div[style*="film content area"] {
   /* Core layout adjustments */
   .photobooth-frame {
     margin: 10px;
-    padding: 10px;
+    padding: 8px !important; /* Even smaller padding on mobile */
     max-width: 100%;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3), 0 0 0 5px #ffd301, 0 0 0 10px #ff3366;
+    border-radius: 12px !important;
+    background-color: #ff3366 !important;
+    border: 5px solid #ffd301 !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
   }
   
   /* Header adjustments */
   .photobooth-header {
-    padding: 8px 12px;
-    margin-bottom: 8px;
+    padding: 5px !important;
+    margin-bottom: 8px !important; /* Reduced margin */
   }
   
   .photobooth-title {
@@ -2710,4 +2700,909 @@ body::after {
   .photobooth-app {
     padding-bottom: env(safe-area-inset-bottom);
   }
+}
+
+/* Critical fixes for mobile Chrome on iOS */
+
+/* iPhone Portrait Mode - Fix stacked controls */
+@media only screen 
+and (max-device-width: 428px) 
+and (orientation: portrait) {
+  .photobooth-header {
+    flex-direction: column !important;
+    padding: 8px 0 !important;
+    gap: 10px !important;
+  }
+  
+  .photobooth-header-controls {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 10px !important;
+    align-items: center !important;
+  }
+  
+  /* Make both buttons take full width */
+  .header-style-select,
+  .header-take-photo-btn {
+    width: 90% !important;
+    max-width: 320px !important;
+    margin: 0 auto !important;
+    padding: 12px !important;
+    font-size: 16px !important;
+  }
+  
+  /* Put settings button in absolute position */
+  .header-config-btn {
+    position: absolute !important;
+    top: 10px !important;
+    right: 10px !important;
+    width: 44px !important;
+    height: 44px !important;
+    margin: 0 !important;
+  }
+  
+  /* Fix camera size for portrait mode */
+  .photobooth-screen {
+    aspect-ratio: auto !important;
+    height: calc(70vh - 120px) !important;
+    margin: 10px 0 !important;
+  }
+}
+
+/* iPhone Landscape Mode - Fix horizontal layout */
+@media only screen 
+and (max-device-height: 428px) 
+and (orientation: landscape) {
+  .photobooth-frame {
+    padding: 5px 10px !important;
+  }
+  
+  .photobooth-header {
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    padding: 5px !important;
+  }
+  
+  .photobooth-title {
+    font-size: 18px !important;
+    margin: 0 !important;
+  }
+  
+  .photobooth-header-controls {
+    flex-direction: row !important;
+    justify-content: flex-end !important;
+    width: auto !important;
+    gap: 8px !important;
+  }
+  
+  .header-style-select,
+  .header-take-photo-btn {
+    padding: 8px 15px !important;
+    font-size: 14px !important;
+    width: auto !important;
+  }
+  
+  /* Fix camera container in landscape */
+  .photobooth-screen {
+    height: calc(100vh - 100px) !important;
+    margin: 5px 0 !important;
+  }
+}
+
+/* iOS Chrome overrides that apply to both orientations */
+@supports (-webkit-touch-callout: none) {
+  @media only screen and (max-width: 768px) {
+    body, html {
+      overflow: hidden !important;
+      height: 100% !important;
+    }
+    
+    /* Critical fix for iOS Chrome camera display */
+    #webcam, #webcam.ios-fix {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+      transform: none !important;
+    }
+    
+    /* Ensure webcam fills the screen container */
+    .photobooth-screen {
+      background: #000 !important;
+      overflow: hidden !important;
+    }
+    
+    /* Fix camera display in portrait specifically */
+    @media (orientation: portrait) {
+      .photobooth-screen {
+        max-height: calc(100vh - 220px) !important;
+      }
+    }
+    
+    /* Reposition slothicorn for better visibility */
+    .slothicorn-container {
+      bottom: -200px !important;
+      z-index: 200 !important;
+    }
+  }
+}
+
+/* iOS Chrome LANDSCAPE mode specific overrides */
+@media only screen 
+and (orientation: landscape) {
+  /* Force horizontal layout for header in landscape mode */
+  body.landscape .photobooth-header {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 5px 10px !important;
+    width: 100% !important;
+  }
+  
+  body.landscape .photobooth-title {
+    font-size: 1.5rem !important;
+    margin: 0 !important;
+    flex: 0 0 auto !important;
+  }
+  
+  body.landscape .photobooth-header-controls {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 10px !important;
+    justify-content: flex-end !important;
+    flex: 1 1 auto !important;
+    width: auto !important;
+  }
+  
+  body.landscape .header-style-select,
+  body.landscape .header-take-photo-btn {
+    width: auto !important;
+    padding: 8px 15px !important;
+    min-width: 120px !important;
+    font-size: 14px !important;
+    margin: 0 !important;
+  }
+  
+  body.landscape .header-config-btn {
+    width: 36px !important;
+    height: 36px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 !important;
+  }
+  
+  /* Adjust the photobooth screen to fill available space */
+  body.landscape .photobooth-screen {
+    height: calc(100vh - 60px) !important;
+    max-height: none !important;
+  }
+}
+
+/* iOS Chrome PORTRAIT mode specific overrides */
+@media only screen 
+and (orientation: portrait) {
+  /* Force vertical layout in portrait mode */
+  body.portrait .photobooth-header {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    padding: 5px 0 !important;
+    gap: 8px !important;
+    width: 100% !important;
+    position: relative !important;
+  }
+  
+  body.portrait .photobooth-title {
+    font-size: 1.5rem !important;
+    margin: 0 !important;
+  }
+  
+  body.portrait .photobooth-header-controls {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    align-items: center !important;
+    width: 100% !important;
+  }
+  
+  body.portrait .header-style-select,
+  body.portrait .header-take-photo-btn {
+    width: 90% !important;
+    max-width: 350px !important;
+    padding: 10px !important;
+    font-size: 16px !important;
+    margin: 0 !important;
+  }
+  
+  body.portrait .header-config-btn {
+    position: absolute !important;
+    top: 5px !important;
+    right: 5px !important;
+    width: 44px !important;
+    height: 44px !important;
+  }
+  
+  /* Adjust webcam container */
+  body.portrait .photobooth-screen {
+    aspect-ratio: auto !important;
+    height: 55vh !important;
+    max-height: 55vh !important;
+  }
+}
+
+/* Critical fixes for mobile Chrome video display on iOS */
+
+/* Make sure the video always fills its container */
+#webcam {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  background: #000;
+}
+
+/* Fix for iOS Chrome specific video issues */
+@supports (-webkit-touch-callout: none) {
+  #webcam.ios-fix {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    transform: none !important;
+  }
+  
+  /* Camera screen fixes */
+  .photobooth-screen {
+    position: relative !important;
+    overflow: hidden !important;
+    background: #000 !important;
+  }
+  
+  /* For portrait displays */
+  @media (orientation: portrait) {
+    body.portrait #webcam,
+    body.portrait #webcam.ios-fix {
+      max-width: 100% !important;
+      max-height: none !important;
+      object-fit: cover !important;
+    }
+    
+    body.portrait .photobooth-screen {
+      height: 450px !important;
+      max-height: 55vh !important;
+    }
+  }
+  
+  /* For landscape displays */
+  @media (orientation: landscape) {
+    body.landscape #webcam,
+    body.landscape #webcam.ios-fix {
+      height: 100% !important;
+      max-height: 100% !important;
+      object-fit: cover !important;
+    }
+    
+    body.landscape .photobooth-screen {
+      height: calc(100vh - 70px) !important;
+    }
+  }
+}
+
+/* Fix desktop camera aspect ratio */
+@media screen and (min-width: 769px) {
+  /* Desktop-specific overrides to restore correct camera aspect ratio */
+  .photobooth-screen {
+    aspect-ratio: 16/9;
+    height: auto;
+    width: 100%;
+  }
+  
+  #webcam {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+/* Make iPhone portrait camera smaller */
+@media only screen 
+and (orientation: portrait) 
+and (max-width: 428px) {
+  body.portrait .photobooth-screen {
+    height: 350px !important; /* Reduced height */
+    max-height: 40vh !important; /* Reduced from 55vh */
+  }
+  
+  /* Adjust other elements to fit better */
+  body.portrait .photobooth-frame {
+    padding: 5px !important;
+  }
+  
+  body.portrait .photobooth-header {
+    padding: 5px 0 !important;
+    gap: 5px !important;
+  }
+}
+
+/* Strong fix for desktop camera aspect ratio */
+@media screen and (min-width: 769px) {
+  /* Desktop-specific strong overrides */
+  body:not(.portrait):not(.landscape) .photobooth-screen,
+  body.landscape .photobooth-screen {
+    aspect-ratio: 16/9 !important;
+    height: auto !important;
+    width: 100% !important;
+    max-height: 65vh !important;
+  }
+  
+  body:not(.portrait):not(.landscape) #webcam,
+  body.landscape #webcam {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    transform: none !important;
+  }
+  
+  /* Ensure desktop uses landscape layout */
+  body:not(.portrait):not(.landscape) .photobooth-header {
+    flex-direction: row !important;
+    justify-content: space-between !important;
+  }
+  
+  body:not(.portrait):not(.landscape) .photobooth-header-controls {
+    flex-direction: row !important;
+    width: auto !important;
+  }
+}
+
+/* Fix desktop header layout */
+@media screen and (min-width: 769px) {
+  /* Desktop header layout fix */
+  .photobooth-header {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 10px 20px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  
+  .photobooth-title {
+    font-size: 2rem !important;
+    margin: 0 !important;
+    flex: 0 0 auto !important;
+    text-shadow: 3px 3px 0 #ff3366, -1px -1px 0 #ffd301 !important;
+  }
+  
+  .photobooth-header-controls {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 15px !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+    flex: 1 0 auto !important;
+    width: auto !important;
+  }
+  
+  /* Style button style */
+  .header-style-select {
+    height: auto !important;
+    padding: 12px 20px !important;
+    font-size: 1rem !important;
+    min-width: 200px !important;
+    text-align: center !important;
+    border-radius: 30px !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 0 0 3px white !important;
+  }
+  
+  /* Take Photo button style */
+  .header-take-photo-btn {
+    height: auto !important;
+    padding: 12px 20px !important;
+    font-size: 1rem !important;
+    min-width: 160px !important;
+    text-align: center !important;
+    border-radius: 30px !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 0 0 3px white !important;
+  }
+  
+  /* Settings button style */
+  .header-config-btn {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 0 0 3px white !important;
+  }
+  
+  /* Fix dropdown style */
+  .style-dropdown {
+    position: absolute !important;
+    top: calc(100% + 5px) !important;
+    left: 0 !important;
+    right: auto !important;
+    width: 100% !important;
+    max-width: 250px !important;
+    z-index: 1000 !important;
+  }
+}
+
+/* Fix style dropdown appearance and positioning */
+.style-dropdown {
+  position: absolute !important;
+  top: 100% !important;
+  left: 0 !important;
+  width: 100% !important;
+  min-width: 200px !important;
+  max-height: 300px !important;
+  overflow-y: auto !important;
+  background-color: transparent !important;
+  border-radius: 10px !important;
+  z-index: 1000 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin-top: 5px !important;
+}
+
+.style-option {
+  padding: 8px 15px !important; /* Reduced padding */
+  font-size: 0.9rem !important; /* Smaller font */
+  text-align: left !important;
+  background-color: #333 !important;
+  color: white !important;
+  cursor: pointer !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  transition: background-color 0.2s !important;
+  font-weight: normal !important; /* Changed from bold to normal */
+}
+
+.style-option:first-child {
+  border-top-left-radius: 8px !important; /* Smaller radius */
+  border-top-right-radius: 8px !important;
+}
+
+.style-option:last-child {
+  border-bottom-left-radius: 8px !important; /* Smaller radius */
+  border-bottom-right-radius: 8px !important;
+  border-bottom: none !important;
+}
+
+.style-option.selected {
+  background-color: #ff3366 !important;
+  color: white !important;
+  position: relative !important;
+  font-weight: bold !important; /* Keep selected item bold */
+}
+
+.style-option.selected::before {
+  content: "✓" !important;
+  position: absolute !important;
+  left: 10px !important; /* Adjusted position */
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  font-weight: bold !important;
+  font-size: 0.9rem !important; /* Smaller checkmark */
+}
+
+.style-option.selected {
+  padding-left: 28px !important; /* Adjusted for checkmark */
+}
+
+.style-option:hover {
+  background-color: #444 !important;
+}
+
+.style-option.selected:hover {
+  background-color: #ff3366 !important;
+}
+
+/* For mobile devices */
+@media (max-width: 768px) {
+  .style-dropdown {
+    max-width: 100% !important;
+    width: 90% !important; 
+    left: 5% !important;
+    right: 5% !important;
+  }
+  
+  .style-option {
+    padding: 12px 15px !important;
+    font-size: 1rem !important;
+  }
+}
+
+/* Fix header area padding/margin for desktop */
+@media screen and (min-width: 769px) {
+  .photobooth-header {
+    margin: 0 0 15px 0 !important; 
+    padding: 10px 20px !important;
+  }
+  
+  .photobooth-title {
+    margin-left: 10px !important;
+  }
+  
+  /* Adjust the frame padding for better spacing */
+  .photobooth-frame {
+    padding: 15px !important;
+  }
+}
+
+/* Fix header area padding/margin for mobile */
+@media screen and (max-width: 768px) {
+  .photobooth-header {
+    margin: 0 0 10px 0 !important;
+    padding: 8px !important;
+  }
+  
+  .photobooth-title {
+    font-size: 1.8rem !important;
+    margin-bottom: 8px !important;
+  }
+}
+
+/* Fix margin for buttons to prevent touching boundaries */
+@media screen and (min-width: 769px) {
+  .photobooth-header-controls {
+    padding: 0 15px !important;
+  }
+  
+  .header-style-select,
+  .header-take-photo-btn {
+    margin: 5px !important;
+  }
+  
+  .header-config-btn {
+    margin: 5px !important;
+    margin-right: 10px !important;
+  }
+  
+  /* Add some breathing room to the entire frame */
+  .photobooth-frame {
+    padding: 20px !important;
+  }
+}
+
+/* Also fix for mobile */
+@media screen and (max-width: 768px) {
+  body.portrait .photobooth-header-controls {
+    padding: 0 10px !important;
+  }
+  
+  body.portrait .header-style-select,
+  body.portrait .header-take-photo-btn {
+    margin: 5px auto !important;
+  }
+  
+  body.landscape .header-style-select,
+  body.landscape .header-take-photo-btn {
+    margin: 5px !important;
+  }
+  
+  body.landscape .photobooth-header-controls {
+    padding-right: 10px !important;
+  }
+}
+
+/* Add very strong margins to buttons */
+.photobooth-app .photobooth-frame .photobooth-header .photobooth-header-controls .header-style-select,
+.photobooth-app .photobooth-frame .photobooth-header .photobooth-header-controls .header-take-photo-btn {
+  margin: 10px !important;
+  margin-top: 10px !important;
+  margin-bottom: 10px !important;
+  margin-left: 10px !important;
+  margin-right: 10px !important;
+}
+
+/* Add more padding to the header controls container */
+.photobooth-app .photobooth-frame .photobooth-header .photobooth-header-controls {
+  padding: 5px 20px !important;
+}
+
+/* Add more space around the frame itself */
+.photobooth-app .photobooth-frame {
+  padding: 30px !important;
+}
+
+/* Ensure the buttons have more space in landscape mode */
+@media (orientation: landscape) {
+  html body.landscape .photobooth-app .photobooth-frame .photobooth-header .photobooth-header-controls {
+    padding-right: 20px !important;
+    padding-left: 20px !important;
+  }
+  
+  html body.landscape .photobooth-app .photobooth-frame .photobooth-header .photobooth-header-controls .header-style-select,
+  html body.landscape .photobooth-app .photobooth-frame .photobooth-header .photobooth-header-controls .header-take-photo-btn {
+    margin: 10px !important;
+  }
+}
+
+/* TEMPORARY DEBUG STYLES TO SEE ELEMENT BOUNDARIES */
+.photobooth-frame {
+  border: 2px dashed purple !important;
+}
+
+.photobooth-header {
+  border: 2px dashed green !important;
+}
+
+.photobooth-header-controls {
+  border: 2px dashed blue !important;
+}
+
+.header-style-select, 
+.header-take-photo-btn,
+.header-config-btn {
+  border: 2px dashed red !important;
+}
+
+/* Fix spacing in desktop header */
+@media (min-width: 769px) {
+  /* Add proper spacing around the header */
+  .photobooth-header {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 15px 20px !important;
+    margin-bottom: 15px !important;
+  }
+  
+  /* Set better spacing between controls */
+  .photobooth-header-controls {
+    display: flex !important;
+    gap: 20px !important;
+    padding: 0 !important;
+    margin-right: 10px !important;
+  }
+  
+  /* Fix each button's spacing */
+  .header-style-select,
+  .header-take-photo-btn {
+    margin: 0 !important;
+    padding: 12px 20px !important;
+  }
+  
+  /* Fix gear button spacing */
+  .header-config-btn {
+    margin: 0 !important;
+  }
+  
+  /* Fix the frame padding */
+  .photobooth-frame {
+    padding: 15px !important;
+  }
+}
+
+/* Remove debug borders */
+.photobooth-frame,
+.photobooth-header,
+.photobooth-header-controls,
+.header-style-select, 
+.header-take-photo-btn,
+.header-config-btn {
+  border: none !important;
+}
+
+/* Reduce camera view size to create more space */
+@media (min-width: 769px) {
+  /* Scale down desktop camera */
+  .photobooth-screen {
+    aspect-ratio: 16/9 !important;
+    height: auto !important;
+    width: 100% !important;
+    max-height: 50vh !important; /* Reduced from 65vh */
+    margin-bottom: 20px !important;
+  }
+}
+
+/* Mobile portrait adjustment */
+@media (max-width: 768px) and (orientation: portrait) {
+  body.portrait .photobooth-screen {
+    height: 300px !important; /* Reduced height */
+    max-height: 35vh !important; /* Reduced from 40vh */
+  }
+}
+
+/* Mobile landscape adjustment */
+@media (max-width: 768px) and (orientation: landscape) {
+  body.landscape .photobooth-screen {
+    height: calc(100vh - 160px) !important; /* Create more space */
+    max-height: 50vh !important;
+  }
+}
+
+/* Ensure proper sizing of the camera container */
+.photobooth-screen {
+  background-color: #000 !important;
+  overflow: hidden !important;
+  border-radius: 8px !important;
+  margin: 0 auto !important;
+  margin-bottom: 15px !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Clean up photobooth frame - this should override all other styles */
+.photobooth-app .photobooth-frame {
+  background-color: #ff3366 !important;
+  border: 5px solid #ffd301 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3) !important;
+  margin: 10px auto !important;
+  padding: 10px !important;
+  max-width: 1000px !important;
+}
+
+/* Make everything more compact */
+.photobooth-app {
+  padding: 5px !important;
+}
+
+/* Fix mobile view */
+@media (max-width: 768px) {
+  .photobooth-app .photobooth-frame {
+    margin: 5px !important;
+    padding: 8px !important;
+    border-width: 3px !important;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3) !important;
+  }
+}
+
+/* IMPORTANT OVERRIDES - must be at the end of the file to take effect */
+
+/* Root app container */
+html body .photobooth-app {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Main frame - remove all borders and padding */
+html body .photobooth-app .photobooth-frame {
+  background-color: #fff !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Header - clean yellow background only */
+html body .photobooth-app .photobooth-frame .photobooth-header {
+  background-color: #ffd301 !important;
+  border-radius: 0 !important;
+  padding: 10px 15px !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Camera screen - no margin or padding */
+html body .photobooth-app .photobooth-frame .photobooth-screen {
+  border-radius: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* CLEAN COMPACT CENTERED DESIGN - complete override */
+
+/* App container */
+html body .photobooth-app {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  min-height: 100vh !important;
+  padding: 20px !important;
+  box-sizing: border-box !important;
+}
+
+/* Main frame - compact, centered, rounded */
+html body .photobooth-app .photobooth-frame {
+  width: 100% !important;
+  max-width: 800px !important; /* Control the widget width */
+  margin: 0 auto !important;
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
+  background: white !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+/* Header with yellow background */
+html body .photobooth-app .photobooth-frame .photobooth-header {
+  background-color: #ffd301 !important;
+  padding: 10px 15px !important;
+  margin: 0 !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+}
+
+/* Camera screen area */
+html body .photobooth-app .photobooth-frame .photobooth-screen {
+  margin: 0 !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  html body .photobooth-app {
+    padding: 10px !important;
+  }
+  
+  html body .photobooth-app .photobooth-frame {
+    max-width: 95% !important;
+    border-radius: 12px !important;
+  }
+}
+
+/* COMPACT DESIGN - POSITIONED HIGHER ON PAGE */
+
+/* App container - align to top instead of center */
+html body .photobooth-app {
+  display: block !important; /* Changed from flex */
+  padding: 20px !important;
+  padding-bottom: 100px !important; /* Extra space at bottom for film strip */
+  box-sizing: border-box !important;
+  min-height: 100vh !important;
+}
+
+/* Main frame - positioned higher */
+html body .photobooth-app .photobooth-frame {
+  width: 100% !important;
+  max-width: 800px !important;
+  margin: 20px auto 0 !important; /* Top margin reduced, moved higher */
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
+  background: white !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+/* Add space for film strip at bottom */
+html body .film-strip-container {
+  position: relative !important;
+  bottom: 0 !important;
+  margin-top: 20px !important;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  html body .photobooth-app {
+    padding: 10px !important;
+    padding-bottom: 80px !important;
+  }
+  
+  html body .photobooth-app .photobooth-frame {
+    max-width: 95% !important;
+    margin: 10px auto 0 !important;
+    border-radius: 12px !important;
+  }
+}
+
+/* Remove yellow border from Style dropdown */
+.style-dropdown {
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.style-option {
+  border: none !important;
+  margin: 0 !important;
+  padding: 8px 15px !important;
+}
+
+/* Make dropdown button cleaner */
+.header-style-select {
+  border: none !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
 }
