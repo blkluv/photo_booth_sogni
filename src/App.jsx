@@ -5,6 +5,7 @@ import { SogniClient } from "@sogni-ai/sogni-client";
 import { API_CONFIG } from './config/cors';
 import { SOGNI_URLS } from './config/sogni';
 import clickSound from './click.mp3';
+import cameraWindSound from './camera-wind.mp3';
 
 /**
  * Default style prompts
@@ -17,7 +18,7 @@ const defaultStylePrompts = {
   steampunk: `Attractive, A retro-futuristic steampunk style portrait featuring brass goggles, gears, clockwork elements, Victorian fashion, and a smoky, industrial atmosphere. Intricate mechanical details, warm metallic tones, and a sense of invention.`,
   vaporwave: `Attractive, A dreamy, neon vaporwave portrait with pastel gradients, retro 80s aesthetics, glitch effects, palm trees, and classic Greek statue motifs. Vibrant pink, purple, and cyan color palette, set in a cyber-futuristic cityscape.`,
   astronaut: `Attractive, astronaut wearing helmet, floating near a spaceship window; confined interior contrasts with vast starfield outside. soft moonlight highlights the suited figure against inky blackness, shimmering starlight. deep indigo, silver, neon-tech blues. serene awe. centered astronaut, expansive view. stunning hyper-detailed realism`,
-  sketch: 'Caricature sketch',
+  sketch: 'Caricature sketch drawing of a person on an art clipboard with marker',
   statue: 'Antique Roman statue with red garments',
   clown: 'a clown in full makeup, balloon animals',
   relax: 'in bubble bath submerged to face, white bubbles, pink bathtub, 35mm cinematic film',
@@ -101,6 +102,7 @@ const App = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const shutterSoundRef = useRef(null);
+  const cameraWindSoundRef = useRef(null);
 
   // Style selection -- default to "anime"
   const [selectedStyle, setSelectedStyle] = useState('anime');
@@ -471,6 +473,13 @@ const App = () => {
           resultUrl: job.resultUrl,
           index: jobIndex
         });
+        
+        // Play camera-wind sound when an image arrives
+        if (cameraWindSoundRef.current) {
+          cameraWindSoundRef.current.play().catch(err => {
+            console.warn("Error playing camera wind sound:", err);
+          });
+        }
         
         // Update UI immediately with this job
         // Add 1 to the photo index if we have the original photo
@@ -1384,6 +1393,12 @@ const App = () => {
       {/* Camera shutter sound */}
       <audio ref={shutterSoundRef} preload="auto">
         <source src={clickSound} type="audio/mpeg" />
+        Your browser does not support the audio element.
+      </audio>
+
+      {/* Camera wind sound */}
+      <audio ref={cameraWindSoundRef} preload="auto">
+        <source src={cameraWindSound} type="audio/mpeg" />
         Your browser does not support the audio element.
       </audio>
     </div>
