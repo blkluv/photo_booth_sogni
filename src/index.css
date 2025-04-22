@@ -15,19 +15,22 @@ body {
   z-index: 50;
 }
 
+/* Full-screen flash overlay */
 .flash-overlay {
-  @apply absolute inset-0 bg-white;
-  z-index: 60;
-  animation: flashAnimation 0.4s ease-in-out forwards;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: white;
+  z-index: 9999;
+  animation: flash 0.4s ease-out;
 }
 
-@keyframes flashAnimation {
-  0% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
+@keyframes flash {
+  0% { opacity: 1; }
+  80% { opacity: 1; } /* Hold the white for longer */
+  100% { opacity: 0; }
 }
 
 /* Control panel at top-left */
@@ -89,23 +92,82 @@ body {
   @apply absolute bottom-0 right-0 bg-black bg-opacity-70 text-xs text-white px-1 py-0.5 rounded-tl;
 }
 
-/* Selected photo container styled as a full-screen overlay */
+/* Updated selected photo container */
 .selected-photo-container {
-  @apply fixed inset-0 flex items-center justify-center;
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 1000;
   background: rgba(0, 0, 0, 0.85);
+  padding: 30px;
 }
 
-/* 
-   Preserve the original aspect ratio for the enlarged image
-*/
+/* Remove the photobooth-photo-viewer fixed styling that added extra chrome */
+.photobooth-photo-viewer {
+  background-color: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  height: auto;
+}
+
+/* Respect aspect ratio of the image */
 .selected-photo-container img {
-  @apply max-h-full max-w-full object-contain;
+  max-height: 90vh;
+  max-width: 90vw;
+  object-fit: contain;
+  border: 6px solid white;
+  border-radius: 3px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* Close button styling */
+.photo-close-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  width: 40px;
+  height: 40px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  cursor: pointer;
+  z-index: 200;
+  transition: all 0.2s ease;
+  border-radius: 0 0 0 8px;
+}
+
+.photo-close-btn:hover {
+  background: rgba(255, 51, 102, 0.8);
+  transform: scale(1.1);
+}
+
+.photo-close-btn:active {
+  transform: scale(0.95);
 }
 
 /* Photo stack index indicator top-right corner (e.g. "1/4") */
 .stack-index-indicator {
-  @apply absolute top-4 right-4 text-xl bg-black bg-opacity-70 py-1 px-2 rounded;
+  position: absolute;
+  top: 10px;
+  right: 50px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: bold;
+  z-index: 190;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 /* 
@@ -522,18 +584,6 @@ body {
 }
 
 /* Selected Photo Viewer */
-.photobooth-photo-viewer {
-  background-color: #ff3366;
-  border-radius: 20px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3), 0 0 0 8px #ffd301, 0 0 0 16px #ff3366;
-  max-width: 900px;
-  margin: 40px auto 0;
-  padding: 15px;
-  height: calc(100vh - 200px);
-  display: flex;
-  flex-direction: column;
-}
-
 .photobooth-photo-viewer img {
   border: 6px solid white;
   border-radius: 10px;
@@ -689,41 +739,44 @@ div[style*="film content area"] {
 }
 
 .dismiss-overlay-btn {
-  display: block;
-  width: 100%;
-  padding: 12px;
-  margin: 0 0 20px 0;
-  background-color: #ffd301;
-  color: #ff3366;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
   border: none;
-  border-radius: 30px;
-  font-size: 18px;
-  font-weight: bold;
+  border-radius: 50%;
   cursor: pointer;
-  box-shadow: 0 4px 0 #ff3366;
-  transition: all 0.1s;
-  text-transform: uppercase;
+  z-index: 100;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
 }
 
 .dismiss-overlay-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 0 #ff3366;
+  background: rgba(255, 51, 102, 0.8);
+  transform: scale(1.1);
 }
 
 .dismiss-overlay-btn:active {
-  transform: translateY(2px);
-  box-shadow: 0 2px 0 #ff3366;
+  transform: scale(0.95);
 }
 
-/* Control Options */
+/* Control Options - modify for inline labels */
 .control-option {
-  margin-bottom: 20px;
-  background-color: rgba(255, 255, 255, 0.15);
-  border-radius: 15px;
-  padding: 15px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  position: relative;
 }
 
 .control-option:hover {
@@ -732,69 +785,41 @@ div[style*="film content area"] {
 }
 
 .control-label {
-  display: block;
-  color: white;
-  margin-bottom: 8px;
+  display: inline-block;
+  width: 40%;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  margin-right: 10px;
+}
+
+.slider-value {
+  display: inline-block;
+  min-width: 40px;
+  text-align: center;
+  margin-left: 10px;
+  color: #fff;
   font-weight: bold;
-  font-size: 16px;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 12px;
 }
 
-/* Style inputs */
-.custom-style-input,
-.camera-select,
-.model-select {
-  width: 100%;
-  padding: 12px;
-  border-radius: 10px;
-  background-color: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  font-weight: bold;
-  font-size: 16px;
-  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
-}
-
-.custom-style-input {
-  width: 100%;
-  padding: 12px 15px;
-  background-color: rgba(255, 255, 255, 0.9);
-  color: #333;
-  font-weight: bold;
-  border: 2px solid #ff3366;
-  border-radius: 10px;
-  font-size: 16px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2), inset 0 1px 3px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s ease;
-}
-
-.custom-style-input:focus {
-  outline: none;
-  border-color: #ffd301;
-  box-shadow: 0 0 0 3px rgba(255, 211, 1, 0.3), inset 0 1px 3px rgba(0, 0, 0, 0.1);
-  transform: translateY(-1px);
-}
-
-.custom-style-input::placeholder {
-  color: #999;
-  font-weight: normal;
-  font-style: italic;
-}
-
-/* Sliders */
 .slider-input {
   width: 100%;
-  height: 16px;
+  height: 12px;
+  background: linear-gradient(to right, #ff3366, #7132e8);
+  border-radius: 6px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   -webkit-appearance: none;
   appearance: none;
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 8px;
   outline: none;
-  margin: 15px 0;
-  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
-  padding: 0;
+  flex: 1;
 }
 
+/* Slider styling */
 .slider-input::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
@@ -828,21 +853,54 @@ div[style*="film content area"] {
   border-radius: 8px;
 }
 
-/* Checkboxes */
-.control-option.checkbox {
-  display: flex;
-  align-items: center;
+/* Custom style input styling */
+.custom-style-input {
+  width: calc(70% - 15px);
+  flex: 1;
+  padding: 12px 15px;
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #333;
+  font-weight: bold;
+  border: 2px solid #ff3366;
+  border-radius: 10px;
+  font-size: 16px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2), inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
 }
 
-.control-option.checkbox input[type="checkbox"] {
-  margin-right: 15px;
-  width: 24px;
-  height: 24px;
-  accent-color: #ffd301;
+.custom-style-input:focus {
+  outline: none;
+  border-color: #ffd301;
+  box-shadow: 0 0 0 3px rgba(255, 211, 1, 0.3), inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
 }
 
-.control-option.checkbox .control-label {
-  margin-bottom: 0;
+.custom-style-input::placeholder {
+  color: #999;
+  font-weight: normal;
+  font-style: italic;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .control-option {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .control-label {
+    margin-bottom: 8px;
+    width: 100%;
+    flex: none;
+  }
+  
+  .custom-style-input,
+  .camera-select,
+  .model-select,
+  .slider-input {
+    width: 100%;
+    flex: none;
+  }
 }
 
 /* Film Strip Styling */
@@ -1699,4 +1757,37 @@ div[style*="film content area"] {
     font-size: 14px;
     padding: 10px 12px;
   }
+}
+
+/* Style inputs to be inline */
+.camera-select,
+.model-select {
+  width: calc(70% - 15px);
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  font-weight: bold;
+  font-size: 16px;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Special case for checkboxes */
+.control-option.checkbox {
+  display: flex;
+  align-items: center;
+}
+
+.control-option.checkbox input[type="checkbox"] {
+  margin-right: 15px;
+  width: 24px;
+  height: 24px;
+  accent-color: #ffd301;
+}
+
+.control-option.checkbox .control-label {
+  margin-bottom: 0;
+  flex: 1;
 }

@@ -104,8 +104,8 @@ const App = () => {
   const shutterSoundRef = useRef(null);
   const cameraWindSoundRef = useRef(null);
 
-  // Style selection -- default to "anime"
-  const [selectedStyle, setSelectedStyle] = useState('anime');
+  // Style selection -- default to "random" instead of "anime"
+  const [selectedStyle, setSelectedStyle] = useState('random');
   const [customPrompt, setCustomPrompt] = useState('');
 
   // Each style can have a different realism value
@@ -296,11 +296,21 @@ const App = () => {
   // If we return to camera, ensure the video is playing
   useEffect(() => {
     if (selectedPhotoIndex === null && videoRef.current) {
-      videoRef.current.play().catch(err => {
-        console.warn("Video re-play error:", err);
-      });
+      console.log("Restarting video playback");
+      // Add a small delay to ensure DOM updates before attempting to play
+      setTimeout(() => {
+        if (videoRef.current && videoRef.current.srcObject) {
+          videoRef.current.play().catch(err => {
+            console.warn("Video re-play error:", err);
+          });
+        } else {
+          console.log("Video ref or srcObject not available, restarting camera");
+          // If for some reason the video stream is lost, restart it
+          startCamera(selectedCameraDeviceId);
+        }
+      }, 100);
     }
-  }, [selectedPhotoIndex]);
+  }, [selectedPhotoIndex, startCamera, selectedCameraDeviceId]);
 
   // Preload images for the selected photo
   useEffect(() => {
@@ -694,10 +704,11 @@ const App = () => {
 
     if (flashEnabled) {
       setShowFlash(true);
+      // Increased delay to 250ms to allow camera to adjust exposure
       setTimeout(() => {
         setShowFlash(false);
         captureAndSend();
-      }, 200);
+      }, 250);
     } else {
       captureAndSend();
     }
@@ -962,7 +973,7 @@ const App = () => {
               className="dismiss-overlay-btn"
               onClick={() => setShowControlOverlay(false)}
             >
-              Close Settings
+              ×
             </button>
             
             {selectedStyle === 'custom' && (
@@ -1016,7 +1027,7 @@ const App = () => {
 
             {/* Number of Images slider */}
             <div className="control-option">
-              <label className="control-label">Number of Images: {numImages}</label>
+              <label className="control-label">Number of Images:</label>
               <input
                 type="range"
                 min={1}
@@ -1026,11 +1037,12 @@ const App = () => {
                 onChange={(e) => setNumImages(parseInt(e.target.value))}
                 className="slider-input"
               />
+              <span className="slider-value">{numImages}</span>
             </div>
 
             {/* Prompt Guidance slider */}
             <div className="control-option">
-              <label className="control-label">Prompt Guidance: {promptGuidance.toFixed(1)}</label>
+              <label className="control-label">Prompt Guidance:</label>
               <input
                 type="range"
                 min={2}
@@ -1040,11 +1052,12 @@ const App = () => {
                 onChange={(e) => setPromptGuidance(parseFloat(e.target.value))}
                 className="slider-input"
               />
+              <span className="slider-value">{promptGuidance.toFixed(1)}</span>
             </div>
 
             {/* Instant ID Strength slider */}
             <div className="control-option">
-              <label className="control-label">Instant ID Strength: {controlNetStrength.toFixed(1)}</label>
+              <label className="control-label">Instant ID Strength:</label>
               <input
                 type="range"
                 min={0.4}
@@ -1054,11 +1067,12 @@ const App = () => {
                 onChange={(e) => setControlNetStrength(parseFloat(e.target.value))}
                 className="slider-input"
               />
+              <span className="slider-value">{controlNetStrength.toFixed(1)}</span>
             </div>
 
             {/* Instant ID Impact Stop slider */}
             <div className="control-option">
-              <label className="control-label">Instant ID Impact Stop: {controlNetGuidanceEnd.toFixed(1)}</label>
+              <label className="control-label">Instant ID Impact Stop:</label>
               <input
                 type="range"
                 min={0.2}
@@ -1068,6 +1082,7 @@ const App = () => {
                 onChange={(e) => setControlNetGuidanceEnd(parseFloat(e.target.value))}
                 className="slider-input"
               />
+              <span className="slider-value">{controlNetGuidanceEnd.toFixed(1)}</span>
             </div>
 
             <div className="control-option checkbox">
@@ -1082,7 +1097,7 @@ const App = () => {
 
             {/* Per-style realism slider */}
             <div className="control-option">
-              <label className="control-label">Realism for {selectedStyle}: {styleRealism[selectedStyle]}%</label>
+              <label className="control-label">Realism during style:</label>
               <input
                 type="range"
                 min={0}
@@ -1097,6 +1112,7 @@ const App = () => {
                 }}
                 className="slider-input"
               />
+              <span className="slider-value">{styleRealism[selectedStyle]}%</span>
             </div>
 
             <div className="control-option checkbox">
@@ -1345,18 +1361,16 @@ const App = () => {
       {/* Main area with video in the background */}
       {selectedPhotoIndex === null ? renderMainArea() : (
         <div className="selected-photo-container photobooth-photo-viewer" style={{ zIndex: 200 }}>
-          <div className="photobooth-header">
-            <h1 className="photobooth-title">SOGNI PHOTOBOOTH</h1>
-            <button
-              className="back-to-camera-btn"
-              onClick={() => {
-                setSelectedPhotoIndex(null);
-                setSelectedSubIndex(0);
-              }}
-            >
-              Back to Camera
-            </button>
-          </div>
+          {/* Remove header and just use a close button */}
+          <button
+            className="photo-close-btn"
+            onClick={() => {
+              setSelectedPhotoIndex(null);
+              setSelectedSubIndex(0);
+            }}
+          >
+            ×
+          </button>
           {renderSelectedPhoto()}
         </div>
       )}
