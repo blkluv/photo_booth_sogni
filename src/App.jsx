@@ -706,6 +706,20 @@ const App = () => {
     }
   }, []);
 
+  // Add an effect to properly initialize the slothicorn
+  useEffect(() => {
+    // Ensure slothicorn is properly initialized
+    if (slothicornRef.current) {
+      console.log('Initializing slothicorn position');
+      slothicornRef.current.style.transition = 'none';
+      slothicornRef.current.style.bottom = '-240px';
+      
+      // Force a reflow to ensure style is applied
+      // This helps fix issues with styles not being applied on some mobile browsers
+      void slothicornRef.current.offsetHeight;
+    }
+  }, []);
+
   // -------------------------
   //   Shared logic for generating images from a Blob
   // -------------------------
@@ -977,7 +991,7 @@ const App = () => {
       return;
     }
 
-    console.log('handleTakePhoto called');
+    console.log('handleTakePhoto called - device type:', /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop');
     
     // Start countdown without slothicorn initially
     for (let i = 3; i > 0; i--) {
@@ -985,18 +999,21 @@ const App = () => {
       
       // Show slothicorn when countdown reaches 2
       if (i === 2 && slothicornRef.current) {
-        console.log('Animating slothicorn up');
+        console.log('Animating slothicorn up - slothicorn element:', slothicornRef.current ? 'exists' : 'missing');
         
         // Start hidden (if not already)
         slothicornRef.current.style.bottom = '-240px';
+        console.log('Set initial bottom position:', slothicornRef.current.style.bottom);
         
         // Animate with a timeout for visibility
         setTimeout(() => {
           // Apply a transition temporarily (will be removed later)
           slothicornRef.current.style.transition = 'bottom 1s cubic-bezier(0.34, 1.2, 0.64, 1)';
+          console.log('Applied transition:', slothicornRef.current.style.transition);
           
           // Move up
           slothicornRef.current.style.bottom = '0px';
+          console.log('Set new bottom position:', slothicornRef.current.style.bottom);
         }, 50);
       }
       
@@ -1013,13 +1030,16 @@ const App = () => {
         
         // Apply a different transition for going down
         slothicornRef.current.style.transition = 'bottom 1.5s cubic-bezier(0.25, 0.1, 0.25, 1)';
+        console.log('Applied down transition:', slothicornRef.current.style.transition);
         
         // Move down
         slothicornRef.current.style.bottom = '-240px';
+        console.log('Set final bottom position:', slothicornRef.current.style.bottom);
         
         // Remove the transition after animation completes
         setTimeout(() => {
           slothicornRef.current.style.transition = 'none';
+          console.log('Removed transition');
         }, 1500);
       }
     }, 1200);

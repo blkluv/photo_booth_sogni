@@ -7,6 +7,8 @@ body {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  min-height: 100% !important;
+  overflow-x: hidden !important;
 }
 
 /* Extra styling for countdown, flash effect */
@@ -1876,32 +1878,27 @@ div[style*="film content area"] {
 /* Slothicorn styling - completely simplified for direct DOM manipulation */
 .slothicorn-container {
   position: fixed;
-  bottom: -240px; /* Start hidden below the screen */
+  bottom: -240px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 150;
+  width: 240px;
+  max-width: 240px;
+  z-index: 1000;
   pointer-events: none;
-  filter: drop-shadow(0 5px 15px rgba(0,0,0,0.4));
+  transition: none;
 }
 
+/* Apply fidget animation when not being animated by JS */
+.slothicorn-container:not(.animating) {
+  animation: fidget 4s ease-in-out infinite;
+}
+
+/* The image wiggle */
 .slothicorn-image {
   width: 240px;
   height: auto;
-}
-
-@media (max-width: 768px) {
-  .slothicorn-container {
-    bottom: -180px; /* Adjust hidden position for smaller screens */
-  }
-  
-  .slothicorn-image {
-    width: 180px;
-  }
-}
-
-/* Only fidget animation for non-moving state */
-.slothicorn-container:not(.animating) {
-  animation: fidget 4s ease-in-out infinite;
+  transform-origin: top center;
+  animation: hornWiggle 5s ease-in-out infinite;
 }
 
 /* Subtle fidget animation for dormant state */
@@ -1923,14 +1920,6 @@ div[style*="film content area"] {
   }
 }
 
-/* The image wiggle */
-.slothicorn-image {
-  width: 240px;
-  height: auto;
-  transform-origin: top center;
-  animation: hornWiggle 5s ease-in-out infinite;
-}
-
 /* Subtle horn wiggle animation */
 @keyframes hornWiggle {
   0% {
@@ -1950,6 +1939,41 @@ div[style*="film content area"] {
 /* When active, turn off the wiggle animation */
 .slothicorn-container.animating .slothicorn-image {
   animation: none;
+}
+
+/* Ensure animation can be applied by JS without interference */
+.slothicorn-container.animating {
+  /* Remove any animations that could conflict with JS positioning */
+  animation: none;
+}
+
+/* Mobile styles with !important flags to override conflicting styles */
+@media (max-width: 768px) {
+  .slothicorn-container {
+    position: fixed !important;
+    bottom: -180px !important; /* Smaller for mobile */
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: 180px !important;
+    max-width: 180px !important;
+    z-index: 1000 !important;
+    pointer-events: none !important;
+    transition: none !important;
+  }
+  
+  body.portrait .slothicorn-container,
+  body.landscape .slothicorn-container {
+    position: fixed !important;
+    /* JS will control bottom position */
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    z-index: 1000 !important;
+  }
+  
+  .slothicorn-image {
+    width: 180px !important;
+    height: auto !important;
+  }
 }
 
 /* Studio Light Styling */
@@ -3769,3 +3793,82 @@ html body .photobooth-app .photobooth-frame .photobooth-header .photobooth-heade
   box-shadow: none !important;
   background-color: #ff3366 !important;
 }
+
+/* Add min-height and improve mobile scrolling */
+html, body {
+  min-height: 100% !important;
+  overflow-x: hidden !important;
+}
+
+/* Allow scrolling on mobile */
+@media (max-width: 768px) {
+  html, body {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  html body .photobooth-app {
+    min-height: 100% !important;
+    height: auto !important;
+    overflow-y: auto !important;
+  }
+  
+  /* Prevent content from being cut off */
+  html body .photobooth-app .photobooth-frame {
+    margin-bottom: 120px !important; /* Space for film strip */
+  }
+}
+
+/* Fix mobile landscape scrolling */
+@media (max-width: 768px) and (orientation: landscape) {
+  html body .photobooth-app {
+    height: auto !important;
+    min-height: 100% !important;
+    padding-bottom: 100px !important;
+  }
+  
+  html body .photobooth-app .photobooth-frame {
+    max-height: none !important;
+  }
+  
+  body.landscape .photobooth-screen {
+    height: auto !important;
+    max-height: 40vh !important;
+  }
+}
+
+/* Fix camera aspect ratio on portrait mode */
+@media (max-width: 768px) and (orientation: portrait) {
+  body.portrait .photobooth-screen {
+    aspect-ratio: 3/4 !important; /* More portrait, but not too extreme */
+    height: auto !important;
+    max-height: 45vh !important; /* Reduced height */
+    width: 95% !important; /* Slightly narrower */
+    margin: 0 auto !important;
+  }
+  
+  /* Scale down header for mobile portrait */
+  body.portrait .photobooth-header {
+    padding: 8px 5px !important;
+  }
+  
+  body.portrait .photobooth-title {
+    font-size: 1.6rem !important;
+  }
+  
+  /* Adjust header controls size */
+  body.portrait .header-style-select,
+  body.portrait .header-take-photo-btn {
+    font-size: 0.85rem !important;
+    padding: 6px 12px !important;
+    height: 36px !important;
+    min-width: 100px !important;
+  }
+  
+  body.portrait .header-config-btn {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 1rem !important;
+  }
+}
+
