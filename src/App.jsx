@@ -12,12 +12,12 @@ const defaultStylePrompts = {
   anime: `Charismatic adventurer, Studio Ghibli style anime, hayo miyazaki, masterpiece, whimsical, 90s anime, cute`,
   gorillaz: `Attractive, A vibrant, stylized cartoon band portrait inspired by the edgy, urban comic style of "Gorillaz." Bold, inky outlines and gritty details, with slightly exaggerated facial features and a rebellious attitude. A blend of punk, hip-hop, and futuristic aesthetics, set against a graffiti-covered cityscape.`,
   disney: `Attractive, A magical, whimsical Disney-inspired portrait with bright colors, large expressive eyes, soft outlines, and a fairytale atmosphere. Princess-like attire, dreamy background elements, and a charming, uplifting mood.`,
-  pixelArt: `Attractive, A retro pixel art style portrait with 8-bit color palette, blocky forms, and visible pixelation. Nostalgic and charming, reminiscent of classic arcade or console games from the 80s and 90s.`,
+  pixelArt: `Attractive, A retro CryptoPunks NFT pixel art style portrait with 8-bit color palette, blocky forms, and visible pixelation. Nostalgic and charming, reminiscent of classic arcade or console games from the 80s and 90s.`,
   steampunk: `Attractive, A retro-futuristic steampunk style portrait featuring brass goggles, gears, clockwork elements, Victorian fashion, and a smoky, industrial atmosphere. Intricate mechanical details, warm metallic tones, and a sense of invention.`,
   vaporwave: `Attractive, A dreamy, neon vaporwave portrait with pastel gradients, retro 80s aesthetics, glitch effects, palm trees, and classic Greek statue motifs. Vibrant pink, purple, and cyan color palette, set in a cyber-futuristic cityscape.`,
   astronaut: `Attractive, astronaut wearing helmet, floating near a spaceship window; confined interior contrasts with vast starfield outside. soft moonlight highlights the suited figure against inky blackness, shimmering starlight. deep indigo, silver, neon-tech blues. serene awe. centered astronaut, expansive view. stunning hyper-detailed realism`,
   sketch: 'Caricature sketch',
-  statue: 'roman statue',
+  statue: 'Antique Roman statue with red garments',
   clown: 'a clown in full makeup, balloon animals',
   relax: 'in bubble bath submerged to face, white bubbles, pink bathtub, 35mm cinematic film',
   custom: ``,
@@ -177,6 +177,20 @@ const App = () => {
   const isPortrait = desiredHeight > desiredWidth;
   const thumbnailWidth = isPortrait ? 120 : 212; // Wider for landscape (doubled)
   const thumbnailHeight = isPortrait ? 212 : 120; // Taller for portrait (doubled)
+
+  // First, add the model options at the top of the file
+  const modelOptions = [
+    { label: '🅂 Sogni.XLT 𝛂1 (SDXL Turbo)', value: 'coreml-sogniXLturbo_alpha1_ad' },
+    { label: 'DreamShaper v2.1 (SDXL Turbo)', value: 'coreml-dreamshaperXL_v21TurboDPMSDE' },
+    { label: 'JuggernautXL 9 + RD Photo2 (SDXL Lightning)', value: 'coreml-juggernautXL_v9Rdphoto2Lightning' }
+  ];
+
+  // At the top of App component, add new state variables
+  const [selectedModel, setSelectedModel] = useState('coreml-sogniXLturbo_alpha1_ad');
+  const [numImages, setNumImages] = useState(8);
+  const [promptGuidance, setPromptGuidance] = useState(2.5);
+  const [controlNetStrength, setControlNetStrength] = useState(0.9);
+  const [controlNetGuidanceEnd, setControlNetGuidanceEnd] = useState(0.7);
 
   // -------------------------
   //   Sogni initialization
@@ -422,7 +436,7 @@ const App = () => {
         }
         
         // Add placeholder boxes for the generated images
-        for (let i = 0; i < 8; i++) {
+        for (let i = 0; i < numImages; i++) {
           newPhotos.push({
             id: Date.now() + i + 1,
             generating: true,
@@ -488,23 +502,23 @@ const App = () => {
       // Set up event handlers
       const arrayBuffer = await photoBlob.arrayBuffer();
       const project = await sogniClient.projects.create({
-        modelId: 'coreml-sogniXLturbo_alpha1_ad',
+        modelId: selectedModel,
         positivePrompt: combinedPrompt,
         sizePreset: 'custom',
         width: desiredWidth,
         height: desiredHeight,
         steps: 7,
-        guidance: 2.5,
-        numberOfImages: 8,
+        guidance: promptGuidance,
+        numberOfImages: numImages,
         scheduler: 'DPM Solver Multistep (DPM-Solver++)',
         timeStepSpacing: 'Karras',
         controlNet: {
           name: 'instantid',
           image: new Uint8Array(arrayBuffer),
-          strength: 0.9,
-          mode: 'prompt_priority',// balanced cn_priority
+          strength: controlNetStrength,
+          mode: 'balanced',// balanced cn_priority
           guidanceStart: 0.0,
-          guidanceEnd: 0.7,
+          guidanceEnd: controlNetGuidanceEnd,
         }
       });
 
@@ -561,7 +575,7 @@ const App = () => {
         }
         
         // Add error placeholders
-        for (let i = 0; i < 8; i++) {
+        for (let i = 0; i < numImages; i++) {
           updated.push({
             id: Date.now() + i,
             generating: false,
@@ -883,6 +897,78 @@ const App = () => {
               </select>
             </label>
           )}
+
+          {/* Model selector */}
+          <label className="flex flex-col">
+            <span>Pick an Image Model:</span>
+            <select
+              className="px-2 py-1 mt-1 rounded bg-gray-600 text-white outline-none"
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+            >
+              {modelOptions.map((model) => (
+                <option key={model.value} value={model.value}>
+                  {model.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {/* Number of Images slider */}
+          <label className="flex flex-col space-y-1">
+            <span>Number of Images: {numImages}</span>
+            <input
+              type="range"
+              min={1}
+              max={16}
+              step={1}
+              value={numImages}
+              onChange={(e) => setNumImages(parseInt(e.target.value))}
+              className="w-full"
+            />
+          </label>
+
+          {/* Prompt Guidance slider */}
+          <label className="flex flex-col space-y-1">
+            <span>Prompt Guidance: {promptGuidance.toFixed(1)}</span>
+            <input
+              type="range"
+              min={2}
+              max={3}
+              step={0.1}
+              value={promptGuidance}
+              onChange={(e) => setPromptGuidance(parseFloat(e.target.value))}
+              className="w-full"
+            />
+          </label>
+
+          {/* Instant ID Strength slider */}
+          <label className="flex flex-col space-y-1">
+            <span>Instant ID Strength: {controlNetStrength.toFixed(1)}</span>
+            <input
+              type="range"
+              min={0.4}
+              max={1}
+              step={0.1}
+              value={controlNetStrength}
+              onChange={(e) => setControlNetStrength(parseFloat(e.target.value))}
+              className="w-full"
+            />
+          </label>
+
+          {/* Instant ID Impact Stop slider */}
+          <label className="flex flex-col space-y-1">
+            <span>Instant ID Impact Stop: {controlNetGuidanceEnd.toFixed(1)}</span>
+            <input
+              type="range"
+              min={0.2}
+              max={0.8}
+              step={0.1}
+              value={controlNetGuidanceEnd}
+              onChange={(e) => setControlNetGuidanceEnd(parseFloat(e.target.value))}
+              className="w-full"
+            />
+          </label>
 
           <label className="flex items-center space-x-2">
             <input
