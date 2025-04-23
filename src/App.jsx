@@ -108,7 +108,6 @@ const App = () => {
   const shutterSoundRef = useRef(null);
   const cameraWindSoundRef = useRef(null);
   const slothicornRef = useRef(null);
-  const sayCheeseRef = useRef(null);
 
   // Style selection -- default to "random" instead of "anime"
   const [selectedStyle, setSelectedStyle] = useState('random');
@@ -219,12 +218,100 @@ const App = () => {
 
   // Add new state for button cooldown
   const [isPhotoButtonCooldown, setIsPhotoButtonCooldown] = useState(false);
-  // Ref to track current project - fix the incorrect hook usage
+  // Ref to track current project
   const activeProjectRef = useRef(null);
 
-  // Add useEffect to set camera aspect ratio CSS variable
+  // Add back the thought arrays
+  const photoThoughts = [
+    "Ooh, I can't wait to see how this turns out!",
+    "I wonder if they'll try the anime style...",
+    "These photos are going to be amazing!",
+    "I love being your photography assistant! 💕",
+    "I learned this technique from Annie Leibovitz!",
+    "This reminds me of my modeling days...",
+    "Should we try a different angle?",
+    "The composition is *chef's kiss*",
+    "Getting some real Vogue vibes here!",
+    "I used to be a roadie for the Gorillaz.",
+    "Let's get creative with the styles!",
+    "Beep Boop, you made this!",
+    "My other camera is a Diffuser",
+    "You should see my other Checkpoints bro",
+    "The lighting is perfect today!",
+  ];
+
+  const randomThoughts = [
+    "We put the ComfyUI in UR Automatic1111",
+    "Our CFG scale goes up to 11",
+    "Ask me about my IT/S",
+    "Prompt Me, I Dare You",
+    "Teaching computers to draw since 2023",
+    "Keep Calm and Diffuse On",
+    "ControlNet is My Co-Pilot",
+    "My unicorn horn adds +10 to photo magic",
+    "Let's make some art!",
+    "Time for some photobooth magic!",
+    "Do rainbows taste like Skittles?",,
+    "Maybe my horn gets WiFi...",
+    "Wonder if my horn glows in the dark...",
+    "Maybe I should start a podcast...",
+    "Sometimes I pretend I'm a disco ball",
+    "I'm sensing a viral photo coming!",
+  ];
+
+  // Add state for current thought
+  const [currentThought, setCurrentThought] = useState(null);
+
+  // Add debug state
+  const [debugInfo, setDebugInfo] = useState('');
+
+  // Update showThought function
+  const showThought = useCallback(() => {
+    // Select thoughts based on whether there's an active project
+    const thoughts = activeProjectRef.current ? photoThoughts : randomThoughts;
+    const randomThought = thoughts[Math.floor(Math.random() * thoughts.length)];
+    const isLeftSide = Math.random() < 0.5;
+    
+    setCurrentThought({
+      text: randomThought,
+      position: isLeftSide 
+        ? { left: 'calc(50% - 70px)', transform: 'translateX(-100%)', textAlign: 'right' }  // Left side: position + transform for right alignment
+        : { left: 'calc(50% + 70px)', textAlign: 'left' }  // Right side: direct positioning
+    });
+
+    setTimeout(() => {
+      setCurrentThought(null);
+    }, 4500);
+  }, []);
+
+  // Update timing in useEffect
   useEffect(() => {
-    // When video is loaded, set the CSS variable for aspect ratio
+    // Initial delay between 2-5 seconds
+    const initialDelay = 2000 + Math.random() * 3000;
+    const firstThought = setTimeout(() => {
+      showThought();
+    }, initialDelay);
+
+    // Set up interval for random thoughts with variable timing
+    const showNextThought = () => {
+      if (selectedPhotoIndex === null) {
+        showThought();
+      }
+      // Schedule next thought with random delay between 12-18 seconds
+      const nextDelay = 12000 + Math.random() * 6000;
+      setTimeout(showNextThought, nextDelay);
+    };
+
+    const firstInterval = setTimeout(showNextThought, initialDelay + 15000);
+
+    return () => {
+      clearTimeout(firstThought);
+      clearTimeout(firstInterval);
+    };
+  }, [showThought, selectedPhotoIndex]);
+
+  // Camera aspect ratio useEffect
+  useEffect(() => {
     const handleVideoLoaded = () => {
       if (videoRef.current) {
         const { videoWidth, videoHeight } = videoRef.current;
@@ -255,7 +342,7 @@ const App = () => {
         videoElement.removeEventListener('loadedmetadata', handleVideoLoaded);
       }
     };
-  }, [videoRef.current]); // Re-run when video element changes
+  }, [videoRef.current]);
 
   // Fix for iOS viewport height issues
   useEffect(() => {
@@ -1010,13 +1097,6 @@ const App = () => {
     }, 5000);
 
     console.log('handleTakePhoto called - device type:', /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop');
-    
-    // Play "say cheese" sound at the start of countdown
-    if (sayCheeseRef.current) {
-      sayCheeseRef.current.play().catch(err => {
-        console.warn("Error playing say cheese sound:", err);
-      });
-    }
     
     // Start countdown without slothicorn initially
     for (let i = 3; i > 0; i--) {
@@ -1802,159 +1882,176 @@ const App = () => {
   //   Render
   // -------------------------
   return (
-    <div
-      className="relative w-full h-screen photobooth-app"
-      onDragOver={handleDragOver}
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-    >
-      {/* Add meta tag for mobile viewport - this runs once on mount */}
-      {useEffect(() => {
-        // Check if viewport meta tag exists
-        let viewportMeta = document.querySelector('meta[name="viewport"]');
-        
-        // If it doesn't exist, create it
-        if (!viewportMeta) {
-          viewportMeta = document.createElement('meta');
-          viewportMeta.name = 'viewport';
-          document.head.appendChild(viewportMeta);
-        }
-        
-        // Set properties for proper mobile scaling with notch support
-        viewportMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
-        
-        // Add meta tag for Apple devices to use full screen
-        let appleMeta = document.querySelector('meta[name="apple-mobile-web-app-capable"]');
-        if (!appleMeta) {
-          appleMeta = document.createElement('meta');
-          appleMeta.name = 'apple-mobile-web-app-capable';
-          appleMeta.content = 'yes';
-          document.head.appendChild(appleMeta);
-        }
-        
-        // Set body class based on orientation
-        const setOrientation = () => {
-          if (window.innerHeight > window.innerWidth) {
-            document.body.classList.add('portrait');
-            document.body.classList.remove('landscape');
-          } else {
-            document.body.classList.add('landscape');
-            document.body.classList.remove('portrait');
-          }
-        };
-        
-        // Set initial orientation
-        setOrientation();
-        
-        // Listen for orientation changes
-        window.addEventListener('resize', setOrientation);
-        
-        return () => {
-          window.removeEventListener('resize', setOrientation);
-        };
-      }, [])}
-      
-      {/* Studio lights - permanent background elements */}
-      <div className="studio-lights-container">
-        <img src={light1Image} alt="Studio Light" className="studio-light left" />
-        <img src={light2Image} alt="Studio Light" className="studio-light right" />
-      </div>
-      
-      {/* Drag overlay */}
-      {dragActive && (
-        <div className="drag-overlay">
-          <p>Drop your image here to generate!</p>
+    <>
+      {/* Thought using EXACT SAME STYLING but at bottom */}
+      {currentThought && (
+        <div style={{ 
+          position: 'fixed', 
+          bottom: '5px',
+          ...currentThought.position,
+          color: 'black', 
+          fontWeight: 'bold',
+          fontSize: '16px',
+          padding: '5px', 
+          zIndex: 99999,
+          whiteSpace: 'nowrap'
+        }}>
+          {currentThought.text}
         </div>
       )}
 
-      {/* Main area with video */}
-      {renderMainArea()}
-
-      {/* Photo viewer - with previews and next/prev navigation */}
-      {(selectedPhotoIndex !== null || photoViewerClosing) && (
-        <div 
-          className={`selected-photo-container ${photoViewerClosing ? 'fade-out' : ''}`}
-          onClick={handlePhotoViewerClick}
-        >
-          {/* Photos carousel with prev/next previews */}
-          <div className="photos-carousel">
-            {/* Previous photo preview */}
-            {photos.length > 1 && selectedPhotoIndex !== null && (
-              <div className="photo-preview prev" onClick={goToPrevPhoto}>
-                <img 
-                  src={photos[getPrevPhotoIndex(selectedPhotoIndex)]?.images?.[0] || ''}
-                  alt="Previous"
-                  className="photo-preview-img"
-                />
-              </div>
-            )}
-            
-            {/* Navigation buttons */}
-            {photos.length > 1 && selectedPhotoIndex !== null && (
-              <>
-                <button className="photo-nav-btn prev" onClick={goToPrevPhoto}>
-                  &#8249;
-                </button>
-                <button className="photo-nav-btn next" onClick={goToNextPhoto}>
-                  &#8250;
-                </button>
-              </>
-            )}
-            
-            {/* Current photo - remove animation classes */}
-            <div className="image-wrapper">
-              {selectedPhotoIndex !== null && renderSelectedPhoto()}
-            </div>
-            
-            {/* Next photo preview */}
-            {photos.length > 1 && selectedPhotoIndex !== null && (
-              <div className="photo-preview next" onClick={goToNextPhoto}>
-                <img 
-                  src={photos[getNextPhotoIndex(selectedPhotoIndex)]?.images?.[0] || ''}
-                  alt="Next"
-                  className="photo-preview-img"
-                />
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      <canvas ref={canvasRef} className="hidden" />
-
-      {/* Slothicorn mascot with direct DOM manipulation */}
-      <div 
-        ref={slothicornRef}
-        className="slothicorn-container"
-        style={{ bottom: '-240px' }} // Start hidden
+      <div className="relative w-full h-screen photobooth-app"
+        onDragOver={handleDragOver}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
       >
-        <img 
-          src={slothicornImage} 
-          alt="Slothicorn mascot" 
-          className="slothicorn-image" 
-        />
+        {/* Add meta tag for mobile viewport - this runs once on mount */}
+        {useEffect(() => {
+          // Check if viewport meta tag exists
+          let viewportMeta = document.querySelector('meta[name="viewport"]');
+          
+          // If it doesn't exist, create it
+          if (!viewportMeta) {
+            viewportMeta = document.createElement('meta');
+            viewportMeta.name = 'viewport';
+            document.head.appendChild(viewportMeta);
+          }
+          
+          // Set properties for proper mobile scaling with notch support
+          viewportMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+          
+          // Add meta tag for Apple devices to use full screen
+          let appleMeta = document.querySelector('meta[name="apple-mobile-web-app-capable"]');
+          if (!appleMeta) {
+            appleMeta = document.createElement('meta');
+            appleMeta.name = 'apple-mobile-web-app-capable';
+            appleMeta.content = 'yes';
+            document.head.appendChild(appleMeta);
+          }
+          
+          // Set body class based on orientation
+          const setOrientation = () => {
+            if (window.innerHeight > window.innerWidth) {
+              document.body.classList.add('portrait');
+              document.body.classList.remove('landscape');
+            } else {
+              document.body.classList.add('landscape');
+              document.body.classList.remove('portrait');
+            }
+          };
+          
+          // Set initial orientation
+          setOrientation();
+          
+          // Listen for orientation changes
+          window.addEventListener('resize', setOrientation);
+          
+          return () => {
+            window.removeEventListener('resize', setOrientation);
+          };
+        }, [])}
+        
+        {/* Studio lights - permanent background elements */}
+        <div className="studio-lights-container">
+          <img src={light1Image} alt="Studio Light" className="studio-light left" />
+          <img src={light2Image} alt="Studio Light" className="studio-light right" />
+        </div>
+        
+        {/* Drag overlay */}
+        {dragActive && (
+          <div className="drag-overlay">
+            <p>Drop your image here to generate!</p>
+          </div>
+        )}
+
+        {/* Main area with video */}
+        {renderMainArea()}
+
+        {/* Photo viewer - with previews and next/prev navigation */}
+        {(selectedPhotoIndex !== null || photoViewerClosing) && (
+          <div 
+            className={`selected-photo-container ${photoViewerClosing ? 'fade-out' : ''}`}
+            onClick={handlePhotoViewerClick}
+          >
+            {/* Photos carousel with prev/next previews */}
+            <div className="photos-carousel">
+              {/* Previous photo preview */}
+              {photos.length > 1 && selectedPhotoIndex !== null && (
+                <div className="photo-preview prev" onClick={goToPrevPhoto}>
+                  <img 
+                    src={photos[getPrevPhotoIndex(selectedPhotoIndex)]?.images?.[0] || ''}
+                    alt="Previous"
+                    className="photo-preview-img"
+                  />
+                </div>
+              )}
+              
+              {/* Navigation buttons */}
+              {photos.length > 1 && selectedPhotoIndex !== null && (
+                <>
+                  <button className="photo-nav-btn prev" onClick={goToPrevPhoto}>
+                    &#8249;
+                  </button>
+                  <button className="photo-nav-btn next" onClick={goToNextPhoto}>
+                    &#8250;
+                  </button>
+                </>
+              )}
+              
+              {/* Current photo - remove animation classes */}
+              <div className="image-wrapper">
+                {selectedPhotoIndex !== null && renderSelectedPhoto()}
+              </div>
+              
+              {/* Next photo preview */}
+              {photos.length > 1 && selectedPhotoIndex !== null && (
+                <div className="photo-preview next" onClick={goToNextPhoto}>
+                  <img 
+                    src={photos[getNextPhotoIndex(selectedPhotoIndex)]?.images?.[0] || ''}
+                    alt="Next"
+                    className="photo-preview-img"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <canvas ref={canvasRef} className="hidden" />
+
+        {/* Slothicorn mascot with direct DOM manipulation */}
+        <div 
+          ref={slothicornRef}
+          className="slothicorn-container"
+          style={{ bottom: '-240px' }} // Start hidden
+        >
+          <img 
+            src={slothicornImage} 
+            alt="Slothicorn mascot" 
+            className="slothicorn-image" 
+          />
+        </div>
+
+        {/* Thumbnail strip at bottom */}
+        {renderGallery()}
+
+        {/* Camera shutter sound */}
+        <audio ref={shutterSoundRef} preload="auto">
+          <source src={clickSound} type="audio/mpeg" />
+          Your browser does not support the audio element.
+        </audio>
+
+        {/* Camera wind sound */}
+        <audio ref={cameraWindSoundRef} preload="auto">
+          <source src={cameraWindSound} type="audio/mpeg" />
+          Your browser does not support the audio element.
+        </audio>
+
       </div>
-
-      {/* Thumbnail strip at bottom */}
-      {renderGallery()}
-
-      {/* Camera shutter sound */}
-      <audio ref={shutterSoundRef} preload="auto">
-        <source src={clickSound} type="audio/mpeg" />
-        Your browser does not support the audio element.
-      </audio>
-
-      {/* Camera wind sound */}
-      <audio ref={cameraWindSoundRef} preload="auto">
-        <source src={cameraWindSound} type="audio/mpeg" />
-        Your browser does not support the audio element.
-      </audio>
-
-      {/* Say Cheese sound */}
-      <audio ref={sayCheeseRef} src={sayCheeseSound} preload="auto" />
-    </div>
+    </>
   );
 };
 
 export default App;
+

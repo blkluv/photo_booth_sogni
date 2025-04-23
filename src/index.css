@@ -5510,3 +5510,136 @@ body.portrait .film-frame.selected {
   aspect-ratio: 7/9 !important;
 }
 
+/* Add after the slothicorn styles */
+
+/* Thought bubble styling */
+.thought-bubble {
+  position: absolute;
+  top: -80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: white;
+  padding: 15px;
+  border-radius: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  font-size: 14px;
+  max-width: 200px;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+  pointer-events: none;
+  z-index: 1001;
+}
+
+.thought-bubble.visible {
+  opacity: 1;
+}
+
+/* Thought bubble tail */
+.thought-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 10px solid transparent;
+  border-top-color: white;
+}
+
+/* Mobile adjustments for thought bubble */
+@media (max-width: 768px) {
+  .thought-bubble {
+    font-size: 12px;
+    max-width: 160px;
+    padding: 10px;
+  }
+}
+
+/* Floating thought bubble animations */
+.thought-bubble-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2000;
+  overflow: visible;
+}
+
+.floating-thought {
+  position: absolute;
+  bottom: -100px;
+  background-color: white;
+  padding: 15px;
+  border-radius: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  font-size: 14px;
+  max-width: 200px;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  animation: floatUpAndFade 12s ease-in-out forwards;
+  z-index: 2001;
+  color: #333; /* Add text color */
+  left: 50%; /* Center horizontally */
+  transform: translateX(-50%); /* Center horizontally */
+}
+
+@keyframes floatUpAndFade {
+  0% {
+    opacity: 0;
+    bottom: 120px; /* Start closer to slothicorn's head */
+    transform: translateX(-50%) rotate(0deg);
+  }
+  10% {
+    opacity: 1;
+    transform: translateX(calc(-50% + 5px)) rotate(2deg);
+  }
+  25% {
+    transform: translateX(calc(-50% - 10px)) rotate(-1deg);
+  }
+  50% {
+    transform: translateX(calc(-50% + 7px)) rotate(1deg);
+  }
+  75% {
+    transform: translateX(calc(-50% - 5px)) rotate(-1deg);
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+    bottom: 85vh;
+  }
+  95% {
+    opacity: 0.5;
+    bottom: 105vh;
+  }
+  100% {
+    bottom: 120vh;
+    transform: translateX(calc(-50% + 10px)) rotate(3deg);
+    opacity: 0;
+  }
+}
+
+/* Bubble size variations with proper text colors */
+.floating-thought.small {
+  max-width: 140px;
+  font-size: 12px;
+  padding: 10px;
+  color: #333;
+}
+
+.floating-thought.medium {
+  max-width: 200px;
+  font-size: 14px;
+  padding: 15px;
+  color: #333;
+}
+
+.floating-thought.large {
+  max-width: 260px;
+  font-size: 16px;
+  padding: 18px;
+  color: #333;
+}
+

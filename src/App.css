@@ -1,0 +1,54 @@
+/* Remove all thought bubble related styles */
+
+/* Remove the animation */
+@keyframes slideInOut {
+  0%, 100% { opacity: 0; }
+}
+
+.photobooth-app {
+  position: relative; /* Ensure relative positioning for absolute children */
+}
+
+.thought-bubble {
+  position: fixed;
+  bottom: 0vh;
+  left: 20vw;
+  color: black;
+  font-size: 20px;
+  font-weight: bold;
+  background: red; /* Bright red for testing */
+  padding: 5px;
+  z-index: 9999;
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  20% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  80% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+}
+
+.thought-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 10px solid transparent;
+  border-top-color: white;
+}
+
+.thought-bubble.small {
+  font-size: 0.8rem;
+  padding: 8px 12px;
+}
+
+.thought-bubble.large {
+  font-size: 1.2rem;
+  padding: 12px 18px;
+}
+
+.thought-bubble img {
+  max-width: 150px;
+  border-radius: 10px;
+} 
