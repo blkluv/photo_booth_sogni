@@ -195,7 +195,7 @@ const App = () => {
 
   // At the top of App component, add new state variables
   const [selectedModel, setSelectedModel] = useState('coreml-sogniXLturbo_alpha1_ad');
-  const [numImages, setNumImages] = useState(5);
+  const [numImages, setNumImages] = useState(6);
   const [promptGuidance, setPromptGuidance] = useState(2);
   const [controlNetStrength, setControlNetStrength] = useState(0.8);
   const [controlNetGuidanceEnd, setControlNetGuidanceEnd] = useState(0.6);

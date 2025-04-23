@@ -1036,6 +1036,927 @@ div[style*="film content area"] {
   border-radius: 3px;
 }
 
+/* Base film frame styles for desktop */
+.film-frame {
+  width: 180px !important; /* 9:7 ratio for landscape */
+  height: 140px !important;
+  margin: 0 3px !important;
+  border-radius: 5px !important;
+  overflow: hidden !important;
+  background-color: #000 !important;
+}
+
+@media (orientation: portrait) {
+  .film-frame {
+    width: 140px !important; /* 7:9 ratio for portrait */
+    height: 180px !important;
+  }
+}
+
+.film-frame img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center !important;
+}
+
+/* Mobile overrides remain the same as before */
+@media (max-width: 768px) {
+  .film-frame {
+    width: 144px !important;
+    height: 112px !important;
+  }
+
+  @media (orientation: portrait) {
+    .film-frame {
+      width: 112px !important;
+      height: 144px !important;
+    }
+  }
+  /* ... rest of mobile styles ... */
+}
+
+.film-frame:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+}
+
+.film-frame.selected {
+  border: 2px solid #ff3366; /* Keep pink highlight for selected frame */
+  box-shadow: 0 0 20px rgba(255, 51, 102, 0.5);
+}
+
+.film-frame.selected img {
+  opacity: 0.9;
+}
+
+.film-frame .frame-number {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background-color: rgba(255, 51, 102, 0.8);
+  color: white;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: bold;
+  z-index: 5;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.film-frame .ref-label {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background-color: #ffd301;
+  color: #ff3366;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: bold;
+  z-index: 5;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.film-frame .stack-count {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+  z-index: 5;
+}
+
+.film-frame .delete-frame-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: rgba(255, 51, 102, 0.8);
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  font-size: 14px;
+  font-weight: bold;
+  border: 1px solid white;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.film-frame.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  background-blend-mode: overlay;
+  background-color: rgba(40, 40, 40, 0.6);
+}
+
+.film-frame .loading-spinner {
+  width: 60px;
+  height: 60px;
+  border: 5px solid rgba(255, 211, 1, 0.3);
+  border-top: 5px solid #ffd301;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.film-frame.error {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(60, 20, 20, 0.6);
+}
+
+.film-frame .error-text {
+  color: #ff3366;
+  font-size: 18px;
+  font-weight: bold;
+  text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* thumbnail fade animation */
+.thumbnail-fade {
+  animation: fadeInThumb 0.8s ease-in;
+}
+
+/* Fix alternating colors for dropdown options */
+.custom-dropdown-option:nth-child(odd) {
+  background-color: #444;
+}
+
+.custom-dropdown-option:nth-child(even) {
+  background-color: #333;
+}
+
+/* Make sure Anime is visible in dropdown */
+.custom-dropdown-option.selected {
+  background-color: #ff3366 !important;
+  position: relative;
+}
+
+/* Add gradient to fade bottom if content is scrollable */
+.custom-dropdown::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(to top, rgba(51, 51, 51, 0.9), transparent);
+  pointer-events: none;
+  z-index: 5;
+  border-radius: 0 0 12px 12px;
+}
+
+/* Improve mobile scrolling */
+@media (max-width: 768px) {
+  .custom-dropdown {
+    max-height: 350px;
+    width: 100%;
+  }
+  
+  .custom-dropdown-option {
+    padding: 16px 20px;
+    font-size: 16px;
+  }
+}
+
+/* Restore the last-child border styling */
+.custom-dropdown-option:last-child {
+  border-bottom: none;
+}
+
+/* Restore selected option checkmark */
+.custom-dropdown-option.selected::before {
+  content: '✓';
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: white;
+}
+
+/* Fix additional styling for the dropdown */
+.custom-dropdown::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(to top, rgba(34, 34, 34, 0.9), transparent);
+  pointer-events: none;
+  z-index: 5;
+  border-radius: 0 0 12px 12px;
+}
+
+/* Make dropdown taller to ensure all options show */
+.custom-dropdown {
+  max-height: 550px; /* Further increased to show all options */
+}
+
+/* Media query for mobile */
+@media (max-width: 768px) {
+  .custom-dropdown {
+    max-height: 550px; /* Match the desktop value */
+  }
+}
+
+/* Restore missing header button styles */
+.header-take-photo-btn {
+  padding: 8px 16px;
+  background-color: #ff3366;
+  color: white;
+  border: 2px solid white;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.header-take-photo-btn:hover {
+  background-color: #ff5e8a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.header-take-photo-btn.disabled {
+  background-color: #ccc;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.header-config-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #ff3366;
+  color: white;
+  font-size: 20px;
+  border: 2px solid white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.header-config-btn:hover {
+  transform: scale(1.1);
+  background-color: #ff5e8a;
+}
+
+/* Restore dropdown toggle button styling */
+.header-style-select {
+  width: 100%;
+  padding: 10px 15px;
+  border-radius: 12px;
+  background-color: #ff3366;
+  color: white;
+  border: 3px solid white;
+  font-weight: bold;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #96143d, inset 0 0 10px rgba(255, 255, 255, 0.3);
+  text-align: center;
+  text-shadow: 1px 1px 0 #96143d;
+  transform: rotate(-1deg);
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  position: relative;
+  padding-right: 35px;
+}
+
+.header-style-select:hover {
+  background-color: #ff5e8a;
+  transform: rotate(0deg) scale(1.05);
+}
+
+.header-style-select:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #96143d, inset 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+/* Dropdown Arrow */
+.header-style-select::after {
+  content: '▼';
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: white;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}
+
+
+
+.style-selector:hover::before {
+  opacity: 1;
+}
+
+@keyframes gradientBorder {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Completely revised dropdown styling */
+.custom-dropdown {
+  position: fixed !important; /* Use fixed for more reliable positioning */
+  top: auto !important; /* Will be set by JS */
+  left: auto !important; /* Will be set by JS */
+  width: 250px !important; /* Fixed wider width */
+  max-height: 80vh !important; /* Taller to allow scrolling */
+  background-color: #333;
+  border-radius: 12px;
+  overflow-y: auto !important; /* Force scrolling */
+  z-index: 9999 !important;
+  border: 3px solid #ffffff;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.5), 0 0 0 3px #ffffff;
+  animation: none !important;
+  padding: 5px 0; /* Add padding to the top and bottom */
+}
+
+/* Ensure dropdown options have more space for checkmarks */
+.custom-dropdown-option {
+  padding: 12px 15px 12px 38px; /* More padding on the left */
+  background-color: #333 !important;
+  color: white;
+  border-bottom: 1px solid #444;
+  position: relative;
+  z-index: 1;
+  cursor: pointer;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 16px;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box !important;
+}
+
+/* Fix checkmark position to avoid overlap */
+.custom-dropdown-option.selected::before {
+  content: '✓';
+  position: absolute;
+  left: 15px; /* Move further left */
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: white;
+}
+
+/* Fix scrolling behavior */
+.custom-dropdown::-webkit-scrollbar {
+  width: 8px;
+  background-color: #222;
+}
+
+.custom-dropdown::-webkit-scrollbar-thumb {
+  background: #ff3366;
+  border-radius: 4px;
+}
+
+/* Remove all custom-dropdown-option styles and consolidate them here */
+.custom-dropdown-option {
+  padding: 10px 15px 10px 35px;
+  background-color: #333 !important;
+  color: white;
+  border-bottom: 1px solid #444;
+  position: relative;
+  z-index: 1;
+  cursor: pointer;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 16px;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box !important;
+}
+
+/* Last item has no border */
+.custom-dropdown-option:last-child {
+  border-bottom: none;
+}
+
+/* Define hover state */
+.custom-dropdown-option:hover {
+  background-color: #ff3366 !important;
+}
+
+/* Ensure only selected items have the checkmark */
+.custom-dropdown-option::before {
+  content: none;
+}
+
+/* Colored items */
+.custom-dropdown-option.selected,
+.custom-dropdown-option:first-child, /* ANIME */
+.custom-dropdown-option:nth-child(8), /* SKETCH */
+.custom-dropdown-option:nth-child(11) { /* RELAX */
+  background-color: #ff3366 !important;
+}
+
+/* Specifically target the CLOWN option to fix any issues */
+.custom-dropdown-option:nth-child(10) { /* CLOWN */
+  background-color: #333 !important;
+  border-bottom: 1px solid #444;
+}
+
+/* Mobile styling */
+@media (max-width: 768px) {
+  .custom-dropdown {
+    max-width: 95vw !important;
+    width: auto !important;
+  }
+  
+  .custom-dropdown-option {
+    font-size: 14px;
+    padding: 8px 10px 8px 30px;
+  }
+  
+  .custom-dropdown-option.selected::before {
+    left: 10px;
+  }
+}
+
+/* Photobooth Screen */
+.photobooth-screen {
+  background-color: black;
+  border: 6px solid white;
+  border-radius: 10px 10px 0 0; /* Round top corners only when custom style input is present */
+  overflow: hidden;
+  margin: 0 auto;
+  position: relative;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.photobooth-screen video {
+  width: 100%;
+  display: block;
+}
+
+/* Controls Section */
+.photobooth-controls {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #ffd301;
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Make the control panel more colorful */
+.control-panel {
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  margin: 0;
+  padding: 15px;
+  width: 100%;
+}
+
+.control-panel-row {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.control-panel select,
+.control-panel input[type="text"],
+.control-panel button {
+  border: 3px solid #ff3366;
+  border-radius: 8px;
+  background-color: white;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+.control-panel button {
+  background-color: #ff3366;
+  color: white;
+  font-weight: bold;
+}
+
+.control-panel button:hover {
+  background-color: #ff5e8a;
+  transform: scale(1.05);
+}
+
+/* Selected Photo Viewer */
+.photobooth-photo-viewer img {
+  border: 6px solid white;
+  border-radius: 10px;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+  flex: 1;
+  max-height: calc(100% - 80px);
+}
+
+.back-to-camera-btn {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: #ff3366;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 15px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.back-to-camera-btn:hover {
+  background-color: #ff5e8a;
+}
+
+/* Film Strip Enhancement */
+div[style*="film content area"] {
+  border-radius: 10px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Make countdown more fun */
+.countdown-overlay {
+  background: rgba(255, 51, 102, 0.6);
+  border-radius: 50%;
+  width: 150px;
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Impact', sans-serif;
+  font-size: 72px;
+  color: white;
+  text-shadow: 3px 3px 0 #ff3366;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+/* Brighten up the flash */
+.flash-overlay {
+  background-color: white;
+  animation: flash 0.3s ease-out;
+}
+
+@keyframes flash {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Hide scrollbars but allow scrolling */
+.hide-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .photobooth-frame, .photobooth-photo-viewer {
+    margin: 20px 15px;
+    padding: 10px;
+  }
+  
+  .photobooth-header {
+    flex-direction: column;
+    padding: 10px;
+  }
+  
+  .photobooth-title {
+    font-size: 24px;
+    margin-bottom: 10px;
+  }
+  
+  .photobooth-header-controls {
+    width: 100%;
+    margin-left: 0;
+    justify-content: center;
+  }
+  
+  .style-selector {
+    position: relative !important;
+    max-width: none;
+    width: 100%;
+  }
+  
+  .header-take-photo-btn {
+    width: 100%;
+  }
+  
+  .header-config-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 36px;
+    height: 36px;
+  }
+}
+
+/* Full-screen Control Overlay */
+.control-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 51, 102, 0.95) 0%, rgba(113, 50, 232, 0.95) 100%);
+  padding: 20px;
+  transform: translateY(-100%);
+  transition: transform 0.3s ease-in-out;
+  z-index: 10000 !important;
+  overflow-y: auto;
+  backdrop-filter: blur(10px);
+}
+
+.control-overlay.visible {
+  transform: translateY(0);
+}
+
+.control-overlay-content {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.settings-title {
+  text-align: center;
+  color: white;
+  font-family: 'Impact', 'Arial Black', sans-serif;
+  font-size: 32px;
+  margin: 0 0 20px 0;
+  text-shadow: 2px 2px 0 #ff3366, 4px 4px 0 rgba(0, 0, 0, 0.2);
+  letter-spacing: 2px;
+}
+
+.dismiss-overlay-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  z-index: 100;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+.dismiss-overlay-btn:hover {
+  background: rgba(255, 51, 102, 0.8);
+  transform: scale(1.1);
+}
+
+.dismiss-overlay-btn:active {
+  transform: scale(0.95);
+}
+
+/* Control Options - modify for inline labels */
+.control-option {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  position: relative;
+}
+
+.control-option:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.control-label {
+  display: inline-block;
+  width: 40%;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  margin-right: 10px;
+}
+
+.slider-value {
+  display: inline-block;
+  min-width: 40px;
+  text-align: center;
+  margin-left: 10px;
+  color: #fff;
+  font-weight: bold;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.slider-input {
+  width: 100%;
+  height: 12px;
+  background: linear-gradient(to right, #ff3366, #7132e8);
+  border-radius: 6px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+  flex: 1;
+}
+
+/* Slider styling */
+.slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #ffd301;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  margin-top: -7px; /* Center the thumb vertically */
+}
+
+.slider-input::-moz-range-thumb {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #ffd301;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.slider-input::-webkit-slider-runnable-track {
+  height: 16px;
+  border-radius: 8px;
+}
+
+.slider-input::-moz-range-track {
+  height: 16px;
+  border-radius: 8px;
+}
+
+/* Custom style input styling */
+.custom-style-input {
+  width: calc(70% - 15px);
+  flex: 1;
+  padding: 12px 15px;
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #333;
+  font-weight: bold;
+  border: 2px solid #ff3366;
+  border-radius: 10px;
+  font-size: 16px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2), inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.custom-style-input:focus {
+  outline: none;
+  border-color: #ffd301;
+  box-shadow: 0 0 0 3px rgba(255, 211, 1, 0.3), inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.custom-style-input::placeholder {
+  color: #999;
+  font-weight: normal;
+  font-style: italic;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .control-option {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .control-label {
+    margin-bottom: 8px;
+    width: 100%;
+    flex: none;
+  }
+  
+  .custom-style-input,
+  .camera-select,
+  .model-select,
+  .slider-input {
+    width: 100%;
+    flex: none;
+  }
+}
+
+/* Film Strip Styling */
+.film-strip-container {
+  background: linear-gradient(to right, #ff3366, #7132e8);
+  border-radius: 0; /* Removed rounded corners */
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+  position: relative;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  max-width: calc(100vw - 40px);
+  border: 3px solid #333;
+  margin-bottom: 20px;
+  margin-top: 20px; /* Add margin to create space for the close button */
+  overflow: visible;
+}
+
+.film-strip-holes {
+  height: 20px;
+  background-color: black;
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  padding: 0 5px;
+  position: relative;
+}
+
+.film-strip-holes.top {
+  border-bottom: 2px dotted rgba(255, 255, 255, 0.2);
+}
+
+.film-strip-holes.bottom {
+  border-top: 2px dotted rgba(255, 255, 255, 0.2);
+}
+
+.sprocket-hole {
+  width: 16px;
+  height: 10px;
+  background-color: transparent;
+  border: 1px solid rgba(255, 211, 1, 0.5);
+  border-radius: 2px;
+}
+
+.film-strip-content {
+  display: flex;
+  flex-direction: row;
+  background: linear-gradient(90deg, #221b15 0%, #442f22 50%, #221b15 100%);
+  padding: 5px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 211, 1, 0.7) rgba(34, 27, 21, 0.5);
+}
+
+.film-strip-content::-webkit-scrollbar {
+  height: 6px;
+}
+
+.film-strip-content::-webkit-scrollbar-track {
+  background: rgba(34, 27, 21, 0.5);
+}
+
+.film-strip-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 211, 1, 0.7);
+  border-radius: 3px;
+}
+
 .film-frame {
   width: 220px; /* Base width */
   height: auto; /* Height will be determined by aspect ratio */
@@ -1962,6 +2883,43 @@ div[style*="film content area"] {
   @media (orientation: portrait) {
     .slothicorn-container {
       width: 140px;
+      /* The transform here might be overriding the animation transform */
+      transform: translateX(-50%); /* This could be blocking animations */
+    }
+  }
+
+  /* Add these to ensure animations work in portrait mode */
+  @media (orientation: portrait) {
+    .slothicorn-container.peek {
+      bottom: -180px !important; /* Adjusted for smaller size */
+      animation: slothPeek 2s ease-in-out infinite !important;
+    }
+
+    .slothicorn-container.wave {
+      bottom: -160px !important;
+      animation: slothWave 1s ease-in-out infinite !important;
+    }
+
+    .slothicorn-container.dance {
+      bottom: -140px !important;
+      animation: slothDance 0.5s ease-in-out infinite !important;
+    }
+
+    /* Ensure transform doesn't block animations */
+    @keyframes slothPeek {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50% { transform: translateX(-50%) translateY(-20px); }
+    }
+
+    @keyframes slothWave {
+      0%, 100% { transform: translateX(-50%) rotate(0deg); }
+      25% { transform: translateX(-50%) rotate(-10deg); }
+      75% { transform: translateX(-50%) rotate(10deg); }
+    }
+
+    @keyframes slothDance {
+      0%, 100% { transform: translateX(-50%) scale(1); }
+      50% { transform: translateX(-50%) scale(1.1); }
     }
   }
 }
@@ -3966,6 +4924,53 @@ html, body {
     height: 40px !important;
     font-size: 24px !important;
     opacity: 0.9 !important;
+  }
+}
+
+/* Desktop camera view */
+.photobooth-screen {
+  aspect-ratio: 9/7 !important;
+  width: 100% !important;
+  max-height: 70vh !important;
+  background: #000 !important;
+  overflow: hidden !important;
+}
+
+@media (orientation: portrait) {
+  .photobooth-screen {
+    aspect-ratio: 7/9 !important;
+  }
+}
+
+/* Mobile camera view */
+@media (max-width: 768px) {
+  body.landscape .photobooth-screen {
+    aspect-ratio: 9/7 !important;
+    width: 95% !important;
+    height: auto !important;
+    max-height: 70vh !important;
+    margin: 0 auto !important;
+  }
+
+  body.portrait .photobooth-screen {
+    aspect-ratio: 7/9 !important;
+    width: 95% !important;
+    height: auto !important;
+    max-height: 60vh !important;
+    margin: 0 auto !important;
+  }
+}
+
+/* iOS Safari specific fixes */
+@supports (-webkit-touch-callout: none) {
+  #webcam.ios-fix {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    transform: none !important;
   }
 }
 
