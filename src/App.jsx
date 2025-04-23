@@ -1982,17 +1982,16 @@ const App = () => {
             <div className="notes-modal" onClick={e => e.stopPropagation()}>
               <div className="sticky-note">
                 <button className="note-close" onClick={() => setShowInfoModal(false)}>×</button>
-                <h2>Note from Team Sogni</h2>
+                <h2>Photobooth Tips</h2>
                 <ul>
-                  <li>Photobooth is a facial likeness transfer, body is reimagined</li>
-                  <li>Composition reuses the same face size, position, and orientation so step back and get creative!</li>
-                  <li>Only one face at a time! If multiple faces the biggest one in frame is used</li>
+                  <li>Generated compositions reuses the same face size, position, and orientation as the camera snapshot so step back and get creative!</li>
+                  <li>Only one face at a time! If multiple faces the biggest one in frame is used.</li>
                   <li>The more light / dark depth on your face the better, flat even light results can be subpar.</li>
-                  <li>Try using the Custom feature and writing your own prompt!</li>
+                  <li>Try using the Custom Style feature and providing your own prompt!</li>
                 </ul>
                 <div className="note-footer">
-                  <a href="https://www.sogni.ai/download" target="_blank" rel="noopener noreferrer">
-                    Download Sogni Studio Pro for more control of your creations!
+                  <a href="https://www.sogni.ai/sdk" target="_blank" rel="noopener noreferrer">
+                  Vibe Coded with Sogni Client SDK<br/>Powered by Sogni Supernet ❤️
                   </a>
                 </div>
               </div>

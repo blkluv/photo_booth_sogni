@@ -1,15 +1,13 @@
+/* Import fonts first */
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Permanent+Marker&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap');
+
 /* Remove all thought bubble related styles */
 
 /* Remove the animation */
 @keyframes slideInOut {
   0%, 100% { opacity: 0; }
 }
-
-/* Import handwriting fonts - add Caveat for more natural handwriting */
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Permanent+Marker&display=swap');
-
-/* Import better handwriting fonts */
-@import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap');
 
 .photobooth-app {
   position: relative; /* Ensure relative positioning for absolute children */
@@ -148,7 +146,7 @@
   margin: 0 0 30px;
   padding-top: 5px;
   text-align: center;
-  transform: rotate(1deg);
+  transform: rotate(2deg);
   letter-spacing: 0.5px;
 }
 
@@ -181,7 +179,7 @@
 .note-footer {
   text-align: center;
   font-family: 'Permanent Marker', cursive;
-  font-size: 18px;
+  font-size: 12px;
   color: #666;
   margin-top: 30px;
   padding-top: 25px;
@@ -456,7 +454,7 @@ html body .photobooth-app .photobooth-frame .photobooth-header .tips-ribbon {
   }
 }
 
-/* Help button styles */
+/* Help button styles - more subtle */
 .help-button {
   position: fixed !important;
   top: 10px !important;
@@ -467,24 +465,60 @@ html body .photobooth-app .photobooth-frame .photobooth-header .tips-ribbon {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  background: #FF4B7D !important;
+  background: #2B5876 !important; /* Darker blue */
   border: none !important;
   border-radius: 50% !important;
-  color: white !important;
+  color: rgba(255, 255, 255, 0.9) !important;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
   font-size: 14px !important;
-  font-weight: 600 !important;
+  font-weight: 500 !important;
   cursor: pointer !important;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.15) !important;
-  transition: transform 0.2s ease !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+  transition: transform 0.2s ease, background-color 0.2s ease !important;
   padding: 0 !important;
   margin: 0 !important;
   outline: none !important;
-  transform: none !important;
 }
 
 .help-button:hover {
   transform: scale(1.1) !important;
+  background: #3a7bd5 !important; /* Lighter blue on hover */
+}
+
+/* Note styles with better typography */
+.sticky-note h2 {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 24px;
+  padding-top: 5px;
+  text-align: center;
+  letter-spacing: 0;
+  transform: rotate(-0.2deg); /* Slight tilt */
+}
+
+.sticky-note li {
+  margin-bottom: 14px;
+  padding-left: 28px;
+  position: relative;
+  line-height: 1.4;
+  font-size: 14px; /* Reduced from 16px */
+  color: #444;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: 0;
+}
+
+.sticky-note li:last-child {
+  margin-bottom: 0;
+}
+
+.note-footer {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 12px;
+  color: #666;
+  margin-top: 20px;
+  transform: rotate(-0.5deg); /* Slight tilt */
 }
 
 /* Mobile adjustments */
@@ -496,35 +530,6 @@ html body .photobooth-app .photobooth-frame .photobooth-header .tips-ribbon {
     top: 8px !important;
     right: 8px !important;
   }
-}
-
-/* Note styles with better typography */
-.sticky-note li {
-  margin-bottom: 16px;
-  padding-left: 28px;
-  position: relative;
-  line-height: 1.4;
-  font-size: 16px;
-  color: #444;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  letter-spacing: 0;
-}
-
-.sticky-note h2 {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 24px;
-  font-weight: 600;
-  color: #333;
-  margin: 0 0 24px;
-  padding-top: 5px;
-  text-align: center;
-  letter-spacing: 0;
-}
-
-.note-footer {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 14px;
-  color: #666;
 }
 
 /* Remove all ribbon related styles */
