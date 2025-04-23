@@ -5510,3 +5510,111 @@ body.portrait .film-frame.selected {
   aspect-ratio: 7/9 !important;
 }
 
+/* Mobile portrait-specific adjustments */
+@media (max-width: 768px) and (orientation: portrait) {
+  /* Adjust main container to use full height */
+  html body .photobooth-app {
+    min-height: 100vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 10px !important;
+  }
+
+  /* Frame container adjustments */
+  html body .photobooth-app .photobooth-frame {
+    flex: 1 1 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-height: 100vh !important;
+  }
+
+  /* Header adjustments */
+  body.portrait .photobooth-header {
+    padding: 10px 5px !important;
+    margin-bottom: 10px !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Camera screen adjustments */
+  body.portrait .photobooth-screen {
+    width: 100% !important;
+    max-width: 100% !important;
+    aspect-ratio: 3/4 !important; /* More portrait but not too extreme */
+    height: auto !important;
+    max-height: calc(65vh - 60px) !important; /* Leave space for header and film strip */
+    margin: 0 auto !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Ensure webcam fills container properly */
+  body.portrait #webcam,
+  body.portrait #webcam.ios-fix {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    transform: none !important;
+  }
+
+  /* Film strip adjustments */
+  body.portrait .film-strip-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-top: 10px !important;
+    margin-bottom: 10px !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Film frames sizing */
+  body.portrait .film-frame {
+    width: 80px !important;
+    height: 80px !important;
+    margin: 0 3px !important;
+  }
+
+  /* Ensure header controls are properly sized */
+  body.portrait .header-style-select,
+  body.portrait .header-take-photo-btn {
+    font-size: 14px !important;
+    padding: 8px 12px !important;
+    height: 36px !important;
+  }
+
+  body.portrait .header-config-btn {
+    width: 36px !important;
+    height: 36px !important;
+  }
+
+  /* Ensure proper spacing at the bottom */
+  body.portrait .photobooth-app {
+    padding-bottom: env(safe-area-inset-bottom, 20px) !important;
+  }
+}
+
+/* Fix iOS Safari specific issues */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 768px) and (orientation: portrait) {
+    /* Ensure proper height calculation on iOS */
+    html, body {
+      height: -webkit-fill-available !important;
+    }
+
+    html body .photobooth-app {
+      min-height: -webkit-fill-available !important;
+    }
+
+    /* Fix camera container on iOS */
+    body.portrait .photobooth-screen {
+      height: auto !important;
+      max-height: calc(65vh - 60px) !important;
+    }
+
+    /* Ensure webcam displays properly */
+    body.portrait #webcam.ios-fix {
+      position: relative !important;
+      transform: none !important;
+    }
+  }
+}
+
