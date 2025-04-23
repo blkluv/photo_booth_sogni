@@ -5,6 +5,12 @@
   0%, 100% { opacity: 0; }
 }
 
+/* Import handwriting fonts - add Caveat for more natural handwriting */
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Permanent+Marker&display=swap');
+
+/* Import better handwriting fonts */
+@import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap');
+
 .photobooth-app {
   position: relative; /* Ensure relative positioning for absolute children */
 }
@@ -51,4 +57,524 @@
 .thought-bubble img {
   max-width: 150px;
   border-radius: 10px;
+}
+
+/* Notes Modal Styles */
+.notes-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+  backdrop-filter: blur(5px);
+}
+
+.notes-modal {
+  position: relative;
+  perspective: 1000px;
+  transform-style: preserve-3d;
+}
+
+.sticky-note {
+  background: #feff9c;
+  width: 90vw;
+  max-width: 400px;
+  padding: 35px;
+  position: relative;
+  transform: rotate(-2deg);
+  box-shadow: 
+    0 10px 20px rgba(0,0,0,0.19), 
+    0 6px 6px rgba(0,0,0,0.23),
+    0 0 5px rgba(0,0,0,0.1);
+  animation: floatIn 0.5s ease-out;
+}
+
+.sticky-note::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  background: rgba(0,0,0,0.02);
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.sticky-note::after {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 12px;
+  background: rgba(255,255,255,0.5);
+  border: 1px solid rgba(200,200,200,0.3);
+  border-bottom: 0;
+  border-radius: 3px 3px 0 0;
+}
+
+.note-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: rgba(0,0,0,0.4);
+  cursor: pointer;
+  padding: 5px;
+  line-height: 1;
+  transform: rotate(2deg);
+  transition: all 0.2s ease;
+  font-family: 'Permanent Marker', cursive;
+}
+
+.note-close:hover {
+  color: rgba(0,0,0,0.6);
+  transform: rotate(92deg);
+}
+
+.sticky-note h2 {
+  font-family: 'Permanent Marker', cursive;
+  font-size: 32px;
+  color: #333;
+  margin: 0 0 30px;
+  padding-top: 5px;
+  text-align: center;
+  transform: rotate(1deg);
+  letter-spacing: 0.5px;
+}
+
+.sticky-note ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 30px;
+}
+
+.sticky-note li {
+  margin-bottom: 20px;
+  padding-left: 32px;
+  position: relative;
+  line-height: 1.5;
+  font-size: 22px;
+  color: #444;
+  font-family: 'Permanent Marker', cursive;
+  letter-spacing: 0.3px;
+}
+
+.sticky-note li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: #666;
+  font-family: 'Permanent Marker', cursive;
+  font-size: 20px;
+}
+
+.note-footer {
+  text-align: center;
+  font-family: 'Permanent Marker', cursive;
+  font-size: 18px;
+  color: #666;
+  margin-top: 30px;
+  padding-top: 25px;
+  border-top: 2px dashed rgba(0,0,0,0.1);
+  transform: rotate(-1deg);
+  letter-spacing: 0.3px;
+  font-weight: normal;
+}
+
+.note-footer a {
+  color: #ff6b6b;
+  text-decoration: none;
+  position: relative;
+  transition: color 0.2s ease;
+  padding-bottom: 2px;
+}
+
+.note-footer a::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #ff6b6b;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.3s ease;
+}
+
+.note-footer a:hover {
+  color: #ff5252;
+}
+
+.note-footer a:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+@keyframes floatIn {
+  0% {
+    opacity: 0;
+    transform: translateY(40px) rotate(-8deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotate(-2deg);
+  }
+}
+
+/* Header help button style */
+.header-help-btn {
+  display: none;
+}
+
+/* Corner ribbon - pixel perfect positioning */
+.tips-ribbon {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.ribbon-content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #FF4B7D;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  transition: transform 0.2s ease;
+}
+
+.ribbon-content:hover {
+  transform: scale(1.1);
+}
+
+.ribbon-text {
+  color: white;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Note styles with better typography */
+.sticky-note li {
+  margin-bottom: 16px;
+  padding-left: 28px;
+  position: relative;
+  line-height: 1.4;
+  font-size: 16px;
+  color: #444;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: 0;
+}
+
+.sticky-note h2 {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 24px;
+  padding-top: 5px;
+  text-align: center;
+  letter-spacing: 0;
+}
+
+.note-footer {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  color: #666;
+}
+
+/* Ensure help button stays in corner */
+@media (max-width: 768px) {
+  .tips-ribbon {
+    top: 8px;
+    right: 8px;
+    width: 20px;
+    height: 20px;
+  }
+  
+  .ribbon-content {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .ribbon-text {
+    font-size: 11px;
+  }
+}
+
+/* Override any absolute positioning that might affect the help button */
+html body .photobooth-app .photobooth-frame .photobooth-header .tips-ribbon {
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+}
+
+/* Handwritten notes style modal */
+.info-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease;
+  padding: 20px;
+}
+
+.info-modal {
+  background: #fffdf0;
+  width: 90%;
+  max-width: 500px;
+  position: relative;
+  animation: tiltIn 0.4s ease;
+  padding: 30px;
+  box-shadow: 
+    0 4px 12px rgba(0,0,0,0.2),
+    0 0 0 1px rgba(0,0,0,0.1);
+  transform: rotate(-1deg);
+}
+
+/* Create torn paper effect */
+.info-modal::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 0;
+  right: 0;
+  height: 16px;
+  background-image: 
+    linear-gradient(45deg, transparent 33.333%, #fffdf0 33.333%, #fffdf0 66.667%, transparent 66.667%),
+    linear-gradient(-45deg, transparent 33.333%, #fffdf0 33.333%, #fffdf0 66.667%, transparent 66.667%);
+  background-size: 16px 32px;
+  background-position: 0 -16px;
+}
+
+.info-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  font-family: 'Permanent Marker', cursive;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.info-modal-close:hover {
+  transform: scale(1.2);
+}
+
+.info-modal-title {
+  font-family: 'Permanent Marker', cursive;
+  font-size: 28px;
+  margin: 0 0 24px;
+  color: #333;
+  text-align: center;
+  transform: rotate(1deg);
+  text-decoration: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: rgba(0,0,0,0.3);
+}
+
+.info-modal-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+  font-family: 'Indie Flower', cursive;
+  font-size: 18px;
+}
+
+.info-modal-list li {
+  position: relative;
+  padding-left: 30px;
+  margin-bottom: 16px;
+  color: #444;
+  line-height: 1.4;
+  transform: rotate(0.5deg);
+}
+
+.info-modal-list li::before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  color: #666;
+  font-family: 'Permanent Marker', cursive;
+}
+
+.info-modal-footer {
+  padding-top: 20px;
+  margin-top: 20px;
+  border-top: 2px dashed rgba(0,0,0,0.1);
+  color: #666;
+  font-family: 'Permanent Marker', cursive;
+  text-align: center;
+  font-size: 16px;
+  transform: rotate(-0.5deg);
+}
+
+@keyframes tiltIn {
+  from { 
+    opacity: 0;
+    transform: translateY(40px) rotate(-4deg);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0) rotate(-1deg);
+  }
+}
+
+/* Help button styles */
+.help-button {
+  position: fixed !important;
+  top: 10px !important;
+  right: 10px !important;
+  width: 24px !important;
+  height: 24px !important;
+  z-index: 1000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #FF4B7D !important;
+  border: none !important;
+  border-radius: 50% !important;
+  color: white !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15) !important;
+  transition: transform 0.2s ease !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  outline: none !important;
+  transform: none !important;
+}
+
+.help-button:hover {
+  transform: scale(1.1) !important;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .help-button {
+    width: 20px !important;
+    height: 20px !important;
+    font-size: 12px !important;
+    top: 8px !important;
+    right: 8px !important;
+  }
+}
+
+/* Note styles with better typography */
+.sticky-note li {
+  margin-bottom: 16px;
+  padding-left: 28px;
+  position: relative;
+  line-height: 1.4;
+  font-size: 16px;
+  color: #444;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: 0;
+}
+
+.sticky-note h2 {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 24px;
+  padding-top: 5px;
+  text-align: center;
+  letter-spacing: 0;
+}
+
+.note-footer {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  color: #666;
+}
+
+/* Remove all ribbon related styles */
+
+/* Style button and dropdown fixes */
+.style-selector {
+  position: relative !important;
+  display: inline-block !important;
+  max-width: 280px !important; /* Increased width to accommodate longest option */
+  flex-shrink: 0 !important;
+}
+
+.header-style-select {
+  width: 100% !important;
+  max-width: 280px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  padding-right: 35px !important; /* Increased right padding for carat */
+  padding-left: 15px !important;
+  text-align: left !important;
+  position: relative !important;
+}
+
+/* Style the carat */
+.header-style-select::after {
+  content: "▼" !important;
+  position: absolute !important;
+  right: 12px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  font-size: 10px !important;
+  pointer-events: none !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Ensure header controls stay in one line with more space */
+.photobooth-header-controls {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  flex-wrap: nowrap !important;
+  margin-left: auto !important;
+  padding-right: 10px !important;
+}
+
+/* Make config button stay in place */
+.header-config-btn {
+  flex-shrink: 0 !important;
+  margin-left: 5px !important;
+  width: 40px !important;
+  height: 40px !important;
 } 

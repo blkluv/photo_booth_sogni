@@ -9,7 +9,7 @@ import cameraWindSound from './camera-wind.mp3';
 import slothicornImage from './slothicorn-camera.png';
 import light1Image from './light1.png';
 import light2Image from './light2.png';
-import sayCheeseSound from './say_cheese.mp3';
+import './App.css';
 
 /**
  * Default style prompts
@@ -244,7 +244,7 @@ const App = () => {
     "We put the ComfyUI in UR Automatic1111",
     "Our CFG scale goes up to 11",
     "Ask me about my IT/S",
-    "Prompt Me, I Dare You",
+    "Prompt me, I dare you",
     "Teaching computers to draw since 2023",
     "Keep Calm and Diffuse On",
     "ControlNet is My Co-Pilot",
@@ -1277,14 +1277,14 @@ const App = () => {
     <div className="video-container">
       <div className="photobooth-frame">
         <div className="photobooth-header">
-          <h1 className="photobooth-title">SOGNI PHOTOBOOTH</h1>
+          <h1 className="photobooth-title">Sogni Photobooth</h1>
+          <button className="help-button" onClick={() => setShowInfoModal(true)}>?</button>
           <div className="photobooth-header-controls">
             <div className="style-selector">
               <button 
                 className="header-style-select" 
                 onClick={() => setShowStyleDropdown(!showStyleDropdown)}
               >
-                {/* Keep label consistent, regardless of custom input */}
                 {selectedStyle === 'custom' ? 'STYLE: Custom...' : `STYLE: ${selectedStyle}`}
               </button>
               
@@ -1418,11 +1418,11 @@ const App = () => {
             >
               {isPhotoButtonCooldown ? 'Please wait...' : 'Take Photo'}
             </button>
+
             <button 
               className="header-config-btn"
               onClick={() => {
                 setShowControlOverlay(!showControlOverlay);
-                // Hide dropdown when showing control overlay
                 if (!showControlOverlay) {
                   setShowStyleDropdown(false);
                 }
@@ -1882,12 +1882,19 @@ const App = () => {
     }
   };
 
+  // Add new state for info modal
+  const [showInfoModal, setShowInfoModal] = useState(false);
+
+  // Add toggle function for notes modal
+  const toggleNotesModal = () => {
+    setShowInfoModal(!showInfoModal);
+  };
+
   // -------------------------
   //   Render
   // -------------------------
   return (
     <>
-      {/* Thought using EXACT SAME STYLING but at bottom */}
       {currentThought && (
         <div style={{ 
           position: 'fixed', 
@@ -1905,154 +1912,178 @@ const App = () => {
       )}
 
       <div className="relative w-full h-screen photobooth-app"
-        onDragOver={handleDragOver}
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        {/* Add meta tag for mobile viewport - this runs once on mount */}
-        {useEffect(() => {
-          // Check if viewport meta tag exists
-          let viewportMeta = document.querySelector('meta[name="viewport"]');
-          
-          // If it doesn't exist, create it
-          if (!viewportMeta) {
-            viewportMeta = document.createElement('meta');
-            viewportMeta.name = 'viewport';
-            document.head.appendChild(viewportMeta);
-          }
-          
-          // Set properties for proper mobile scaling with notch support
-          viewportMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
-          
-          // Add meta tag for Apple devices to use full screen
-          let appleMeta = document.querySelector('meta[name="apple-mobile-web-app-capable"]');
-          if (!appleMeta) {
-            appleMeta = document.createElement('meta');
-            appleMeta.name = 'apple-mobile-web-app-capable';
-            appleMeta.content = 'yes';
-            document.head.appendChild(appleMeta);
-          }
-          
-          // Set body class based on orientation
-          const setOrientation = () => {
-            if (window.innerHeight > window.innerWidth) {
-              document.body.classList.add('portrait');
-              document.body.classList.remove('landscape');
-            } else {
-              document.body.classList.add('landscape');
-              document.body.classList.remove('portrait');
-            }
-          };
-          
-          // Set initial orientation
-          setOrientation();
-          
-          // Listen for orientation changes
-          window.addEventListener('resize', setOrientation);
-          
-          return () => {
-            window.removeEventListener('resize', setOrientation);
-          };
-        }, [])}
+      onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Add meta tag for mobile viewport - this runs once on mount */}
+      {useEffect(() => {
+        // Check if viewport meta tag exists
+        let viewportMeta = document.querySelector('meta[name="viewport"]');
         
-        {/* Studio lights - permanent background elements */}
-        <div className="studio-lights-container">
-          <img src={light1Image} alt="Studio Light" className="studio-light left" />
-          <img src={light2Image} alt="Studio Light" className="studio-light right" />
+        // If it doesn't exist, create it
+        if (!viewportMeta) {
+          viewportMeta = document.createElement('meta');
+          viewportMeta.name = 'viewport';
+          document.head.appendChild(viewportMeta);
+        }
+        
+        // Set properties for proper mobile scaling with notch support
+        viewportMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+        
+        // Add meta tag for Apple devices to use full screen
+        let appleMeta = document.querySelector('meta[name="apple-mobile-web-app-capable"]');
+        if (!appleMeta) {
+          appleMeta = document.createElement('meta');
+          appleMeta.name = 'apple-mobile-web-app-capable';
+          appleMeta.content = 'yes';
+          document.head.appendChild(appleMeta);
+        }
+        
+        // Set body class based on orientation
+        const setOrientation = () => {
+          if (window.innerHeight > window.innerWidth) {
+            document.body.classList.add('portrait');
+            document.body.classList.remove('landscape');
+          } else {
+            document.body.classList.add('landscape');
+            document.body.classList.remove('portrait');
+          }
+        };
+        
+        // Set initial orientation
+        setOrientation();
+        
+        // Listen for orientation changes
+        window.addEventListener('resize', setOrientation);
+        
+        return () => {
+          window.removeEventListener('resize', setOrientation);
+        };
+      }, [])}
+      
+      {/* Studio lights - permanent background elements */}
+      <div className="studio-lights-container">
+        <img src={light1Image} alt="Studio Light" className="studio-light left" />
+        <img src={light2Image} alt="Studio Light" className="studio-light right" />
+      </div>
+      
+      {/* Drag overlay */}
+      {dragActive && (
+        <div className="drag-overlay">
+          <p>Drop your image here to generate!</p>
         </div>
-        
-        {/* Drag overlay */}
-        {dragActive && (
-          <div className="drag-overlay">
-            <p>Drop your image here to generate!</p>
-          </div>
-        )}
+      )}
 
-        {/* Main area with video */}
-        {renderMainArea()}
-
-        {/* Photo viewer - with previews and next/prev navigation */}
-        {(selectedPhotoIndex !== null || photoViewerClosing) && (
-          <div 
-            className={`selected-photo-container ${photoViewerClosing ? 'fade-out' : ''}`}
-            onClick={handlePhotoViewerClick}
-          >
-            {/* Photos carousel with prev/next previews */}
-            <div className="photos-carousel">
-              {/* Previous photo preview */}
-              {photos.length > 1 && selectedPhotoIndex !== null && (
-                <div className="photo-preview prev" onClick={goToPrevPhoto}>
-                  <img 
-                    src={photos[getPrevPhotoIndex(selectedPhotoIndex)]?.images?.[0] || ''}
-                    alt="Previous"
-                    className="photo-preview-img"
-                  />
+        {/* Info Modal */}
+        {showInfoModal && (
+          <div className="notes-modal-overlay" onClick={() => setShowInfoModal(false)}>
+            <div className="notes-modal" onClick={e => e.stopPropagation()}>
+              <div className="sticky-note">
+                <button className="note-close" onClick={() => setShowInfoModal(false)}>×</button>
+                <h2>Note from Team Sogni</h2>
+                <ul>
+                  <li>Photobooth is a facial likeness transfer, body is reimagined</li>
+                  <li>Composition reuses the same face size, position, and orientation so step back and get creative!</li>
+                  <li>Only one face at a time! If multiple faces the biggest one in frame is used</li>
+                  <li>The more light / dark depth on your face the better, flat even light results can be subpar.</li>
+                  <li>Try using the Custom feature and writing your own prompt!</li>
+                </ul>
+                <div className="note-footer">
+                  <a href="https://www.sogni.ai/download" target="_blank" rel="noopener noreferrer">
+                    Download Sogni Studio Pro for more control of your creations!
+                  </a>
                 </div>
-              )}
-              
-              {/* Navigation buttons */}
-              {photos.length > 1 && selectedPhotoIndex !== null && (
-                <>
-                  <button className="photo-nav-btn prev" onClick={goToPrevPhoto}>
-                    &#8249;
-                  </button>
-                  <button className="photo-nav-btn next" onClick={goToNextPhoto}>
-                    &#8250;
-                  </button>
-                </>
-              )}
-              
-              {/* Current photo - remove animation classes */}
-              <div className="image-wrapper">
-                {selectedPhotoIndex !== null && renderSelectedPhoto()}
               </div>
-              
-              {/* Next photo preview */}
-              {photos.length > 1 && selectedPhotoIndex !== null && (
-                <div className="photo-preview next" onClick={goToNextPhoto}>
-                  <img 
-                    src={photos[getNextPhotoIndex(selectedPhotoIndex)]?.images?.[0] || ''}
-                    alt="Next"
-                    className="photo-preview-img"
-                  />
-                </div>
-              )}
             </div>
           </div>
         )}
 
-        <canvas ref={canvasRef} className="hidden" />
+      {/* Main area with video */}
+      {renderMainArea()}
 
-        {/* Slothicorn mascot with direct DOM manipulation */}
+      {/* Photo viewer - with previews and next/prev navigation */}
+      {(selectedPhotoIndex !== null || photoViewerClosing) && (
         <div 
-          ref={slothicornRef}
-          className="slothicorn-container"
-          style={{ bottom: '-240px' }} // Start hidden
+          className={`selected-photo-container ${photoViewerClosing ? 'fade-out' : ''}`}
+          onClick={handlePhotoViewerClick}
         >
-          <img 
-            src={slothicornImage} 
-            alt="Slothicorn mascot" 
-            className="slothicorn-image" 
-          />
+          {/* Photos carousel with prev/next previews */}
+          <div className="photos-carousel">
+            {/* Previous photo preview */}
+            {photos.length > 1 && selectedPhotoIndex !== null && (
+              <div className="photo-preview prev" onClick={goToPrevPhoto}>
+                <img 
+                  src={photos[getPrevPhotoIndex(selectedPhotoIndex)]?.images?.[0] || ''}
+                  alt="Previous"
+                  className="photo-preview-img"
+                />
+              </div>
+            )}
+            
+            {/* Navigation buttons */}
+            {photos.length > 1 && selectedPhotoIndex !== null && (
+              <>
+                <button className="photo-nav-btn prev" onClick={goToPrevPhoto}>
+                  &#8249;
+                </button>
+                <button className="photo-nav-btn next" onClick={goToNextPhoto}>
+                  &#8250;
+                </button>
+              </>
+            )}
+            
+            {/* Current photo - remove animation classes */}
+            <div className="image-wrapper">
+              {selectedPhotoIndex !== null && renderSelectedPhoto()}
+            </div>
+            
+            {/* Next photo preview */}
+            {photos.length > 1 && selectedPhotoIndex !== null && (
+              <div className="photo-preview next" onClick={goToNextPhoto}>
+                <img 
+                  src={photos[getNextPhotoIndex(selectedPhotoIndex)]?.images?.[0] || ''}
+                  alt="Next"
+                  className="photo-preview-img"
+                />
+              </div>
+            )}
+          </div>
         </div>
+      )}
 
-        {/* Thumbnail strip at bottom */}
-        {renderGallery()}
+      <canvas ref={canvasRef} className="hidden" />
 
-        {/* Camera shutter sound */}
-        <audio ref={shutterSoundRef} preload="auto">
-          <source src={clickSound} type="audio/mpeg" />
-          Your browser does not support the audio element.
-        </audio>
-
-        {/* Camera wind sound */}
-        <audio ref={cameraWindSoundRef} preload="auto">
-          <source src={cameraWindSound} type="audio/mpeg" />
-          Your browser does not support the audio element.
-        </audio>
-
+      {/* Slothicorn mascot with direct DOM manipulation */}
+      <div 
+        ref={slothicornRef}
+        className="slothicorn-container"
+        style={{ bottom: '-240px' }} // Start hidden
+      >
+        <img 
+          src={slothicornImage} 
+          alt="Slothicorn mascot" 
+          className="slothicorn-image" 
+        />
       </div>
+
+      {/* Thumbnail strip at bottom */}
+      {renderGallery()}
+
+      {/* Camera shutter sound */}
+      <audio ref={shutterSoundRef} preload="auto">
+        <source src={clickSound} type="audio/mpeg" />
+        Your browser does not support the audio element.
+      </audio>
+
+      {/* Camera wind sound */}
+      <audio ref={cameraWindSoundRef} preload="auto">
+        <source src={cameraWindSound} type="audio/mpeg" />
+        Your browser does not support the audio element.
+      </audio>
+
+    </div>
     </>
   );
 };
