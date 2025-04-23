@@ -9,6 +9,7 @@ import cameraWindSound from './camera-wind.mp3';
 import slothicornImage from './slothicorn-camera.png';
 import light1Image from './light1.png';
 import light2Image from './light2.png';
+import sayCheeseSound from './say_cheese.mp3';
 
 /**
  * Default style prompts
@@ -107,6 +108,7 @@ const App = () => {
   const shutterSoundRef = useRef(null);
   const cameraWindSoundRef = useRef(null);
   const slothicornRef = useRef(null);
+  const sayCheeseRef = useRef(null);
 
   // Style selection -- default to "random" instead of "anime"
   const [selectedStyle, setSelectedStyle] = useState('random');
@@ -214,6 +216,11 @@ const App = () => {
 
   // Add state for film strip visibility
   const [showFilmStrip, setShowFilmStrip] = useState(true);
+
+  // Add new state for button cooldown
+  const [isPhotoButtonCooldown, setIsPhotoButtonCooldown] = useState(false);
+  // Ref to track current project - fix the incorrect hook usage
+  const activeProjectRef = useRef(null);
 
   // Add useEffect to set camera aspect ratio CSS variable
   useEffect(() => {
@@ -847,6 +854,9 @@ const App = () => {
         }
       });
 
+      // Store the project ID
+      activeProjectRef.current = project.id;
+
       // Set up event handlers
       project.on('jobCompleted', handleJobCompleted);
       
@@ -976,12 +986,37 @@ const App = () => {
   //   Capture (webcam)
   // -------------------------
   const handleTakePhoto = async () => {
-    if (!isSogniReady) {
-      alert('Sogni is not ready yet.');
+    if (!isSogniReady || isPhotoButtonCooldown) {
       return;
     }
 
+    // Cancel any existing project
+    if (activeProjectRef.current) {
+      console.log('Cancelling existing project:', activeProjectRef.current);
+      if (sogniClient) {
+        try {
+          await sogniClient.cancelProject(activeProjectRef.current);
+        } catch (err) {
+          console.warn('Error cancelling previous project:', err);
+        }
+      }
+      activeProjectRef.current = null;
+    }
+
+    // Start cooldown
+    setIsPhotoButtonCooldown(true);
+    setTimeout(() => {
+      setIsPhotoButtonCooldown(false);
+    }, 5000);
+
     console.log('handleTakePhoto called - device type:', /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop');
+    
+    // Play "say cheese" sound at the start of countdown
+    if (sayCheeseRef.current) {
+      sayCheeseRef.current.play().catch(err => {
+        console.warn("Error playing say cheese sound:", err);
+      });
+    }
     
     // Start countdown without slothicorn initially
     for (let i = 3; i > 0; i--) {
@@ -1293,11 +1328,11 @@ const App = () => {
             </div>
             
             <button
-              className={`header-take-photo-btn ${isSogniReady ? '' : 'disabled'}`}
+              className={`header-take-photo-btn ${isPhotoButtonCooldown ? 'cooldown' : ''}`}
               onClick={handleTakePhoto}
-              disabled={!isSogniReady}
+              disabled={!isSogniReady || isPhotoButtonCooldown}
             >
-              {isSogniReady ? 'Take Photo 📸' : 'Initializing...'}
+              {isPhotoButtonCooldown ? 'Please wait...' : 'Take Photo'}
             </button>
             <button 
               className="header-config-btn"
@@ -1915,6 +1950,9 @@ const App = () => {
         <source src={cameraWindSound} type="audio/mpeg" />
         Your browser does not support the audio element.
       </audio>
+
+      {/* Say Cheese sound */}
+      <audio ref={sayCheeseRef} src={sayCheeseSound} preload="auto" />
     </div>
   );
 };
