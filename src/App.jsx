@@ -266,7 +266,10 @@ const App = () => {
   const [debugInfo, setDebugInfo] = useState('');
 
   // Update showThought function
+  let thoughtInProgress = false;
   const showThought = useCallback(() => {
+    if (thoughtInProgress) return;
+    thoughtInProgress = true;
     // Select thoughts based on whether there's an active project
     const thoughts = activeProjectRef.current ? photoThoughts : randomThoughts;
     const randomThought = thoughts[Math.floor(Math.random() * thoughts.length)];
@@ -281,13 +284,14 @@ const App = () => {
 
     setTimeout(() => {
       setCurrentThought(null);
+      thoughtInProgress = false;
     }, 4500);
   }, []);
 
   // Update timing in useEffect
   useEffect(() => {
-    // Initial delay between 2-5 seconds
-    const initialDelay = 2000 + Math.random() * 3000;
+    // Initial delay between 5-15 seconds
+    const initialDelay = 5000 + Math.random() * 15000;
     const firstThought = setTimeout(() => {
       showThought();
     }, initialDelay);
