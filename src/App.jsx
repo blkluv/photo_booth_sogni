@@ -286,6 +286,17 @@ const App = () => {
     };
   }, [selectedPhotoIndex]);
 
+  // Add this useEffect at the beginning of the component
+  useEffect(() => {
+    // Simple mobile detection
+    const isMobile = /iPhone|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+      || (window.innerWidth <= 768);
+    
+    if (isMobile) {
+      alert("This app is not yet optimized for mobile, please use a desktop! 🙆🏻‍♂️🙏");
+    }
+  }, []);
+
   // -------------------------
   //   Sogni initialization
   // -------------------------
