@@ -355,31 +355,35 @@ body {
 .photobooth-header {
   background-color: #ffd301;
   border-radius: 12px 12px 0 0;
-  padding: 5px 10px !important; /* Reduced padding */
+  padding: 10px 15px !important;
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   position: relative;
-  margin-bottom: 10px !important; /* Reduced margin */
+  margin-bottom: 10px !important;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  flex-wrap: wrap;
 }
 
 /* Fix Sogni Photobooth title styling */
 .photobooth-title {
-  color: #FF99CC !important; /* Lighter pink color for better contrast */
-  font-size: 2.2rem !important;
+  color: #FF99CC !important;
+  font-size: 28px !important;
   font-weight: bold !important;
   text-transform: uppercase !important;
   margin: 0 !important;
+  margin-right: 10px !important;
   padding: 0 !important;
   letter-spacing: 2px !important;
   text-shadow: 
     3px 3px 0 #ff3366, 
     -1px -1px 0 #ffd301,
-    0 0 10px rgba(255, 255, 255, 0.6) !important; /* Add glow effect */
-  -webkit-text-stroke: 1px #ff3366 !important; /* Text outline */
+    0 0 10px rgba(255, 255, 255, 0.6) !important;
+  -webkit-text-stroke: 1px #ff3366 !important;
+  white-space: nowrap !important;
+  flex-shrink: 1 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
 /* Header Controls */
@@ -389,8 +393,70 @@ body {
   align-items: center;
   gap: 10px;
   flex-grow: 1;
-  margin-left: 15px;
+  margin-left: auto;
   flex-wrap: wrap;
+}
+
+/* Move config button to be right after the logo */
+.header-config-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #ff3366;
+  color: white;
+  font-size: 20px;
+  border: 2px solid white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  margin-right: 15px;
+}
+
+/* Fix frame number styling to be less bold with rounded corners */
+.film-frame .frame-number {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: auto !important;
+  min-width: 24px !important;
+  background-color: rgba(255, 51, 102, 0.7) !important;
+  color: white !important;
+  padding: 2px 5px !important;
+  border-radius: 0 0 6px 0 !important;
+  font-size: 12px !important;
+  font-weight: normal !important;
+  text-align: center !important;
+  z-index: 5 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Media query for mobile adjustments */
+@media (max-width: 768px) {
+  .photobooth-header {
+    padding: 8px 12px !important;
+  }
+  
+  .photobooth-title {
+    font-size: 22px !important;
+    margin-right: 8px !important;
+  }
+  
+  .header-config-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+    margin-right: 10px;
+  }
+  
+  .film-frame .frame-number {
+    min-width: 20px !important;
+    font-size: 10px !important;
+    padding: 1px 4px !important;
+  }
 }
 
 .style-selector {
@@ -588,20 +654,82 @@ body {
   }
 }
 
-/* Photobooth Screen */
+/* Photobooth Screen - reduced by 1/3 */
 .photobooth-screen {
   background-color: black;
   border: 6px solid white;
-  border-radius: 10px 10px 0 0; /* Round top corners only when custom style input is present */
+  border-radius: 10px 10px 0 0;
   overflow: hidden;
   margin: 0 auto;
   position: relative;
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+  width: 66.67% !important; /* Reduced by 1/3 */
+  max-width: 66.67% !important; /* Reduced by 1/3 */
 }
 
 .photobooth-screen video {
   width: 100%;
   display: block;
+}
+
+/* For portrait orientation */
+@media (orientation: portrait) {
+  .photobooth-screen {
+    width: 66.67% !important; /* Reduced by 1/3 */
+    max-width: 66.67% !important; /* Reduced by 1/3 */
+  }
+  
+  body.portrait .photobooth-screen {
+    width: 66.67% !important; /* Reduced by 1/3 */
+    max-width: 66.67% !important; /* Reduced by 1/3 */
+  }
+}
+
+/* For landscape orientation */
+@media (orientation: landscape) {
+  .photobooth-screen {
+    width: 66.67% !important; /* Reduced by 1/3 */
+    max-width: 66.67% !important; /* Reduced by 1/3 */
+  }
+  
+  body.landscape .photobooth-screen {
+    width: 66.67% !important; /* Reduced by 1/3 */
+    max-width: 66.67% !important; /* Reduced by 1/3 */
+  }
+}
+
+/* For mobile screens */
+@media (max-width: 768px) {
+  .photobooth-screen {
+    width: 66.67% !important; /* Reduced by 1/3 */
+    max-width: 66.67% !important; /* Reduced by 1/3 */
+  }
+  
+  body.portrait .photobooth-screen {
+    width: 66.67% !important; /* Reduced by 1/3 */
+    max-width: 66.67% !important; /* Reduced by 1/3 */
+  }
+  
+  body.landscape .photobooth-screen {
+    width: 66.67% !important; /* Reduced by 1/3 */
+    max-width: 66.67% !important; /* Reduced by 1/3 */
+  }
+}
+
+/* Make sure any other overridden styles are also adjusted */
+html body .photobooth-app .photobooth-frame .photobooth-screen {
+  width: 66.67% !important; /* Reduced by 1/3 */
+  max-width: 66.67% !important; /* Reduced by 1/3 */
+}
+
+html body.portrait .photobooth-app .photobooth-frame .photobooth-screen {
+  width: 66.67% !important; /* Reduced by 1/3 */
+  max-width: 66.67% !important; /* Reduced by 1/3 */
+}
+
+html body:not(.portrait) .photobooth-app .photobooth-frame .photobooth-screen {
+  width: 66.67% !important; /* Reduced by 1/3 */
+  max-width: 66.67% !important; /* Reduced by 1/3 */
 }
 
 /* Controls Section */
@@ -979,7 +1107,9 @@ div[style*="film content area"] {
   padding: 0;
   display: flex;
   flex-direction: column;
-  max-width: calc(100vw - 40px);
+  max-width: 75%; /* Reduced by 1/4 from original 100% */
+  width: 75%; /* Reduced by 1/4 */
+  margin: 0 auto; /* Center the container */
   border: 3px solid #333;
   margin-bottom: 20px;
   margin-top: 20px; /* Add margin to create space for the close button */
@@ -1038,8 +1168,8 @@ div[style*="film content area"] {
 
 /* Base film frame styles for desktop */
 .film-frame {
-  width: 180px !important; /* 9:7 ratio for landscape */
-  height: 140px !important;
+  width: 135px !important; /* Reduced by 1/4 from 180px (9:7 ratio for landscape) */
+  height: 105px !important; /* Reduced by 1/4 from 140px */
   margin: 0 3px !important;
   border-radius: 5px !important;
   overflow: hidden !important;
@@ -1048,8 +1178,8 @@ div[style*="film content area"] {
 
 @media (orientation: portrait) {
   .film-frame {
-    width: 140px !important; /* 7:9 ratio for portrait */
-    height: 180px !important;
+    width: 105px !important; /* Reduced by 1/4 from 140px (7:9 ratio for portrait) */
+    height: 135px !important; /* Reduced by 1/4 from 180px */
   }
 }
 
@@ -1063,14 +1193,14 @@ div[style*="film content area"] {
 /* Mobile overrides remain the same as before */
 @media (max-width: 768px) {
   .film-frame {
-    width: 144px !important;
-    height: 112px !important;
+    width: 108px !important; /* Reduced by 1/4 from 144px */
+    height: 84px !important; /* Reduced by 1/4 from 112px */
   }
 
   @media (orientation: portrait) {
     .film-frame {
-      width: 112px !important;
-      height: 144px !important;
+      width: 84px !important; /* Reduced by 1/4 from 112px */
+      height: 108px !important; /* Reduced by 1/4 from 144px */
     }
   }
   /* ... rest of mobile styles ... */
@@ -1091,64 +1221,67 @@ div[style*="film content area"] {
 }
 
 .film-frame .frame-number {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  background-color: rgba(255, 51, 102, 0.8);
-  color: white;
-  padding: 3px 6px;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: bold;
-  z-index: 5;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: auto !important;
+  min-width: 30px !important;
+  background-color: rgba(255, 51, 102, 0.8) !important;
+  color: white !important;
+  padding: 3px 6px !important;
+  border-radius: 0 0 8px 0 !important;
+  font-size: 14px !important;
+  font-weight: bold !important;
+  text-align: center !important;
+  z-index: 5 !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3) !important;
 }
 
 .film-frame .ref-label {
-  position: absolute;
-  bottom: 10px;
-  left: 10px;
-  background-color: #ffd301;
-  color: #ff3366;
-  padding: 3px 6px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: bold;
-  z-index: 5;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  background-color: #ffd301 !important;
+  color: #ff3366 !important;
+  padding: 3px 6px !important;
+  border-radius: 0 8px 0 0 !important;
+  font-size: 10px !important;
+  font-weight: bold !important;
+  z-index: 5 !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3) !important;
 }
 
 .film-frame .stack-count {
-  position: absolute;
-  bottom: 10px;
-  right: 10px;
-  background-color: rgba(0, 0, 0, 0.7);
-  color: white;
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: bold;
-  z-index: 5;
+  position: absolute !important;
+  bottom: 0 !important;
+  right: 0 !important;
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  color: white !important;
+  padding: 3px 6px !important;
+  border-radius: 8px 0 0 0 !important;
+  font-size: 12px !important;
+  font-weight: bold !important;
+  z-index: 5 !important;
 }
 
 .film-frame .delete-frame-btn {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background-color: rgba(255, 51, 102, 0.8);
-  color: white;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 10;
-  font-size: 14px;
-  font-weight: bold;
-  border: 1px solid white;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  background-color: rgba(255, 51, 102, 0.8) !important;
+  color: white !important;
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 0 0 0 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  z-index: 10 !important;
+  font-size: 14px !important;
+  font-weight: bold !important;
+  border: none !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3) !important;
 }
 
 .film-frame.loading {
@@ -1320,6 +1453,7 @@ div[style*="film content area"] {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   transition: all 0.2s ease;
   flex-shrink: 0;
+  margin-right: 15px;
 }
 
 .header-config-btn:hover {
@@ -1509,20 +1643,82 @@ div[style*="film content area"] {
   }
 }
 
-/* Photobooth Screen */
+/* Photobooth Screen - reduced by 1/3 */
 .photobooth-screen {
   background-color: black;
   border: 6px solid white;
-  border-radius: 10px 10px 0 0; /* Round top corners only when custom style input is present */
+  border-radius: 10px 10px 0 0;
   overflow: hidden;
   margin: 0 auto;
   position: relative;
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+  width: 66.67% !important; /* Reduced by 1/3 */
+  max-width: 66.67% !important; /* Reduced by 1/3 */
 }
 
 .photobooth-screen video {
   width: 100%;
   display: block;
+}
+
+/* For portrait orientation */
+@media (orientation: portrait) {
+  .photobooth-screen {
+    width: 66.67% !important; /* Reduced by 1/3 */
+    max-width: 66.67% !important; /* Reduced by 1/3 */
+  }
+  
+  body.portrait .photobooth-screen {
+    width: 66.67% !important; /* Reduced by 1/3 */
+    max-width: 66.67% !important; /* Reduced by 1/3 */
+  }
+}
+
+/* For landscape orientation */
+@media (orientation: landscape) {
+  .photobooth-screen {
+    width: 66.67% !important; /* Reduced by 1/3 */
+    max-width: 66.67% !important; /* Reduced by 1/3 */
+  }
+  
+  body.landscape .photobooth-screen {
+    width: 66.67% !important; /* Reduced by 1/3 */
+    max-width: 66.67% !important; /* Reduced by 1/3 */
+  }
+}
+
+/* For mobile screens */
+@media (max-width: 768px) {
+  .photobooth-screen {
+    width: 66.67% !important; /* Reduced by 1/3 */
+    max-width: 66.67% !important; /* Reduced by 1/3 */
+  }
+  
+  body.portrait .photobooth-screen {
+    width: 66.67% !important; /* Reduced by 1/3 */
+    max-width: 66.67% !important; /* Reduced by 1/3 */
+  }
+  
+  body.landscape .photobooth-screen {
+    width: 66.67% !important; /* Reduced by 1/3 */
+    max-width: 66.67% !important; /* Reduced by 1/3 */
+  }
+}
+
+/* Make sure any other overridden styles are also adjusted */
+html body .photobooth-app .photobooth-frame .photobooth-screen {
+  width: 66.67% !important; /* Reduced by 1/3 */
+  max-width: 66.67% !important; /* Reduced by 1/3 */
+}
+
+html body.portrait .photobooth-app .photobooth-frame .photobooth-screen {
+  width: 66.67% !important; /* Reduced by 1/3 */
+  max-width: 66.67% !important; /* Reduced by 1/3 */
+}
+
+html body:not(.portrait) .photobooth-app .photobooth-frame .photobooth-screen {
+  width: 66.67% !important; /* Reduced by 1/3 */
+  max-width: 66.67% !important; /* Reduced by 1/3 */
 }
 
 /* Controls Section */
@@ -1900,7 +2096,9 @@ div[style*="film content area"] {
   padding: 0;
   display: flex;
   flex-direction: column;
-  max-width: calc(100vw - 40px);
+  max-width: 75%; /* Reduced by 1/4 from original 100% */
+  width: 75%; /* Reduced by 1/4 */
+  margin: 0 auto; /* Center the container */
   border: 3px solid #333;
   margin-bottom: 20px;
   margin-top: 20px; /* Add margin to create space for the close button */
@@ -1994,64 +2192,67 @@ div[style*="film content area"] {
 }
 
 .film-frame .frame-number {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  background-color: rgba(255, 51, 102, 0.8);
-  color: white;
-  padding: 3px 6px;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: bold;
-  z-index: 5;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: auto !important;
+  min-width: 30px !important;
+  background-color: rgba(255, 51, 102, 0.8) !important;
+  color: white !important;
+  padding: 3px 6px !important;
+  border-radius: 0 0 8px 0 !important;
+  font-size: 14px !important;
+  font-weight: bold !important;
+  text-align: center !important;
+  z-index: 5 !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3) !important;
 }
 
 .film-frame .ref-label {
-  position: absolute;
-  bottom: 10px;
-  left: 10px;
-  background-color: #ffd301;
-  color: #ff3366;
-  padding: 3px 6px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: bold;
-  z-index: 5;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  background-color: #ffd301 !important;
+  color: #ff3366 !important;
+  padding: 3px 6px !important;
+  border-radius: 0 8px 0 0 !important;
+  font-size: 10px !important;
+  font-weight: bold !important;
+  z-index: 5 !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3) !important;
 }
 
 .film-frame .stack-count {
-  position: absolute;
-  bottom: 10px;
-  right: 10px;
-  background-color: rgba(0, 0, 0, 0.7);
-  color: white;
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: bold;
-  z-index: 5;
+  position: absolute !important;
+  bottom: 0 !important;
+  right: 0 !important;
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  color: white !important;
+  padding: 3px 6px !important;
+  border-radius: 8px 0 0 0 !important;
+  font-size: 12px !important;
+  font-weight: bold !important;
+  z-index: 5 !important;
 }
 
 .film-frame .delete-frame-btn {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background-color: rgba(255, 51, 102, 0.8);
-  color: white;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 10;
-  font-size: 14px;
-  font-weight: bold;
-  border: 1px solid white;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  background-color: rgba(255, 51, 102, 0.8) !important;
+  color: white !important;
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 0 0 0 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  z-index: 10 !important;
+  font-size: 14px !important;
+  font-weight: bold !important;
+  border: none !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3) !important;
 }
 
 .film-frame.loading {
@@ -2223,6 +2424,7 @@ div[style*="film content area"] {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   transition: all 0.2s ease;
   flex-shrink: 0;
+  margin-right: 15px;
 }
 
 .header-config-btn:hover {
@@ -2675,7 +2877,7 @@ div[style*="film content area"] {
   align-items: center;
   gap: 10px;
   flex-grow: 1;
-  margin-left: 15px;
+  margin-left: auto;
   flex-wrap: wrap;
 }
 
@@ -4025,7 +4227,8 @@ and (max-width: 428px) {
   body.landscape .photobooth-screen {
     aspect-ratio: 16/9 !important;
     height: auto !important;
-    width: 100% !important;
+    width: 66.67% !important; /* Reduced by 1/3 */
+    max-width: 66.67% !important; /* Reduced by 1/3 */
     max-height: 65vh !important;
   }
   
@@ -4972,5 +5175,334 @@ html, body {
     object-fit: cover !important;
     transform: none !important;
   }
+}
+
+@media screen and (min-width: 769px) {
+  body:not(.portrait):not(.landscape) .photobooth-screen,
+  body:not(.portrait):not(.landscape) .video-container {
+    width: 100%;
+    height: 0;
+    padding-bottom: 77.78%; /* 9:7 aspect ratio (7/9 = 0.7778) */
+    position: relative;
+    overflow: hidden;
+  }
+
+  body:not(.portrait):not(.landscape) #webcam,
+  body:not(.portrait):not(.landscape) .photobooth-screen video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.photobooth-screen {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 9/7;
+}
+
+#webcam {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Base styles for all screen sizes */
+.photobooth-screen {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 0;
+  padding-bottom: 77.78%; /* Default to 9:7 aspect ratio */
+}
+
+#webcam {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Desktop specific styles */
+@media screen and (min-width: 769px) {
+  .photobooth-screen,
+  .video-container {
+    max-width: 100%;
+    margin: 0 auto;
+  }
+  
+  body:not(.portrait):not(.landscape) .photobooth-screen,
+  body:not(.portrait):not(.landscape) .video-container {
+    padding-bottom: 77.78%; /* 9:7 aspect ratio */
+  }
+  
+  body.portrait .photobooth-screen,
+  body.portrait .video-container {
+    padding-bottom: 128.57%; /* 7:9 aspect ratio (9/7 = 1.2857) */
+  }
+}
+
+/* Additional responsive fixes */
+@media (max-width: 768px) {
+  .photobooth-screen {
+    padding-bottom: 77.78%; /* Maintain 9:7 aspect ratio on smaller screens */
+  }
+  
+  body.portrait .photobooth-screen {
+    padding-bottom: 128.57%; /* 7:9 for portrait mode */
+  }
+}
+
+/* Remove duplicate/conflicting styles */
+.photobooth-screen {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  padding-bottom: 77.78%; /* 9:7 aspect ratio */
+  height: 0;
+}
+
+#webcam {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Force aspect ratio for all devices and orientations */
+body:not(.portrait) .photobooth-screen {
+  padding-bottom: 77.78% !important; /* 9:7 aspect ratio (7/9 = 0.7778) */
+}
+
+body.portrait .photobooth-screen {
+  padding-bottom: 128.57% !important; /* 7:9 aspect ratio (9/7 = 1.2857) */
+}
+
+/* Override any conflicting styles */
+@media screen and (max-width: 768px), screen and (min-width: 769px) {
+  body:not(.portrait) .photobooth-screen,
+  body:not(.portrait) .video-container {
+    padding-bottom: 77.78% !important;
+    aspect-ratio: 9/7 !important;
+  }
+  
+  body.portrait .photobooth-screen,
+  body.portrait .video-container {
+    padding-bottom: 128.57% !important;
+    aspect-ratio: 7/9 !important;
+  }
+}
+
+/* First, let's remove all duplicate/conflicting styles */
+
+/* Clear base styles - REPLACE ALL existing camera/webcam styles with this */
+.video-container,
+.photobooth-screen {
+  position: relative !important;
+  width: 100% !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+#webcam,
+.photobooth-screen video {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+/* Force aspect ratios with highest specificity */
+html body:not(.portrait) .photobooth-screen,
+html body:not(.portrait) .video-container {
+  padding-bottom: 77.78% !important; /* 9:7 */
+}
+
+html body.portrait .photobooth-screen,
+html body.portrait .video-container {
+  padding-bottom: 128.57% !important; /* 7:9 */
+}
+
+/* Ensure iOS compatibility */
+@supports (-webkit-touch-callout: none) {
+  #webcam.ios-fix {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+  }
+}
+
+/* COMPLETELY NEW APPROACH - REPLACE ALL PREVIOUS CAMERA STYLES */
+
+/* Override even inline styles with !important */
+html, body {
+  --vh: 1vh;
+  --camera-aspect-ratio: 9/7 !important;
+}
+
+body.portrait {
+  --camera-aspect-ratio: 7/9 !important;
+}
+
+/* Photobooth frame */
+.photobooth-frame {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Container fixes */
+.video-container {
+  width: 100% !important;
+  height: auto !important;
+  position: relative !important;
+  overflow: hidden !important;
+  padding-bottom: calc(100% * 7/9) !important; /* Default 7:9 ratio */
+}
+
+body:not(.portrait) .video-container {
+  padding-bottom: calc(100% * 7/9) !important; /* 7:9 */
+}
+
+body.portrait .video-container {
+  padding-bottom: calc(100% * 9/7) !important; /* 9:7 */
+}
+
+/* Fix webcam element */
+#webcam {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+/* Fix photobooth screen */
+.photobooth-screen {
+  width: 100% !important;
+  height: 0 !important;
+  position: relative !important;
+  overflow: hidden !important;
+  padding-bottom: calc(100% * 7/9) !important;
+}
+
+body:not(.portrait) .photobooth-screen {
+  padding-bottom: calc(100% * 7/9) !important;
+}
+
+body.portrait .photobooth-screen {
+  padding-bottom: calc(100% * 9/7) !important;
+}
+
+/* Override any inline styles that might be causing issues */
+[style*="aspect-ratio"] {
+  aspect-ratio: unset !important;
+}
+
+/* Fix the problematic media query */
+@media (max-width: 768px) {
+  body.portrait .photobooth-screen {
+    aspect-ratio: 7/9 !important;
+    width: 100% !important; /* Change from 95% to 100% */
+    height: 0 !important; /* Use padding-bottom method instead of auto height */
+    padding-bottom: 128.57% !important; /* Ensure 7:9 ratio */
+    max-height: none !important; /* Remove max-height limitation */
+    margin: 0 auto !important;
+  }
+  
+  body:not(.portrait) .photobooth-screen {
+    aspect-ratio: 9/7 !important;
+    width: 100% !important;
+    height: 0 !important;
+    padding-bottom: 77.78% !important;
+    max-height: none !important;
+    margin: 0 auto !important;
+  }
+}
+
+/* Override with extremely high specificity */
+html body.portrait .photobooth-app .photobooth-frame .photobooth-screen {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 0 !important;
+  padding-bottom: 128.57% !important;
+  max-height: none !important;
+}
+
+html body:not(.portrait) .photobooth-app .photobooth-frame .photobooth-screen {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 0 !important;
+  padding-bottom: 77.78% !important;
+  max-height: none !important;
+}
+
+/* Fix film strip display */
+.film-frame {
+  aspect-ratio: 9/7 !important;
+  width: 200px !important;
+  height: auto !important;
+  position: relative !important;
+  overflow: hidden !important;
+  margin: 0 10px !important;
+}
+
+body.portrait .film-frame {
+  aspect-ratio: 7/9 !important;
+}
+
+.film-frame img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+.film-strip-content {
+  display: flex !important;
+  align-items: center !important;
+  height: auto !important;
+  padding: 10px 0 !important;
+}
+
+@media (max-width: 768px) {
+  .film-frame {
+    width: 140px !important;
+    min-width: 140px !important;
+  }
+  
+  .film-strip-container {
+    width: 100% !important;
+  }
+  
+  .film-frame .frame-number {
+    height: 20px !important;
+    font-size: 12px !important;
+    min-width: 30px !important;
+  }
+}
+
+/* Ensure consistent aspect ratios for all film frames */
+.film-frame, 
+.film-frame.selected {
+  aspect-ratio: 9/7 !important;
+}
+
+body.portrait .film-frame,
+body.portrait .film-frame.selected {
+  aspect-ratio: 7/9 !important;
 }
 
