@@ -864,6 +864,41 @@ const App = () => {
       });
 
       const arrayBuffer = await photoBlob.arrayBuffer();
+      
+      // Create job tracking map and set of handled jobs
+      const jobMap = new Map();
+      const handledJobs = new Set();
+
+      // Helper to set up job progress handler
+      const setupJobProgress = (job) => {
+        // Only set up if we haven't already handled this job
+        if (!handledJobs.has(job.id)) {
+          const jobIndex = jobMap.size;
+          jobMap.set(job.id, jobIndex);
+          handledJobs.add(job.id);
+          
+          job.on('progress', (progress) => {
+            console.log('Job progress:', job.id, progress);
+            const offset = keepOriginalPhoto ? 1 : 0;
+            const photoIndex = jobIndex + offset;
+            
+            setPhotos(prev => {
+              const updated = [...prev];
+              if (!updated[photoIndex]) return prev;
+              
+              updated[photoIndex] = {
+                ...updated[photoIndex],
+                generating: true,
+                loading: true,
+                progress
+              };
+              return updated;
+            });
+          });
+        }
+      };
+      
+      // Create the project
       const project = await sogniClient.projects.create({
         modelId: selectedModel,
         positivePrompt: stylePrompt,
@@ -887,6 +922,16 @@ const App = () => {
 
       activeProjectRef.current = project.id;
       console.log('Project created:', project.id);
+
+      // Set up handlers for any jobs that exist immediately
+      project.jobs.forEach(setupJobProgress);
+
+      // Watch for new jobs
+      project.on('updated', (keys) => {
+        if (keys.includes('jobs')) {
+          project.jobs.forEach(setupJobProgress);
+        }
+      });
 
       // Project level events
       project.on('progress', (progress) => {
@@ -931,13 +976,11 @@ const App = () => {
           return;
         }
         
-        const { pendingCompletions } = projectStateRef.current;
-        const jobIndex = pendingCompletions.size;
-        
-        pendingCompletions.set(job.id, {
-          resultUrl: job.resultUrl,
-          index: jobIndex
-        });
+        const jobIndex = jobMap.get(job.id);
+        if (jobIndex === undefined) {
+          console.error('Unknown job completed:', job.id);
+          return;
+        }
         
         if (cameraWindSoundRef.current) {
           cameraWindSoundRef.current.play().catch(err => {
@@ -974,29 +1017,23 @@ const App = () => {
 
       project.on('jobFailed', (job) => {
         console.error('Job failed:', job.id, job.error);
-      });
-
-      // Subscribe to job progress events
-      project.jobs.forEach(job => {
-        job.on('progress', (progress) => {
-          console.log('Job progress:', job.id, progress);
+        const jobIndex = jobMap.get(job.id);
+        if (jobIndex === undefined) return;
+        
+        const offset = keepOriginalPhoto ? 1 : 0;
+        const photoIndex = jobIndex + offset;
+        
+        setPhotos(prev => {
+          const updated = [...prev];
+          if (!updated[photoIndex]) return prev;
           
-          setPhotos(prev => {
-            const updated = [...prev];
-            const { pendingCompletions } = projectStateRef.current;
-            const offset = keepOriginalPhoto ? 1 : 0;
-            const photoIndex = pendingCompletions.size + offset;
-
-            if (!updated[photoIndex]) return prev;
-
-            updated[photoIndex] = {
-              ...updated[photoIndex],
-              generating: true,
-              loading: true,
-              progress
-            };
-            return updated;
-          });
+          updated[photoIndex] = {
+            ...updated[photoIndex],
+            generating: false,
+            loading: false,
+            error: job.error || 'Generation failed'
+          };
+          return updated;
         });
       });
 
