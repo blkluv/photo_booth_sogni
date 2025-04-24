@@ -820,11 +820,13 @@ const App = () => {
   const generateFromBlob = async (photoBlob, newPhotoIndex, dataUrl) => {
     try {
       // Get the style prompt, generating random if selected
-      const stylePrompt = selectedStyle === 'random'
-        ? generateRandomPrompts(numImages)
-        : selectedStyle === 'custom'
+      const stylePrompt = (selectedStyle === 'custom')
         ? (customPrompt || 'A custom style portrait')
-        : defaultStylePrompts[selectedStyle];
+        : selectedStyle === 'random'
+          ? defaultStylePrompts[getRandomStyle()]
+          : selectedStyle === 'randomMix'
+            ? getRandomMixPrompts(numImages)
+            : defaultStylePrompts[selectedStyle];
 
       projectStateRef.current = {
         currentPhotoIndex: newPhotoIndex,
@@ -1338,9 +1340,7 @@ const App = () => {
               >
                 {selectedStyle === 'custom' 
                   ? 'STYLE: Custom...' 
-                  : selectedStyle === 'random'
-                    ? 'STYLE: Random Mix'
-                    : `STYLE: ${selectedStyle.charAt(0).toUpperCase() + selectedStyle.slice(1)}`}
+                  : `STYLE: ${styleIdToDisplay(selectedStyle)}`}
               </button>
               
               {showStyleDropdown && (
@@ -1384,7 +1384,7 @@ const App = () => {
                           setShowStyleDropdown(false);
                         }}
                       >
-                        {styleKey.charAt(0).toUpperCase() + styleKey.slice(1)}
+                        {styleIdToDisplay(styleKey)}
                       </div>
                     ))}
                 </div>
@@ -1848,6 +1848,31 @@ const App = () => {
   // Add toggle function for notes modal
   const toggleNotesModal = () => {
     setShowInfoModal(!showInfoModal);
+  };
+
+  // Add this helper function near the top with other utility functions
+  const styleIdToDisplay = (styleId) => {
+    return styleId.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).trim();
+  };
+
+  // Add these helper functions near the top with other utility functions
+  const getRandomStyle = () => {
+    const availableStyles = Object.keys(defaultStylePrompts)
+      .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix');
+    return availableStyles[Math.floor(Math.random() * availableStyles.length)];
+  };
+
+  const getRandomMixPrompts = (count) => {
+    const availableStyles = Object.keys(defaultStylePrompts)
+      .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix');
+    
+    const selectedPrompts = [];
+    for (let i = 0; i < count; i++) {
+      const randomStyle = availableStyles[Math.floor(Math.random() * availableStyles.length)];
+      selectedPrompts.push(defaultStylePrompts[randomStyle]);
+    }
+    
+    return `{${selectedPrompts.map(prompt => `{${prompt}}`).join('|')}}`;
   };
 
   // -------------------------
