@@ -1,5 +1,3 @@
-// ./src/App.jsx
-
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { SogniClient } from "@sogni-ai/sogni-client";
 import { API_CONFIG } from './config/cors';
@@ -10,25 +8,21 @@ import slothicornImage from './slothicorn-camera.png';
 import light1Image from './light1.png';
 import light2Image from './light2.png';
 import './App.css';
+import prompts from './prompts.json';
 
 /**
  * Default style prompts
  */
 const defaultStylePrompts = {
   custom: ``,
-  anime: `Charismatic adventurer, Studio Ghibli style anime, hayo miyazaki, masterpiece, whimsical, 90s anime, cute`,
-  gorillaz: `Attractive, A vibrant, stylized cartoon band portrait inspired by the edgy, urban comic style of "Gorillaz." Bold, inky outlines and gritty details, with slightly exaggerated facial features and a rebellious attitude. A blend of punk, hip-hop, and futuristic aesthetics, set against a graffiti-covered cityscape.`,
-  disney: `Attractive, A magical, whimsical Disney-inspired portrait with bright colors, large expressive eyes, soft outlines, and a fairytale atmosphere. Royal attire, dreamy background elements, and a charming, uplifting mood.`,
-  pixelArt: `Attractive, A retro CryptoPunks NFT pixel art style portrait with 8-bit color palette, blocky forms, and visible pixelation. Nostalgic and charming, reminiscent of classic arcade or console games from the 80s and 90s.`,
-  steampunk: `Attractive, A retro-futuristic steampunk style portrait featuring brass goggles, gears, clockwork elements, Victorian fashion, and a smoky, industrial atmosphere. Intricate mechanical details, warm metallic tones, and a sense of invention.`,
-  vaporwave: `Attractive, A dreamy, neon vaporwave portrait with pastel gradients, retro 80s aesthetics, glitch effects, palm trees, and classic Greek statue motifs. Vibrant pink, purple, and cyan color palette, set in a cyber-futuristic cityscape.`,
-  astronaut: `Attractive, astronaut wearing helmet, floating near a spaceship window; confined interior contrasts with vast starfield outside. soft moonlight highlights the suited figure against inky blackness, shimmering starlight. deep indigo, silver, neon-tech blues. serene awe. centered astronaut, expansive view. stunning hyper-detailed realism`,
-  sketch: 'Caricature sketch drawing of a person on an art clipboard with marker',
-  statue: 'Antique Roman statue with red garments',
-  clown: 'a clown in full makeup, balloon animals',
-  relax: 'in bubble bath submerged to face, white bubbles, pink bathtub, 35mm cinematic film'
+  ...Object.fromEntries(
+    Object.entries(prompts)
+      .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+  )
 };
-defaultStylePrompts.random = `{${['anime', 'gorillaz', 'pixelArt', 'vaporwave', 'sketch', 'statue', 'clown', 'relax'].map(style => defaultStylePrompts[style]).join('|')}}`;
+
+// Add random style that uses all prompts
+defaultStylePrompts.random = `{${Object.values(prompts).join('|')}}`;
 
 /**
  * Returns 1280×720 (landscape) or 720×1280 (portrait)
@@ -109,27 +103,10 @@ const App = () => {
   const cameraWindSoundRef = useRef(null);
   const slothicornRef = useRef(null);
 
-  // Style selection -- default to "random" instead of "anime"
-  const [selectedStyle, setSelectedStyle] = useState('random');
+  // Style selection -- default to "randomMix" instead of "anime"
+  const [selectedStyle, setSelectedStyle] = useState('randomMix');
   const [customPrompt, setCustomPrompt] = useState('');
 
-  // Each style can have a different realism value
-  const initialStyleRealism = {
-    anime: 45,
-    gorillaz: 45,
-    disney: 45,
-    pixelArt: 45,
-    steampunk: 45,
-    vaporwave: 45,
-    astronaut: 45,
-    statue: 45,
-    custom: 45,
-    random: 45,
-    sketch: 45,
-    clown: 45,
-    relax: 45,
-  };
-  const [styleRealism, setStyleRealism] = useState(initialStyleRealism);
 
   // Photos array
   // Each => { id, generating, images: string[], error, originalDataUrl?, newlyArrived?: boolean, generationCountdown?: number }
@@ -819,12 +796,33 @@ const App = () => {
     }
   }, []);
 
+  // First, let's create a helper function to generate random prompts
+  const generateRandomPrompts = (count) => {
+    // Get all prompts except 'custom' and 'random'
+    const availablePrompts = Object.entries(defaultStylePrompts)
+      .filter(([key]) => key !== 'custom' && key !== 'random')
+      .map(([key, value]) => ({ key, value }));
+    
+    // Shuffle array using Fisher-Yates algorithm
+    for (let i = availablePrompts.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [availablePrompts[i], availablePrompts[j]] = [availablePrompts[j], availablePrompts[i]];
+    }
+    
+    // Take first 'count' items and join their prompts
+    const selectedPrompts = availablePrompts.slice(0, count);
+    return `{${selectedPrompts.map(p => p.value).join('|')}}`;
+  };
+
   // -------------------------
   //   Shared logic for generating images from a Blob
   // -------------------------
   const generateFromBlob = async (photoBlob, newPhotoIndex, dataUrl) => {
     try {
-      const stylePrompt = (selectedStyle === 'custom')
+      // Get the style prompt, generating random if selected
+      const stylePrompt = selectedStyle === 'random'
+        ? generateRandomPrompts(numImages)
+        : selectedStyle === 'custom'
         ? (customPrompt || 'A custom style portrait')
         : defaultStylePrompts[selectedStyle];
 
@@ -1338,11 +1336,24 @@ const App = () => {
                 className="header-style-select" 
                 onClick={() => setShowStyleDropdown(!showStyleDropdown)}
               >
-                {selectedStyle === 'custom' ? 'STYLE: Custom...' : `STYLE: ${selectedStyle}`}
+                {selectedStyle === 'custom' 
+                  ? 'STYLE: Custom...' 
+                  : selectedStyle === 'random'
+                    ? 'STYLE: Random Mix'
+                    : `STYLE: ${selectedStyle.charAt(0).toUpperCase() + selectedStyle.slice(1)}`}
               </button>
               
               {showStyleDropdown && (
                 <div className="style-dropdown">
+                  <div 
+                    className={`style-option ${selectedStyle === 'randomMix' ? 'selected' : ''}`} 
+                    onClick={() => { 
+                      setSelectedStyle('randomMix'); 
+                      setShowStyleDropdown(false);
+                    }}
+                  >
+                    Random Mix
+                  </div>
                   <div 
                     className={`style-option ${selectedStyle === 'random' ? 'selected' : ''}`} 
                     onClick={() => { 
@@ -1353,105 +1364,6 @@ const App = () => {
                     Random
                   </div>
                   <div 
-                    className={`style-option ${selectedStyle === 'anime' ? 'selected' : ''}`} 
-                    onClick={() => { 
-                      setSelectedStyle('anime'); 
-                      setShowStyleDropdown(false);
-                    }}
-                  >
-                    Anime
-                  </div>
-                  <div 
-                    className={`style-option ${selectedStyle === 'gorillaz' ? 'selected' : ''}`} 
-                    onClick={() => { 
-                      setSelectedStyle('gorillaz'); 
-                      setShowStyleDropdown(false);
-                    }}
-                  >
-                    Gorillaz
-                  </div>
-                  <div 
-                    className={`style-option ${selectedStyle === 'disney' ? 'selected' : ''}`} 
-                    onClick={() => { 
-                      setSelectedStyle('disney'); 
-                      setShowStyleDropdown(false);
-                    }}
-                  >
-                    Disney
-                  </div>
-                  <div 
-                    className={`style-option ${selectedStyle === 'pixelArt' ? 'selected' : ''}`} 
-                    onClick={() => { 
-                      setSelectedStyle('pixelArt'); 
-                      setShowStyleDropdown(false);
-                    }}
-                  >
-                    Pixel Art
-                  </div>
-                  <div 
-                    className={`style-option ${selectedStyle === 'steampunk' ? 'selected' : ''}`} 
-                    onClick={() => { 
-                      setSelectedStyle('steampunk'); 
-                      setShowStyleDropdown(false);
-                    }}
-                  >
-                    Steampunk
-                  </div>
-                  <div 
-                    className={`style-option ${selectedStyle === 'vaporwave' ? 'selected' : ''}`} 
-                    onClick={() => { 
-                      setSelectedStyle('vaporwave'); 
-                      setShowStyleDropdown(false);
-                    }}
-                  >
-                    Vaporwave
-                  </div>
-                  <div 
-                    className={`style-option ${selectedStyle === 'astronaut' ? 'selected' : ''}`} 
-                    onClick={() => { 
-                      setSelectedStyle('astronaut'); 
-                      setShowStyleDropdown(false);
-                    }}
-                  >
-                    Astronaut
-                  </div>
-                  <div 
-                    className={`style-option ${selectedStyle === 'sketch' ? 'selected' : ''}`} 
-                    onClick={() => { 
-                      setSelectedStyle('sketch'); 
-                      setShowStyleDropdown(false);
-                    }}
-                  >
-                    Sketch
-                  </div>
-                  <div 
-                    className={`style-option ${selectedStyle === 'statue' ? 'selected' : ''}`} 
-                    onClick={() => { 
-                      setSelectedStyle('statue'); 
-                      setShowStyleDropdown(false);
-                    }}
-                  >
-                    Statue
-                  </div>
-                  <div 
-                    className={`style-option ${selectedStyle === 'clown' ? 'selected' : ''}`} 
-                    onClick={() => { 
-                      setSelectedStyle('clown'); 
-                      setShowStyleDropdown(false);
-                    }}
-                  >
-                    Clown
-                  </div>
-                  <div 
-                    className={`style-option ${selectedStyle === 'relax' ? 'selected' : ''}`} 
-                    onClick={() => { 
-                      setSelectedStyle('relax'); 
-                      setShowStyleDropdown(false);
-                    }}
-                  >
-                    Relax
-                  </div>
-                  <div 
                     className={`style-option ${selectedStyle === 'custom' ? 'selected' : ''}`} 
                     onClick={() => { 
                       setSelectedStyle('custom'); 
@@ -1460,6 +1372,21 @@ const App = () => {
                   >
                     Custom...
                   </div>
+                  {Object.keys(defaultStylePrompts)
+                    .filter(key => key !== 'random' && key !== 'custom')
+                    .sort()
+                    .map(styleKey => (
+                      <div 
+                        key={styleKey}
+                        className={`style-option ${selectedStyle === styleKey ? 'selected' : ''}`} 
+                        onClick={() => { 
+                          setSelectedStyle(styleKey); 
+                          setShowStyleDropdown(false);
+                        }}
+                      >
+                        {styleKey.charAt(0).toUpperCase() + styleKey.slice(1)}
+                      </div>
+                    ))}
                 </div>
               )}
             </div>
@@ -1643,26 +1570,6 @@ const App = () => {
                 onChange={(e) => setFlashEnabled(e.target.checked)}
               />
               <label htmlFor="flash-toggle" className="control-label">Flash</label>
-            </div>
-
-            {/* Per-style realism slider */}
-            <div className="control-option">
-              <label className="control-label">Realism during style:</label>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={styleRealism[selectedStyle]}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setStyleRealism((prev) => ({
-                    ...prev,
-                    [selectedStyle]: val
-                  }));
-                }}
-                className="slider-input"
-              />
-              <span className="slider-value">{styleRealism[selectedStyle]}%</span>
             </div>
 
             <div className="control-option checkbox">
