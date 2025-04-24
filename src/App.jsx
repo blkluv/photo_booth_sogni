@@ -1649,16 +1649,15 @@ const App = () => {
     
     return (
       <div style={{ 
-        position: 'absolute', 
-        bottom: '30px', 
-        left: '0', 
-        right: '0', 
+        position: 'fixed',  // Changed from absolute to fixed
+        bottom: '0',        // Changed from 30px to 0
+        left: '0',
+        right: '0',
         display: 'flex',
         justifyContent: 'center',
         zIndex: 50,
         maxWidth: '100vw',
-        overflow: 'visible',
-        paddingTop: '20px'
+        overflow: 'visible'
       }}>
         {photos.length > 0 && showFilmStrip && (
           <div className="film-strip-container">
@@ -1690,36 +1689,50 @@ const App = () => {
             >
               {photos.map((photo, i) => {
                 const isSelected = i === selectedPhotoIndex;
-                const frameNumber = i + 1;
                 const isReference = photo.isOriginal;
 
-                // If generating + no images => show loading animation
+                // If generating + no images => show loading with inverted original
                 if (photo.loading && photo.images.length === 0) {
+                  // Always use the original photo as placeholder while loading
+                  const placeholderUrl = photo.originalDataUrl;
+                  if (!placeholderUrl) return null;
+
                   return (
                     <div
                       key={photo.id}
-                      className="film-frame loading"
+                      className={`film-frame loading ${isSelected ? 'selected' : ''}`}
+                      data-progress={Math.floor(photo.progress || 0)}
                     >
-                      <div className="frame-number">{frameNumber}</div>
-                      <div className="loading-spinner"></div>
+                      <img
+                        src={placeholderUrl}
+                        alt={`Loading #${i}`}
+                        style={{
+                          filter: `invert(${1 - (photo.progress || 0) / 100})`
+                        }}
+                      />
                     </div>
                   );
                 }
 
-                // If error + no images => "Err"
+                // If error + no images => show error state with inverted original
                 if (photo.error && photo.images.length === 0) {
                   return (
                     <div
                       key={photo.id}
-                      className="film-frame error"
+                      className={`film-frame error ${isSelected ? 'selected' : ''}`}
                     >
-                      <div className="frame-number">{frameNumber}</div>
-                      <div className="error-text">Error</div>
+                      {photo.originalDataUrl && (
+                        <img
+                          src={photo.originalDataUrl}
+                          alt={`Error #${i}`}
+                          style={{ filter: 'invert(1) opacity(0.3)' }}
+                        />
+                      )}
                     </div>
                   );
                 }
 
-                // otherwise show the first image as thumbnail
+                // Show completed image
                 const thumbUrl = photo.images[0] || '';
                 const handleThumbClick = () => {
                   setSelectedPhotoIndex(i);
@@ -1730,30 +1743,17 @@ const App = () => {
                   <div 
                     key={photo.id}
                     className={`film-frame ${isSelected ? 'selected' : ''}`}
+                    onClick={handleThumbClick}
                   >
-                    {isSelected && (
-                      <button
-                        className="delete-frame-btn"
-                        onClick={() => handleDeletePhoto(i)}
-                      >
-                        X
-                      </button>
-                    )}
-
-                    <div className="frame-number">{frameNumber}</div>
-                    
                     <img
                       src={thumbUrl}
                       alt={`Generated #${i}`}
                       className={photo.newlyArrived ? 'thumbnail-fade' : ''}
-                      onClick={handleThumbClick}
                     />
-
                     {/* Show REF label for original photo */}
                     {isReference && (
                       <div className="ref-label">REF</div>
                     )}
-
                     {/* If multiple images, show stack count */}
                     {photo.images.length > 1 && (
                       <div className="stack-count">x{photo.images.length}</div>
