@@ -236,8 +236,20 @@ const App = () => {
     "Let's get creative with the styles!",
     "Beep Boop, you made this!",
     "My other camera is a Diffuser",
-    "You should see my other Checkpoints bro",
     "The lighting is perfect today!",
+    "Ooh, I can't wait to see how this turns out!",
+    "The magic is happening...",
+    "Making something special just for you!",
+    "Almost there...",
+    "This is going to look amazing!",
+    "Adding the finishing touches...",
+    "Sprinkling some digital pixie dust...",
+    "Just a few more seconds...",
+    "Creating something magical...",
+    "The anticipation is killing me!",
+    "Ur participating in decentralized art right now!",
+    "A buncha magical art robots hard at work...",
+    "Good art takes time to develop..."
   ];
 
   const randomThoughts = [
@@ -257,6 +269,10 @@ const App = () => {
     "Maybe I should start a podcast...",
     "Sometimes I pretend I'm a disco ball",
     "I'm sensing a viral photo coming!",
+    "Today is going to be a good day.",
+    "My horn doubles as a selfie stick.",
+    "First the photobooth, and then the world baby!",
+    "You down to clown? Clown Style Prompt that is."
   ];
 
   // Add state for current thought
