@@ -1860,7 +1860,7 @@ const App = () => {
       selectedPrompts.push(defaultStylePrompts[randomStyle]);
     }
     
-    return `{${selectedPrompts.map(prompt => `{${prompt}}`).join('|')}}`;
+    return `${selectedPrompts.map(prompt => `{${prompt}}`).join('|')}`;
   };
 
   // -------------------------
