@@ -824,32 +824,18 @@ const App = () => {
   // -------------------------
   const generateFromBlob = async (photoBlob, newPhotoIndex, dataUrl) => {
     try {
-      // 1) Get the style prompt
       const stylePrompt = (selectedStyle === 'custom')
         ? (customPrompt || 'A custom style portrait')
         : defaultStylePrompts[selectedStyle];
 
-      // 2) Call the describeImage API to get a textual description
-      // const photoDescription = await describeImage(photoBlob);
-      // with instant-id controlnet we don't need to describe the existing image, it will make the image boring
-      // console.log('photoDescription', photoDescription);
-
-      // 3) Combine them for a more relevant final prompt
-      // const combinedPrompt = stylePrompt + ' ' + photoDescription;
-      const combinedPrompt = stylePrompt;
-      console.log('stylePrompt', stylePrompt);
-
-      // Initialize project state BEFORE setting up event handlers
       projectStateRef.current = {
         currentPhotoIndex: newPhotoIndex,
-        pendingCompletions: new Map() // Store completed jobs until we can show them
+        pendingCompletions: new Map()
       };
 
-      // Clear all previous photos and create new ones with proper initial state
+      // Set up photos state first
       setPhotos(prev => {
-        // Add the original photo if keepOriginalPhoto is checked
         const newPhotos = [];
-        
         if (keepOriginalPhoto) {
           newPhotos.push({
             id: Date.now(),
@@ -862,82 +848,25 @@ const App = () => {
           });
         }
         
-        // Add placeholder boxes for the generated images
         for (let i = 0; i < numImages; i++) {
           newPhotos.push({
             id: Date.now() + i + 1,
             generating: true,
             loading: true,
+            progress: 0,
             images: [],
             error: null,
             originalDataUrl: null,
             newlyArrived: false
           });
         }
-
         return newPhotos;
       });
 
-      // Set up event handlers BEFORE creating the project
-      const handleJobCompleted = (job) => {
-        console.log('Job completed:', job.id, job.resultUrl);
-        if (!job.resultUrl) {
-          console.error('Missing resultUrl for job:', job.id);
-          return;
-        }
-        
-        const { pendingCompletions, currentPhotoIndex } = projectStateRef.current;
-        
-        // Assign the next available index
-        const jobIndex = pendingCompletions.size;
-        
-        // Store the completed job
-        pendingCompletions.set(job.id, {
-          resultUrl: job.resultUrl,
-          index: jobIndex
-        });
-        
-        // Play camera-wind sound when an image arrives
-        if (cameraWindSoundRef.current) {
-          cameraWindSoundRef.current.play().catch(err => {
-            console.warn("Error playing camera wind sound:", err);
-          });
-        }
-        
-        // Update UI immediately with this job
-        // Add 1 to the photo index if we have the original photo
-        const offset = keepOriginalPhoto ? 1 : 0;
-        const photoIndex = jobIndex + offset;
-        console.log(`Loading image for job ${job.id} into box ${photoIndex}`);
-        
-        // Pre-load the image
-        const img = new Image();
-        img.onload = () => {
-          setPhotos(prev => {
-            const updated = [...prev];
-            if (!updated[photoIndex]) {
-              console.error(`No photo box found at index ${photoIndex}`);
-              return prev;
-            }
-            
-            updated[photoIndex] = {
-              ...updated[photoIndex],
-              generating: false,
-              loading: false,
-              images: [job.resultUrl],
-              newlyArrived: true
-            };
-            return updated;
-          });
-        };
-        img.src = job.resultUrl;
-      };
-
-      // Set up event handlers
       const arrayBuffer = await photoBlob.arrayBuffer();
       const project = await sogniClient.projects.create({
         modelId: selectedModel,
-        positivePrompt: combinedPrompt,
+        positivePrompt: stylePrompt,
         sizePreset: 'custom',
         width: desiredWidth,
         height: desiredHeight,
@@ -950,24 +879,24 @@ const App = () => {
           name: 'instantid',
           image: new Uint8Array(arrayBuffer),
           strength: controlNetStrength,
-          mode: 'balanced',// balanced cn_priority
+          mode: 'balanced',
           guidanceStart: 0.0,
           guidanceEnd: controlNetGuidanceEnd,
         }
       });
 
-      // Store the project ID
       activeProjectRef.current = project.id;
+      console.log('Project created:', project.id);
 
-      // Set up event handlers
-      project.on('jobCompleted', handleJobCompleted);
-      
-      // Handle project completion (backup)
+      // Project level events
+      project.on('progress', (progress) => {
+        console.log('Project progress:', progress);
+      });
+
       project.on('completed', (urls) => {
         console.log('Project completed:', urls);
         if (urls.length === 0) return;
         
-        // Update UI with all completed jobs if we somehow missed them
         urls.forEach((url, index) => {
           const offset = keepOriginalPhoto ? 1 : 0;
           const photoIndex = index + offset;
@@ -990,28 +919,105 @@ const App = () => {
         });
       });
 
+      project.on('failed', (error) => {
+        console.error('Project failed:', error);
+      });
+
+      // Individual job events
+      project.on('jobCompleted', (job) => {
+        console.log('Job completed:', job.id, job.resultUrl);
+        if (!job.resultUrl) {
+          console.error('Missing resultUrl for job:', job.id);
+          return;
+        }
+        
+        const { pendingCompletions } = projectStateRef.current;
+        const jobIndex = pendingCompletions.size;
+        
+        pendingCompletions.set(job.id, {
+          resultUrl: job.resultUrl,
+          index: jobIndex
+        });
+        
+        if (cameraWindSoundRef.current) {
+          cameraWindSoundRef.current.play().catch(err => {
+            console.warn("Error playing camera wind sound:", err);
+          });
+        }
+        
+        const offset = keepOriginalPhoto ? 1 : 0;
+        const photoIndex = jobIndex + offset;
+        console.log(`Loading image for job ${job.id} into box ${photoIndex}`);
+        
+        const img = new Image();
+        img.onload = () => {
+          setPhotos(prev => {
+            const updated = [...prev];
+            if (!updated[photoIndex]) {
+              console.error(`No photo box found at index ${photoIndex}`);
+              return prev;
+            }
+            
+            updated[photoIndex] = {
+              ...updated[photoIndex],
+              generating: false,
+              loading: false,
+              progress: 100,
+              images: [job.resultUrl],
+              newlyArrived: true
+            };
+            return updated;
+          });
+        };
+        img.src = job.resultUrl;
+      });
+
+      project.on('jobFailed', (job) => {
+        console.error('Job failed:', job.id, job.error);
+      });
+
+      // Subscribe to job progress events
+      project.jobs.forEach(job => {
+        job.on('progress', (progress) => {
+          console.log('Job progress:', job.id, progress);
+          
+          setPhotos(prev => {
+            const updated = [...prev];
+            const { pendingCompletions } = projectStateRef.current;
+            const offset = keepOriginalPhoto ? 1 : 0;
+            const photoIndex = pendingCompletions.size + offset;
+
+            if (!updated[photoIndex]) return prev;
+
+            updated[photoIndex] = {
+              ...updated[photoIndex],
+              generating: true,
+              loading: true,
+              progress
+            };
+            return updated;
+          });
+        });
+      });
+
     } catch (err) {
-      // Handle initialization errors
+      console.error('Generation failed:', err);
+      
       if (err && err.code === 4015) {
         console.warn("Socket error (4015). Re-initializing Sogni.");
         setIsSogniReady(false);
         initializeSogni();
       }
+
       setPhotos(prev => {
-        // For errors, replace all loading placeholders with error state
-        // but keep original photo if it exists
         const updated = [];
-        
-        // Keep original photo if it exists
         if (keepOriginalPhoto) {
-          // Find existing original photo if any
           const originalPhoto = prev.find(p => p.isOriginal);
           if (originalPhoto) {
             updated.push(originalPhoto);
           }
         }
         
-        // Add error placeholders
         for (let i = 0; i < numImages; i++) {
           updated.push({
             id: Date.now() + i,
@@ -1022,7 +1028,6 @@ const App = () => {
             originalDataUrl: null
           });
         }
-        
         return updated;
       });
     }
