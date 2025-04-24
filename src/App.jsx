@@ -173,7 +173,7 @@ const App = () => {
 
   // At the top of App component, add new state variables
   const [selectedModel, setSelectedModel] = useState('coreml-sogniXLturbo_alpha1_ad');
-  const [numImages, setNumImages] = useState(8);
+  const [numImages, setNumImages] = useState(16);
   const [promptGuidance, setPromptGuidance] = useState(2);
   const [controlNetStrength, setControlNetStrength] = useState(0.8);
   const [controlNetGuidanceEnd, setControlNetGuidanceEnd] = useState(0.6);
@@ -1496,7 +1496,7 @@ const App = () => {
               <input
                 type="range"
                 min={1}
-                max={16}
+                max={64}
                 step={1}
                 value={numImages}
                 onChange={(e) => setNumImages(parseInt(e.target.value))}
