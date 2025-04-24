@@ -1366,8 +1366,9 @@ const App = () => {
                   <div 
                     className={`style-option ${selectedStyle === 'custom' ? 'selected' : ''}`} 
                     onClick={() => { 
-                      setSelectedStyle('custom'); 
+                      setSelectedStyle('custom');
                       setShowStyleDropdown(false);
+                      setShowControlOverlay(true);
                     }}
                   >
                     Custom...
@@ -1428,19 +1429,6 @@ const App = () => {
           {showFlash && <div className="flash-overlay" />}
         </div>
         
-        {/* Add custom style input below camera feed */}
-        {selectedStyle === 'custom' && (
-          <div className="custom-style-input-container">
-            <input
-              type="text"
-              placeholder="Enter your custom style here..."
-              className="custom-style-input-below"
-              value={customPrompt}
-              onChange={(e) => setCustomPrompt(e.target.value)}
-            />
-          </div>
-        )}
-        
         {/* Control overlay that slides down when visible */}
         <div className={`control-overlay ${showControlOverlay ? 'visible' : ''}`}>
           <div className="control-overlay-content">
@@ -1455,13 +1443,13 @@ const App = () => {
             
             {selectedStyle === 'custom' && (
               <div className="control-option">
-                <label className="control-label">Custom style prompt:</label>
-                <input
-                  type="text"
-                  placeholder="Enter custom style prompt..."
+                <label className="control-label">Custom Style Prompt:</label>
+                <textarea
                   className="custom-style-input"
+                  placeholder="Enter your custom style prompt here..."
                   value={customPrompt}
                   onChange={(e) => setCustomPrompt(e.target.value)}
+                  rows={4}
                 />
               </div>
             )}
@@ -1579,7 +1567,7 @@ const App = () => {
                 checked={keepOriginalPhoto}
                 onChange={(e) => setKeepOriginalPhoto(e.target.checked)}
               />
-              <label htmlFor="keep-original-toggle" className="control-label">Keep Original Image</label>
+              <label htmlFor="keep-original-toggle" className="control-label">Show Original Image</label>
             </div>
           </div>
         </div>
