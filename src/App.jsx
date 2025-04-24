@@ -15,9 +15,10 @@ import './App.css';
  * Default style prompts
  */
 const defaultStylePrompts = {
+  custom: ``,
   anime: `Charismatic adventurer, Studio Ghibli style anime, hayo miyazaki, masterpiece, whimsical, 90s anime, cute`,
   gorillaz: `Attractive, A vibrant, stylized cartoon band portrait inspired by the edgy, urban comic style of "Gorillaz." Bold, inky outlines and gritty details, with slightly exaggerated facial features and a rebellious attitude. A blend of punk, hip-hop, and futuristic aesthetics, set against a graffiti-covered cityscape.`,
-  disney: `Attractive, A magical, whimsical Disney-inspired portrait with bright colors, large expressive eyes, soft outlines, and a fairytale atmosphere. Princess-like attire, dreamy background elements, and a charming, uplifting mood.`,
+  disney: `Attractive, A magical, whimsical Disney-inspired portrait with bright colors, large expressive eyes, soft outlines, and a fairytale atmosphere. Royal attire, dreamy background elements, and a charming, uplifting mood.`,
   pixelArt: `Attractive, A retro CryptoPunks NFT pixel art style portrait with 8-bit color palette, blocky forms, and visible pixelation. Nostalgic and charming, reminiscent of classic arcade or console games from the 80s and 90s.`,
   steampunk: `Attractive, A retro-futuristic steampunk style portrait featuring brass goggles, gears, clockwork elements, Victorian fashion, and a smoky, industrial atmosphere. Intricate mechanical details, warm metallic tones, and a sense of invention.`,
   vaporwave: `Attractive, A dreamy, neon vaporwave portrait with pastel gradients, retro 80s aesthetics, glitch effects, palm trees, and classic Greek statue motifs. Vibrant pink, purple, and cyan color palette, set in a cyber-futuristic cityscape.`,
@@ -25,8 +26,7 @@ const defaultStylePrompts = {
   sketch: 'Caricature sketch drawing of a person on an art clipboard with marker',
   statue: 'Antique Roman statue with red garments',
   clown: 'a clown in full makeup, balloon animals',
-  relax: 'in bubble bath submerged to face, white bubbles, pink bathtub, 35mm cinematic film',
-  custom: ``,
+  relax: 'in bubble bath submerged to face, white bubbles, pink bathtub, 35mm cinematic film'
 };
 defaultStylePrompts.random = `{${['anime', 'gorillaz', 'pixelArt', 'vaporwave', 'sketch', 'statue', 'clown', 'relax'].map(style => defaultStylePrompts[style]).join('|')}}`;
 
@@ -272,7 +272,7 @@ const App = () => {
     "Today is going to be a good day.",
     "My horn doubles as a selfie stick.",
     "First the photobooth, and then the world baby!",
-    "You down to clown? Clown Style Prompt that is."
+    "You down to clown? Style Prompt that is."
   ];
 
   // Add state for current thought
@@ -312,21 +312,16 @@ const App = () => {
       showThought();
     }, initialDelay);
 
-    // Set up interval for random thoughts with variable timing
-    const showNextThought = () => {
+    // Set up interval for random thoughts
+    const interval = setInterval(() => {
       if (selectedPhotoIndex === null) {
         showThought();
       }
-      // Schedule next thought with random delay between 12-18 seconds
-      const nextDelay = 12000 + Math.random() * 6000;
-      setTimeout(showNextThought, nextDelay);
-    };
-
-    const firstInterval = setTimeout(showNextThought, initialDelay + 15000);
+    }, 18000); // Fixed 18 second interval
 
     return () => {
       clearTimeout(firstThought);
-      clearTimeout(firstInterval);
+      clearInterval(interval);
     };
   }, [showThought, selectedPhotoIndex]);
 
