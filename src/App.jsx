@@ -827,7 +827,7 @@ const App = () => {
           : selectedStyle === 'randomMix'
             ? getRandomMixPrompts(numImages)
             : defaultStylePrompts[selectedStyle];
-
+      console.log('Style prompt:', stylePrompt);
       projectStateRef.current = {
         currentPhotoIndex: newPhotoIndex,
         pendingCompletions: new Map()
@@ -1860,7 +1860,7 @@ const App = () => {
       selectedPrompts.push(defaultStylePrompts[randomStyle]);
     }
     
-    return `${selectedPrompts.map(prompt => `{${prompt}}`).join('|')}`;
+    return `{${selectedPrompts.join('|')}}`;
   };
 
   // -------------------------
