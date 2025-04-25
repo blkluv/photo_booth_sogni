@@ -248,4 +248,32 @@
 .control-option.checkbox .control-label {
   margin-bottom: 0;
   flex: 1;
+}
+
+/* Add styles for the reset button */
+.reset-option {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.reset-settings-btn {
+  background-color: #ff3366;
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.reset-settings-btn:hover {
+  background-color: #ff4d7d;
+  transform: scale(1.05);
+}
+
+.reset-settings-btn:active {
+  transform: scale(0.98);
 } 

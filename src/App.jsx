@@ -10,6 +10,54 @@ import light2Image from './light2.png';
 import './App.css';
 import prompts from './prompts.json';
 
+// Cookie utility functions
+const saveSettingsToCookies = (settings) => {
+  const expiryDate = new Date();
+  expiryDate.setMonth(expiryDate.getMonth() + 6); // Expire in 6 months
+  const expires = `; expires=${expiryDate.toUTCString()}`;
+  
+  Object.entries(settings).forEach(([key, value]) => {
+    document.cookie = `sogni_${key}=${value}${expires}; path=/`;
+  });
+};
+
+const getSettingFromCookie = (name, defaultValue) => {
+  const cookieName = `sogni_${name}=`;
+  const cookies = document.cookie.split(';');
+  
+  for (let cookie of cookies) {
+    cookie = cookie.trim();
+    if (cookie.indexOf(cookieName) === 0) {
+      const value = cookie.substring(cookieName.length);
+      
+      // Try to parse numbers and booleans
+      if (!isNaN(Number(value))) {
+        return Number(value);
+      } else if (value === 'true') {
+        return true;
+      } else if (value === 'false') {
+        return false;
+      }
+      
+      return value;
+    }
+  }
+  
+  return defaultValue;
+};
+
+// Default settings
+const DEFAULT_SETTINGS = {
+  selectedModel: 'coreml-sogniXLturbo_alpha1_ad',
+  numImages: 16,
+  promptGuidance: 2,
+  controlNetStrength: 0.8,
+  controlNetGuidanceEnd: 0.6,
+  flashEnabled: true,
+  keepOriginalPhoto: true,
+  selectedStyle: 'randomMix'
+};
+
 /**
  * Default style prompts
  */
@@ -103,10 +151,9 @@ const App = () => {
   const cameraWindSoundRef = useRef(null);
   const slothicornRef = useRef(null);
 
-  // Style selection -- default to "randomMix" instead of "anime"
-  const [selectedStyle, setSelectedStyle] = useState('randomMix');
-  const [customPrompt, setCustomPrompt] = useState('');
-
+  // Style selection -- default to what's in cookies
+  const [selectedStyle, setSelectedStyle] = useState(getSettingFromCookie('selectedStyle', DEFAULT_SETTINGS.selectedStyle));
+  const [customPrompt, setCustomPrompt] = useState(getSettingFromCookie('customPrompt', ''));
 
   // Photos array
   // Each => { id, generating, images: string[], error, originalDataUrl?, newlyArrived?: boolean, generationCountdown?: number }
@@ -126,9 +173,9 @@ const App = () => {
 
   // advanced settings
   const [showSettings, setShowSettings] = useState(false);
-  const [flashEnabled, setFlashEnabled] = useState(true);
+  const [flashEnabled, setFlashEnabled] = useState(getSettingFromCookie('flashEnabled', DEFAULT_SETTINGS.flashEnabled));
   // Removed the single `realism` state in favor of styleRealism
-  const [keepOriginalPhoto, setKeepOriginalPhoto] = useState(true);
+  const [keepOriginalPhoto, setKeepOriginalPhoto] = useState(getSettingFromCookie('keepOriginalPhoto', DEFAULT_SETTINGS.keepOriginalPhoto));
 
   // Sogni
   const [sogniClient, setSogniClient] = useState(null);
@@ -171,12 +218,12 @@ const App = () => {
     { label: 'JuggernautXL 9 + RD Photo2 (SDXL Lightning)', value: 'coreml-juggernautXL_v9Rdphoto2Lightning' }
   ];
 
-  // At the top of App component, add new state variables
-  const [selectedModel, setSelectedModel] = useState('coreml-sogniXLturbo_alpha1_ad');
-  const [numImages, setNumImages] = useState(16);
-  const [promptGuidance, setPromptGuidance] = useState(2);
-  const [controlNetStrength, setControlNetStrength] = useState(0.8);
-  const [controlNetGuidanceEnd, setControlNetGuidanceEnd] = useState(0.6);
+  // At the top of App component, add new state variables - now loaded from cookies
+  const [selectedModel, setSelectedModel] = useState(getSettingFromCookie('selectedModel', DEFAULT_SETTINGS.selectedModel));
+  const [numImages, setNumImages] = useState(getSettingFromCookie('numImages', DEFAULT_SETTINGS.numImages));
+  const [promptGuidance, setPromptGuidance] = useState(getSettingFromCookie('promptGuidance', DEFAULT_SETTINGS.promptGuidance));
+  const [controlNetStrength, setControlNetStrength] = useState(getSettingFromCookie('controlNetStrength', DEFAULT_SETTINGS.controlNetStrength));
+  const [controlNetGuidanceEnd, setControlNetGuidanceEnd] = useState(getSettingFromCookie('controlNetGuidanceEnd', DEFAULT_SETTINGS.controlNetGuidanceEnd));
 
   // Add a state to control the visibility of the overlay panel
   const [showControlOverlay, setShowControlOverlay] = useState(false);
@@ -1348,7 +1395,7 @@ const App = () => {
                   <div 
                     className={`style-option ${selectedStyle === 'randomMix' ? 'selected' : ''}`} 
                     onClick={() => { 
-                      setSelectedStyle('randomMix'); 
+                      updateSetting(setSelectedStyle, 'selectedStyle')('randomMix');
                       setShowStyleDropdown(false);
                     }}
                   >
@@ -1357,7 +1404,7 @@ const App = () => {
                   <div 
                     className={`style-option ${selectedStyle === 'random' ? 'selected' : ''}`} 
                     onClick={() => { 
-                      setSelectedStyle('random'); 
+                      updateSetting(setSelectedStyle, 'selectedStyle')('random');
                       setShowStyleDropdown(false);
                     }}
                   >
@@ -1366,7 +1413,7 @@ const App = () => {
                   <div 
                     className={`style-option ${selectedStyle === 'custom' ? 'selected' : ''}`} 
                     onClick={() => { 
-                      setSelectedStyle('custom');
+                      updateSetting(setSelectedStyle, 'selectedStyle')('custom');
                       setShowStyleDropdown(false);
                       setShowControlOverlay(true);
                     }}
@@ -1381,7 +1428,7 @@ const App = () => {
                         key={styleKey}
                         className={`style-option ${selectedStyle === styleKey ? 'selected' : ''}`} 
                         onClick={() => { 
-                          setSelectedStyle(styleKey); 
+                          updateSetting(setSelectedStyle, 'selectedStyle')(styleKey);
                           setShowStyleDropdown(false);
                         }}
                       >
@@ -1448,7 +1495,10 @@ const App = () => {
                   className="custom-style-input"
                   placeholder="Enter your custom style prompt here..."
                   value={customPrompt}
-                  onChange={(e) => setCustomPrompt(e.target.value)}
+                  onChange={(e) => {
+                    setCustomPrompt(e.target.value);
+                    saveSettingsToCookies({ customPrompt: e.target.value });
+                  }}
                   rows={4}
                 />
               </div>
@@ -1480,7 +1530,7 @@ const App = () => {
               <select
                 className="model-select"
                 value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
+                onChange={(e) => updateSetting(setSelectedModel, 'selectedModel')(e.target.value)}
               >
                 {modelOptions.map((model) => (
                   <option key={model.value} value={model.value}>
@@ -1499,7 +1549,7 @@ const App = () => {
                 max={64}
                 step={1}
                 value={numImages}
-                onChange={(e) => setNumImages(parseInt(e.target.value))}
+                onChange={(e) => updateSetting(setNumImages, 'numImages')(parseInt(e.target.value))}
                 className="slider-input"
               />
               <span className="slider-value">{numImages}</span>
@@ -1514,7 +1564,7 @@ const App = () => {
                 max={3}
                 step={0.1}
                 value={promptGuidance}
-                onChange={(e) => setPromptGuidance(parseFloat(e.target.value))}
+                onChange={(e) => updateSetting(setPromptGuidance, 'promptGuidance')(parseFloat(e.target.value))}
                 className="slider-input"
               />
               <span className="slider-value">{promptGuidance.toFixed(1)}</span>
@@ -1529,7 +1579,7 @@ const App = () => {
                 max={1}
                 step={0.1}
                 value={controlNetStrength}
-                onChange={(e) => setControlNetStrength(parseFloat(e.target.value))}
+                onChange={(e) => updateSetting(setControlNetStrength, 'controlNetStrength')(parseFloat(e.target.value))}
                 className="slider-input"
               />
               <span className="slider-value">{controlNetStrength.toFixed(1)}</span>
@@ -1544,7 +1594,7 @@ const App = () => {
                 max={0.8}
                 step={0.1}
                 value={controlNetGuidanceEnd}
-                onChange={(e) => setControlNetGuidanceEnd(parseFloat(e.target.value))}
+                onChange={(e) => updateSetting(setControlNetGuidanceEnd, 'controlNetGuidanceEnd')(parseFloat(e.target.value))}
                 className="slider-input"
               />
               <span className="slider-value">{controlNetGuidanceEnd.toFixed(1)}</span>
@@ -1555,7 +1605,7 @@ const App = () => {
                 type="checkbox"
                 id="flash-toggle"
                 checked={flashEnabled}
-                onChange={(e) => setFlashEnabled(e.target.checked)}
+                onChange={(e) => updateSetting(setFlashEnabled, 'flashEnabled')(e.target.checked)}
               />
               <label htmlFor="flash-toggle" className="control-label">Flash</label>
             </div>
@@ -1565,9 +1615,19 @@ const App = () => {
                 type="checkbox"
                 id="keep-original-toggle"
                 checked={keepOriginalPhoto}
-                onChange={(e) => setKeepOriginalPhoto(e.target.checked)}
+                onChange={(e) => updateSetting(setKeepOriginalPhoto, 'keepOriginalPhoto')(e.target.checked)}
               />
               <label htmlFor="keep-original-toggle" className="control-label">Show Original Image</label>
+            </div>
+            
+            {/* Reset settings button */}
+            <div className="control-option reset-option">
+              <button 
+                className="reset-settings-btn"
+                onClick={resetAllSettings}
+              >
+                Reset to Defaults
+              </button>
             </div>
           </div>
         </div>
@@ -1880,6 +1940,28 @@ const App = () => {
       return () => clearTimeout(timer);
     }
   }, [photos]);
+
+  // Create a wrapper setter for each setting that also saves to cookies
+  const updateSetting = (setter, settingName) => (value) => {
+    setter(value);
+    saveSettingsToCookies({ [settingName]: value });
+  };
+
+  // Reset all settings to defaults
+  const resetAllSettings = () => {
+    setSelectedModel(DEFAULT_SETTINGS.selectedModel);
+    setNumImages(DEFAULT_SETTINGS.numImages);
+    setPromptGuidance(DEFAULT_SETTINGS.promptGuidance);
+    setControlNetStrength(DEFAULT_SETTINGS.controlNetStrength);
+    setControlNetGuidanceEnd(DEFAULT_SETTINGS.controlNetGuidanceEnd);
+    setFlashEnabled(DEFAULT_SETTINGS.flashEnabled);
+    setKeepOriginalPhoto(DEFAULT_SETTINGS.keepOriginalPhoto);
+    setSelectedStyle(DEFAULT_SETTINGS.selectedStyle);
+    setCustomPrompt('');
+    
+    // Save all defaults to cookies
+    saveSettingsToCookies(DEFAULT_SETTINGS);
+  };
 
   // -------------------------
   //   Render
