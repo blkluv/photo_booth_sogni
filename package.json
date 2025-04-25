@@ -11,10 +11,13 @@
   },
   "dependencies": {
     "@sogni-ai/sogni-client": "3.0.0-alpha.11",
+    "prop-types": "^15.8.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.4.1",
     "autoprefixer": "^10.4.16",
     "postcss": "^8.4.33",

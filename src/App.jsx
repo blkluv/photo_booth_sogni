@@ -1649,18 +1649,19 @@ const App = () => {
     
     return (
       <div style={{ 
-        position: 'fixed',  // Changed from absolute to fixed
-        bottom: '0',        // Changed from 30px to 0
+        position: 'fixed',
+        bottom: '0',
         left: '0',
         right: '0',
         display: 'flex',
         justifyContent: 'center',
         zIndex: 50,
+        width: '100%',
         maxWidth: '100vw',
         overflow: 'visible'
       }}>
         {photos.length > 0 && showFilmStrip && (
-          <div className="film-strip-container">
+          <div className="film-strip-container" style={{ width: '100%' }}>
             {/* Close button for film strip */}
             <button 
               className="film-strip-close-btn" 
@@ -1710,6 +1711,7 @@ const App = () => {
                           filter: `invert(${1 - (photo.progress || 0) / 100})`
                         }}
                       />
+                      <div className="photo-label">Loading...</div>
                     </div>
                   );
                 }
@@ -1728,6 +1730,7 @@ const App = () => {
                           style={{ filter: 'invert(1) opacity(0.3)' }}
                         />
                       )}
+                      <div className="photo-label">Error</div>
                     </div>
                   );
                 }
@@ -1739,10 +1742,16 @@ const App = () => {
                   setSelectedSubIndex(0);
                 };
 
+                // Create the appropriate label text
+                let labelText = isReference ? "Reference" : `#${i-keepOriginalPhoto+1}`;
+                
+                // Add 'new-photo' class for animation when photo is newly arrived
+                const photoClasses = `film-frame ${isSelected ? 'selected' : ''} ${photo.newlyArrived ? 'new-photo' : ''}`;
+
                 return (
                   <div 
                     key={photo.id}
-                    className={`film-frame ${isSelected ? 'selected' : ''}`}
+                    className={photoClasses}
                     onClick={handleThumbClick}
                   >
                     <img
@@ -1750,14 +1759,7 @@ const App = () => {
                       alt={`Generated #${i}`}
                       className={photo.newlyArrived ? 'thumbnail-fade' : ''}
                     />
-                    {/* Show REF label for original photo */}
-                    {isReference && (
-                      <div className="ref-label">REF</div>
-                    )}
-                    {/* If multiple images, show stack count */}
-                    {photo.images.length > 1 && (
-                      <div className="stack-count">x{photo.images.length}</div>
-                    )}
+                    <div className="photo-label">{labelText}</div>
                   </div>
                 );
               })}
@@ -1862,6 +1864,22 @@ const App = () => {
     
     return `{${selectedPrompts.join('|')}}`;
   };
+
+  // Add effect to reset newlyArrived status after animation completes
+  useEffect(() => {
+    const newPhotos = photos.filter(photo => photo.newlyArrived);
+    if (newPhotos.length > 0) {
+      const timer = setTimeout(() => {
+        setPhotos(prev => 
+          prev.map(photo => 
+            photo.newlyArrived ? { ...photo, newlyArrived: false } : photo
+          )
+        );
+      }, 600); // Slightly longer than animation duration
+      
+      return () => clearTimeout(timer);
+    }
+  }, [photos]);
 
   // -------------------------
   //   Render

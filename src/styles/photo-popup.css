@@ -41,16 +41,18 @@
 }
 
 .selected-photo-container img {
-  max-width: 80vw;
-  max-height: 70vh;
+  max-width: calc(80vw - 48px); /* Subtract border width from max size */
+  max-height: calc(70vh - 88px); /* Subtract border + label space from max size */
   object-fit: contain;
   margin: 0 auto;
-  border: 12px solid #fff;
+  border: 24px solid #fff; /* Large white polaroid border */
+  border-bottom: 64px solid #fff; /* Larger bottom border for label */
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
   border-radius: 4px;
   animation: photoGlow 2s infinite alternate;
   display: block;
   transition: transform 0.4s ease-out;
+  position: relative;
 }
 
 @keyframes photoGlow {
@@ -95,17 +97,19 @@
 }
 
 .stack-index-indicator {
-  position: fixed;
-  left: 50%;
-  bottom: 30px;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.7);
-  color: #fff;
-  padding: 8px 15px;
-  border-radius: 20px;
-  font-size: 16px;
-  font-weight: bold;
-  z-index: 10000;
+  position: absolute;
+  bottom: 20px;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  font-family: 'Permanent Marker', cursive;
+  font-size: 24px;
+  color: #333;
+  z-index: 10010;
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  transform: none;
 }
 
 /* Navigation buttons for carousel */

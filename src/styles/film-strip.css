@@ -27,26 +27,69 @@
 .film-strip-content {
   display: flex;
   flex-direction: row;
-  background: rgba(0, 0, 0, 0.3);
-  padding: 15px;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 211, 1, 0.7) rgba(34, 27, 21, 0.5);
+  padding: 15px;
+  min-height: 220px; /* Set minimum height to prevent shrinking */
+  background: none; /* Explicitly remove background */
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  scroll-behavior: smooth; /* Smooth scrolling */
+  margin: 0 auto;
+  width: 100%;
+  max-width: 100%;
+  justify-content: center; /* Center photos when there's extra space */
+}
+
+/* Add slide-in animation for new photos */
+@keyframes slideInFromBottom {
+  0% {
+    transform: rotate(-2deg) translateY(100px);
+    opacity: 0;
+  }
+  100% {
+    transform: rotate(-2deg) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInFromBottomEven {
+  0% {
+    transform: rotate(2deg) translateY(100px);
+    opacity: 0;
+  }
+  100% {
+    transform: rotate(2deg) translateY(0);
+    opacity: 1;
+  }
+}
+
+.film-frame.new-photo {
+  animation: slideInFromBottom 0.5s ease-out forwards;
+}
+
+.film-frame.new-photo:nth-child(2n) {
+  animation: slideInFromBottomEven 0.5s ease-out forwards;
 }
 
 .film-frame {
-  width: 160px !important;
+  min-width: 160px !important;
+  max-width: 160px !important;
   height: 200px !important;
+  max-height: 200px !important;
   margin: 0 10px !important;
   border-radius: 3px !important;
   overflow: visible !important;
   background-color: white !important;
-  padding: 10px 10px 30px 10px !important;
+  padding: 10px 10px 40px 10px !important; /* Increased bottom padding for labels */
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
   transform: rotate(-2deg) !important;
-  transition: transform 0.3s ease !important;
+  transition: transform 0.3s ease, box-shadow 0.3s ease !important;
   position: relative !important;
+  flex-shrink: 0; /* Prevent shrinking */
+  display: flex !important;
+  flex-direction: column !important;
 }
 
 .film-frame:nth-child(2n) {
@@ -55,10 +98,32 @@
 
 .film-frame img {
   width: 100% !important;
-  height: calc(100% - 20px) !important;
-  object-fit: cover !important;
+  height: 140px !important; /* Fixed height with space for label */
+  object-fit: contain !important; /* Changed from cover to contain */
   object-position: center !important;
   background: #f0f0f0 !important;
+  flex-grow: 0 !important; /* Don't allow image to grow beyond container */
+}
+
+/* Add label for each photo in the polaroid white space */
+.film-frame .photo-label {
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 40px !important;
+  line-height: 40px !important; /* Match height for vertical centering */
+  text-align: center !important;
+  font-family: 'Permanent Marker', cursive !important;
+  font-size: 14px !important;
+  color: #333 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  padding: 0 5px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 /* Visible frame number badge at top-left of each photo */
@@ -116,12 +181,28 @@
 .film-frame[data-progress="90"]  img { filter: invert(0.1) !important; }
 .film-frame[data-progress="100"] img { filter: invert(0) !important; }
 
+/* Hide REF label and stack count, we'll use photo-label instead */
+.film-frame .ref-label, .film-frame .stack-count {
+  display: none !important;
+}
+
 /* Mobile adjustments */
 @media (max-width: 768px) {
   .film-frame {
-    width: 120px !important;
+    min-width: 120px !important;
+    max-width: 120px !important;
     height: 150px !important;
-    padding: 8px 8px 24px 8px !important;
+    max-height: 150px !important;
+    padding: 8px 8px 30px 8px !important;
+  }
+  
+  .film-frame img {
+    height: 100px !important;
+  }
+  
+  .film-frame .photo-label {
+    font-size: 12px !important;
+    bottom: 5px !important;
   }
 }
 
