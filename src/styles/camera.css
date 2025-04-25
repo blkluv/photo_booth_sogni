@@ -1,0 +1,84 @@
+/* ---------------------
+   Camera / Webcam Feed
+   --------------------- */
+
+/* Wrapper ensuring video fills available area while preserving aspect ratio */
+.video-container {
+  position: relative !important;
+  inset: unset !important;
+  width: 100% !important;
+  height: auto !important;
+  z-index: 2;
+}
+
+/* Actual <video> element (id="webcam") */
+#webcam {
+  @apply w-full h-full object-cover;
+}
+
+/* iOS Safari sometimes reports sideways feed in portrait.
+   We add .ios-fix class and rotate accordingly. */
+#webcam.ios-fix {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-origin: center center;
+}
+
+@supports (-webkit-touch-callout: none) {
+  /* Portrait orientation: rotate 90° and swap dimensions */
+  @media screen and (orientation: portrait) {
+    #webcam.ios-fix {
+      transform: translate(-50%, -50%) rotate(90deg);
+      width: 100vh;
+      height: 100vw;
+    }
+  }
+
+  /* Landscape orientation: reset rotation */
+  @media screen and (orientation: landscape) {
+    #webcam.ios-fix {
+      transform: translate(-50%, -50%) rotate(0deg);
+      width: 100vw;
+      height: 100vh;
+    }
+  }
+}
+
+/* -----------------------
+   Photobooth Screen Frame
+   ----------------------- */
+.photobooth-screen {
+  background-color: #000;
+  border: 6px solid #fff;
+  border-radius: 10px 10px 0 0;
+  overflow: hidden;
+  margin: 0 auto;
+  position: relative;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+  width: 66.67%; /* reduced by one-third */
+  max-width: 66.67%;
+}
+
+.photobooth-screen video {
+  width: 100%;
+  display: block;
+}
+
+/* Keep video-container limited by .photobooth-screen */
+.photobooth-screen .video-container {
+  position: relative;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* -----------------------------
+   Override global index28 ratio
+   ----------------------------- */
+.photobooth-app .photobooth-frame > .photobooth-screen {
+  width: 66.67% !important;
+  max-width: 66.67% !important;
+  height: auto !important;
+  padding-bottom: 0 !important; /* cancel ratio padding from legacy css */
+} 

@@ -1,0 +1,45 @@
+/* Thumbnail gallery and related components */
+.thumbnail-gallery {
+  @apply flex gap-3 p-3 overflow-x-auto bg-black bg-opacity-70;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 70;
+}
+
+/* Container for each thumbnail */
+.thumbnail-container {
+  @apply relative flex-shrink-0 w-[6rem] h-[6rem];
+}
+
+/* The actual thumbnail image */
+.thumbnail {
+  @apply cursor-pointer border-2 border-transparent hover:border-blue-500 w-full h-full object-cover object-center;
+}
+
+/* If this thumbnail is currently selected, add a blue outline */
+.thumbnail.selected {
+  @apply border-blue-500;
+}
+
+/* Fade-in effect for newly arrived thumbnails */
+.thumbnail-fade {
+  animation: fadeInThumb 0.8s ease-in;
+}
+
+@keyframes fadeInThumb {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* "X" delete button in top-left corner of the thumbnail */
+.thumbnail-delete-button {
+  @apply absolute top-0 left-0 text-white bg-gray-900 bg-opacity-70 p-1 rounded-br cursor-pointer hover:bg-opacity-90;
+  font-weight: bold;
+}
+
+/* If multiple images in that set, show the count in bottom-right corner */
+.stack-count {
+  @apply absolute bottom-0 right-0 bg-black bg-opacity-70 text-xs text-white px-1 py-0.5 rounded-tl;
+} 

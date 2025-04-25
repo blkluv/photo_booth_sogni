@@ -1,0 +1,163 @@
+/* ------------------------------
+   Header Style Dropdown Menu
+   ------------------------------ */
+
+/* Container holding the select button */
+.style-selector {
+  position: relative;
+  display: inline-block;
+}
+
+/* Pink pill-shaped button shown in header */
+.header-style-select {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background-color: #ff3366;
+  color: #fff;
+  border: none;
+  border-radius: 30px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 0 0 3px #fff;
+  padding: 8px 20px;
+  font-weight: bold;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.header-style-select::after {
+  content: '▼';
+  font-size: 0.7em;
+  margin-left: 8px;
+  pointer-events: none;
+}
+
+.header-style-select:hover {
+  background-color: #ff5e8a;
+  transform: scale(1.05);
+}
+
+.header-style-select:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #96143d, inset 0 0 10px rgba(255,255,255,0.5);
+}
+
+/* Dropdown menu built dynamically via JS */
+.custom-dropdown {
+  position: fixed;
+  width: 250px;
+  max-height: 80vh;
+  background-color: #333;
+  border-radius: 12px;
+  overflow-y: auto;
+  z-index: 9999;
+  border: 3px solid #fff;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.5), 0 0 0 3px #fff;
+  padding: 5px 0;
+}
+
+.custom-dropdown-option {
+  padding: 12px 15px 12px 38px;
+  background-color: #333;
+  color: #fff;
+  border-bottom: 1px solid #444;
+  position: relative;
+  cursor: pointer;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 16px;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.custom-dropdown-option:hover { background-color: #444; }
+
+.custom-dropdown-option.selected::before {
+  content: '✓';
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: #fff;
+}
+
+/* Custom scrollbar for the dropdown */
+.custom-dropdown::-webkit-scrollbar {
+  width: 8px;
+  background-color: #222;
+}
+
+.custom-dropdown::-webkit-scrollbar-thumb {
+  background: #ff3366;
+  border-radius: 4px;
+}
+
+/* Highlight the selected option */
+.custom-dropdown-option.selected {
+  background-color: #ff3366;
+}
+
+/* In-header dropdown list built statically in markup */
+.style-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 250px;
+  max-height: 80vh;
+  background: #333;
+  border: 3px solid #fff;
+  border-radius: 12px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+  overflow-y: auto;
+  padding: 5px 0;
+  z-index: 9999;
+}
+
+.style-option {
+  padding: 12px 15px 12px 38px;
+  background: #333;
+  color: #fff;
+  border-bottom: 1px solid #444;
+  cursor: pointer;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 16px;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: relative;
+}
+
+.style-option:hover { background: #444; }
+
+.style-option.selected::before {
+  content: '✓';
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: #fff;
+}
+
+@media (max-width: 768px) {
+  .custom-dropdown {
+    max-width: 95vw;
+    width: auto;
+  }
+  .custom-dropdown-option {
+    font-size: 14px;
+    padding: 8px 10px 8px 30px;
+  }
+  .custom-dropdown-option.selected::before {
+    left: 10px;
+  }
+} 

@@ -1,0 +1,118 @@
+/* Photobooth Header & Title (centralised) */
+.photobooth-header {
+  background-color: #ffd301;
+  border-radius: 12px 12px 0 0;
+  padding: 10px 15px !important;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  position: relative;
+  margin-bottom: 10px !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.photobooth-title {
+  color: #FF99CC !important;
+  font-size: 28px !important;
+  font-weight: bold !important;
+  text-transform: uppercase !important;
+  margin: 0 !important;
+  margin-right: 10px !important;
+  padding: 0 !important;
+  letter-spacing: 2px !important;
+  text-shadow: 3px 3px 0 #ff3366, -1px -1px 0 #ffd301, 0 0 10px rgba(255, 255, 255, 0.6) !important;
+  -webkit-text-stroke: 1px #ff3366 !important;
+  white-space: nowrap !important;
+  flex-shrink: 1 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Header control container (right-side buttons) */
+.photobooth-header-controls {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* "Take Photo" button displayed inside header */
+.header-take-photo-btn {
+  background-color: #ff3366;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.header-take-photo-btn:hover {
+  background-color: #ff5e8a;
+  transform: scale(1.05);
+}
+
+/* Gear-icon / settings button */
+.header-config-btn {
+  background-color: #ff3366;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.2s ease;
+  clip-path: circle(50% at 50% 50%);
+}
+
+.header-config-btn:hover {
+  transform: rotate(15deg);
+}
+
+/* Optional style selector dropdown positioned in header */
+.style-selector {
+  position: relative;
+  max-width: 200px;
+}
+
+/* ------------------------------ */
+/* Mobile adjustments below 768px */
+/* ------------------------------ */
+@media (max-width: 768px) {
+  .photobooth-header {
+    flex-direction: column;
+    padding: 10px;
+  }
+
+  .photobooth-title {
+    font-size: 24px;
+    margin-bottom: 10px;
+  }
+
+  .photobooth-header-controls {
+    width: 100%;
+    margin-left: 0;
+    justify-content: center;
+  }
+
+  .style-selector {
+    max-width: none;
+    width: 100%;
+  }
+
+  .header-take-photo-btn {
+    width: 100%;
+  }
+
+  .header-config-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+  }
+} 

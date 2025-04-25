@@ -1,0 +1,13 @@
+/* -------------------------
+   Drag-and-Drop Overlay
+   ------------------------- */
+
+.drag-overlay {
+  @apply absolute inset-0 flex items-center justify-center bg-black bg-opacity-70 text-white;
+  z-index: 100;
+  pointer-events: none; /* overlay should not block drop */
+}
+
+.drag-overlay p {
+  @apply text-2xl;
+} 

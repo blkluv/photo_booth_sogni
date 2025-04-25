@@ -1,0 +1,32 @@
+/* --------------------------------------
+   Selected Photo Viewer / Film Capture
+   -------------------------------------- */
+
+/* Enlarged photo when user taps a film frame */
+.photobooth-photo-viewer img {
+  border: 6px solid #fff;
+  border-radius: 10px;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+  flex: 1;
+  max-height: calc(100% - 80px);
+}
+
+/* Button shown on viewer to return to camera */
+.back-to-camera-btn {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: #ff3366;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 15px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.back-to-camera-btn:hover {
+  background-color: #ff5e8a;
+} 

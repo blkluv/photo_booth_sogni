@@ -1,0 +1,42 @@
+/* Flash & Countdown overlays (centralised) */
+
+/* Full-screen camera flash */
+.flash-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: white;
+  z-index: 9999;
+  animation: flash 0.4s ease-out;
+}
+
+@keyframes flash {
+  0%   { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Circular countdown in the middle of the screen */
+.countdown-overlay {
+  background: rgba(255, 51, 102, 0.6);
+  border-radius: 50%;
+  width: 150px;
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Impact', sans-serif;
+  font-size: 72px;
+  color: white;
+  text-shadow: 3px 3px 0 #ff3366;
+  animation: pulse 1s infinite;
+  z-index: 50; /* keep above video feed but below flash */
+}
+
+@keyframes pulse {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.1); }
+  100% { transform: scale(1); }
+} 

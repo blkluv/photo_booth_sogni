@@ -1,0 +1,65 @@
+/* ------------------------------
+   Background Studio Lights
+   ------------------------------ */
+
+/* Fixed container stretching full viewport but non-interactive */
+.studio-lights-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 1; /* behind main UI, above gradient bg */
+}
+
+/* Individual light images */
+.studio-light {
+  position: absolute;
+  bottom: 0;
+  height: 80vh;
+  max-height: 800px;
+  width: auto;
+  opacity: 0.8;
+  pointer-events: none;
+  mix-blend-mode: normal;
+}
+
+.studio-light.left { left: -2%; }
+.studio-light.right { right: -2%; }
+
+/* Slightly adjust on mobile orientations for nicer framing */
+@media (max-width: 768px) {
+  body.portrait .studio-light {
+    height: 140vh;
+    bottom: -40vh;
+    opacity: 0.65;
+  }
+  body.portrait .studio-light.left  { left: -60%; transform: translateX(30%) scale(0.9); }
+  body.portrait .studio-light.right { right: -60%; transform: translateX(-30%) scale(0.9); }
+
+  body.landscape .studio-light {
+    height: 160vh;
+    bottom: -60vh;
+  }
+  body.landscape .studio-light.left  { left: -50%; }
+  body.landscape .studio-light.right { right: -50%; }
+}
+
+/* -----------------------------------------------------------------
+   FINAL camera size override (must load AFTER any legacy index css)
+   -----------------------------------------------------------------*/
+html body .photobooth-app .photobooth-frame > .photobooth-screen {
+  width: 66.67% !important;
+  max-width: 66.67% !important;
+  height: auto !important;
+  padding-bottom: 0 !important; /* cancel ratio padding */
+  aspect-ratio: auto !important;
+}
+
+/* Ensure internal video container cannot escape */
+html body .photobooth-app .photobooth-frame > .photobooth-screen .video-container {
+  position: relative !important;
+  width: 100% !important;
+  height: auto !important;
+} 

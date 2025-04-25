@@ -1,0 +1,19 @@
+/* ----------------
+   Global Base CSS
+   ---------------- */
+
+body {
+  @apply bg-gray-900 text-white;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  min-height: 100% !important;
+  overflow-x: hidden !important;
+}
+
+/* Generic helper to hide scrollbars but still allow scrolling */
+.hide-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+} 

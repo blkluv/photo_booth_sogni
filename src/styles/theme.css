@@ -1,0 +1,24 @@
+/* -------------------------
+   Overall Photobooth Theme
+   ------------------------- */
+
+/* Main gradient background for entire photobooth app */
+.photobooth-app {
+  background: linear-gradient(135deg, #ff61d5 0%, #7132e8 100%);
+  font-family: 'Arial', sans-serif;
+  overflow: hidden;
+  padding: 5px !important; /* reduced padding */
+}
+
+/* Outer frame surrounding video feed, thumbnails, header etc. */
+.photobooth-frame {
+  background-color: #ff3366;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2) !important;
+  max-width: 1000px !important;
+  margin: 0 auto !important;
+  padding: 10px !important;
+  position: relative;
+  overflow: hidden;
+  z-index: 2;
+} 

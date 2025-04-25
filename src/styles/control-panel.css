@@ -1,0 +1,32 @@
+/* Global Control Panel styles */
+
+.control-panel {
+  @apply absolute top-4 left-4 bg-gray-800 bg-opacity-70 p-4 rounded-lg shadow-xl flex flex-col gap-3;
+  z-index: 80;
+}
+
+.control-panel-row {
+  @apply flex items-center gap-2;
+}
+
+/* Standardised inputs & buttons inside control panel */
+.control-panel select,
+.control-panel input[type="text"],
+.control-panel button {
+  border: 3px solid #ff3366;
+  border-radius: 8px;
+  background-color: white;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+.control-panel button {
+  background-color: #ff3366;
+  color: white;
+  font-weight: bold;
+}
+
+.control-panel button:hover {
+  background-color: #ff5e8a;
+  transform: scale(1.05);
+} 

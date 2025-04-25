@@ -1,0 +1,161 @@
+/* -----------------------------------
+   Film Strip Thumbnail Viewer Styles
+   ----------------------------------- */
+
+.film-strip-container {
+  background: none !important;
+  border-radius: 0;
+  box-shadow: none !important;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 10px 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin: 0;
+  border: none !important;
+  overflow: visible;
+  z-index: 1000;
+}
+
+.film-strip-holes {
+  display: none !important;
+}
+
+.film-strip-content {
+  display: flex;
+  flex-direction: row;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 15px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 211, 1, 0.7) rgba(34, 27, 21, 0.5);
+}
+
+.film-frame {
+  width: 160px !important;
+  height: 200px !important;
+  margin: 0 10px !important;
+  border-radius: 3px !important;
+  overflow: visible !important;
+  background-color: white !important;
+  padding: 10px 10px 30px 10px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  transform: rotate(-2deg) !important;
+  transition: transform 0.3s ease !important;
+  position: relative !important;
+}
+
+.film-frame:nth-child(2n) {
+  transform: rotate(2deg) !important;
+}
+
+.film-frame img {
+  width: 100% !important;
+  height: calc(100% - 20px) !important;
+  object-fit: cover !important;
+  object-position: center !important;
+  background: #f0f0f0 !important;
+}
+
+/* Visible frame number badge at top-left of each photo */
+.film-frame .frame-number {
+  position: absolute;
+  top: 0;
+  left: 0;
+  min-width: 24px;
+  padding: 2px 5px;
+  font-size: 12px;
+  font-weight: normal;
+  color: #fff;
+  background-color: rgba(255, 51, 102, 0.7);
+  border-radius: 0 0 6px 0;
+  text-align: center;
+  z-index: 5;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  text-shadow: 2px 2px 0 #ff3366, 4px 4px 0 rgba(0,0,0,0.2);
+  letter-spacing: 2px;
+}
+
+.film-frame:hover {
+  transform: translateY(-10px) rotate(0deg) !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4) !important;
+}
+
+.film-frame.selected {
+  transform: translateY(-10px) rotate(0deg) !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4), 0 0 0 3px #ff3366 !important;
+}
+
+/* Loading state with inverted placeholder */
+.film-frame.loading {
+  position: relative !important;
+  display: block !important;
+  background: white !important;
+}
+
+.film-frame.loading img {
+  filter: invert(1) !important;
+  opacity: 0.7 !important;
+  transition: filter 0.5s ease-out !important;
+}
+
+/* Progress state - transition from inverted to normal */
+.film-frame[data-progress="0"]   img { filter: invert(1) !important; }
+.film-frame[data-progress="10"]  img { filter: invert(0.9) !important; }
+.film-frame[data-progress="20"]  img { filter: invert(0.8) !important; }
+.film-frame[data-progress="30"]  img { filter: invert(0.7) !important; }
+.film-frame[data-progress="40"]  img { filter: invert(0.6) !important; }
+.film-frame[data-progress="50"]  img { filter: invert(0.5) !important; }
+.film-frame[data-progress="60"]  img { filter: invert(0.4) !important; }
+.film-frame[data-progress="70"]  img { filter: invert(0.3) !important; }
+.film-frame[data-progress="80"]  img { filter: invert(0.2) !important; }
+.film-frame[data-progress="90"]  img { filter: invert(0.1) !important; }
+.film-frame[data-progress="100"] img { filter: invert(0) !important; }
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .film-frame {
+    width: 120px !important;
+    height: 150px !important;
+    padding: 8px 8px 24px 8px !important;
+  }
+}
+
+/* Restore button to unhide film strip */
+.film-strip-restore-btn {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  @apply bg-pink-600 text-white font-bold px-4 py-2 rounded shadow-lg hover:bg-pink-500 transition;
+}
+
+/* Close button to hide film strip */
+.film-strip-close-btn {
+  position: absolute;
+  top: -15px; /* slightly above strip */
+  right: 5px;
+  width: 30px;
+  height: 30px;
+  background-color: rgba(0,0,0,0.8);
+  color: #fff;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+  z-index: 200;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.film-strip-close-btn:hover {
+  background-color: #ff3366;
+  transform: scale(1.1);
+} 
