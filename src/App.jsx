@@ -783,52 +783,24 @@ const App = () => {
       return;
     }
 
+    // Handle photo navigation
     if (selectedPhotoIndex !== null) {
-      const currentPhoto = photos[selectedPhotoIndex];
-      const maxImages = currentPhoto?.images?.length || 1;
-
-      // ESC => close viewer with animation
       if (e.key === 'Escape') {
-        handleClosePhoto();
+        setSelectedPhotoIndex(null);
         return;
       }
 
-      // up/down => subIndex
-      if (maxImages > 1) {
-        if (e.key === 'ArrowUp') {
-          e.preventDefault();
-          setSelectedSubIndex((prev) => (prev - 1 + maxImages) % maxImages);
-        } else if (e.key === 'ArrowDown') {
-          e.preventDefault();
-          setSelectedSubIndex((prev) => (prev + 1) % maxImages);
-        }
-      }
-
-      // left/right => previous/next photo with looping
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        goToPrevPhoto(); // Use the looping function instead
+        const prevIndex = selectedPhotoIndex === 0 ? photos.length - 1 : selectedPhotoIndex - 1;
+        setSelectedPhotoIndex(prevIndex);
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
-        goToNextPhoto(); // Use the looping function instead
-      }
-
-      // space => toggle original (5th) if present
-      if (e.key === ' ' && maxImages === 5) {
-        e.preventDefault();
-        setSelectedSubIndex((prev) => {
-          if (prev === 4) {
-            // if on original, go back
-            return lastViewedIndex;
-          } else {
-            // if on a rendered image, store that, go to original
-            setLastViewedIndex(prev);
-            return 4;
-          }
-        });
+        const nextIndex = selectedPhotoIndex === photos.length - 1 ? 0 : selectedPhotoIndex + 1;
+        setSelectedPhotoIndex(nextIndex);
       }
     }
-  }, [selectedPhotoIndex, photos, lastViewedIndex, showControlOverlay, photos.length]);
+  }, [selectedPhotoIndex, photos.length, showControlOverlay]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -1796,6 +1768,25 @@ const App = () => {
               ×
             </button>
             
+            {/* Camera selector - moved to top */}
+            {cameraDevices.length > 0 && (
+              <div className="control-option">
+                <label className="control-label">Camera:</label>
+                <select
+                  className="camera-select"
+                  onChange={handleCameraSelection}
+                  value={selectedCameraDeviceId || ''}
+                >
+                  <option value="">Default (user-facing)</option>
+                  {cameraDevices.map((dev) => (
+                    <option key={dev.deviceId} value={dev.deviceId}>
+                      {dev.label || `Camera ${dev.deviceId}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {selectedStyle === 'custom' && (
               <div className="control-option">
                 <label className="control-label">Custom Style Prompt:</label>
@@ -2001,13 +1992,47 @@ const App = () => {
   //   Thumbnails at bottom
   // -------------------------
   const renderGallery = () => {    
-    // Don't render if no photos or grid not shown
     if (photos.length === 0 || !showPhotoGrid) return null;
     
     return (
-      <div className={`film-strip-container ${showPhotoGrid ? 'visible' : 'hiding'}`}>
-        {/* Grid of photos */}
-        <div className="film-strip-content" style={{
+      <div className={`film-strip-container ${showPhotoGrid ? 'visible' : 'hiding'} ${selectedPhotoIndex !== null ? 'has-selected' : ''}`}>
+        {/* Back to Camera button */}
+        <button
+          className="back-to-camera-btn"
+          onClick={handleBackToCamera}
+          style={{
+            position: 'fixed',
+            left: '20px',
+            bottom: '20px',
+            background: 'linear-gradient(135deg, #ffb6e6 0%, #ff5e8a 100%)',
+            color: 'white',
+            border: 'none',
+            padding: '12px 24px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            fontSize: '16px',
+            zIndex: 9999,
+            transition: 'transform 0.2s, box-shadow 0.2s',
+          }}
+        >
+          ← Back to Camera
+        </button>
+
+        {/* Navigation buttons - only show when a photo is selected */}
+        {selectedPhotoIndex !== null && photos.length > 1 && (
+          <>
+            <button className="photo-nav-btn prev" onClick={goToPrevPhoto}>
+              &#8249;
+            </button>
+            <button className="photo-nav-btn next" onClick={goToNextPhoto}>
+              &#8250;
+            </button>
+          </>
+        )}
+
+        <div className={`film-strip-content ${selectedPhotoIndex !== null ? 'has-selected' : ''}`} style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
           gap: '32px',
@@ -2023,195 +2048,54 @@ const App = () => {
             const placeholderUrl = photo.originalDataUrl;
             const progress = Math.floor(photo.progress || 0);
             const loadingLabel = progress > 0 ? `${progress}%` : "";
-            let photoNumber = isReference ? "Reference" : `#${i-keepOriginalPhoto+1}`;
-            const maxWidth = 1152;
+            const labelText = isReference ? "Reference" : `#${i-keepOriginalPhoto+1}`;
             const aspectRatio = 1152 / 896;
-            // Use loadedImages state for fade-in
-            const hasLoaded = loadedImages[photo.id] || false;
+
             // Loading or error state
             if ((photo.loading && photo.images.length === 0) || (photo.error && photo.images.length === 0)) {
               return (
                 <div
                   key={photo.id}
                   className={`film-frame loading ${isSelected ? 'selected' : ''}`}
-                  style={{
-                    width: '100%',
-                    maxWidth: '25vw',
-                    minWidth: 180,
-                    boxSizing: 'border-box',
-                    background: 'white',
-                    borderRadius: 8,
-                    boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
-                    padding: '12px 12px 36px 12px',
-                    position: 'relative',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
+                  onClick={() => isSelected ? setSelectedPhotoIndex(null) : setSelectedPhotoIndex(i)}
                 >
-                  <div className="aspect-ratio-box" style={{
-                    position: 'relative',
-                    width: '100%',
-                    paddingBottom: `${100 / aspectRatio}%`,
-                    overflow: 'hidden',
-                    borderRadius: 0,
-                  }}>
+                  <div className="aspect-ratio-box">
                     {placeholderUrl && (
                       <img
                         src={placeholderUrl}
                         alt="Reference"
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                          opacity: 0.2,
-                          zIndex: 1,
-                          pointerEvents: 'none',
-                        }}
+                        className="placeholder"
                       />
                     )}
                   </div>
-                  <div className="photo-label" style={{
-                    marginTop: 8,
-                    textAlign: 'center',
-                    fontFamily: '"Permanent Marker", cursive',
-                    fontWeight: 600,
-                    fontSize: 18,
-                    letterSpacing: 1,
-                    color: '#222',
-                    textShadow: '0 1px 2px #fff',
-                  }}>{loadingLabel || photoNumber}</div>
+                  <div className="photo-label">
+                    {loadingLabel || labelText}
+                  </div>
                 </div>
               );
             }
-            // Show completed image (fade in over reference)
+
+            // Show completed image
             const thumbUrl = photo.images[0] || '';
-            const handleThumbClick = () => {
-              setSelectedPhotoIndex(i);
-              setSelectedSubIndex(0);
-            };
-            let labelText = isReference ? "Reference" : `#${i-keepOriginalPhoto+1}`;
             return (
               <div 
                 key={photo.id}
                 className={`film-frame ${isSelected ? 'selected' : ''}`}
-                onClick={handleThumbClick}
-                style={{
-                  width: '100%',
-                  maxWidth: '25vw',
-                  minWidth: 180,
-                  boxSizing: 'border-box',
-                  background: 'white',
-                  borderRadius: 8,
-                  boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
-                  padding: '12px 12px 36px 12px',
-                  position: 'relative',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+                onClick={() => isSelected ? setSelectedPhotoIndex(null) : setSelectedPhotoIndex(i)}
               >
-                <div className="aspect-ratio-box" style={{
-                  position: 'relative',
-                  width: '100%',
-                  paddingBottom: `${100 / aspectRatio}%`,
-                  overflow: 'hidden',
-                  borderRadius: 0, // Remove border radius for sharp corners
-                }}>
-                  {/* Reference image at 0.5 opacity under generated image */}
-                  {placeholderUrl && (
-                    <img
-                      src={placeholderUrl}
-                      alt="Reference"
-                      className={`placeholder-image${loadedImages[photo.id]?.ref ? ' fade-in' : ''}`}
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        opacity: Math.min((photo.progress || 0) * 0.25 / 100, 0.25),
-                        zIndex: 1,
-                        pointerEvents: 'none',
-                        filter: 'none',
-                      }}
-                      onLoad={() => setLoadedImages(prev => ({
-                        ...prev,
-                        [photo.id]: { ...prev[photo.id], ref: true }
-                      }))}
-                    />
-                  )}
-                  {/* Generated image fades in over reference */}
-                  {thumbUrl && (
-                    <img
-                      src={thumbUrl}
-                      alt={`Generated #${i}`}
-                      className={`placeholder-image${loadedImages[photo.id]?.gen ? ' fade-in' : ''}`}
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        opacity: loadedImages[photo.id]?.gen ? 1 : 0,
-                        zIndex: 2,
-                        transition: 'opacity 0.5s',
-                      }}
-                      onLoad={() => setLoadedImages(prev => ({
-                        ...prev,
-                        [photo.id]: { ...prev[photo.id], gen: true }
-                      }))}
-                    />
-                  )}
+                <div className="aspect-ratio-box">
+                  <img
+                    src={thumbUrl}
+                    alt={`Generated #${i}`}
+                  />
                 </div>
-                <div className="photo-label" style={{
-                  marginTop: 8,
-                  textAlign: 'center',
-                  fontFamily: '"Permanent Marker", cursive',
-                  fontWeight: 600,
-                  fontSize: 18,
-                  letterSpacing: 1,
-                  color: '#222',
-                  textShadow: '0 1px 2px #fff',
-                }}>{labelText}</div>
+                <div className="photo-label">
+                  {labelText}
+                </div>
               </div>
             );
           })}
         </div>
-        
-        {/* Back to Camera button */}
-        <button
-          className="back-to-camera-btn"
-          onClick={handleBackToCamera}
-          style={{
-            position: 'fixed',
-            bottom: '20px',
-            left: '20px',
-            background: 'linear-gradient(135deg, #ff3366 0%, #ff5e8a 100%)',
-            color: 'white',
-            padding: '12px 24px',
-            border: 'none',
-            borderRadius: '25px',
-            fontWeight: 'bold',
-            fontSize: '16px',
-            cursor: 'pointer',
-            zIndex: 9999,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-        >
-          <span style={{ fontSize: '20px' }}>📷</span>
-          Back to Camera
-        </button>
       </div>
     );
   };
@@ -2429,6 +2313,25 @@ const App = () => {
               ×
             </button>
             
+            {/* Camera selector - moved to top */}
+            {cameraDevices.length > 0 && (
+              <div className="control-option">
+                <label className="control-label">Camera:</label>
+                <select
+                  className="camera-select"
+                  onChange={handleCameraSelection}
+                  value={selectedCameraDeviceId || ''}
+                >
+                  <option value="">Default (user-facing)</option>
+                  {cameraDevices.map((dev) => (
+                    <option key={dev.deviceId} value={dev.deviceId}>
+                      {dev.label || `Camera ${dev.deviceId}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {selectedStyle === 'custom' && (
               <div className="control-option">
                 <label className="control-label">Custom Style Prompt:</label>
@@ -2635,138 +2538,6 @@ const App = () => {
 
         {/* Photo gallery grid - shown when showPhotoGrid is true */}
         {renderGallery()}
-
-        {/* Photo viewer - with previews and next/prev navigation */}
-        {(selectedPhotoIndex !== null || photoViewerClosing) && (
-          <div 
-            className={`selected-photo-container ${photoViewerClosing ? 'fade-out' : ''}`}
-            onClick={handlePhotoViewerClick}
-          >
-            {/* Photos carousel with prev/next previews */}
-            <div className="photos-carousel">
-              {/* Previous photo preview */}
-              {photos.length > 1 && selectedPhotoIndex !== null && (
-                <div className="photo-preview prev" onClick={goToPrevPhoto}>
-                  <img 
-                    src={photos[getPrevPhotoIndex(selectedPhotoIndex)]?.images?.[0] || ''}
-                    alt="Previous"
-                    className="photo-preview-img"
-                  />
-                </div>
-              )}
-              
-              {/* Navigation buttons */}
-              {photos.length > 1 && selectedPhotoIndex !== null && (
-                <>
-                  <button className="photo-nav-btn prev" onClick={goToPrevPhoto}>
-                    &#8249;
-                  </button>
-                  <button className="photo-nav-btn next" onClick={goToNextPhoto}>
-                    &#8250;
-                  </button>
-                </>
-              )}
-              
-              {/* Current photo - detect orientation */}
-              <div 
-                className={`film-frame popup-polaroid ${isPortraitOrientation() ? 'portrait' : 'landscape'}`}
-                style={{
-                  width: '100%',
-                  maxWidth: 'min(90vw, 1152px)',
-                  minWidth: 320,
-                  boxSizing: 'border-box',
-                  background: 'white',
-                  borderRadius: 8,
-                  boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
-                  padding: '32px 32px 96px 32px',
-                  position: 'relative',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '40px auto',
-                }}
-              >
-                <div className="aspect-ratio-box" style={{
-                  position: 'relative',
-                  width: '100%',
-                  paddingBottom: `${100 / (1152/896)}%`,
-                  overflow: 'hidden',
-                  borderRadius: 4,
-                }}>
-                  {/* Reference image fade-in if loading */}
-                  {selectedPhotoIndex !== null && photos[selectedPhotoIndex]?.loading && photos[selectedPhotoIndex]?.originalDataUrl && (
-                    <img
-                      src={photos[selectedPhotoIndex].originalDataUrl}
-                      alt="Reference"
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        opacity: Math.min((photos[selectedPhotoIndex].progress || 0) * 0.25 / 100, 0.25),
-                        zIndex: 1,
-                        pointerEvents: 'none',
-                        filter: 'none',
-                        transition: 'opacity 0.2s',
-                        mixBlendMode: !(photos[selectedPhotoIndex]?.images?.[0]) ? 'difference' : 'normal',
-                      }}
-                    />
-                  )}
-                  {/* Generated image fade-in */}
-                  {selectedPhotoIndex !== null && photos[selectedPhotoIndex]?.images?.[0] && (
-                    <img
-                      src={photos[selectedPhotoIndex].images[0]}
-                      alt="Generated"
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        opacity: loadedImages[photos[selectedPhotoIndex].id]?.gen ? 1 : 0,
-                        zIndex: 2,
-                        transition: 'opacity 0.5s',
-                        animation: loadedImages[photos[selectedPhotoIndex].id]?.gen ? 'fadeInGridImg 0.2s' : 'none',
-                      }}
-                      onLoad={() => setLoadedImages(prev => ({
-                        ...prev,
-                        [photos[selectedPhotoIndex].id]: { ...prev[photos[selectedPhotoIndex].id], gen: true }
-                      }))}
-                    />
-                  )}
-                </div>
-                <div className="photo-label" style={{
-                  marginTop: 24,
-                  textAlign: 'center',
-                  fontFamily: '"Permanent Marker", cursive',
-                  fontWeight: 700,
-                  fontSize: 36,
-                  letterSpacing: 1,
-                  color: '#222',
-                  textShadow: '0 1px 2px #fff',
-                }}>{
-                  selectedPhotoIndex !== null && photos[selectedPhotoIndex]?.loading && Math.floor(photos[selectedPhotoIndex]?.progress || 0) > 0
-                    ? `${Math.floor(photos[selectedPhotoIndex].progress)}%`
-                    : (photos[selectedPhotoIndex]?.isOriginal ? 'Reference' : `#${selectedPhotoIndex-keepOriginalPhoto+1}`)
-                }</div>
-              </div>
-              {/* Next photo preview */}
-              {photos.length > 1 && selectedPhotoIndex !== null && (
-                <div className="photo-preview next" onClick={goToNextPhoto}>
-                  <img 
-                    src={photos[getNextPhotoIndex(selectedPhotoIndex)]?.images?.[0] || ''}
-                    alt="Next"
-                    className="photo-preview-img"
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
         <canvas ref={canvasRef} className="hidden" />
 

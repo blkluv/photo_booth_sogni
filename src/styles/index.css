@@ -5,9 +5,7 @@
 @import "./styles/header.css";
 @import "./styles/film-strip.css";
 @import "./styles/settings.css";
-@import "./styles/photo-viewer.css";
 @import "./styles/drag-overlay.css";
-@import "./styles/photo-popup.css";
 @import "./styles/camera.css";
 @import "./styles/style-dropdown.css";
 @import "./styles/theme.css";
@@ -18,3 +16,254 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Base styles for film-frame */
+.film-frame {
+  width: 100%;
+  max-width: 25vw;
+  min-width: 180px;
+  box-sizing: border-box;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+  padding: 12px 12px 36px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transform: scale(1) translate(0, 0);
+  z-index: 1;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  transform-origin: center center;
+  position: relative;
+}
+
+/* Aspect ratio box */
+.film-frame .aspect-ratio-box {
+  position: relative;
+  width: 100%;
+  padding-bottom: calc(100% * 896/1152);
+  overflow: hidden;
+  border-radius: 0;
+}
+
+/* Image styles */
+.film-frame .aspect-ratio-box img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Placeholder image */
+.film-frame .aspect-ratio-box img.placeholder {
+  opacity: 0.2;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Photo label */
+.film-frame .photo-label {
+  margin-top: 8px;
+  text-align: center;
+  font-family: "Permanent Marker", cursive;
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: 1px;
+  color: #222;
+  text-shadow: 0 1px 2px #fff;
+}
+
+/* Selected state */
+.film-frame.selected {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  transform: none !important;
+  margin: 0 !important;
+  padding: 40px !important;
+  z-index: 9998 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  cursor: zoom-out;
+}
+
+.film-frame.selected .aspect-ratio-box {
+  width: auto !important;
+  height: auto !important;
+  max-width: 90vw !important;
+  max-height: 90vh !important;
+  padding: 0 !important;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+  padding: 24px 24px 64px 24px !important;
+}
+
+.film-frame.selected .aspect-ratio-box img {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: 100% !important;
+  max-height: calc(90vh - 88px) !important;
+  object-fit: contain !important;
+}
+
+.film-frame.selected .photo-label {
+  position: absolute;
+  bottom: 24px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 24px !important;
+  color: #222;
+}
+
+/* Dark overlay when a photo is selected */
+.film-strip-container::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease-in-out;
+  pointer-events: none;
+  z-index: 9997;
+}
+
+.film-strip-container.has-selected::before {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.film-strip-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(255, 255, 255, 0.95);
+  z-index: 9997;
+  overflow-y: auto;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.film-strip-container.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.film-strip-container.hiding {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.film-strip-content {
+  transition: filter 0.3s ease-in-out;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 32px;
+  padding: 32px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.film-strip-content.has-selected .film-frame:not(.selected) {
+  filter: blur(4px) brightness(0.7);
+  pointer-events: none;
+}
+
+/* Navigation buttons */
+.photo-nav-btn {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 9999;
+  transition: all 0.2s ease-in-out;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.film-strip-container.has-selected .photo-nav-btn {
+  opacity: 1;
+  visibility: visible;
+}
+
+.photo-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.photo-nav-btn.prev {
+  left: 20px;
+}
+
+.photo-nav-btn.next {
+  right: 20px;
+}
+
+/* Back to camera button */
+.back-to-camera-btn {
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  z-index: 9999;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.back-to-camera-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.back-to-camera-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+/* Ensure images maintain aspect ratio */
+.aspect-ratio-box {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.aspect-ratio-box img {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Photo label transitions */
+.photo-label {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.film-frame.selected .photo-label {
+  font-size: 24px !important;
+}

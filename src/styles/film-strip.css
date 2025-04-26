@@ -139,18 +139,19 @@
   margin: 0 auto !important;
   border-radius: 3px !important;
   background-color: white !important;
-  padding: 12px !important; /* Consistent border width */
-  padding-bottom: 40px !important; /* Only bottom needs extra for label */
+  padding: 12px !important;
+  padding-bottom: 40px !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
   display: flex !important;
   flex-direction: column !important;
-  transform-style: flat !important;
+  transform-style: preserve-3d !important;
   backface-visibility: hidden !important;
   -webkit-backface-visibility: hidden !important;
-  transform: rotate(0deg) !important; /* Reset default transform */
+  transform: rotate(var(--rotation, 0deg)) translateZ(0) !important;
   will-change: transform, box-shadow !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: none !important; /* Remove default transition */
   z-index: 1 !important;
+  cursor: pointer !important;
 }
 
 /* Apply portrait aspect ratio on mobile */
@@ -190,39 +191,17 @@
 }
 
 /* More natural and subtle rotation for polaroids */
-.film-frame:nth-child(11n + 1) {
-  transform: rotate(-2.1deg) !important;
-}
-.film-frame:nth-child(11n + 2) {
-  transform: rotate(1.7deg) !important;
-}
-.film-frame:nth-child(11n + 3) {
-  transform: rotate(-0.8deg) !important;
-}
-.film-frame:nth-child(11n + 4) {
-  transform: rotate(2.3deg) !important;
-}
-.film-frame:nth-child(11n + 5) {
-  transform: rotate(-1.5deg) !important;
-}
-.film-frame:nth-child(11n + 6) {
-  transform: rotate(0.9deg) !important;
-}
-.film-frame:nth-child(11n + 7) {
-  transform: rotate(-1.8deg) !important;
-}
-.film-frame:nth-child(11n + 8) {
-  transform: rotate(1.2deg) !important;
-}
-.film-frame:nth-child(11n + 9) {
-  transform: rotate(-0.6deg) !important;
-}
-.film-frame:nth-child(11n + 10) {
-  transform: rotate(1.6deg) !important;
-}
-.film-frame:nth-child(11n + 11) {
-  transform: rotate(-1.1deg) !important;
-}
+.film-frame:nth-child(11n + 1) { --rotation: -2.1deg; }
+.film-frame:nth-child(11n + 2) { --rotation: 1.7deg; }
+.film-frame:nth-child(11n + 3) { --rotation: -0.8deg; }
+.film-frame:nth-child(11n + 4) { --rotation: 2.3deg; }
+.film-frame:nth-child(11n + 5) { --rotation: -1.5deg; }
+.film-frame:nth-child(11n + 6) { --rotation: 0.9deg; }
+.film-frame:nth-child(11n + 7) { --rotation: -1.8deg; }
+.film-frame:nth-child(11n + 8) { --rotation: 1.2deg; }
+.film-frame:nth-child(11n + 9) { --rotation: -0.6deg; }
+.film-frame:nth-child(11n + 10) { --rotation: 1.6deg; }
+.film-frame:nth-child(11n + 11) { --rotation: -1.1deg; }
 
 /* Loading polaroid styles */
 .film-frame.loading {
@@ -454,17 +433,103 @@
 
 /* Remove the "hovered" class approach completely and use only pure CSS */
 .film-frame:hover {
-  transform: rotate(0deg) translateY(-10px) !important;
+  transform: rotate(0deg) translateY(-10px) translateZ(0) !important;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4) !important;
   z-index: 10 !important;
+  transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s cubic-bezier(0.23, 1, 0.32, 1) !important;
 }
 
+/* Selected state with FLIP animation support */
 .film-frame.selected {
-  transform: rotate(0deg) translateY(-10px) !important;
-  box-shadow:
-    0 8px 20px rgba(0, 0, 0, 0.4),
-    0 0 0 3px #ff3366 !important;
-  z-index: 20 !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 40px !important;
+  z-index: 9998 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  cursor: zoom-out !important;
+  border-radius: 0 !important;
+  /* Remove transform here - will be handled by JS */
+}
+
+/* Smooth grid rearrangement */
+.film-strip-content.has-selected .film-frame:not(.selected) {
+  transform-origin: center center !important;
+  transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1), 
+              filter 0.5s cubic-bezier(0.23, 1, 0.32, 1) !important;
+}
+
+.film-frame.selected .aspect-ratio-box {
+  width: auto !important;
+  height: auto !important;
+  max-width: 90vw !important;
+  max-height: 90vh !important;
+  padding-bottom: 0 !important;
+  background: white !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3) !important;
+  padding: 24px 24px 64px 24px !important;
+  position: relative !important;
+  transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1) !important;
+  transform: translateZ(0) !important;
+}
+
+.film-frame.selected img {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: 100% !important;
+  max-height: calc(90vh - 88px) !important;
+  object-fit: contain !important;
+  aspect-ratio: auto !important;
+  transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1) !important;
+  transform: translateZ(0) !important;
+}
+
+.film-frame.selected .photo-label {
+  position: absolute !important;
+  bottom: 24px !important;
+  left: 0 !important;
+  right: 0 !important;
+  text-align: center !important;
+  font-size: 24px !important;
+  color: #222 !important;
+  margin: 0 !important;
+  transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1) !important;
+  transform: translateZ(0) !important;
+}
+
+/* Dark overlay with smooth fade */
+.film-strip-container::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+  pointer-events: none;
+  z-index: 9997;
+  will-change: opacity;
+}
+
+.film-strip-container.has-selected::before {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 
 /* Create a loading indicator that covers the image only, not the border */

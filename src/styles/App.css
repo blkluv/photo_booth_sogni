@@ -656,78 +656,59 @@ html body .photobooth-app .photobooth-frame .photobooth-header .tips-ribbon {
   font-family: "Permanent Marker", cursive !important;
 }
 
-/* Slideshow Polaroid Styles */
-.selected-photo-container {
+/* Remove all old slideshow/viewer styles */
+.selected-photo-container,
+.selected-photo-wrapper,
+.photobooth-photo-viewer {
+  display: none;
+}
+
+/* Polaroid zoom animation */
+.film-frame {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: center center;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.film-frame.selected {
   position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  background: rgba(0, 0, 0, 0.85) !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  z-index: 9999 !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) scale(2.5) !important;
+  z-index: 99999 !important;
+  cursor: zoom-out !important;
+  max-width: none !important;
 }
 
-.selected-photo-wrapper {
-  background: white !important;
-  padding: 24px 24px 80px 24px !important;
-  border-radius: 4px !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25) !important;
-  position: relative !important;
-  max-width: 90vw !important;
-  max-height: 90vh !important;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
+/* Dark overlay when photo is selected */
+.film-frame.selected::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: -1;
 }
 
-.aspect-ratio-box {
-  width: 100% !important;
-  height: auto !important;
-  position: relative !important;
-  overflow: hidden !important;
-  background: #000 !important;
+/* Fade out other photos when one is selected */
+.film-strip-content.has-selected .film-frame:not(.selected) {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
 }
 
-.aspect-ratio-box img {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: contain !important;
-  display: block !important;
+/* Ensure proper stacking context */
+.film-strip-container {
+  position: relative;
+  z-index: 1;
 }
 
-/* Loading state with reference photo */
-.aspect-ratio-box.loading::before {
-  content: "" !important;
-  position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  background-size: cover !important;
-  background-position: center !important;
-  opacity: 0.2 !important;
-  z-index: 1 !important;
-}
-
-/* Fade animations */
-.selected-photo-container.fade-out {
-  animation: fadeOut 0.3s ease forwards !important;
-}
-
-@keyframes fadeOut {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-
-/* Update all other font references */
-.header-style-select,
-.style-dropdown,
-.style-option,
-.photo-label,
-.photo-frame-number,
+/* Ensure smooth transitions */
+.film-frame, 
+.film-frame img,
 .film-frame .photo-label {
-  font-family: "Permanent Marker", cursive !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
