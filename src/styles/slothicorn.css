@@ -8,11 +8,11 @@
   bottom: -240px;
   left: 50%;
   transform: translateX(-50%);
-  width: 240px;
-  max-width: 240px;
-  z-index: 1000;
+  width: 200px;
+  height: auto;
+  z-index: 100000; /* Ensure this is higher than any other z-index in the app */
   pointer-events: none;
-  transition: none;
+  will-change: transform, bottom;
 }
 
 /* Idle wiggle when not actively animating via JS */
@@ -29,9 +29,11 @@
 
 /* Mascot image inside the container */
 .slothicorn-image {
-  width: 240px;
+  width: 100%;
   height: auto;
-  transform-origin: top center;
+  transform-origin: bottom center;
+  will-change: transform;
+  pointer-events: none;
   animation: horn-wiggle 5s ease-in-out infinite;
 }
 

@@ -1,0 +1,20 @@
+@import "./styles/base.css";
+@import "./styles/thumbnail.css";
+@import "./styles/overlay.css";
+@import "./styles/control-panel.css";
+@import "./styles/header.css";
+@import "./styles/film-strip.css";
+@import "./styles/settings.css";
+@import "./styles/photo-viewer.css";
+@import "./styles/drag-overlay.css";
+@import "./styles/photo-popup.css";
+@import "./styles/camera.css";
+@import "./styles/style-dropdown.css";
+@import "./styles/theme.css";
+@import "./styles/ios-chrome-fixes.css";
+@import "./styles/slothicorn.css";
+@import "./styles/studio-lights.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

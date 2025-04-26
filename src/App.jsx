@@ -80,9 +80,9 @@ defaultStylePrompts.random = `{${Object.values(prompts).join('|')}}`;
 function getCustomDimensions() {
   const isPortrait = window.innerHeight > window.innerWidth;
   if (isPortrait) {
-    return { width: 896, height: 1152 };
+    return { width: 896, height: 1152 }; // Portrait: 896:1152 (ratio ~0.778)
   } else {
-    return { width: 1152, height: 896 };
+    return { width: 1152, height: 896 }; // Landscape: 1152:896 (ratio ~1.286)
   }
 }
 
@@ -154,6 +154,19 @@ const App = () => {
   // Style selection -- default to what's in cookies
   const [selectedStyle, setSelectedStyle] = useState(getSettingFromCookie('selectedStyle', DEFAULT_SETTINGS.selectedStyle));
   const [customPrompt, setCustomPrompt] = useState(getSettingFromCookie('customPrompt', ''));
+  const [loadedImages, setLoadedImages] = useState({});
+
+  // Info modal state - adding back the missing state
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showRetakeModal, setShowRetakeModal] = useState(false);
+  const [showUrlModal, setShowUrlModal] = useState(false);
+  const [showCamera, setShowCamera] = useState(true);
+  const [showPhotoGrid, setShowPhotoGrid] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
+  const [showCameraError, setShowCameraError] = useState(false);
+  const [showImageError, setShowImageError] = useState(false);
+  const [showScrollIndicator, setShowScrollIndicator] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   // Photos array
   // Each => { id, generating, images: string[], error, originalDataUrl?, newlyArrived?: boolean, generationCountdown?: number }
@@ -217,6 +230,25 @@ const App = () => {
     { label: 'DreamShaper v2.1 (SDXL Turbo)', value: 'coreml-dreamshaperXL_v21TurboDPMSDE' },
     { label: 'JuggernautXL 9 + RD Photo2 (SDXL Lightning)', value: 'coreml-juggernautXL_v9Rdphoto2Lightning' }
   ];
+
+  // Add useEffect for checking scrollability at top level
+  useEffect(() => {
+    const checkScrollable = () => {
+      const filmStrip = document.querySelector('.film-strip-container');
+      if (filmStrip) {
+        // Only show if scrollHeight is greater than clientHeight (scrollable)
+        const isScrollable = filmStrip.scrollHeight > filmStrip.clientHeight;
+        setShowScrollIndicator(isScrollable && photos.length > 8);
+      }
+    };
+    
+    // Check after content has rendered
+    setTimeout(checkScrollable, 100);
+    
+    // Also check on window resize
+    window.addEventListener('resize', checkScrollable);
+    return () => window.removeEventListener('resize', checkScrollable);
+  }, [photos.length, showPhotoGrid]);
 
   // At the top of App component, add new state variables - now loaded from cookies
   const [selectedModel, setSelectedModel] = useState(getSettingFromCookie('selectedModel', DEFAULT_SETTINGS.selectedModel));
@@ -903,12 +935,26 @@ const App = () => {
             progress: 0,
             images: [],
             error: null,
-            originalDataUrl: null,
+            originalDataUrl: dataUrl, // Use reference photo as placeholder
             newlyArrived: false
           });
         }
         return newPhotos;
       });
+
+      // Animate camera and studio lights out
+      setCameraAnimating(true);
+      setLightsAnimating(true);
+      
+      // Wait for animation to complete before showing grid and hiding lights
+      setTimeout(() => {
+        setShowPhotoGrid(true);
+        setCameraAnimating(false);
+        setStudioLightsHidden(true);
+        setTimeout(() => {
+          setLightsAnimating(false);
+        }, 800); // Match animation duration
+      }, 700); // Match the duration of cameraFlyUp animation
 
       const arrayBuffer = await photoBlob.arrayBuffer();
       
@@ -1109,11 +1155,24 @@ const App = () => {
             loading: false,
             images: [],
             error: `Error: ${err.message || err}`,
-            originalDataUrl: null
+            originalDataUrl: dataUrl, // Use reference photo as placeholder
           });
         }
         return updated;
       });
+      
+      // Still show photo grid on error
+      setCameraAnimating(true);
+      setLightsAnimating(true);
+      
+      setTimeout(() => {
+        setShowPhotoGrid(true);
+        setCameraAnimating(false);
+        setStudioLightsHidden(true);
+        setTimeout(() => {
+          setLightsAnimating(false);
+        }, 800);
+      }, 700);
     }
   };
 
@@ -1374,79 +1433,214 @@ const App = () => {
   //   Main area (video)
   // -------------------------
   const renderMainArea = () => (
-    <div className="video-container">
-      <div className="photobooth-frame">
-        <div className="photobooth-header">
-          <h1 className="photobooth-title">Sogni Photobooth</h1>
-          <button className="help-button" onClick={() => setShowInfoModal(true)}>?</button>
-          <div className="photobooth-header-controls">
+    <div className={`camera-polaroid-bg ${cameraAnimating ? showPhotoGrid ? 'camera-flying-in' : 'camera-flying-out' : ''}`}
+      style={{
+        display: showPhotoGrid ? 'none' : 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: '100vw',
+        height: '100vh',
+        minHeight: 0,
+        minWidth: 0,
+        background: 'transparent',
+        zIndex: 10,
+        position: 'absolute', // Changed from relative to absolute
+        pointerEvents: 'none', // Add this to let clicks through
+      }}>
+      <div className="polaroid-frame" style={{
+        pointerEvents: 'auto', // Add this to restore clicks on the frame
+        background: '#faf9f6',
+        borderRadius: 8, // FIX: Subtle, authentic polaroid corners
+        boxShadow: '0 8px 30px rgba(0,0,0,0.18), 0 1.5px 0 #e5e5e5',
+        border: '1.5px solid #ececec',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        padding: 0,
+        width: '100%',
+        maxWidth: 'min(98vw, 700px)',
+        minWidth: 380,
+        height: 'auto',
+        maxHeight: '90vh',
+        position: 'relative',
+        overflow: 'visible',
+        margin: '0 auto',
+        zIndex: 10001,
+      }}>
+        {/* FIX: Controls row is visually inside the thick top border, not floating above or outside */}
+        <div style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 20px',
+          boxSizing: 'border-box',
+          minHeight: 0,
+          gap: 12,
+          height: 56, // Make the top bar tall
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 2,
+        }}>
+          <div className="photobooth-title" style={{
+            fontFamily: '"Permanent Marker", cursive',
+            fontSize: 20,
+            fontWeight: 'bold',
+            color: '#ff5e8a',
+            textShadow: '0 1px 0 #fff',
+            letterSpacing: 1,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            margin: 0,
+            padding: 0,
+            lineHeight: 1.2,
+          }}>
+            SOGNI PHOTOBOOTH
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div className="style-selector">
               <button 
+                ref={styleButtonRef}
                 className="header-style-select" 
-                onClick={() => setShowStyleDropdown(!showStyleDropdown)}
+                onClick={toggleStyleDropdown}
+                style={{
+                  all: 'unset',
+                  background: 'none',
+                  border: 'none',
+                  color: '#333',
+                  fontSize: 16,
+                  padding: 0,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  fontWeight: 'normal',
+                  whiteSpace: 'nowrap',
+                  position: 'relative',
+                  textTransform: 'none',
+                  boxShadow: 'none',
+                  borderRadius: 0,
+                  minWidth: 0,
+                  minHeight: 0,
+                  lineHeight: 'normal',
+                  margin: 0,
+                  fontFamily: '"Permanent Marker", cursive',
+                }}
               >
                 {selectedStyle === 'custom' 
-                  ? 'STYLE: Custom...' 
-                  : `STYLE: ${styleIdToDisplay(selectedStyle)}`}
+                  ? 'Prompt: Custom...' 
+                  : `Prompt: ${styleIdToDisplay(selectedStyle)}`}
               </button>
               
               {showStyleDropdown && (
-                <div className="style-dropdown">
-                  <div 
-                    className={`style-option ${selectedStyle === 'randomMix' ? 'selected' : ''}`} 
-                    onClick={() => { 
-                      updateSetting(setSelectedStyle, 'selectedStyle')('randomMix');
-                      setShowStyleDropdown(false);
-                    }}
-                  >
-                    Random Mix
+                <div className="style-dropdown" style={{
+                  position: 'absolute',
+                  maxHeight: 300,
+                  width: 280,
+                  background: 'white',
+                  borderRadius: 5,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  overflow: 'auto',
+                  zIndex: 10000,
+                  transformOrigin: 'top center',
+                  animation: 'dropdownAppear 0.2s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards',
+                  left: 0,
+                  border: '1px solid rgba(0,0,0,0.1)',
+                  fontFamily: '"Permanent Marker", cursive',
+                  fontSize: 13,
+                }}>
+                  <div className="style-section featured">
+                    {/* Featured options */}
+                    <div 
+                      className={`style-option ${selectedStyle === 'randomMix' ? 'selected' : ''}`} 
+                      onClick={() => { 
+                        updateSetting(setSelectedStyle, 'selectedStyle')('randomMix');
+                        setShowStyleDropdown(false);
+                      }}
+                      style={{
+                        padding: '8px 12px',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s',
+                        color: selectedStyle === 'randomMix' ? '#ff5e8a' : '#333',
+                        background: selectedStyle === 'randomMix' ? '#fff0f4' : 'transparent',
+                        fontFamily: '"Permanent Marker", cursive',
+                      }}
+                    >
+                      <span style={{ marginRight: 8 }}>🎲</span>
+                      <span>Random Mix</span>
+                    </div>
+                    
+                    <div 
+                      className={`style-option ${selectedStyle === 'random' ? 'selected' : ''}`} 
+                      onClick={() => { 
+                        updateSetting(setSelectedStyle, 'selectedStyle')('random');
+                        setShowStyleDropdown(false);
+                      }}
+                      style={{
+                        padding: '8px 12px',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s',
+                        color: selectedStyle === 'random' ? '#ff5e8a' : '#333',
+                        background: selectedStyle === 'random' ? '#fff0f4' : 'transparent',
+                        fontFamily: '"Permanent Marker", cursive',
+                      }}
+                    >
+                      <span style={{ marginRight: 8 }}>🔀</span>
+                      <span>Random</span>
+                    </div>
+                    
+                    <div 
+                      className={`style-option ${selectedStyle === 'custom' ? 'selected' : ''}`} 
+                      onClick={() => { 
+                        updateSetting(setSelectedStyle, 'selectedStyle')('custom');
+                        setShowStyleDropdown(false);
+                        setShowControlOverlay(true);
+                      }}
+                      style={{
+                        padding: '8px 12px',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s',
+                        color: selectedStyle === 'custom' ? '#ff5e8a' : '#333',
+                        background: selectedStyle === 'custom' ? '#fff0f4' : 'transparent',
+                        fontFamily: '"Permanent Marker", cursive',
+                      }}
+                    >
+                      <span style={{ marginRight: 8 }}>✏️</span>
+                      <span>Custom...</span>
+                    </div>
                   </div>
-                  <div 
-                    className={`style-option ${selectedStyle === 'random' ? 'selected' : ''}`} 
-                    onClick={() => { 
-                      updateSetting(setSelectedStyle, 'selectedStyle')('random');
-                      setShowStyleDropdown(false);
-                    }}
-                  >
-                    Random
+                  
+                  <div className="style-section regular">
+                    {Object.keys(defaultStylePrompts)
+                      .filter(key => key !== 'random' && key !== 'custom' && key !== 'randomMix')
+                      .sort()
+                      .map(styleKey => (
+                        <div 
+                          key={styleKey}
+                          className={`style-option ${selectedStyle === styleKey ? 'selected' : ''}`} 
+                          onClick={() => { 
+                            updateSetting(setSelectedStyle, 'selectedStyle')(styleKey);
+                            setShowStyleDropdown(false);
+                          }}
+                          style={{
+                            padding: '8px 12px',
+                            cursor: 'pointer',
+                            transition: 'background-color 0.2s',
+                            color: selectedStyle === styleKey ? '#ff5e8a' : '#333',
+                            background: selectedStyle === styleKey ? '#fff0f4' : 'transparent',
+                            fontFamily: '"Permanent Marker", cursive',
+                          }}
+                        >
+                          <span>{styleIdToDisplay(styleKey)}</span>
+                        </div>
+                      ))}
                   </div>
-                  <div 
-                    className={`style-option ${selectedStyle === 'custom' ? 'selected' : ''}`} 
-                    onClick={() => { 
-                      updateSetting(setSelectedStyle, 'selectedStyle')('custom');
-                      setShowStyleDropdown(false);
-                      setShowControlOverlay(true);
-                    }}
-                  >
-                    Custom...
-                  </div>
-                  {Object.keys(defaultStylePrompts)
-                    .filter(key => key !== 'random' && key !== 'custom')
-                    .sort()
-                    .map(styleKey => (
-                      <div 
-                        key={styleKey}
-                        className={`style-option ${selectedStyle === styleKey ? 'selected' : ''}`} 
-                        onClick={() => { 
-                          updateSetting(setSelectedStyle, 'selectedStyle')(styleKey);
-                          setShowStyleDropdown(false);
-                        }}
-                      >
-                        {styleIdToDisplay(styleKey)}
-                      </div>
-                    ))}
                 </div>
               )}
             </div>
-            
-            <button
-              className={`header-take-photo-btn ${isPhotoButtonCooldown ? 'cooldown' : ''}`}
-              onClick={handleTakePhoto}
-              disabled={!isSogniReady || isPhotoButtonCooldown}
-            >
-              {isPhotoButtonCooldown ? 'Please wait...' : 'Take Photo'}
-            </button>
-
             <button 
               className="header-config-btn"
               onClick={() => {
@@ -1455,27 +1649,141 @@ const App = () => {
                   setShowStyleDropdown(false);
                 }
               }}
+              style={{ marginLeft: 4 }}
             >
               {showControlOverlay ? '✕' : '⚙️'}
             </button>
           </div>
         </div>
-        <div className="photobooth-screen">
-          <video
-            id="webcam"
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-          />
-          {countdown > 0 && (
-            <div className="countdown-overlay">
-              {countdown}
-            </div>
-          )}
-          {showFlash && <div className="flash-overlay" />}
+        {/* FIX: Strict 9:7 aspect ratio, subtle 8px border radius, with fallback for browsers without aspect-ratio */}
+        <div style={{
+          width: '100%',
+          aspectRatio: '9 / 7', // Strict 9:7 aspect ratio
+          background: 'white',
+          borderLeft: '32px solid white',
+          borderRight: '32px solid white',
+          borderTop: '56px solid white',
+          borderBottom: '120px solid white',
+          borderRadius: 8, // Subtle corners
+          boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
+          overflow: 'hidden',
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginTop: 0,
+          transition: 'all 0.2s',
+          // Fallback for browsers without aspect-ratio
+          paddingBottom: '77.78%', // 7/9 = 0.7778, so 9:7 aspect
+          height: 0,
+          minHeight: 0,
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <video
+              id="webcam"
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                display: 'block',
+                background: '#222',
+                borderRadius: 0, // Remove border radius for sharp corners
+                aspectRatio: '9 / 7',
+                maxWidth: '100%',
+                maxHeight: '100%',
+                transition: 'all 0.2s',
+              }}
+            />
+            {countdown > 0 && (
+              <div className="countdown-overlay">
+                {countdown}
+              </div>
+            )}
+            {showFlash && <div className="flash-overlay" />}
+          </div>
         </div>
-        
+        {/* FIX: Take Photo button is always fully inside the bottom border, vertically centered, never hanging off */}
+        <div className="polaroid-bottom-tab" style={{
+          width: '100%',
+          minHeight: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 0,
+          boxSizing: 'border-box',
+          background: 'transparent',
+          borderBottomLeftRadius: 20,
+          borderBottomRightRadius: 20,
+          boxShadow: 'none',
+          marginTop: '-120px', // FIX: Match new bottom border height
+          zIndex: 3,
+          position: 'relative',
+          height: 120, // FIX: Match new bottom border height
+        }}>
+          <button
+            className={`take-photo-polaroid-btn camera-shutter-btn ${isPhotoButtonCooldown ? 'cooldown' : ''}`}
+            onClick={handleTakePhoto}
+            disabled={!isSogniReady || isPhotoButtonCooldown}
+            style={{
+              background: isPhotoButtonCooldown ? '#eee' : '#fff',
+              color: '#222',
+              border: '4px solid #222',
+              borderRadius: '50%',
+              width: 64,
+              height: 64,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 20,
+              fontWeight: 700,
+              cursor: isPhotoButtonCooldown ? 'not-allowed' : 'pointer',
+              transition: 'background 0.2s',
+              outline: 'none',
+              margin: 0,
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)', // Centered in tab
+            }}
+          >
+            <span style={{
+              display: 'block',
+              width: 28,
+              height: 28,
+              background: isPhotoButtonCooldown ? '#bbb' : '#ff5252',
+              borderRadius: '50%',
+              margin: '0 auto',
+              border: '2px solid #fff',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.10)',
+            }} />
+            <span style={{
+              position: 'absolute',
+              bottom: -22,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              fontSize: 13,
+              fontWeight: 600,
+              color: '#222',
+              letterSpacing: 1,
+              textShadow: '0 1px 2px #fff',
+              whiteSpace: 'nowrap',
+            }}>Take Photo</span>
+          </button>
+        </div>
         {/* Control overlay that slides down when visible */}
         <div className={`control-overlay ${showControlOverlay ? 'visible' : ''}`}>
           <div className="control-overlay-content">
@@ -1501,26 +1809,6 @@ const App = () => {
                   }}
                   rows={4}
                 />
-              </div>
-            )}
-            
-            {/* Camera selector if more than 1 device found */}
-            {cameraDevices.length > 0 && (
-              <div className="control-option">
-                <label className="control-label">Camera:</label>
-                <select
-                  className="camera-select"
-                  onChange={handleCameraSelection}
-                  value={selectedCameraDeviceId || ''}
-                >
-                  {/* If user wants default, we allow a "Default" option */}
-                  <option value="">Default (user-facing)</option>
-                  {cameraDevices.map((dev) => (
-                    <option key={dev.deviceId} value={dev.deviceId}>
-                      {dev.label || `Camera ${dev.deviceId}`}
-                    </option>
-                  ))}
-                </select>
               </div>
             )}
 
@@ -1639,56 +1927,67 @@ const App = () => {
   //   Selected Photo Display
   // -------------------------
   const renderSelectedPhoto = () => {
+    if (!selectedPhotoIndex || selectedPhotoIndex < 0 || !photos[selectedPhotoIndex]) return null;
+    
     const currentPhoto = photos[selectedPhotoIndex];
-    if (!currentPhoto) return null;
-
-    // If still generating and no images, show loading animation
-    if (currentPhoto.generating && currentPhoto.images.length === 0) {
-      return (
-        <div className="photo-loading">
-          <div className="spinner"></div>
-        </div>
-      );
-    }
-
-    // If error and no images, show error
-    if (currentPhoto.error && currentPhoto.images.length === 0) {
-      return (
-        <div className="error-indicator">
-          <div className="text-red-500">
-            {currentPhoto.error}
-          </div>
-        </div>
-      );
-    }
-
-    // Show whichever subIndex
-    const imageUrl = currentPhoto.images[selectedSubIndex] || (currentPhoto.originalDataUrl || '');
-    const handleImageClick = () => {
-      if (currentPhoto.images.length > 1) {
-        setSelectedSubIndex((prev) => (prev + 1) % currentPhoto.images.length);
-      }
-    };
-
-    // Frame number for display (1-based)
-    const frameNumber = selectedPhotoIndex + 1;
+    const imageUrl = currentPhoto.images[selectedSubIndex] || currentPhoto.originalDataUrl;
+    if (!imageUrl) return null;
 
     return (
-      <>
-        <img
-          src={imageUrl}
-          alt="Selected"
-          onClick={handleImageClick}
-        />
-        <div className="photo-frame-number">#{frameNumber}</div>
-        <div className="stack-index-indicator">
-          {currentPhoto.images.length > 1 ? 
-            `${selectedSubIndex + 1}/${currentPhoto.images.length}` : 
-            currentPhoto.isOriginal ? "Original" : ""
-          }
+      <div className="selected-photo-container" style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0, 0, 0, 0.85)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 99999,
+        padding: '40px',
+      }}>
+        <div className="selected-photo-wrapper" style={{
+          background: 'white',
+          padding: '24px 24px 80px 24px',
+          borderRadius: '4px',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
+          position: 'relative',
+          maxWidth: '90vw',
+          maxHeight: '90vh',
+        }}>
+          <img
+            src={imageUrl}
+            alt={`Photo #${selectedPhotoIndex + 1}`}
+            style={{
+              display: 'block',
+              width: 'auto',
+              height: 'auto',
+              maxWidth: '100%',
+              maxHeight: 'calc(90vh - 104px)',
+              objectFit: 'contain',
+            }}
+          />
+          <div style={{
+            position: 'absolute',
+            bottom: '24px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            fontFamily: '"Permanent Marker", cursive',
+            fontSize: '24px',
+            color: '#333',
+          }}>
+            #{selectedPhotoIndex + 1}
+          </div>
         </div>
-      </>
+      </div>
     );
+  };
+
+  // Determine if we're in portrait or landscape orientation
+  const isPortraitOrientation = () => {
+    // Check current orientation of device
+    return window.matchMedia("(orientation: portrait)").matches;
   };
 
   // -------------------------
@@ -1701,153 +2000,363 @@ const App = () => {
   // -------------------------
   //   Thumbnails at bottom
   // -------------------------
-  const renderGallery = () => {
-    // Check if on mobile
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    // Generate an appropriate number of sprocket holes
-    const holeCount = isMobile ? 8 : 20;
+  const renderGallery = () => {    
+    // Don't render if no photos or grid not shown
+    if (photos.length === 0 || !showPhotoGrid) return null;
     
     return (
-      <div style={{ 
-        position: 'fixed',
-        bottom: '0',
-        left: '0',
-        right: '0',
-        display: 'flex',
-        justifyContent: 'center',
-        zIndex: 50,
-        width: '100%',
-        maxWidth: '100vw',
-        overflow: 'visible'
-      }}>
-        {photos.length > 0 && showFilmStrip && (
-          <div className="film-strip-container" style={{ width: '100%' }}>
-            {/* Close button for film strip */}
-            <button 
-              className="film-strip-close-btn" 
-              onClick={() => setShowFilmStrip(false)}
-              aria-label="Close film strip"
-            >
-              ×
-            </button>
-            
-            {/* Top sprocket holes - reduced for mobile */}
-            <div className="film-strip-holes top">
-              {Array(holeCount).fill(null).map((_, i) => (
-                <div key={`hole-top-${i}`} className="sprocket-hole" />
-              ))}
-            </div>
-            
-            {/* Film content area */}
-            <div className="film-strip-content"
-              onWheel={(e) => {
-                // Prevent vertical scroll of the page
-                if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
-                  e.preventDefault();
-                  e.currentTarget.scrollLeft += e.deltaY;
-                }
-              }}
-            >
-              {photos.map((photo, i) => {
-                const isSelected = i === selectedPhotoIndex;
-                const isReference = photo.isOriginal;
-
-                // If generating + no images => show loading with inverted original
-                if (photo.loading && photo.images.length === 0) {
-                  // Always use the original photo as placeholder while loading
-                  const placeholderUrl = photo.originalDataUrl;
-                  if (!placeholderUrl) return null;
-
-                  return (
-                    <div
-                      key={photo.id}
-                      className={`film-frame loading ${isSelected ? 'selected' : ''}`}
-                      data-progress={Math.floor(photo.progress || 0)}
-                    >
+      <div className={`film-strip-container ${showPhotoGrid ? 'visible' : 'hiding'}`}>
+        {/* Grid of photos */}
+        <div className="film-strip-content" style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: '32px',
+          justifyItems: 'center',
+          alignItems: 'end',
+          width: '100%',
+          maxWidth: '100vw',
+          padding: '32px',
+        }}>
+          {photos.map((photo, i) => {
+            const isSelected = i === selectedPhotoIndex;
+            const isReference = photo.isOriginal;
+            const placeholderUrl = photo.originalDataUrl;
+            const progress = Math.floor(photo.progress || 0);
+            const loadingLabel = progress > 0 ? `${progress}%` : "";
+            let photoNumber = isReference ? "Reference" : `#${i-keepOriginalPhoto+1}`;
+            const maxWidth = 1152;
+            const aspectRatio = 1152 / 896;
+            // Use loadedImages state for fade-in
+            const hasLoaded = loadedImages[photo.id] || false;
+            // Loading or error state
+            if ((photo.loading && photo.images.length === 0) || (photo.error && photo.images.length === 0)) {
+              return (
+                <div
+                  key={photo.id}
+                  className={`film-frame loading ${isSelected ? 'selected' : ''}`}
+                  style={{
+                    width: '100%',
+                    maxWidth: '25vw',
+                    minWidth: 180,
+                    boxSizing: 'border-box',
+                    background: 'white',
+                    borderRadius: 8,
+                    boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
+                    padding: '12px 12px 36px 12px',
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <div className="aspect-ratio-box" style={{
+                    position: 'relative',
+                    width: '100%',
+                    paddingBottom: `${100 / aspectRatio}%`,
+                    overflow: 'hidden',
+                    borderRadius: 0,
+                  }}>
+                    {placeholderUrl && (
                       <img
                         src={placeholderUrl}
-                        alt={`Loading #${i}`}
+                        alt="Reference"
                         style={{
-                          filter: `invert(${1 - (photo.progress || 0) / 100})`
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          opacity: 0.2,
+                          zIndex: 1,
+                          pointerEvents: 'none',
                         }}
                       />
-                      <div className="photo-label">Loading...</div>
-                    </div>
-                  );
-                }
-
-                // If error + no images => show error state with inverted original
-                if (photo.error && photo.images.length === 0) {
-                  return (
-                    <div
-                      key={photo.id}
-                      className={`film-frame error ${isSelected ? 'selected' : ''}`}
-                    >
-                      {photo.originalDataUrl && (
-                        <img
-                          src={photo.originalDataUrl}
-                          alt={`Error #${i}`}
-                          style={{ filter: 'invert(1) opacity(0.3)' }}
-                        />
-                      )}
-                      <div className="photo-label">Error</div>
-                    </div>
-                  );
-                }
-
-                // Show completed image
-                const thumbUrl = photo.images[0] || '';
-                const handleThumbClick = () => {
-                  setSelectedPhotoIndex(i);
-                  setSelectedSubIndex(0);
-                };
-
-                // Create the appropriate label text
-                let labelText = isReference ? "Reference" : `#${i-keepOriginalPhoto+1}`;
-                
-                // Add 'new-photo' class for animation when photo is newly arrived
-                const photoClasses = `film-frame ${isSelected ? 'selected' : ''} ${photo.newlyArrived ? 'new-photo' : ''}`;
-
-                return (
-                  <div 
-                    key={photo.id}
-                    className={photoClasses}
-                    onClick={handleThumbClick}
-                  >
+                    )}
+                  </div>
+                  <div className="photo-label" style={{
+                    marginTop: 8,
+                    textAlign: 'center',
+                    fontFamily: '"Permanent Marker", cursive',
+                    fontWeight: 600,
+                    fontSize: 18,
+                    letterSpacing: 1,
+                    color: '#222',
+                    textShadow: '0 1px 2px #fff',
+                  }}>{loadingLabel || photoNumber}</div>
+                </div>
+              );
+            }
+            // Show completed image (fade in over reference)
+            const thumbUrl = photo.images[0] || '';
+            const handleThumbClick = () => {
+              setSelectedPhotoIndex(i);
+              setSelectedSubIndex(0);
+            };
+            let labelText = isReference ? "Reference" : `#${i-keepOriginalPhoto+1}`;
+            return (
+              <div 
+                key={photo.id}
+                className={`film-frame ${isSelected ? 'selected' : ''}`}
+                onClick={handleThumbClick}
+                style={{
+                  width: '100%',
+                  maxWidth: '25vw',
+                  minWidth: 180,
+                  boxSizing: 'border-box',
+                  background: 'white',
+                  borderRadius: 8,
+                  boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
+                  padding: '12px 12px 36px 12px',
+                  position: 'relative',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <div className="aspect-ratio-box" style={{
+                  position: 'relative',
+                  width: '100%',
+                  paddingBottom: `${100 / aspectRatio}%`,
+                  overflow: 'hidden',
+                  borderRadius: 0, // Remove border radius for sharp corners
+                }}>
+                  {/* Reference image at 0.5 opacity under generated image */}
+                  {placeholderUrl && (
+                    <img
+                      src={placeholderUrl}
+                      alt="Reference"
+                      className={`placeholder-image${loadedImages[photo.id]?.ref ? ' fade-in' : ''}`}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        opacity: Math.min((photo.progress || 0) * 0.25 / 100, 0.25),
+                        zIndex: 1,
+                        pointerEvents: 'none',
+                        filter: 'none',
+                      }}
+                      onLoad={() => setLoadedImages(prev => ({
+                        ...prev,
+                        [photo.id]: { ...prev[photo.id], ref: true }
+                      }))}
+                    />
+                  )}
+                  {/* Generated image fades in over reference */}
+                  {thumbUrl && (
                     <img
                       src={thumbUrl}
                       alt={`Generated #${i}`}
-                      className={photo.newlyArrived ? 'thumbnail-fade' : ''}
+                      className={`placeholder-image${loadedImages[photo.id]?.gen ? ' fade-in' : ''}`}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        opacity: loadedImages[photo.id]?.gen ? 1 : 0,
+                        zIndex: 2,
+                        transition: 'opacity 0.5s',
+                      }}
+                      onLoad={() => setLoadedImages(prev => ({
+                        ...prev,
+                        [photo.id]: { ...prev[photo.id], gen: true }
+                      }))}
                     />
-                    <div className="photo-label">{labelText}</div>
-                  </div>
-                );
-              })}
-            </div>
-            
-            {/* Bottom sprocket holes - reduced for mobile */}
-            <div className="film-strip-holes bottom">
-              {Array(holeCount).fill(null).map((_, i) => (
-                <div key={`hole-bottom-${i}`} className="sprocket-hole" />
-              ))}
-            </div>
-          </div>
-        )}
+                  )}
+                </div>
+                <div className="photo-label" style={{
+                  marginTop: 8,
+                  textAlign: 'center',
+                  fontFamily: '"Permanent Marker", cursive',
+                  fontWeight: 600,
+                  fontSize: 18,
+                  letterSpacing: 1,
+                  color: '#222',
+                  textShadow: '0 1px 2px #fff',
+                }}>{labelText}</div>
+              </div>
+            );
+          })}
+        </div>
         
-        {/* Show a button to restore the film strip if it's hidden */}
-        {photos.length > 0 && !showFilmStrip && (
-          <div style={{ marginBottom: '15px' }}>
-            <button 
-              className="film-strip-restore-btn"
-              onClick={() => setShowFilmStrip(true)}
-              aria-label="Show film strip"
-            >
-              Show Photos
-            </button>
-          </div>
-        )}
+        {/* Back to Camera button */}
+        <button
+          className="back-to-camera-btn"
+          onClick={handleBackToCamera}
+          style={{
+            position: 'fixed',
+            bottom: '20px',
+            left: '20px',
+            background: 'linear-gradient(135deg, #ff3366 0%, #ff5e8a 100%)',
+            color: 'white',
+            padding: '12px 24px',
+            border: 'none',
+            borderRadius: '25px',
+            fontWeight: 'bold',
+            fontSize: '16px',
+            cursor: 'pointer',
+            zIndex: 9999,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
+          <span style={{ fontSize: '20px' }}>📷</span>
+          Back to Camera
+        </button>
       </div>
     );
+  };
+
+  // Create a wrapper setter for each setting that also saves to cookies
+  const updateSetting = (setter, settingName) => (value) => {
+    setter(value);
+    saveSettingsToCookies({ [settingName]: value });
+  };
+
+  // Reset all settings to defaults
+  const resetAllSettings = () => {
+    setSelectedModel(DEFAULT_SETTINGS.selectedModel);
+    setNumImages(DEFAULT_SETTINGS.numImages);
+    setPromptGuidance(DEFAULT_SETTINGS.promptGuidance);
+    setControlNetStrength(DEFAULT_SETTINGS.controlNetStrength);
+    setControlNetGuidanceEnd(DEFAULT_SETTINGS.controlNetGuidanceEnd);
+    setFlashEnabled(DEFAULT_SETTINGS.flashEnabled);
+    setKeepOriginalPhoto(DEFAULT_SETTINGS.keepOriginalPhoto);
+    setSelectedStyle(DEFAULT_SETTINGS.selectedStyle);
+    setCustomPrompt('');
+    
+    // Save all defaults to cookies
+    saveSettingsToCookies(DEFAULT_SETTINGS);
+  };
+
+  // Add state for photo grid view
+  const [cameraAnimating, setCameraAnimating] = useState(false);
+
+  // Update state for studio lights
+  const [studioLightsHidden, setStudioLightsHidden] = useState(false);
+  const [lightsAnimating, setLightsAnimating] = useState(false);
+
+  // Add state to track if user returned from photo grid
+  const [returnedFromPhotos, setReturnedFromPhotos] = useState(false);
+
+  // Add state to track dropdown position
+  const [dropdownPosition, setDropdownPosition] = useState('bottom');
+  
+  // Add ref for dropdown button
+  const styleButtonRef = useRef(null);
+
+  // Add function to detect dropdown position and prevent clipping
+  const toggleStyleDropdown = () => {
+    // If already open, just close it
+    if (showStyleDropdown) {
+      setShowStyleDropdown(false);
+      return;
+    }
+    
+    // Check if dropdown would be clipped at bottom
+    if (styleButtonRef.current) {
+      const buttonRect = styleButtonRef.current.getBoundingClientRect();
+      const windowHeight = window.innerHeight;
+      // Calculate dropdown height based on number of options (approx 40px per option)
+      const styleCount = Object.keys(defaultStylePrompts).length;
+      const estimatedHeight = Math.min(400, styleCount * 40); // Cap at 400px
+      
+      if (buttonRect.bottom + estimatedHeight > windowHeight) {
+        setDropdownPosition('top');
+      } else {
+        setDropdownPosition('bottom');
+      }
+    }
+    
+    setShowStyleDropdown(true);
+  };
+
+  // Add this helper function for style display
+  const styleIdToDisplay = (styleId) => {
+    return styleId.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).trim();
+  };
+
+  // Add these helper functions for random styles
+  const getRandomStyle = () => {
+    const availableStyles = Object.keys(defaultStylePrompts)
+      .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix');
+    return availableStyles[Math.floor(Math.random() * availableStyles.length)];
+  };
+
+  const getRandomMixPrompts = (count) => {
+    const availableStyles = Object.keys(defaultStylePrompts)
+      .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix');
+    
+    const selectedPrompts = [];
+    for (let i = 0; i < count; i++) {
+      const randomStyle = availableStyles[Math.floor(Math.random() * availableStyles.length)];
+      selectedPrompts.push(defaultStylePrompts[randomStyle]);
+    }
+    
+    return `{${selectedPrompts.join('|')}}`;
+  };
+
+  // Fix the animation transition issue by ensuring we clear state correctly
+  const handleBackToCamera = () => {
+    // Mark the photo grid as hiding 
+    const filmStrip = document.querySelector('.film-strip-container');
+    if (filmStrip) {
+      filmStrip.classList.remove('visible');
+      filmStrip.classList.add('hiding');
+    }
+    
+    // Wait for the hiding animation to finish before showing camera
+    setTimeout(() => {
+      // Hide photo grid and reset states
+      setShowPhotoGrid(false);
+      setSelectedPhotoIndex(null);
+      setReturnedFromPhotos(true);
+      setStudioLightsHidden(false);
+      
+      // No additional animations - camera should just appear normally
+    }, 600); // Match the duration of photoGrid Hide animation
+  };
+
+  // Add effect to reset newlyArrived status after animation completes
+  useEffect(() => {
+    const newPhotos = photos.filter(photo => photo.newlyArrived);
+    if (newPhotos.length > 0) {
+      const timer = setTimeout(() => {
+        setPhotos(prev => 
+          prev.map(photo => 
+            photo.newlyArrived ? { ...photo, newlyArrived: false } : photo
+          )
+        );
+      }, 600); // Slightly longer than animation duration
+      
+      return () => clearTimeout(timer);
+    }
+  }, [photos]);
+
+  // Add handler for clicks outside the image
+  const handlePhotoViewerClick = (e) => {
+    // Check if the click is outside the image
+    const imageWrapperEl = e.target.closest('.image-wrapper');
+    const navButtonEl = e.target.closest('.photo-nav-btn');
+    const previewEl = e.target.closest('.photo-preview');
+    
+    if (!imageWrapperEl && !navButtonEl && !previewEl) {
+      handleClosePhoto();
+    }
+  };
+
+  // Add toggle function for notes modal
+  const toggleNotesModal = () => {
+    setShowInfoModal(!showInfoModal);
   };
 
   // Add an effect to close dropdown when clicking outside
@@ -1880,89 +2389,6 @@ const App = () => {
     }
   }, [showStyleDropdown]);
 
-  // Add handler for clicks outside the image
-  const handlePhotoViewerClick = (e) => {
-    // Check if the click is outside the image
-    const imageWrapperEl = e.target.closest('.image-wrapper');
-    const navButtonEl = e.target.closest('.photo-nav-btn');
-    const previewEl = e.target.closest('.photo-preview');
-    
-    if (!imageWrapperEl && !navButtonEl && !previewEl) {
-      handleClosePhoto();
-    }
-  };
-
-  // Add new state for info modal
-  const [showInfoModal, setShowInfoModal] = useState(false);
-
-  // Add toggle function for notes modal
-  const toggleNotesModal = () => {
-    setShowInfoModal(!showInfoModal);
-  };
-
-  // Add this helper function near the top with other utility functions
-  const styleIdToDisplay = (styleId) => {
-    return styleId.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).trim();
-  };
-
-  // Add these helper functions near the top with other utility functions
-  const getRandomStyle = () => {
-    const availableStyles = Object.keys(defaultStylePrompts)
-      .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix');
-    return availableStyles[Math.floor(Math.random() * availableStyles.length)];
-  };
-
-  const getRandomMixPrompts = (count) => {
-    const availableStyles = Object.keys(defaultStylePrompts)
-      .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix');
-    
-    const selectedPrompts = [];
-    for (let i = 0; i < count; i++) {
-      const randomStyle = availableStyles[Math.floor(Math.random() * availableStyles.length)];
-      selectedPrompts.push(defaultStylePrompts[randomStyle]);
-    }
-    
-    return `{${selectedPrompts.join('|')}}`;
-  };
-
-  // Add effect to reset newlyArrived status after animation completes
-  useEffect(() => {
-    const newPhotos = photos.filter(photo => photo.newlyArrived);
-    if (newPhotos.length > 0) {
-      const timer = setTimeout(() => {
-        setPhotos(prev => 
-          prev.map(photo => 
-            photo.newlyArrived ? { ...photo, newlyArrived: false } : photo
-          )
-        );
-      }, 600); // Slightly longer than animation duration
-      
-      return () => clearTimeout(timer);
-    }
-  }, [photos]);
-
-  // Create a wrapper setter for each setting that also saves to cookies
-  const updateSetting = (setter, settingName) => (value) => {
-    setter(value);
-    saveSettingsToCookies({ [settingName]: value });
-  };
-
-  // Reset all settings to defaults
-  const resetAllSettings = () => {
-    setSelectedModel(DEFAULT_SETTINGS.selectedModel);
-    setNumImages(DEFAULT_SETTINGS.numImages);
-    setPromptGuidance(DEFAULT_SETTINGS.promptGuidance);
-    setControlNetStrength(DEFAULT_SETTINGS.controlNetStrength);
-    setControlNetGuidanceEnd(DEFAULT_SETTINGS.controlNetGuidanceEnd);
-    setFlashEnabled(DEFAULT_SETTINGS.flashEnabled);
-    setKeepOriginalPhoto(DEFAULT_SETTINGS.keepOriginalPhoto);
-    setSelectedStyle(DEFAULT_SETTINGS.selectedStyle);
-    setCustomPrompt('');
-    
-    // Save all defaults to cookies
-    saveSettingsToCookies(DEFAULT_SETTINGS);
-  };
-
   // -------------------------
   //   Render
   // -------------------------
@@ -1984,79 +2410,211 @@ const App = () => {
         </div>
       )}
 
-      <div className="relative w-full h-screen photobooth-app"
-      onDragOver={handleDragOver}
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-    >
-      {/* Add meta tag for mobile viewport - this runs once on mount */}
-      {useEffect(() => {
-        // Check if viewport meta tag exists
-        let viewportMeta = document.querySelector('meta[name="viewport"]');
-        
-        // If it doesn't exist, create it
-        if (!viewportMeta) {
-          viewportMeta = document.createElement('meta');
-          viewportMeta.name = 'viewport';
-          document.head.appendChild(viewportMeta);
-        }
-        
-        // Set properties for proper mobile scaling with notch support
-        viewportMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
-        
-        // Add meta tag for Apple devices to use full screen
-        let appleMeta = document.querySelector('meta[name="apple-mobile-web-app-capable"]');
-        if (!appleMeta) {
-          appleMeta = document.createElement('meta');
-          appleMeta.name = 'apple-mobile-web-app-capable';
-          appleMeta.content = 'yes';
-          document.head.appendChild(appleMeta);
-        }
-        
-        // Set body class based on orientation
-        const setOrientation = () => {
-          if (window.innerHeight > window.innerWidth) {
-            document.body.classList.add('portrait');
-            document.body.classList.remove('landscape');
-          } else {
-            document.body.classList.add('landscape');
-            document.body.classList.remove('portrait');
-          }
-        };
-        
-        // Set initial orientation
-        setOrientation();
-        
-        // Listen for orientation changes
-        window.addEventListener('resize', setOrientation);
-        
-        return () => {
-          window.removeEventListener('resize', setOrientation);
-        };
-      }, [])}
-      
-      {/* Studio lights - permanent background elements */}
-      <div className="studio-lights-container">
-        <img src={light1Image} alt="Studio Light" className="studio-light left" />
-        <img src={light2Image} alt="Studio Light" className="studio-light right" />
-      </div>
-      
-      {/* Drag overlay */}
-      {dragActive && (
-        <div className="drag-overlay">
-          <p>Drop your image here to generate!</p>
+      <div className="w-full h-screen photobooth-app"
+        onDragOver={handleDragOver}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        style={{ position: 'relative', zIndex: 1 }}
+      >
+        {/* Control overlay panel */}
+        <div className={`control-overlay ${showControlOverlay ? 'visible' : ''}`}>
+          <div className="control-overlay-content">
+            <h2 className="settings-title">Advanced Settings</h2>
+            
+            <button 
+              className="dismiss-overlay-btn"
+              onClick={() => setShowControlOverlay(false)}
+            >
+              ×
+            </button>
+            
+            {selectedStyle === 'custom' && (
+              <div className="control-option">
+                <label className="control-label">Custom Style Prompt:</label>
+                <textarea
+                  className="custom-style-input"
+                  placeholder="Enter your custom style prompt here..."
+                  value={customPrompt}
+                  onChange={(e) => {
+                    setCustomPrompt(e.target.value);
+                    saveSettingsToCookies({ customPrompt: e.target.value });
+                  }}
+                  rows={4}
+                />
+              </div>
+            )}
+
+            {/* Model selector */}
+            <div className="control-option">
+              <label className="control-label">Pick an Image Model:</label>
+              <select
+                className="model-select"
+                value={selectedModel}
+                onChange={(e) => updateSetting(setSelectedModel, 'selectedModel')(e.target.value)}
+              >
+                {modelOptions.map((model) => (
+                  <option key={model.value} value={model.value}>
+                    {model.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Number of Images slider */}
+            <div className="control-option">
+              <label className="control-label">Number of Images:</label>
+              <input
+                type="range"
+                min={1}
+                max={64}
+                step={1}
+                value={numImages}
+                onChange={(e) => updateSetting(setNumImages, 'numImages')(parseInt(e.target.value))}
+                className="slider-input"
+              />
+              <span className="slider-value">{numImages}</span>
+            </div>
+
+            {/* Prompt Guidance slider */}
+            <div className="control-option">
+              <label className="control-label">Prompt Guidance:</label>
+              <input
+                type="range"
+                min={2}
+                max={3}
+                step={0.1}
+                value={promptGuidance}
+                onChange={(e) => updateSetting(setPromptGuidance, 'promptGuidance')(parseFloat(e.target.value))}
+                className="slider-input"
+              />
+              <span className="slider-value">{promptGuidance.toFixed(1)}</span>
+            </div>
+
+            {/* Instant ID Strength slider */}
+            <div className="control-option">
+              <label className="control-label">Instant ID Strength:</label>
+              <input
+                type="range"
+                min={0.4}
+                max={1}
+                step={0.1}
+                value={controlNetStrength}
+                onChange={(e) => updateSetting(setControlNetStrength, 'controlNetStrength')(parseFloat(e.target.value))}
+                className="slider-input"
+              />
+              <span className="slider-value">{controlNetStrength.toFixed(1)}</span>
+            </div>
+
+            {/* Instant ID Impact Stop slider */}
+            <div className="control-option">
+              <label className="control-label">Instant ID Impact Stop:</label>
+              <input
+                type="range"
+                min={0.2}
+                max={0.8}
+                step={0.1}
+                value={controlNetGuidanceEnd}
+                onChange={(e) => updateSetting(setControlNetGuidanceEnd, 'controlNetGuidanceEnd')(parseFloat(e.target.value))}
+                className="slider-input"
+              />
+              <span className="slider-value">{controlNetGuidanceEnd.toFixed(1)}</span>
+            </div>
+
+            <div className="control-option checkbox">
+              <input
+                type="checkbox"
+                id="flash-toggle"
+                checked={flashEnabled}
+                onChange={(e) => updateSetting(setFlashEnabled, 'flashEnabled')(e.target.checked)}
+              />
+              <label htmlFor="flash-toggle" className="control-label">Flash</label>
+            </div>
+
+            <div className="control-option checkbox">
+              <input
+                type="checkbox"
+                id="keep-original-toggle"
+                checked={keepOriginalPhoto}
+                onChange={(e) => updateSetting(setKeepOriginalPhoto, 'keepOriginalPhoto')(e.target.checked)}
+              />
+              <label htmlFor="keep-original-toggle" className="control-label">Show Original Image</label>
+            </div>
+            
+            {/* Reset settings button */}
+            <div className="control-option reset-option">
+              <button 
+                className="reset-settings-btn"
+                onClick={resetAllSettings}
+              >
+                Reset to Defaults
+              </button>
+            </div>
+          </div>
         </div>
-      )}
+
+        {/* Help button - only show in camera view */}
+        {!showPhotoGrid && !selectedPhotoIndex && (
+          <button
+            className="header-info-btn"
+            onClick={toggleNotesModal}
+            style={{
+              position: 'fixed',
+              top: 24,
+              right: 24,
+              background: 'linear-gradient(135deg, #ffb6e6 0%, #ff5e8a 100%)',
+              border: 'none',
+              color: '#fff',
+              fontSize: 22,
+              width: 38,
+              height: 38,
+              borderRadius: '50%',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+              cursor: 'pointer',
+              fontWeight: 900,
+              lineHeight: 1,
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'background 0.2s',
+              zIndex: 1000,
+            }}
+            title="Photobooth Tips"
+          >
+            ?
+          </button>
+        )}
+
+        {/* Studio lights - permanent background elements */}
+        <div className={`studio-lights-container ${studioLightsHidden ? 'studio-lights-hidden' : ''}`}>
+          <img 
+            src={light1Image} 
+            alt="Studio Light" 
+            className={`studio-light left ${lightsAnimating ? 'sliding-out' : ''}`} 
+          />
+          <img 
+            src={light2Image} 
+            alt="Studio Light" 
+            className={`studio-light right ${lightsAnimating ? 'sliding-out' : ''}`} 
+          />
+        </div>
+        
+        {/* Drag overlay */}
+        {dragActive && (
+          <div className="drag-overlay">
+            <p>Drop your image here to generate!</p>
+          </div>
+        )}
 
         {/* Info Modal */}
         {showInfoModal && (
-          <div className="notes-modal-overlay" onClick={() => setShowInfoModal(false)}>
+          <div className="notes-modal-overlay" style={{zIndex: 30000}} onClick={() => setShowInfoModal(false)}>
             <div className="notes-modal" onClick={e => e.stopPropagation()}>
               <div className="sticky-note">
                 <button className="note-close" onClick={() => setShowInfoModal(false)}>×</button>
-                <h2>Photobooth Tips</h2>
-                <ul>
+                <h2 className="marker-font">Photobooth Tips</h2>
+                <ul className="marker-font">
                   <li>Generated compositions reuses the same face size, position, and orientation as the camera snapshot so step back and get creative!</li>
                   <li>Only one face at a time! If multiple faces the biggest one in frame is used.</li>
                   <li>The more light / dark depth on your face the better, flat even light results can be subpar.</li>
@@ -2072,90 +2630,454 @@ const App = () => {
           </div>
         )}
 
-      {/* Main area with video */}
-      {renderMainArea()}
+        {/* Main area with video - conditional rendering based on showPhotoGrid */}
+        {renderMainArea()}
 
-      {/* Photo viewer - with previews and next/prev navigation */}
-      {(selectedPhotoIndex !== null || photoViewerClosing) && (
-        <div 
-          className={`selected-photo-container ${photoViewerClosing ? 'fade-out' : ''}`}
-          onClick={handlePhotoViewerClick}
-        >
-          {/* Photos carousel with prev/next previews */}
-          <div className="photos-carousel">
-            {/* Previous photo preview */}
-            {photos.length > 1 && selectedPhotoIndex !== null && (
-              <div className="photo-preview prev" onClick={goToPrevPhoto}>
-                <img 
-                  src={photos[getPrevPhotoIndex(selectedPhotoIndex)]?.images?.[0] || ''}
-                  alt="Previous"
-                  className="photo-preview-img"
-                />
+        {/* Photo gallery grid - shown when showPhotoGrid is true */}
+        {renderGallery()}
+
+        {/* Photo viewer - with previews and next/prev navigation */}
+        {(selectedPhotoIndex !== null || photoViewerClosing) && (
+          <div 
+            className={`selected-photo-container ${photoViewerClosing ? 'fade-out' : ''}`}
+            onClick={handlePhotoViewerClick}
+          >
+            {/* Photos carousel with prev/next previews */}
+            <div className="photos-carousel">
+              {/* Previous photo preview */}
+              {photos.length > 1 && selectedPhotoIndex !== null && (
+                <div className="photo-preview prev" onClick={goToPrevPhoto}>
+                  <img 
+                    src={photos[getPrevPhotoIndex(selectedPhotoIndex)]?.images?.[0] || ''}
+                    alt="Previous"
+                    className="photo-preview-img"
+                  />
+                </div>
+              )}
+              
+              {/* Navigation buttons */}
+              {photos.length > 1 && selectedPhotoIndex !== null && (
+                <>
+                  <button className="photo-nav-btn prev" onClick={goToPrevPhoto}>
+                    &#8249;
+                  </button>
+                  <button className="photo-nav-btn next" onClick={goToNextPhoto}>
+                    &#8250;
+                  </button>
+                </>
+              )}
+              
+              {/* Current photo - detect orientation */}
+              <div 
+                className={`film-frame popup-polaroid ${isPortraitOrientation() ? 'portrait' : 'landscape'}`}
+                style={{
+                  width: '100%',
+                  maxWidth: 'min(90vw, 1152px)',
+                  minWidth: 320,
+                  boxSizing: 'border-box',
+                  background: 'white',
+                  borderRadius: 8,
+                  boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+                  padding: '32px 32px 96px 32px',
+                  position: 'relative',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '40px auto',
+                }}
+              >
+                <div className="aspect-ratio-box" style={{
+                  position: 'relative',
+                  width: '100%',
+                  paddingBottom: `${100 / (1152/896)}%`,
+                  overflow: 'hidden',
+                  borderRadius: 4,
+                }}>
+                  {/* Reference image fade-in if loading */}
+                  {selectedPhotoIndex !== null && photos[selectedPhotoIndex]?.loading && photos[selectedPhotoIndex]?.originalDataUrl && (
+                    <img
+                      src={photos[selectedPhotoIndex].originalDataUrl}
+                      alt="Reference"
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        opacity: Math.min((photos[selectedPhotoIndex].progress || 0) * 0.25 / 100, 0.25),
+                        zIndex: 1,
+                        pointerEvents: 'none',
+                        filter: 'none',
+                        transition: 'opacity 0.2s',
+                        mixBlendMode: !(photos[selectedPhotoIndex]?.images?.[0]) ? 'difference' : 'normal',
+                      }}
+                    />
+                  )}
+                  {/* Generated image fade-in */}
+                  {selectedPhotoIndex !== null && photos[selectedPhotoIndex]?.images?.[0] && (
+                    <img
+                      src={photos[selectedPhotoIndex].images[0]}
+                      alt="Generated"
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        opacity: loadedImages[photos[selectedPhotoIndex].id]?.gen ? 1 : 0,
+                        zIndex: 2,
+                        transition: 'opacity 0.5s',
+                        animation: loadedImages[photos[selectedPhotoIndex].id]?.gen ? 'fadeInGridImg 0.2s' : 'none',
+                      }}
+                      onLoad={() => setLoadedImages(prev => ({
+                        ...prev,
+                        [photos[selectedPhotoIndex].id]: { ...prev[photos[selectedPhotoIndex].id], gen: true }
+                      }))}
+                    />
+                  )}
+                </div>
+                <div className="photo-label" style={{
+                  marginTop: 24,
+                  textAlign: 'center',
+                  fontFamily: '"Permanent Marker", cursive',
+                  fontWeight: 700,
+                  fontSize: 36,
+                  letterSpacing: 1,
+                  color: '#222',
+                  textShadow: '0 1px 2px #fff',
+                }}>{
+                  selectedPhotoIndex !== null && photos[selectedPhotoIndex]?.loading && Math.floor(photos[selectedPhotoIndex]?.progress || 0) > 0
+                    ? `${Math.floor(photos[selectedPhotoIndex].progress)}%`
+                    : (photos[selectedPhotoIndex]?.isOriginal ? 'Reference' : `#${selectedPhotoIndex-keepOriginalPhoto+1}`)
+                }</div>
               </div>
-            )}
-            
-            {/* Navigation buttons */}
-            {photos.length > 1 && selectedPhotoIndex !== null && (
-              <>
-                <button className="photo-nav-btn prev" onClick={goToPrevPhoto}>
-                  &#8249;
-                </button>
-                <button className="photo-nav-btn next" onClick={goToNextPhoto}>
-                  &#8250;
-                </button>
-              </>
-            )}
-            
-            {/* Current photo - remove animation classes */}
-            <div className="image-wrapper">
-              {selectedPhotoIndex !== null && renderSelectedPhoto()}
+              {/* Next photo preview */}
+              {photos.length > 1 && selectedPhotoIndex !== null && (
+                <div className="photo-preview next" onClick={goToNextPhoto}>
+                  <img 
+                    src={photos[getNextPhotoIndex(selectedPhotoIndex)]?.images?.[0] || ''}
+                    alt="Next"
+                    className="photo-preview-img"
+                  />
+                </div>
+              )}
             </div>
-            
-            {/* Next photo preview */}
-            {photos.length > 1 && selectedPhotoIndex !== null && (
-              <div className="photo-preview next" onClick={goToNextPhoto}>
-                <img 
-                  src={photos[getNextPhotoIndex(selectedPhotoIndex)]?.images?.[0] || ''}
-                  alt="Next"
-                  className="photo-preview-img"
-                />
-              </div>
-            )}
           </div>
+        )}
+
+        <canvas ref={canvasRef} className="hidden" />
+
+        {/* Slothicorn mascot with direct DOM manipulation */}
+        <div 
+          ref={slothicornRef}
+          className="slothicorn-container"
+          style={{ bottom: '-240px' }} // Start hidden
+        >
+          <img 
+            src={slothicornImage} 
+            alt="Slothicorn mascot" 
+            className="slothicorn-image" 
+          />
         </div>
-      )}
 
-      <canvas ref={canvasRef} className="hidden" />
+        {/* Camera shutter sound */}
+        <audio ref={shutterSoundRef} preload="auto">
+          <source src={clickSound} type="audio/mpeg" />
+          Your browser does not support the audio element.
+        </audio>
 
-      {/* Slothicorn mascot with direct DOM manipulation */}
-      <div 
-        ref={slothicornRef}
-        className="slothicorn-container"
-        style={{ bottom: '-240px' }} // Start hidden
-      >
-        <img 
-          src={slothicornImage} 
-          alt="Slothicorn mascot" 
-          className="slothicorn-image" 
-        />
+        {/* Camera wind sound */}
+        <audio ref={cameraWindSoundRef} preload="auto">
+          <source src={cameraWindSound} type="audio/mpeg" />
+          Your browser does not support the audio element.
+        </audio>
+
+        {/* FIX: Floating 'View Photos' button only if user has taken a photo */}
+        {selectedPhotoIndex === null && !showPhotoGrid && photos.length > 0 && (
+          <button
+            onClick={() => {
+              // Mark the camera as hiding
+              setCameraAnimating(true);
+              // Show the photo grid with animation
+              setShowPhotoGrid(true);
+              // Reset camera animating after animation completes
+              setTimeout(() => {
+                setCameraAnimating(false);
+              }, 600);
+            }}
+            style={{
+              position: 'absolute',
+              bottom: 18,
+              right: 18,
+              zIndex: 10,
+              background: '#fff',
+              color: '#222',
+              border: '2px solid #ff5e8a',
+              borderRadius: 16,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
+              padding: '10px 18px',
+              fontWeight: 700,
+              fontSize: 15,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            View Photos
+          </button>
+        )}
       </div>
 
-      {/* Thumbnail strip at bottom */}
-      {renderGallery()}
+      {/* Add a dedicated useEffect for the aspect ratio CSS */}
+      {useEffect(() => {
+        // Add our CSS fixes (all 5 issues at once)
+        const styleEl = document.createElement('style');
+        styleEl.textContent = `
+          /* ------- FIX 1: Style dropdown ------- */
+          .style-dropdown {
+            background-color: #292d3e;
+            border-radius: 8px;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+            max-height: 380px;
+            width: 240px;
+            overflow-y: auto;
+            padding: 8px;
+            z-index: 1000;
+            position: absolute;
+          }
+          
+          .style-section.featured {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+          }
+          
+          .style-option {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            margin: 2px 0;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #e1e1e6;
+            transition: background-color 0.2s;
+          }
+          
+          .style-option:hover {
+            background-color: #3a3f55;
+          }
+          
+          .style-option:hover:before {
+            display: none !important; /* Remove the carat */
+          }
+          
+          .style-option.selected {
+            background-color: #5050ff !important; /* Blue background instead of red */
+            color: white !important;
+            font-weight: 500;
+          }
+          
+          .style-icon {
+            margin-right: 10px;
+            z-index: 2;
+          }
+          
+          /* ------- FIX 2: Camera widget Polaroid style ------- */
+          .photobooth-frame {
+            background: white;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            border-radius: 4px;
+            width: auto;
+            max-width: 70%;
+            margin: 20px auto;
+            padding: 8px 8px 60px 8px;
+            position: relative;
+          }
+          
+          .photobooth-header {
+            margin-bottom: 8px;
+          }
+          
+          /* Move Take Photo button to bottom */
+          .header-take-photo-btn {
+            position: absolute !important;
+            bottom: 15px !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            background: #ff5252 !important;
+            color: white !important;
+            font-weight: bold !important;
+            padding: 10px 20px !important;
+            border-radius: 25px !important;
+            border: none !important;
+            cursor: pointer !important;
+            z-index: 10 !important;
+          }
+          
+          .header-take-photo-btn:hover {
+            background: #ff7272 !important;
+          }
+          
+          /* ------- FIX 3: Back to Camera button positioning ------- */
+          .film-strip-container .back-to-camera-btn {
+            position: fixed !important;
+            left: 20px !important;
+            bottom: 20px !important;
+            top: auto !important;
+            right: auto !important;
+            background: #ff5252 !important;
+            color: white !important;
+            border: none !important;
+            padding: 10px 20px !important;
+            border-radius: 8px !important;
+            z-index: 9999 !important;
+            margin: 0 !important;
+            transform: none !important;
+          }
+          
+          /* ------- FIX 4: Loading image fade effect ------- */
+          .film-frame.loading {
+            position: relative;
+          }
+          
+          .film-frame.loading img {
+            transition: opacity 0.5s;
+          }
+          
+          /* Set opacity based on progress attribute */
+          .film-frame.loading[data-progress="0"] img { opacity: 0 !important; }
+          .film-frame.loading[data-progress="10"] img { opacity: 0.05 !important; }
+          .film-frame.loading[data-progress="20"] img { opacity: 0.10 !important; }
+          .film-frame.loading[data-progress="30"] img { opacity: 0.15 !important; }
+          .film-frame.loading[data-progress="40"] img { opacity: 0.20 !important; }
+          .film-frame.loading[data-progress="50"] img { opacity: 0.25 !important; }
+          .film-frame.loading[data-progress="60"] img { opacity: 0.30 !important; }
+          .film-frame.loading[data-progress="70"] img { opacity: 0.35 !important; }
+          .film-frame.loading[data-progress="80"] img { opacity: 0.40 !important; }
+          .film-frame.loading[data-progress="90"] img { opacity: 0.45 !important; }
+          .film-frame.loading[data-progress="100"] img { opacity: 0.50 !important; }
+          
+          /* ------- FIX 5: Slideshow Polaroid frame ------- */
+          .selected-photo-container {
+            background: rgba(0,0,0,0.85);
+          }
+          
+          .image-wrapper {
+            background: white !important;
+            padding: 16px 16px 60px 16px !important;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3) !important;
+            border-radius: 4px !important;
+            margin: 20px auto !important;
+            position: relative !important;
+            max-width: 80% !important;
+            max-height: 80vh !important;
+          }
+          
+          .image-wrapper img {
+            width: 100% !important;
+            height: auto !important;
+            object-fit: cover !important;
+            display: block !important;
+            border-radius: 2px !important;
+          }
+          
+          /* Set aspect ratio CSS variable based on orientation */
+          :root {
+            --current-aspect-ratio: ${window.innerHeight > window.innerWidth ? '896/1152' : '1152/896'};
+          }
+          
+          /* Ensure images display properly */
+          #webcam {
+            object-fit: cover;
+            width: 100%;
+            height: auto;
+          }
+          
+          /* Update film frame images */
+          .film-frame img {
+            object-fit: cover;
+            width: 100%;
+            height: 100%;
+          }
+          .fade-in {
+            transition: opacity 0.5s !important;
+          }
 
-      {/* Camera shutter sound */}
-      <audio ref={shutterSoundRef} preload="auto">
-        <source src={clickSound} type="audio/mpeg" />
-        Your browser does not support the audio element.
-      </audio>
-
-      {/* Camera wind sound */}
-      <audio ref={cameraWindSoundRef} preload="auto">
-        <source src={cameraWindSound} type="audio/mpeg" />
-        Your browser does not support the audio element.
-      </audio>
-
-    </div>
+          /* ------- Responsive Polaroid Frame for Mobile ------- */
+          @media (max-width: 600px) {
+            .polaroid-frame {
+              max-width: 99vw !important;
+              border-radius: 12px !important;
+            }
+            .polaroid-frame > div:first-child {
+              height: 40px !important;
+              padding: 0 8px !important;
+            }
+            .polaroid-frame .photobooth-title {
+              font-size: 14px !important;
+            }
+            .polaroid-frame .header-style-select,
+            .polaroid-frame .header-config-btn {
+              font-size: 13px !important;
+              width: 24px !important;
+              height: 24px !important;
+              min-width: 24px !important;
+              min-height: 24px !important;
+            }
+            .polaroid-frame > div[style*='aspect-ratio'] {
+              border-left-width: 12px !important;
+              border-right-width: 12px !important;
+              border-top-width: 40px !important;
+              border-bottom-width: 40px !important;
+              border-radius: 0 0 8px 8px !important;
+            }
+            .polaroid-bottom-tab {
+              margin-top: -40px !important;
+              height: 40px !important;
+            }
+            .take-photo-polaroid-btn.camera-shutter-btn {
+              width: 40px !important;
+              height: 40px !important;
+              font-size: 13px !important;
+            }
+            .take-photo-polaroid-btn.camera-shutter-btn span {
+              width: 16px !important;
+              height: 16px !important;
+              font-size: 11px !important;
+            }
+            .take-photo-polaroid-btn.camera-shutter-btn span:last-child {
+              bottom: -14px !important;
+              font-size: 10px !important;
+            }
+          }
+        `;
+        
+        document.head.appendChild(styleEl);
+        
+        // Update aspect ratio when orientation changes
+        const updateAspectRatio = () => {
+          const isPortrait = window.innerHeight > window.innerWidth;
+          document.documentElement.style.setProperty(
+            '--current-aspect-ratio', 
+            isPortrait ? '896/1152' : '1152/896'
+          );
+        };
+        
+        // Set initial aspect ratio
+        updateAspectRatio();
+        
+        // Update on resize
+        window.addEventListener('resize', updateAspectRatio);
+        
+        return () => {
+          window.removeEventListener('resize', updateAspectRatio);
+          if (styleEl && document.head.contains(styleEl)) {
+            document.head.removeChild(styleEl);
+          }
+        };
+      }, [])}
     </>
   );
 };
