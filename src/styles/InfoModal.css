@@ -1,0 +1,81 @@
+.notes-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.notes-modal {
+  background: transparent;
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 500px;
+  width: 90%;
+}
+
+.sticky-note {
+  background: #feff9c;
+  padding: 20px;
+  border-radius: 2px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  position: relative;
+  transform: rotate(-1deg);
+}
+
+.note-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+}
+
+.note-close:hover {
+  color: #333;
+}
+
+.marker-font {
+  font-family: 'Permanent Marker', cursive;
+  color: #333;
+}
+
+.sticky-note h2 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 1.5em;
+}
+
+.sticky-note ul {
+  list-style-type: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.sticky-note li {
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.note-footer {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 0.9em;
+}
+
+.note-footer a {
+  color: #666;
+  text-decoration: none;
+}
+
+.note-footer a:hover {
+  color: #333;
+  text-decoration: underline;
+} 
