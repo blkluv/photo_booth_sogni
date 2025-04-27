@@ -3,7 +3,7 @@ export const CORS_CONFIG = {
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   credentials: true,
-  maxAge: 86400
+  maxAge: 86_400
 };
 
 export const API_CONFIG = {

@@ -1,6 +1,6 @@
 /* Photobooth Header & Title (centralised) */
 .photobooth-header {
-  background-color: #ffd301;
+  background-color: #ff99cc;
   border-radius: 12px 12px 0 0;
   padding: 10px 15px !important;
   display: flex;
@@ -14,14 +14,14 @@
 
 .photobooth-title {
   color: #FF99CC !important;
-  font-size: 28px !important;
+  font-size: 21px !important;
   font-weight: bold !important;
   text-transform: uppercase !important;
   margin: 0 !important;
   margin-right: 10px !important;
   padding: 0 !important;
   letter-spacing: 2px !important;
-  text-shadow: 3px 3px 0 #ff3366, -1px -1px 0 #ffd301, 0 0 10px rgba(255, 255, 255, 0.6) !important;
+  text-shadow: 3px 3px 0 #ff3366, -1px -1px 0 #fff, 0 0 10px rgba(255, 255, 255, 0.6) !important;
   -webkit-text-stroke: 1px #ff3366 !important;
   white-space: nowrap !important;
   flex-shrink: 1 !important;

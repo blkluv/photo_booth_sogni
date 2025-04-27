@@ -4,9 +4,9 @@ const SOGNI_HOSTS = {
   'production': { socket: 'wss://socket.sogni.ai', api: 'https://api.sogni.ai' },
 } as const;
 
-type SogniEnv = keyof typeof SOGNI_HOSTS;
+type SogniEnvironment = keyof typeof SOGNI_HOSTS;
 
-const SOGNI_ENV = import.meta.env.VITE_SOGNI_ENV as SogniEnv || 'staging';
+const SOGNI_ENV = import.meta.env.VITE_SOGNI_ENV as SogniEnvironment || 'staging';
 
 console.log('Config - SOGNI_ENV:', SOGNI_ENV);
 console.log('Config - SOGNI_HOSTS[SOGNI_ENV]:', SOGNI_HOSTS[SOGNI_ENV]);

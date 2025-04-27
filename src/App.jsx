@@ -9,6 +9,209 @@ import light1Image from './light1.png';
 import light2Image from './light2.png';
 import './App.css';
 import prompts from './prompts.json';
+import ReactDOM from 'react-dom';
+
+// StyleDropdown component that uses portals to render outside the DOM hierarchy
+const StyleDropdown = ({ 
+  isOpen, 
+  onClose, 
+  selectedStyle, 
+  updateStyle, 
+  defaultStylePrompts, 
+  styleIdToDisplay, 
+  showControlOverlay, 
+  setShowControlOverlay, 
+  dropdownPosition = 'top' // Add default value
+}) => {
+  const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [mounted, setMounted] = useState(false);
+  const dropdownReference = useRef(null);
+  
+  useEffect(() => {
+    if (isOpen) {
+      // Find the style button in the DOM to position the dropdown
+      const styleButton = document.querySelector('.bottom-style-select');
+      if (styleButton) {
+        const rect = styleButton.getBoundingClientRect();
+        // Position above the button for the bottom toolbar
+        setPosition({
+          bottom: window.innerHeight - rect.top + 10,
+          left: rect.left + rect.width / 2,
+          width: 280
+        });
+        setMounted(true);
+      }
+    } else {
+      setMounted(false);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      const handleClickOutside = (e) => {
+        if (dropdownReference.current && !dropdownReference.current.contains(e.target)) {
+          // Check if the click was on the style button
+          const styleButton = document.querySelector('.bottom-style-select');
+          if (!styleButton || !styleButton.contains(e.target)) {
+            onClose();
+          }
+        }
+      };
+      
+      document.addEventListener('click', handleClickOutside);
+      
+      // Scroll selected option into view
+      setTimeout(() => {
+        const selectedOption = document.querySelector('.style-option.selected');
+        if (selectedOption && dropdownReference.current) {
+          selectedOption.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+      
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [isOpen, onClose]);
+
+  // If not mounted or not open, don't render anything
+  if (!mounted || !isOpen) return null;
+
+  // Create portal to render the dropdown at the document root
+  return ReactDOM.createPortal(
+    <div 
+      ref={dropdownReference}
+      className={`style-dropdown ${dropdownPosition}-position`}
+      style={{
+        position: 'fixed',
+        ...(dropdownPosition === 'top' 
+          ? { bottom: position.bottom } 
+          : { top: position.bottom }),
+        left: position.left,
+        transform: 'translateX(-50%)',
+        maxHeight: 300,
+        width: position.width,
+        background: 'white',
+        borderRadius: 5,
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        overflow: 'auto',
+        zIndex: 10_000,
+        transformOrigin: dropdownPosition === 'top' ? 'center bottom' : 'center top',
+        animation: 'dropdownAppear 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards',
+        border: '1px solid rgba(0,0,0,0.1)',
+        fontFamily: '"Permanent Marker", cursive',
+        fontSize: 13,
+      }}
+    >
+      <style>{`
+        @keyframes dropdownAppear {
+          from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(${dropdownPosition === 'top' ? '10px' : '-10px'});
+          }
+          to {
+            opacity: 1; 
+            transform: translateX(-50%) translateY(0);
+          }
+        }
+      `}</style>
+
+      <div className="style-section featured">
+        {/* Featured options */}
+        <div 
+          className={`style-option ${selectedStyle === 'randomMix' ? 'selected' : ''}`} 
+          onClick={() => { 
+            updateStyle('randomMix');
+            onClose();
+          }}
+          style={{
+            padding: '8px 12px',
+            cursor: 'pointer',
+            transition: 'background-color 0.2s',
+            color: selectedStyle === 'randomMix' ? '#ff5e8a' : '#333',
+            background: selectedStyle === 'randomMix' ? '#fff0f4' : 'transparent',
+            fontFamily: '"Permanent Marker", cursive',
+            fontSize: 13,
+            textAlign: 'left'
+          }}
+        >
+          <span style={{ marginRight: 8 }}>🎲</span>
+          <span>Random Mix</span>
+        </div>
+        
+        <div 
+          className={`style-option ${selectedStyle === 'random' ? 'selected' : ''}`} 
+          onClick={() => { 
+            updateStyle('random');
+            onClose();
+          }}
+          style={{
+            padding: '8px 12px',
+            cursor: 'pointer',
+            transition: 'background-color 0.2s',
+            color: selectedStyle === 'random' ? '#ff5e8a' : '#333',
+            background: selectedStyle === 'random' ? '#fff0f4' : 'transparent',
+            fontFamily: '"Permanent Marker", cursive',
+            fontSize: 13,
+            textAlign: 'left'
+          }}
+        >
+          <span style={{ marginRight: 8 }}>🔀</span>
+          <span>Random</span>
+        </div>
+        
+        <div 
+          className={`style-option ${selectedStyle === 'custom' ? 'selected' : ''}`} 
+          onClick={() => { 
+            updateStyle('custom');
+            onClose();
+            setShowControlOverlay(true);
+          }}
+          style={{
+            padding: '8px 12px',
+            cursor: 'pointer',
+            transition: 'background-color 0.2s',
+            color: selectedStyle === 'custom' ? '#ff5e8a' : '#333',
+            background: selectedStyle === 'custom' ? '#fff0f4' : 'transparent',
+            fontFamily: '"Permanent Marker", cursive',
+            fontSize: 13,
+            textAlign: 'left'
+          }}
+        >
+          <span style={{ marginRight: 8 }}>✏️</span>
+          <span>Custom...</span>
+        </div>
+      </div>
+      
+      <div className="style-section regular">
+        {Object.keys(defaultStylePrompts)
+          .filter(key => key !== 'random' && key !== 'custom' && key !== 'randomMix')
+          .sort()
+          .map(styleKey => (
+            <div 
+              key={styleKey}
+              className={`style-option ${selectedStyle === styleKey ? 'selected' : ''}`} 
+              onClick={() => { 
+                updateStyle(styleKey);
+                onClose();
+              }}
+              style={{
+                padding: '8px 12px',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s',
+                color: selectedStyle === styleKey ? '#ff5e8a' : '#333',
+                background: selectedStyle === styleKey ? '#fff0f4' : 'transparent',
+                fontFamily: '"Permanent Marker", cursive',
+                fontSize: 13,
+                textAlign: 'left'
+              }}
+            >
+              <span>{styleIdToDisplay(styleKey)}</span>
+            </div>
+          ))}
+      </div>
+    </div>,
+    document.body
+  );
+};
 
 // Cookie utility functions
 const saveSettingsToCookies = (settings) => {
@@ -16,9 +219,9 @@ const saveSettingsToCookies = (settings) => {
   expiryDate.setMonth(expiryDate.getMonth() + 6); // Expire in 6 months
   const expires = `; expires=${expiryDate.toUTCString()}`;
   
-  Object.entries(settings).forEach(([key, value]) => {
+  for (const [key, value] of Object.entries(settings)) {
     document.cookie = `sogni_${key}=${value}${expires}; path=/`;
-  });
+  }
 };
 
 const getSettingFromCookie = (name, defaultValue) => {
@@ -28,7 +231,7 @@ const getSettingFromCookie = (name, defaultValue) => {
   for (let cookie of cookies) {
     cookie = cookie.trim();
     if (cookie.indexOf(cookieName) === 0) {
-      const value = cookie.substring(cookieName.length);
+      const value = cookie.slice(cookieName.length);
       
       // Try to parse numbers and booleans
       if (!isNaN(Number(value))) {
@@ -54,7 +257,7 @@ const DEFAULT_SETTINGS = {
   controlNetStrength: 0.8,
   controlNetGuidanceEnd: 0.6,
   flashEnabled: true,
-  keepOriginalPhoto: true,
+  keepOriginalPhoto: false,
   selectedStyle: 'randomMix'
 };
 
@@ -80,9 +283,9 @@ defaultStylePrompts.random = `{${Object.values(prompts).join('|')}}`;
 function getCustomDimensions() {
   const isPortrait = window.innerHeight > window.innerWidth;
   if (isPortrait) {
-    return { width: 896, height: 1152 };
+    return { width: 896, height: 1152 }; // Portrait: 896:1152 (ratio ~0.778)
   } else {
-    return { width: 1152, height: 896 };
+    return { width: 1152, height: 896 }; // Landscape: 1152:896 (ratio ~1.286)
   }
 }
 
@@ -93,17 +296,17 @@ function getCustomDimensions() {
 async function resizeDataUrl(dataUrl, width, height) {
   return new Promise((resolve) => {
     const img = new Image();
-    img.onload = () => {
+    img.addEventListener('load', () => {
       const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
-      const ctx = canvas.getContext('2d');
+      const context = canvas.getContext('2d');
       // fill black to avoid any transparent edges
-      ctx.fillStyle = 'black';
-      ctx.fillRect(0, 0, width, height);
-      ctx.drawImage(img, 0, 0, width, height);
+      context.fillStyle = 'black';
+      context.fillRect(0, 0, width, height);
+      context.drawImage(img, 0, 0, width, height);
       resolve(canvas.toDataURL('image/png'));
-    };
+    });
     img.src = dataUrl;
   });
 }
@@ -137,7 +340,7 @@ async function describeImage(photoBlob) {
 }
 
 const generateUUID = () => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replaceAll(/[xy]/g, function(c) {
     const r = Math.random() * 16 | 0;
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
@@ -145,15 +348,28 @@ const generateUUID = () => {
 };
 
 const App = () => {
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const shutterSoundRef = useRef(null);
-  const cameraWindSoundRef = useRef(null);
-  const slothicornRef = useRef(null);
+  const videoReference = useRef(null);
+  const canvasReference = useRef(null);
+  const shutterSoundReference = useRef(null);
+  const cameraWindSoundReference = useRef(null);
+  const slothicornReference = useRef(null);
 
   // Style selection -- default to what's in cookies
   const [selectedStyle, setSelectedStyle] = useState(getSettingFromCookie('selectedStyle', DEFAULT_SETTINGS.selectedStyle));
   const [customPrompt, setCustomPrompt] = useState(getSettingFromCookie('customPrompt', ''));
+  const [loadedImages, setLoadedImages] = useState({});
+
+  // Info modal state - adding back the missing state
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showRetakeModal, setShowRetakeModal] = useState(false);
+  const [showUrlModal, setShowUrlModal] = useState(false);
+  const [showCamera, setShowCamera] = useState(true);
+  const [showPhotoGrid, setShowPhotoGrid] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
+  const [showCameraError, setShowCameraError] = useState(false);
+  const [showImageError, setShowImageError] = useState(false);
+  const [showScrollIndicator, setShowScrollIndicator] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   // Photos array
   // Each => { id, generating, images: string[], error, originalDataUrl?, newlyArrived?: boolean, generationCountdown?: number }
@@ -192,13 +408,13 @@ const App = () => {
   const [dragActive, setDragActive] = useState(false);
 
   // First, let's create a proper job tracking map at the top of the App component:
-  const jobMapRef = useRef(new Map());
+  const jobMapReference = useRef(new Map());
 
   // First, let's track project setup progress properly
   const [projectSetupProgress, setProjectSetupProgress] = useState(0);
 
   // At the top of App component, add a new ref for tracking project state
-  const projectStateRef = useRef({
+  const projectStateReference = useRef({
     currentPhotoIndex: 0,
     jobs: new Map(), // Map<jobId, {index: number, status: string, resultUrl?: string}>
     startedJobs: new Set(), // Track which indices have started jobs
@@ -218,9 +434,28 @@ const App = () => {
     { label: 'JuggernautXL 9 + RD Photo2 (SDXL Lightning)', value: 'coreml-juggernautXL_v9Rdphoto2Lightning' }
   ];
 
+  // Add useEffect for checking scrollability at top level
+  useEffect(() => {
+    const checkScrollable = () => {
+      const filmStrip = document.querySelector('.film-strip-container');
+      if (filmStrip) {
+        // Only show if scrollHeight is greater than clientHeight (scrollable)
+        const isScrollable = filmStrip.scrollHeight > filmStrip.clientHeight;
+        setShowScrollIndicator(isScrollable && photos.length > 8);
+      }
+    };
+    
+    // Check after content has rendered
+    setTimeout(checkScrollable, 100);
+    
+    // Also check on window resize
+    window.addEventListener('resize', checkScrollable);
+    return () => window.removeEventListener('resize', checkScrollable);
+  }, [photos.length, showPhotoGrid]);
+
   // At the top of App component, add new state variables - now loaded from cookies
   const [selectedModel, setSelectedModel] = useState(getSettingFromCookie('selectedModel', DEFAULT_SETTINGS.selectedModel));
-  const [numImages, setNumImages] = useState(getSettingFromCookie('numImages', DEFAULT_SETTINGS.numImages));
+  const [numberImages, setNumberImages] = useState(getSettingFromCookie('numImages', DEFAULT_SETTINGS.numImages));
   const [promptGuidance, setPromptGuidance] = useState(getSettingFromCookie('promptGuidance', DEFAULT_SETTINGS.promptGuidance));
   const [controlNetStrength, setControlNetStrength] = useState(getSettingFromCookie('controlNetStrength', DEFAULT_SETTINGS.controlNetStrength));
   const [controlNetGuidanceEnd, setControlNetGuidanceEnd] = useState(getSettingFromCookie('controlNetGuidanceEnd', DEFAULT_SETTINGS.controlNetGuidanceEnd));
@@ -243,7 +478,7 @@ const App = () => {
   // Add new state for button cooldown
   const [isPhotoButtonCooldown, setIsPhotoButtonCooldown] = useState(false);
   // Ref to track current project
-  const activeProjectRef = useRef(null);
+  const activeProjectReference = useRef(null);
 
   // Add back the thought arrays
   const photoThoughts = [
@@ -311,7 +546,7 @@ const App = () => {
     if (thoughtInProgress) return;
     thoughtInProgress = true;
     // Select thoughts based on whether there's an active project
-    const thoughts = activeProjectRef.current ? photoThoughts : randomThoughts;
+    const thoughts = activeProjectReference.current ? photoThoughts : randomThoughts;
     const randomThought = thoughts[Math.floor(Math.random() * thoughts.length)];
     const isLeftSide = Math.random() < 0.5;
     
@@ -331,7 +566,7 @@ const App = () => {
   // Update timing in useEffect
   useEffect(() => {
     // Initial delay between 5-15 seconds
-    const initialDelay = 5000 + Math.random() * 15000;
+    const initialDelay = 5000 + Math.random() * 15_000;
     const firstThought = setTimeout(() => {
       showThought();
     }, initialDelay);
@@ -341,7 +576,7 @@ const App = () => {
       if (selectedPhotoIndex === null) {
         showThought();
       }
-    }, 18000); // Fixed 18 second interval
+    }, 18_000); // Fixed 18 second interval
 
     return () => {
       clearTimeout(firstThought);
@@ -352,8 +587,8 @@ const App = () => {
   // Camera aspect ratio useEffect
   useEffect(() => {
     const handleVideoLoaded = () => {
-      if (videoRef.current) {
-        const { videoWidth, videoHeight } = videoRef.current;
+      if (videoReference.current) {
+        const { videoWidth, videoHeight } = videoReference.current;
         if (videoWidth && videoHeight) {
           // Set CSS variable for camera aspect ratio
           document.documentElement.style.setProperty(
@@ -366,7 +601,7 @@ const App = () => {
     };
 
     // Add event listener for when video metadata is loaded
-    const videoElement = videoRef.current;
+    const videoElement = videoReference.current;
     if (videoElement) {
       videoElement.addEventListener('loadedmetadata', handleVideoLoaded);
       // If already loaded, set it now
@@ -381,7 +616,7 @@ const App = () => {
         videoElement.removeEventListener('loadedmetadata', handleVideoLoaded);
       }
     };
-  }, [videoRef.current]);
+  }, [videoReference.current]);
 
   // Fix for iOS viewport height issues
   useEffect(() => {
@@ -402,14 +637,14 @@ const App = () => {
     });
     
     // On iOS, add a class to handle content safely with notches
-    if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
       document.body.classList.add('ios-device');
       
       // When showing the photo viewer, prevent background scrolling
-      if (selectedPhotoIndex !== null) {
-        document.body.classList.add('prevent-scroll');
-      } else {
+      if (selectedPhotoIndex === null) {
         document.body.classList.remove('prevent-scroll');
+      } else {
+        document.body.classList.add('prevent-scroll');
       }
     }
     
@@ -422,7 +657,7 @@ const App = () => {
   // Add this useEffect at the beginning of the component
   useEffect(() => {
     // Simple mobile detection
-    const isMobile = /iPhone|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+    const isMobile = /iphone|ipod|android|webos|blackberry|iemobile|opera mini/i.test(navigator.userAgent) 
       || (window.innerWidth <= 768);
     
     if (isMobile) {
@@ -466,8 +701,8 @@ const App = () => {
    */
   const startCamera = useCallback(async (deviceId) => {
     // Check if we're on mobile and iOS
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isMobile = /iphone|ipad|ipod|android/i.test(navigator.userAgent);
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
     const isPortrait = window.innerHeight > window.innerWidth;
     
     console.log(`Camera setup - isMobile: ${isMobile}, isIOS: ${isIOS}, isPortrait: ${isPortrait}`);
@@ -519,12 +754,12 @@ const App = () => {
       console.log('Getting user media with constraints:', JSON.stringify(constraints));
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+      if (videoReference.current) {
+        videoReference.current.srcObject = stream;
         
         // Add proper class for iOS
         if (isIOS) {
-          videoRef.current.classList.add('ios-fix');
+          videoReference.current.classList.add('ios-fix');
         }
         
         // Get actual stream dimensions for debugging
@@ -536,36 +771,36 @@ const App = () => {
         
         // Add a small delay before playing to prevent potential errors
         setTimeout(() => {
-          if (videoRef.current) {
-            videoRef.current.play().catch(err => {
-              console.warn("Video play error:", err);
+          if (videoReference.current) {
+            videoReference.current.play().catch(error => {
+              console.warn("Video play error:", error);
             });
           }
         }, 100);
       }
-    } catch (err) {
-      console.error(`Error accessing webcam: ${err}`);
+    } catch (error) {
+      console.error(`Error accessing webcam: ${error}`);
       
       // If failed with ideal settings, try again with more flexible constraints
-      if (!deviceId && err.name === 'OverconstrainedError') {
+      if (!deviceId && error.name === 'OverconstrainedError') {
         console.log('Trying with more flexible constraints');
         try {
           const backupConstraints = { video: true };
           const stream = await navigator.mediaDevices.getUserMedia(backupConstraints);
           
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            if (isIOS) videoRef.current.classList.add('ios-fix');
+          if (videoReference.current) {
+            videoReference.current.srcObject = stream;
+            if (isIOS) videoReference.current.classList.add('ios-fix');
             
             setTimeout(() => {
-              videoRef.current?.play().catch(e => console.warn("Backup video play error:", e));
+              videoReference.current?.play().catch(error_ => console.warn("Backup video play error:", error_));
             }, 100);
           }
-        } catch (backupErr) {
-          alert(`Could not access camera: ${backupErr.message}`);
+        } catch (error_) {
+          alert(`Could not access camera: ${error_.message}`);
         }
       } else {
-        alert(`Error accessing webcam: ${err.message}`);
+        alert(`Error accessing webcam: ${error.message}`);
       }
     }
   }, [desiredWidth, desiredHeight]);
@@ -578,8 +813,8 @@ const App = () => {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(d => d.kind === 'videoinput');
       setCameraDevices(videoDevices);
-    } catch (err) {
-      console.warn('Error enumerating devices', err);
+    } catch (error) {
+      console.warn('Error enumerating devices', error);
     }
   }, []);
 
@@ -596,13 +831,13 @@ const App = () => {
 
   // If we return to camera, ensure the video is playing
   useEffect(() => {
-    if (selectedPhotoIndex === null && videoRef.current) {
+    if (selectedPhotoIndex === null && videoReference.current) {
       console.log("Restarting video playback");
       // Add a small delay to ensure DOM updates before attempting to play
       setTimeout(() => {
-        if (videoRef.current && videoRef.current.srcObject) {
-          videoRef.current.play().catch(err => {
-            console.warn("Video re-play error:", err);
+        if (videoReference.current && videoReference.current.srcObject) {
+          videoReference.current.play().catch(error => {
+            console.warn("Video re-play error:", error);
           });
         } else {
           console.log("Video ref or srcObject not available, restarting camera");
@@ -616,10 +851,10 @@ const App = () => {
   // Preload images for the selected photo
   useEffect(() => {
     if (selectedPhotoIndex !== null && photos[selectedPhotoIndex]) {
-      photos[selectedPhotoIndex].images.forEach((url) => {
+      for (const url of photos[selectedPhotoIndex].images) {
         const img = new Image();
         img.src = url;
-      });
+      }
     }
   }, [selectedPhotoIndex, photos]);
 
@@ -635,32 +870,32 @@ const App = () => {
   };
 
   // Simplified function to navigate to previous photo with looping
-  const goToPrevPhoto = () => {
+  const goToPreviousPhoto = () => {
     // Check if there are any loaded photos to navigate to
     if (photos.length <= 1) return;
     
     // Find the previous loaded photo
-    let prevIndex = selectedPhotoIndex;
+    let previousIndex = selectedPhotoIndex;
     let iterations = 0;
     
     // Only try once around the array to avoid infinite loop
     while (iterations < photos.length) {
-      prevIndex = prevIndex === 0 ? photos.length - 1 : prevIndex - 1;
+      previousIndex = previousIndex === 0 ? photos.length - 1 : previousIndex - 1;
       iterations++;
       
       // Skip photos that are still loading or have errors
-      const prevPhoto = photos[prevIndex];
-      if (prevPhoto && 
-          ((prevPhoto.images && prevPhoto.images.length > 0) || 
-           prevPhoto.isOriginal)) {
+      const previousPhoto = photos[previousIndex];
+      if (previousPhoto && 
+          ((previousPhoto.images && previousPhoto.images.length > 0) || 
+           previousPhoto.isOriginal)) {
         // We found a valid photo
         break;
       }
     }
     
     // Only proceed if we found a valid previous photo
-    if (prevIndex !== selectedPhotoIndex && iterations < photos.length) {
-      setSelectedPhotoIndex(prevIndex);
+    if (previousIndex !== selectedPhotoIndex && iterations < photos.length) {
+      setSelectedPhotoIndex(previousIndex);
       setSelectedSubIndex(0);
     }
   };
@@ -697,21 +932,21 @@ const App = () => {
   };
 
   // Get previous photo index with looping
-  const getPrevPhotoIndex = (currentIndex) => {
+  const getPreviousPhotoIndex = (currentIndex) => {
     // Find previous valid photo
-    let prevIndex = currentIndex;
+    let previousIndex = currentIndex;
     let iterations = 0;
     
     while (iterations < photos.length) {
-      prevIndex = prevIndex === 0 ? photos.length - 1 : prevIndex - 1;
+      previousIndex = previousIndex === 0 ? photos.length - 1 : previousIndex - 1;
       iterations++;
       
-      const prevPhoto = photos[prevIndex];
-      if (prevPhoto && 
-          ((prevPhoto.images && prevPhoto.images.length > 0) || 
-           prevPhoto.isOriginal)) {
+      const previousPhoto = photos[previousIndex];
+      if (previousPhoto && 
+          ((previousPhoto.images && previousPhoto.images.length > 0) || 
+           previousPhoto.isOriginal)) {
         // We found a valid photo
-        return prevIndex;
+        return previousIndex;
       }
     }
     
@@ -751,52 +986,24 @@ const App = () => {
       return;
     }
 
+    // Handle photo navigation
     if (selectedPhotoIndex !== null) {
-      const currentPhoto = photos[selectedPhotoIndex];
-      const maxImages = currentPhoto?.images?.length || 1;
-
-      // ESC => close viewer with animation
       if (e.key === 'Escape') {
-        handleClosePhoto();
+        setSelectedPhotoIndex(null);
         return;
       }
 
-      // up/down => subIndex
-      if (maxImages > 1) {
-        if (e.key === 'ArrowUp') {
-          e.preventDefault();
-          setSelectedSubIndex((prev) => (prev - 1 + maxImages) % maxImages);
-        } else if (e.key === 'ArrowDown') {
-          e.preventDefault();
-          setSelectedSubIndex((prev) => (prev + 1) % maxImages);
-        }
-      }
-
-      // left/right => previous/next photo with looping
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        goToPrevPhoto(); // Use the looping function instead
+        const previousIndex = selectedPhotoIndex === 0 ? photos.length - 1 : selectedPhotoIndex - 1;
+        setSelectedPhotoIndex(previousIndex);
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
-        goToNextPhoto(); // Use the looping function instead
-      }
-
-      // space => toggle original (5th) if present
-      if (e.key === ' ' && maxImages === 5) {
-        e.preventDefault();
-        setSelectedSubIndex((prev) => {
-          if (prev === 4) {
-            // if on original, go back
-            return lastViewedIndex;
-          } else {
-            // if on a rendered image, store that, go to original
-            setLastViewedIndex(prev);
-            return 4;
-          }
-        });
+        const nextIndex = selectedPhotoIndex === photos.length - 1 ? 0 : selectedPhotoIndex + 1;
+        setSelectedPhotoIndex(nextIndex);
       }
     }
-  }, [selectedPhotoIndex, photos, lastViewedIndex, showControlOverlay, photos.length]);
+  }, [selectedPhotoIndex, photos.length, showControlOverlay]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -806,8 +1013,8 @@ const App = () => {
   // Global 1s timer for generation countdown
   useEffect(() => {
     const interval = setInterval(() => {
-      setPhotos((prevPhotos) => {
-        return prevPhotos.map((p) => {
+      setPhotos((previousPhotos) => {
+        return previousPhotos.map((p) => {
           if (p.generating && p.generationCountdown > 0) {
             return { ...p, generationCountdown: p.generationCountdown - 1 };
           }
@@ -821,25 +1028,23 @@ const App = () => {
   // iOS orientation fix
   useEffect(() => {
     function isIOS() {
-      return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      return /iphone|ipad|ipod/i.test(navigator.userAgent);
     }
-    if (isIOS() && videoRef.current) {
+    if (isIOS() && videoReference.current) {
       // Add a special class so CSS can rotate it if in portrait
-      videoRef.current.classList.add('ios-fix');
+      videoReference.current.classList.add('ios-fix');
     }
   }, []);
 
   // Add an effect to properly initialize the slothicorn
   useEffect(() => {
     // Ensure slothicorn is properly initialized
-    if (slothicornRef.current) {
-      console.log('Initializing slothicorn position');
-      slothicornRef.current.style.transition = 'none';
-      slothicornRef.current.style.bottom = '-240px';
+    if (slothicornReference.current) {
+      // Just initialize the transition property to prevent abrupt changes
+      slothicornReference.current.style.transition = 'none';
       
       // Force a reflow to ensure style is applied
-      // This helps fix issues with styles not being applied on some mobile browsers
-      void slothicornRef.current.offsetHeight;
+      void slothicornReference.current.offsetHeight;
     }
   }, []);
 
@@ -851,9 +1056,9 @@ const App = () => {
       .map(([key, value]) => ({ key, value }));
     
     // Shuffle array using Fisher-Yates algorithm
-    for (let i = availablePrompts.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [availablePrompts[i], availablePrompts[j]] = [availablePrompts[j], availablePrompts[i]];
+    for (let index = availablePrompts.length - 1; index > 0; index--) {
+      const index_ = Math.floor(Math.random() * (index + 1));
+      [availablePrompts[index], availablePrompts[index_]] = [availablePrompts[index_], availablePrompts[index]];
     }
     
     // Take first 'count' items and join their prompts
@@ -869,19 +1074,19 @@ const App = () => {
       // Get the style prompt, generating random if selected
       const stylePrompt = (selectedStyle === 'custom')
         ? (customPrompt || 'A custom style portrait')
-        : selectedStyle === 'random'
+        : (selectedStyle === 'random'
           ? defaultStylePrompts[getRandomStyle()]
           : selectedStyle === 'randomMix'
-            ? getRandomMixPrompts(numImages)
-            : defaultStylePrompts[selectedStyle];
+            ? getRandomMixPrompts(numberImages)
+            : defaultStylePrompts[selectedStyle]);
       console.log('Style prompt:', stylePrompt);
-      projectStateRef.current = {
+      projectStateReference.current = {
         currentPhotoIndex: newPhotoIndex,
         pendingCompletions: new Map()
       };
 
       // Set up photos state first
-      setPhotos(prev => {
+      setPhotos(previous => {
         const newPhotos = [];
         if (keepOriginalPhoto) {
           newPhotos.push({
@@ -895,20 +1100,34 @@ const App = () => {
           });
         }
         
-        for (let i = 0; i < numImages; i++) {
+        for (let index = 0; index < numberImages; index++) {
           newPhotos.push({
-            id: Date.now() + i + 1,
+            id: Date.now() + index + 1,
             generating: true,
             loading: true,
             progress: 0,
             images: [],
             error: null,
-            originalDataUrl: null,
+            originalDataUrl: dataUrl, // Use reference photo as placeholder
             newlyArrived: false
           });
         }
         return newPhotos;
       });
+
+      // Animate camera and studio lights out
+      setCameraAnimating(true);
+      setLightsAnimating(true);
+      
+      // Wait for animation to complete before showing grid and hiding lights
+      setTimeout(() => {
+        setShowPhotoGrid(true);
+        setCameraAnimating(false);
+        setStudioLightsHidden(true);
+        setTimeout(() => {
+          setLightsAnimating(false);
+        }, 800); // Match animation duration
+      }, 700); // Match the duration of cameraFlyUp animation
 
       const arrayBuffer = await photoBlob.arrayBuffer();
       
@@ -929,9 +1148,9 @@ const App = () => {
             const offset = keepOriginalPhoto ? 1 : 0;
             const photoIndex = jobIndex + offset;
             
-            setPhotos(prev => {
-              const updated = [...prev];
-              if (!updated[photoIndex]) return prev;
+            setPhotos(previous => {
+              const updated = [...previous];
+              if (!updated[photoIndex]) return previous;
               
               updated[photoIndex] = {
                 ...updated[photoIndex],
@@ -954,7 +1173,7 @@ const App = () => {
         height: desiredHeight,
         steps: 7,
         guidance: promptGuidance,
-        numberOfImages: numImages,
+        numberOfImages: numberImages,
         scheduler: 'DPM Solver Multistep (DPM-Solver++)',
         timeStepSpacing: 'Karras',
         controlNet: {
@@ -962,12 +1181,12 @@ const App = () => {
           image: new Uint8Array(arrayBuffer),
           strength: controlNetStrength,
           mode: 'balanced',
-          guidanceStart: 0.0,
+          guidanceStart: 0,
           guidanceEnd: controlNetGuidanceEnd,
         }
       });
 
-      activeProjectRef.current = project.id;
+      activeProjectReference.current = project.id;
       console.log('Project created:', project.id);
 
       // Set up handlers for any jobs that exist immediately
@@ -987,15 +1206,16 @@ const App = () => {
 
       project.on('completed', (urls) => {
         console.log('Project completed:', urls);
+        activeProjectReference.current = null; // Clear active project reference when complete
         if (urls.length === 0) return;
         
-        urls.forEach((url, index) => {
+        for (const [index, url] of urls.entries()) {
           const offset = keepOriginalPhoto ? 1 : 0;
           const photoIndex = index + offset;
           
-          setPhotos(prev => {
-            const updated = [...prev];
-            if (!updated[photoIndex]) return prev;
+          setPhotos(previous => {
+            const updated = [...previous];
+            if (!updated[photoIndex]) return previous;
             
             if (updated[photoIndex].loading || updated[photoIndex].images.length === 0) {
               updated[photoIndex] = {
@@ -1008,11 +1228,12 @@ const App = () => {
             }
             return updated;
           });
-        });
+        }
       });
 
       project.on('failed', (error) => {
         console.error('Project failed:', error);
+        activeProjectReference.current = null; // Clear active project reference when failed
       });
 
       // Individual job events
@@ -1029,9 +1250,9 @@ const App = () => {
           return;
         }
         
-        if (cameraWindSoundRef.current) {
-          cameraWindSoundRef.current.play().catch(err => {
-            console.warn("Error playing camera wind sound:", err);
+        if (cameraWindSoundReference.current) {
+          cameraWindSoundReference.current.play().catch(error => {
+            console.warn("Error playing camera wind sound:", error);
           });
         }
         
@@ -1040,12 +1261,12 @@ const App = () => {
         console.log(`Loading image for job ${job.id} into box ${photoIndex}`);
         
         const img = new Image();
-        img.onload = () => {
-          setPhotos(prev => {
-            const updated = [...prev];
+        img.addEventListener('load', () => {
+          setPhotos(previous => {
+            const updated = [...previous];
             if (!updated[photoIndex]) {
               console.error(`No photo box found at index ${photoIndex}`);
-              return prev;
+              return previous;
             }
             
             updated[photoIndex] = {
@@ -1056,9 +1277,18 @@ const App = () => {
               images: [job.resultUrl],
               newlyArrived: true
             };
+            
+            // Check if all photos are done generating
+            const stillGenerating = updated.some(photo => photo.generating);
+            if (!stillGenerating && activeProjectReference.current) {
+              // All photos are done, clear the active project
+              console.log('All jobs completed, clearing active project');
+              activeProjectReference.current = null;
+            }
+            
             return updated;
           });
-        };
+        });
         img.src = job.resultUrl;
       });
 
@@ -1070,50 +1300,73 @@ const App = () => {
         const offset = keepOriginalPhoto ? 1 : 0;
         const photoIndex = jobIndex + offset;
         
-        setPhotos(prev => {
-          const updated = [...prev];
-          if (!updated[photoIndex]) return prev;
+        setPhotos(previous => {
+          const updated = [...previous];
+          if (!updated[photoIndex]) return previous;
           
           updated[photoIndex] = {
             ...updated[photoIndex],
             generating: false,
             loading: false,
-            error: job.error || 'Generation failed'
+            error: typeof job.error === 'object' ? 'Generation failed' : (job.error || 'Generation failed'),
+            permanentError: true // Add flag to prevent overwriting by other successful jobs
           };
+          
+          // Check if all photos are done generating
+          const stillGenerating = updated.some(photo => photo.generating);
+          if (!stillGenerating && activeProjectReference.current) {
+            // All photos are done, clear the active project
+            console.log('All jobs failed or completed, clearing active project');
+            activeProjectReference.current = null;
+          }
+          
           return updated;
         });
       });
 
-    } catch (err) {
-      console.error('Generation failed:', err);
+    } catch (error) {
+      console.error('Generation failed:', error);
       
-      if (err && err.code === 4015) {
+      if (error && error.code === 4015) {
         console.warn("Socket error (4015). Re-initializing Sogni.");
         setIsSogniReady(false);
         initializeSogni();
       }
 
-      setPhotos(prev => {
+      setPhotos(previous => {
         const updated = [];
         if (keepOriginalPhoto) {
-          const originalPhoto = prev.find(p => p.isOriginal);
+          const originalPhoto = previous.find(p => p.isOriginal);
           if (originalPhoto) {
             updated.push(originalPhoto);
           }
         }
         
-        for (let i = 0; i < numImages; i++) {
+        for (let index = 0; index < numberImages; index++) {
           updated.push({
-            id: Date.now() + i,
+            id: Date.now() + index,
             generating: false,
             loading: false,
             images: [],
-            error: `Error: ${err.message || err}`,
-            originalDataUrl: null
+            error: `Error: ${error.message || error}`,
+            originalDataUrl: dataUrl, // Use reference photo as placeholder
           });
         }
         return updated;
       });
+      
+      // Still show photo grid on error
+      setCameraAnimating(true);
+      setLightsAnimating(true);
+      
+      setTimeout(() => {
+        setShowPhotoGrid(true);
+        setCameraAnimating(false);
+        setStudioLightsHidden(true);
+        setTimeout(() => {
+          setLightsAnimating(false);
+        }, 800);
+      }, 700);
     }
   };
 
@@ -1158,18 +1411,18 @@ const App = () => {
       newlyArrived: false,
       generationCountdown: 10,
     };
-    setPhotos((prev) => [...prev, newPhoto]);
+    setPhotos((previous) => [...previous, newPhoto]);
     const newPhotoIndex = photos.length;
 
     // Read the file as dataURL so we can keep it (originalDataUrl)
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.addEventListener('load', (event) => {
       const dataUrl = event.target.result;
       newPhoto.originalDataUrl = dataUrl;
 
       // Now feed the Blob itself into the generator
       generateFromBlob(file, newPhotoIndex, dataUrl);
-    };
+    });
     reader.readAsDataURL(file);
   };
 
@@ -1182,16 +1435,16 @@ const App = () => {
     }
 
     // Cancel any existing project
-    if (activeProjectRef.current) {
-      console.log('Cancelling existing project:', activeProjectRef.current);
+    if (activeProjectReference.current) {
+      console.log('Cancelling existing project:', activeProjectReference.current);
       if (sogniClient) {
         try {
-          await sogniClient.cancelProject(activeProjectRef.current);
-        } catch (err) {
-          console.warn('Error cancelling previous project:', err);
+          await sogniClient.cancelProject(activeProjectReference.current);
+        } catch (error) {
+          console.warn('Error cancelling previous project:', error);
         }
       }
-      activeProjectRef.current = null;
+      activeProjectReference.current = null;
     }
 
     // Start cooldown
@@ -1200,29 +1453,26 @@ const App = () => {
       setIsPhotoButtonCooldown(false);
     }, 5000);
 
-    console.log('handleTakePhoto called - device type:', /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop');
+    console.log('handleTakePhoto called - device type:', /iphone|ipad|ipod|android/i.test(navigator.userAgent) ? 'mobile' : 'desktop');
     
     // Start countdown without slothicorn initially
-    for (let i = 3; i > 0; i--) {
-      setCountdown(i);
+    for (let index = 3; index > 0; index--) {
+      setCountdown(index);
       
       // Show slothicorn when countdown reaches 2
-      if (i === 2 && slothicornRef.current) {
-        console.log('Animating slothicorn up - slothicorn element:', slothicornRef.current ? 'exists' : 'missing');
+      if (index === 2 && slothicornReference.current) {
+        // Force the slothicorn to be visible and animated
+        slothicornReference.current.style.setProperty('bottom', '-360px', 'important');
+        slothicornReference.current.style.transition = 'none';
+        slothicornReference.current.classList.add('animating');
         
-        // Start hidden (if not already)
-        slothicornRef.current.style.bottom = '-240px';
-        console.log('Set initial bottom position:', slothicornRef.current.style.bottom);
+        // Force reflow
+        void slothicornReference.current.offsetHeight;
         
-        // Animate with a timeout for visibility
+        // After a small delay, start the upward animation
         setTimeout(() => {
-          // Apply a transition temporarily (will be removed later)
-          slothicornRef.current.style.transition = 'bottom 1s cubic-bezier(0.34, 1.2, 0.64, 1)';
-          console.log('Applied transition:', slothicornRef.current.style.transition);
-          
-          // Move up
-          slothicornRef.current.style.bottom = '0px';
-          console.log('Set new bottom position:', slothicornRef.current.style.bottom);
+          slothicornReference.current.style.transition = 'bottom 0.8s cubic-bezier(0.34, 1.2, 0.64, 1)';
+          slothicornReference.current.style.setProperty('bottom', '0px', 'important');
         }, 50);
       }
       
@@ -1234,21 +1484,14 @@ const App = () => {
     
     // Make slothicorn return more gradually
     setTimeout(() => {
-      if (slothicornRef.current) {
-        console.log('Animating slothicorn down');
+      if (slothicornReference.current) {
+        slothicornReference.current.style.transition = 'bottom 1.5s cubic-bezier(0.25, 0.1, 0.25, 1)';
+        slothicornReference.current.style.setProperty('bottom', '-340px', 'important');
         
-        // Apply a different transition for going down
-        slothicornRef.current.style.transition = 'bottom 1.5s cubic-bezier(0.25, 0.1, 0.25, 1)';
-        console.log('Applied down transition:', slothicornRef.current.style.transition);
-        
-        // Move down
-        slothicornRef.current.style.bottom = '-240px';
-        console.log('Set final bottom position:', slothicornRef.current.style.bottom);
-        
-        // Remove the transition after animation completes
+        // Wait for animation to complete, then clean up
         setTimeout(() => {
-          slothicornRef.current.style.transition = 'none';
-          console.log('Removed transition');
+          slothicornReference.current.style.transition = 'none';
+          slothicornReference.current.classList.remove('animating');
         }, 1500);
       }
     }, 1200);
@@ -1256,9 +1499,9 @@ const App = () => {
 
   const triggerFlashAndCapture = () => {
     // Play camera shutter sound
-    if (shutterSoundRef.current) {
-      shutterSoundRef.current.play().catch(err => {
-        console.warn("Error playing shutter sound:", err);
+    if (shutterSoundReference.current) {
+      shutterSoundReference.current.play().catch(error => {
+        console.warn("Error playing shutter sound:", error);
       });
     }
 
@@ -1275,8 +1518,8 @@ const App = () => {
   };
 
   const captureAndSend = async () => {
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
+    const canvas = canvasReference.current;
+    const video = videoReference.current;
     const isPortrait = window.innerHeight > window.innerWidth;
     
     // Set canvas dimensions to 1152x896 for landscape (or 896x1152 for portrait)
@@ -1288,11 +1531,11 @@ const App = () => {
       canvas.height = 896;
     }
     
-    const ctx = canvas.getContext('2d');
+    const context = canvas.getContext('2d');
     
     // Fill with black to prevent transparency
-    ctx.fillStyle = 'black';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = 'black';
+    context.fillRect(0, 0, canvas.width, canvas.height);
     
     // Calculate dimensions to maintain aspect ratio without stretching
     const videoAspect = video.videoWidth / video.videoHeight;
@@ -1300,27 +1543,27 @@ const App = () => {
     
     let sourceWidth = video.videoWidth;
     let sourceHeight = video.videoHeight;
-    let destX = 0;
-    let destY = 0;
-    let destWidth = canvas.width;
-    let destHeight = canvas.height;
+    let destinationX = 0;
+    let destinationY = 0;
+    let destinationWidth = canvas.width;
+    let destinationHeight = canvas.height;
     
     // If video aspect is wider than desired, crop width
     if (videoAspect > canvasAspect) {
       sourceWidth = video.videoHeight * canvasAspect;
       const sourceX = (video.videoWidth - sourceWidth) / 2;
-      ctx.drawImage(video, 
+      context.drawImage(video, 
         sourceX, 0, sourceWidth, sourceHeight,
-        destX, destY, destWidth, destHeight
+        destinationX, destinationY, destinationWidth, destinationHeight
       );
     } 
     // If video aspect is taller than desired, crop height
     else {
       sourceHeight = video.videoWidth / canvasAspect;
       const sourceY = (video.videoHeight - sourceHeight) / 2;
-      ctx.drawImage(video, 
+      context.drawImage(video, 
         0, sourceY, sourceWidth, sourceHeight,
-        destX, destY, destWidth, destHeight
+        destinationX, destinationY, destinationWidth, destinationHeight
       );
     }
 
@@ -1341,8 +1584,8 @@ const App = () => {
   //   Delete photo
   // -------------------------
   const handleDeletePhoto = (photoIndex) => {
-    setPhotos((prev) => {
-      const newPhotos = [...prev];
+    setPhotos((previous) => {
+      const newPhotos = [...previous];
       newPhotos.splice(photoIndex, 1);
       return newPhotos;
     });
@@ -1350,8 +1593,8 @@ const App = () => {
     setSelectedPhotoIndex((current) => {
       if (current === null) return null;
       if (current === photoIndex) {
-        const newIdx = current - 1;
-        return newIdx < 0 ? null : newIdx;
+        const newIndex = current - 1;
+        return newIndex < 0 ? null : newIndex;
       } else if (photoIndex < current) {
         return current - 1;
       }
@@ -1374,42 +1617,297 @@ const App = () => {
   //   Main area (video)
   // -------------------------
   const renderMainArea = () => (
-    <div className="video-container">
-      <div className="photobooth-frame">
-        <div className="photobooth-header">
-          <h1 className="photobooth-title">Sogni Photobooth</h1>
-          <button className="help-button" onClick={() => setShowInfoModal(true)}>?</button>
-          <div className="photobooth-header-controls">
-            <div className="style-selector">
-              <button 
-                className="header-style-select" 
-                onClick={() => setShowStyleDropdown(!showStyleDropdown)}
-              >
-                {selectedStyle === 'custom' 
-                  ? 'STYLE: Custom...' 
-                  : `STYLE: ${styleIdToDisplay(selectedStyle)}`}
-              </button>
-              
-              {showStyleDropdown && (
-                <div className="style-dropdown">
+    <div className={`camera-polaroid-bg ${cameraAnimating ? (showPhotoGrid ? 'camera-flying-in' : 'camera-flying-out') : ''}`}
+      style={{
+        display: showPhotoGrid ? 'none' : 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: '100vw',
+        height: '100vh',
+        minHeight: 0,
+        minWidth: 0,
+        background: 'transparent',
+        zIndex: 10,
+        position: 'absolute', // Changed from relative to absolute
+        pointerEvents: 'none', // Add this to let clicks through
+      }}>
+      <div className="polaroid-frame" style={{
+        pointerEvents: 'auto', // Add this to restore clicks on the frame
+        background: '#faf9f6',
+        borderRadius: 8, // FIX: Subtle, authentic polaroid corners
+        boxShadow: '0 8px 30px rgba(0,0,0,0.18), 0 1.5px 0 #e5e5e5',
+        border: '1.5px solid #ececec',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        padding: 0,
+        width: '100%',
+        maxWidth: 'min(98vw, 700px)',
+        minWidth: 380,
+        height: 'auto',
+        maxHeight: '90vh',
+        position: 'relative',
+        overflow: 'visible',
+        margin: '0 auto',
+        zIndex: 10_001,
+      }}>
+        {/* FIX: Controls row is visually inside the thick top border, not floating above or outside */}
+        <div style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 20px',
+          boxSizing: 'border-box',
+          minHeight: 0,
+          gap: 12,
+          height: 56, // Make the top bar tall
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 2,
+        }}>
+          <div className="photobooth-title" style={{
+            fontFamily: '"Permanent Marker", cursive',
+            fontSize: 20,
+            fontWeight: 'bold',
+            color: '#ff5e8a',
+            textShadow: '0 1px 0 #fff',
+            letterSpacing: 1,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            margin: 0,
+            padding: 0,
+            lineHeight: 1.2,
+          }}>
+            SOGNI PHOTOBOOTH
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Remove the header style selector completely */}
+            <button 
+              className="header-config-btn"
+              onClick={() => {
+                setShowControlOverlay(!showControlOverlay);
+                if (!showControlOverlay) {
+                  setShowStyleDropdown(false);
+                }
+              }}
+              style={{ marginLeft: 4 }}
+            >
+              {showControlOverlay ? '✕' : '⚙️'}
+            </button>
+          </div>
+        </div>
+        {/* FIX: Strict 9:7 aspect ratio, subtle 8px border radius, with fallback for browsers without aspect-ratio */}
+        <div style={{
+          width: '100%',
+          aspectRatio: '9 / 7', // Strict 9:7 aspect ratio
+          background: 'white',
+          borderLeft: '32px solid white',
+          borderRight: '32px solid white',
+          borderTop: '56px solid white',
+          borderBottom: '120px solid white',
+          borderRadius: 8, // Subtle corners
+          boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
+          overflow: 'hidden',
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginTop: 0,
+          transition: 'all 0.2s',
+          // Fallback for browsers without aspect-ratio
+          paddingBottom: '77.78%', // 7/9 = 0.7778, so 9:7 aspect
+          height: 0,
+          minHeight: 0,
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <video
+              id="webcam"
+              ref={videoReference}
+              autoPlay
+              playsInline
+              muted
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                display: 'block',
+                background: '#222',
+                borderRadius: 0, // Remove border radius for sharp corners
+                aspectRatio: '9 / 7',
+                maxWidth: '100%',
+                maxHeight: '100%',
+                transition: 'all 0.2s',
+              }}
+            />
+            {countdown > 0 && (
+              <div className="countdown-overlay">
+                {countdown}
+              </div>
+            )}
+            {showFlash && <div className="flash-overlay" />}
+          </div>
+        </div>
+        {/* FIX: Take Photo button is always fully inside the bottom border, vertically centered, never hanging off */}
+        <div className="polaroid-bottom-tab" style={{
+          width: '100%',
+          minHeight: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 0,
+          boxSizing: 'border-box',
+          background: 'transparent',
+          borderBottomLeftRadius: 20,
+          borderBottomRightRadius: 20,
+          boxShadow: 'none',
+          marginTop: '-120px', // FIX: Match new bottom border height
+          zIndex: 3,
+          position: 'relative',
+          height: 120, // FIX: Match new bottom border height
+        }}>
+          {/* Add style selector to the left of the Take Photo button */}
+          <div className="style-selector bottom-style-selector" style={{
+            position: 'absolute',
+            left: '50%',
+            marginLeft: '-180px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            zIndex: 5,
+            textAlign: 'left',
+            width: 'calc(100% - 64px)', // clamp to polaroid inner width
+            maxWidth: 340,
+            marginBottom: '18px',
+            marginRight: '24px',
+            wordBreak: 'break-word',
+        }}>
+          <button
+              ref={styleButtonReference}
+              className="bottom-style-select" 
+              onClick={toggleStyleDropdown}
+              style={{
+                all: 'unset',
+                background: 'none',
+                border: 'none',
+                color: '#333',
+                fontSize: 18,
+                padding: 0,
+                cursor: 'pointer',
+                display: 'block',
+                whiteSpace: 'normal',
+                overflow: 'visible',
+                textOverflow: 'clip',
+                wordBreak: 'break-word',
+                textAlign: 'left',
+                position: 'relative',
+                textTransform: 'none',
+                boxShadow: 'none',
+                borderRadius: 0,
+                minWidth: 0,
+                minHeight: 0,
+                lineHeight: 'normal',
+                margin: '0 auto',
+                maxWidth: '100%',
+                fontFamily: '"Permanent Marker", cursive',
+                fontWeight: 'bold'
+              }}
+            >
+              Prompt: {selectedStyle === 'custom' 
+                ? 'Custom...' 
+                : styleIdToDisplay(selectedStyle)}
+            </button>
+            
+            {showStyleDropdown && (
+              <div className={`style-dropdown ${dropdownPosition}-position`} style={{
+                position: 'absolute',
+                maxHeight: 300,
+                width: 280,
+                background: 'white',
+                borderRadius: 5,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                overflow: 'auto',
+                zIndex: 10_000,
+                transformOrigin: dropdownPosition === 'top' ? 'center bottom' : 'center top',
+                animation: 'dropdownAppear 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                ...(dropdownPosition === 'top' 
+                  ? { bottom: '100%', marginBottom: '10px' } 
+                  : { top: '100%', marginTop: '10px' }),
+                border: '1px solid rgba(0,0,0,0.1)',
+                fontFamily: '"Permanent Marker", cursive',
+                fontSize: 13,
+              }}>
+            
+            <style>{`
+              @keyframes dropdownAppear {
+                from {
+                  opacity: 0;
+                  transform: translateX(-50%) translateY(10px);
+                }
+                to {
+                  opacity: 1; 
+                  transform: translateX(-50%) translateY(0);
+                }
+              }
+            `}</style>
+                <div className="style-section featured">
+                  {/* Featured options */}
                   <div 
                     className={`style-option ${selectedStyle === 'randomMix' ? 'selected' : ''}`} 
                     onClick={() => { 
                       updateSetting(setSelectedStyle, 'selectedStyle')('randomMix');
                       setShowStyleDropdown(false);
                     }}
+                    style={{
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s',
+                      color: selectedStyle === 'randomMix' ? '#ff5e8a' : '#333',
+                      background: selectedStyle === 'randomMix' ? '#fff0f4' : 'transparent',
+                      fontFamily: '"Permanent Marker", cursive',
+                      fontSize: 13,
+                      textAlign: 'left'
+                    }}
                   >
-                    Random Mix
+                    <span style={{ marginRight: 8 }}>🎲</span>
+                    <span>Random Mix</span>
                   </div>
+                  
                   <div 
                     className={`style-option ${selectedStyle === 'random' ? 'selected' : ''}`} 
                     onClick={() => { 
                       updateSetting(setSelectedStyle, 'selectedStyle')('random');
                       setShowStyleDropdown(false);
                     }}
+                    style={{
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s',
+                      color: selectedStyle === 'random' ? '#ff5e8a' : '#333',
+                      background: selectedStyle === 'random' ? '#fff0f4' : 'transparent',
+                      fontFamily: '"Permanent Marker", cursive',
+                      fontSize: 13,
+                      textAlign: 'left'
+                    }}
                   >
-                    Random
+                    <span style={{ marginRight: 8 }}>🔀</span>
+                    <span>Random</span>
                   </div>
+                  
                   <div 
                     className={`style-option ${selectedStyle === 'custom' ? 'selected' : ''}`} 
                     onClick={() => { 
@@ -1417,11 +1915,25 @@ const App = () => {
                       setShowStyleDropdown(false);
                       setShowControlOverlay(true);
                     }}
+                    style={{
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s',
+                      color: selectedStyle === 'custom' ? '#ff5e8a' : '#333',
+                      background: selectedStyle === 'custom' ? '#fff0f4' : 'transparent',
+                      fontFamily: '"Permanent Marker", cursive',
+                      fontSize: 13,
+                      textAlign: 'left'
+                    }}
                   >
-                    Custom...
+                    <span style={{ marginRight: 8 }}>✏️</span>
+                    <span>Custom...</span>
                   </div>
+                </div>
+                
+                <div className="style-section regular">
                   {Object.keys(defaultStylePrompts)
-                    .filter(key => key !== 'random' && key !== 'custom')
+                    .filter(key => key !== 'random' && key !== 'custom' && key !== 'randomMix')
                     .sort()
                     .map(styleKey => (
                       <div 
@@ -1431,51 +1943,81 @@ const App = () => {
                           updateSetting(setSelectedStyle, 'selectedStyle')(styleKey);
                           setShowStyleDropdown(false);
                         }}
+                        style={{
+                          padding: '8px 12px',
+                          cursor: 'pointer',
+                          transition: 'background-color 0.2s',
+                          color: selectedStyle === styleKey ? '#ff5e8a' : '#333',
+                          background: selectedStyle === styleKey ? '#fff0f4' : 'transparent',
+                          fontFamily: '"Permanent Marker", cursive',
+                          fontSize: 13,
+                          textAlign: 'left'
+                        }}
                       >
-                        {styleIdToDisplay(styleKey)}
+                        <span>{styleIdToDisplay(styleKey)}</span>
                       </div>
                     ))}
                 </div>
-              )}
-            </div>
-            
-            <button
-              className={`header-take-photo-btn ${isPhotoButtonCooldown ? 'cooldown' : ''}`}
-              onClick={handleTakePhoto}
-              disabled={!isSogniReady || isPhotoButtonCooldown}
-            >
-              {isPhotoButtonCooldown ? 'Please wait...' : 'Take Photo'}
-            </button>
-
-            <button 
-              className="header-config-btn"
-              onClick={() => {
-                setShowControlOverlay(!showControlOverlay);
-                if (!showControlOverlay) {
-                  setShowStyleDropdown(false);
-                }
-              }}
-            >
-              {showControlOverlay ? '✕' : '⚙️'}
-            </button>
+              </div>
+            )}
           </div>
+
+          <button
+            className={`take-photo-polaroid-btn camera-shutter-btn ${isPhotoButtonCooldown || activeProjectReference.current ? 'cooldown' : ''}`}
+            onClick={handleTakePhoto}
+            disabled={!isSogniReady || isPhotoButtonCooldown || activeProjectReference.current}
+            style={{
+              background: isPhotoButtonCooldown || activeProjectReference.current ? '#eee' : '#fff',
+              color: '#222',
+              border: '4px solid #222',
+              borderRadius: '50%',
+              width: 64,
+              height: 64,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 20,
+              fontWeight: 700,
+              cursor: isPhotoButtonCooldown || activeProjectReference.current ? 'not-allowed' : 'pointer',
+              transition: 'background 0.2s',
+              outline: 'none',
+              margin: 0,
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)', // Centered in tab
+            }}
+          >
+            <span style={{
+              display: 'block',
+              width: 28,
+              height: 28,
+              background: isPhotoButtonCooldown || activeProjectReference.current ? '#bbb' : '#ff5252',
+              borderRadius: '50%',
+              margin: '0 auto',
+              border: '2px solid #fff',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.10)',
+            }} />
+            <span style={{
+              position: 'absolute',
+              bottom: -25, // Moved down slightly for more space
+              left: '50%',
+              transform: 'translateX(-50%)',
+              fontSize: activeProjectReference.current ? 11 : 13, // Smaller font for longer text
+              fontWeight: 600,
+              color: '#222',
+              letterSpacing: activeProjectReference.current ? 0 : 1, // Remove letter spacing for longer text
+              textShadow: '0 1px 2px #fff',
+              whiteSpace: 'nowrap',
+              width: 'auto',
+              minWidth: '140px', // Ensure there's enough width for the longer text
+              textAlign: 'center'
+            }}>
+              {activeProjectReference.current ? "Photo in Progress" : "Take Photo"}
+            </span>
+          </button>
         </div>
-        <div className="photobooth-screen">
-          <video
-            id="webcam"
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-          />
-          {countdown > 0 && (
-            <div className="countdown-overlay">
-              {countdown}
-            </div>
-          )}
-          {showFlash && <div className="flash-overlay" />}
-        </div>
-        
         {/* Control overlay that slides down when visible */}
         <div className={`control-overlay ${showControlOverlay ? 'visible' : ''}`}>
           <div className="control-overlay-content">
@@ -1487,6 +2029,25 @@ const App = () => {
             >
               ×
             </button>
+            
+            {/* Camera selector - moved to top */}
+            {cameraDevices.length > 0 && (
+              <div className="control-option">
+                <label className="control-label">Camera:</label>
+                <select
+                  className="camera-select"
+                  onChange={handleCameraSelection}
+                  value={selectedCameraDeviceId || ''}
+                >
+                  <option value="">Default (user-facing)</option>
+                  {cameraDevices.map((development) => (
+                    <option key={development.deviceId} value={development.deviceId}>
+                      {development.label || `Camera ${development.deviceId}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             
             {selectedStyle === 'custom' && (
               <div className="control-option">
@@ -1501,26 +2062,6 @@ const App = () => {
                   }}
                   rows={4}
                 />
-              </div>
-            )}
-            
-            {/* Camera selector if more than 1 device found */}
-            {cameraDevices.length > 0 && (
-              <div className="control-option">
-                <label className="control-label">Camera:</label>
-                <select
-                  className="camera-select"
-                  onChange={handleCameraSelection}
-                  value={selectedCameraDeviceId || ''}
-                >
-                  {/* If user wants default, we allow a "Default" option */}
-                  <option value="">Default (user-facing)</option>
-                  {cameraDevices.map((dev) => (
-                    <option key={dev.deviceId} value={dev.deviceId}>
-                      {dev.label || `Camera ${dev.deviceId}`}
-                    </option>
-                  ))}
-                </select>
               </div>
             )}
 
@@ -1548,11 +2089,11 @@ const App = () => {
                 min={1}
                 max={64}
                 step={1}
-                value={numImages}
-                onChange={(e) => updateSetting(setNumImages, 'numImages')(parseInt(e.target.value))}
+                value={numberImages}
+                onChange={(e) => updateSetting(setNumberImages, 'numImages')(Number.parseInt(e.target.value))}
                 className="slider-input"
               />
-              <span className="slider-value">{numImages}</span>
+              <span className="slider-value">{numberImages}</span>
             </div>
 
             {/* Prompt Guidance slider */}
@@ -1564,7 +2105,7 @@ const App = () => {
                 max={3}
                 step={0.1}
                 value={promptGuidance}
-                onChange={(e) => updateSetting(setPromptGuidance, 'promptGuidance')(parseFloat(e.target.value))}
+                onChange={(e) => updateSetting(setPromptGuidance, 'promptGuidance')(Number.parseFloat(e.target.value))}
                 className="slider-input"
               />
               <span className="slider-value">{promptGuidance.toFixed(1)}</span>
@@ -1579,7 +2120,7 @@ const App = () => {
                 max={1}
                 step={0.1}
                 value={controlNetStrength}
-                onChange={(e) => updateSetting(setControlNetStrength, 'controlNetStrength')(parseFloat(e.target.value))}
+                onChange={(e) => updateSetting(setControlNetStrength, 'controlNetStrength')(Number.parseFloat(e.target.value))}
                 className="slider-input"
               />
               <span className="slider-value">{controlNetStrength.toFixed(1)}</span>
@@ -1594,7 +2135,706 @@ const App = () => {
                 max={0.8}
                 step={0.1}
                 value={controlNetGuidanceEnd}
-                onChange={(e) => updateSetting(setControlNetGuidanceEnd, 'controlNetGuidanceEnd')(parseFloat(e.target.value))}
+                onChange={(e) => updateSetting(setControlNetGuidanceEnd, 'controlNetGuidanceEnd')(Number.parseFloat(e.target.value))}
+                className="slider-input"
+              />
+              <span className="slider-value">{controlNetGuidanceEnd.toFixed(1)}</span>
+            </div>
+
+            <div className="control-option checkbox">
+              <input
+                type="checkbox"
+                id="flash-toggle"
+                checked={flashEnabled}
+                onChange={(e) => updateSetting(setFlashEnabled, 'flashEnabled')(e.target.checked)}
+              />
+              <label htmlFor="flash-toggle" className="control-label">Flash</label>
+            </div>
+
+            <div className="control-option checkbox">
+              <input
+                type="checkbox"
+                id="keep-original-toggle"
+                checked={keepOriginalPhoto}
+                onChange={(e) => updateSetting(setKeepOriginalPhoto, 'keepOriginalPhoto')(e.target.checked)}
+              />
+              <label htmlFor="keep-original-toggle" className="control-label">Show Original Imag In Grid</label>
+            </div>
+            
+            {/* Reset settings button */}
+            <div className="control-option reset-option">
+              <button 
+                className="reset-settings-btn"
+                onClick={resetAllSettings}
+              >
+                Reset to Defaults
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // -------------------------
+  //   Selected Photo Display (Fullscreen Polaroid)
+  // -------------------------
+  const renderSelectedPhoto = () => {
+    if (selectedPhotoIndex == null || selectedPhotoIndex < 0 || !photos[selectedPhotoIndex]) return null;
+    const currentPhoto = photos[selectedPhotoIndex];
+    const imageUrl = currentPhoto.images[selectedSubIndex] || currentPhoto.originalDataUrl;
+    if (!imageUrl) return null;
+    // Get natural size
+    const [naturalSize, setNaturalSize] = React.useState({ width: null, height: null });
+    React.useEffect(() => {
+      if (!imageUrl) return;
+      const img = new window.Image();
+      img.onload = () => setNaturalSize({ width: img.naturalWidth, height: img.naturalHeight });
+      img.src = imageUrl;
+    }, [imageUrl]);
+    // Use same sizing as camera view
+    const aspectRatio = 1152 / 896;
+    const maxFrameWidth = Math.min(window.innerWidth * 0.85, 700, naturalSize.width || Infinity);
+    const maxFrameHeight = Math.min(window.innerHeight * 0.85, 700 / aspectRatio, naturalSize.height || Infinity);
+      return (
+      <div className="selected-photo-container" style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0, 0, 0, 0.85)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 99_999,
+        padding: '40px',
+      }}>
+        <div className="polaroid-frame" style={{
+          background: '#faf9f6',
+          borderRadius: 8,
+          boxShadow: '0 8px 30px rgba(0,0,0,0.18), 0 1.5px 0 #e5e5e5',
+          border: '1.5px solid #ececec',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+          padding: 0,
+          width: '100%',
+          maxWidth: maxFrameWidth,
+          minWidth: 380,
+          height: 'auto',
+          maxHeight: maxFrameHeight,
+          position: 'relative',
+          overflow: 'visible',
+          margin: '0 auto',
+          zIndex: 10_001,
+        }}>
+          <div style={{
+            width: '100%',
+            aspectRatio: '9 / 7',
+            background: 'white',
+            borderLeft: '32px solid white',
+            borderRight: '32px solid white',
+            borderTop: '56px solid white',
+            borderBottom: '120px solid white',
+            borderRadius: 8,
+            boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
+            overflow: 'hidden',
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginTop: 0,
+            transition: 'none', // Remove animation
+          }}>
+            <div style={{
+              width: '100%',
+              aspectRatio: '9 / 7',
+              background: 'white',
+              borderLeft: '32px solid white',
+              borderRight: '32px solid white',
+              borderTop: '56px solid white',
+              borderBottom: '120px solid white',
+              borderRadius: 8,
+              boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
+              overflow: 'hidden',
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginTop: 0,
+              transition: 'none', // Remove animation
+              paddingBottom: '77.78%',
+              height: 0,
+              minHeight: 0,
+            }}>
+        <img
+          src={imageUrl}
+                alt={`Photo #${selectedPhotoIndex + 1}`}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: 'block',
+                  background: '#fff',
+                  borderRadius: 0,
+                  aspectRatio: '9 / 7',
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  transition: 'none', // Remove animation
+                }}
+              />
+        </div>
+            <div className="photo-label" style={{
+              position: 'absolute',
+              bottom: 24,
+              left: 0,
+              right: 0,
+              textAlign: 'center',
+              fontFamily: '"Permanent Marker", cursive',
+              fontSize: 24,
+              color: '#333',
+              zIndex: 2,
+            }}>
+              #{selectedPhotoIndex + 1}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Determine if we're in portrait or landscape orientation
+  const isPortraitOrientation = () => {
+    // Check current orientation of device
+    return window.matchMedia("(orientation: portrait)").matches;
+  };
+
+  // -------------------------
+  //   Control Panel
+  // -------------------------
+  const renderControlPanel = () => {
+    return null;
+  };
+
+  // -------------------------
+  //   Thumbnails at bottom
+  // -------------------------
+  const renderGallery = () => {    
+    if (photos.length === 0 || !showPhotoGrid) return null;
+    
+    return (
+      <div className={`film-strip-container ${showPhotoGrid ? 'visible' : 'hiding'} ${selectedPhotoIndex === null ? '' : 'has-selected'}`}>
+        {/* Back to Camera button */}
+        <button
+          className="back-to-camera-btn"
+          onClick={handleBackToCamera}
+          style={{
+            position: 'fixed',
+            left: '20px',
+            bottom: '20px',
+            background: 'linear-gradient(135deg, #ffb6e6 0%, #ff5e8a 100%)',
+            color: 'white',
+            border: 'none',
+            padding: '12px 24px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            fontSize: '16px',
+            zIndex: 9999,
+            transition: 'transform 0.2s, box-shadow 0.2s',
+          }}
+        >
+          ← Back to Camera
+        </button>
+
+        {/* Navigation buttons - only show when a photo is selected */}
+        {selectedPhotoIndex !== null && photos.length > 1 && (
+          <>
+            <button className="photo-nav-btn prev" onClick={goToPreviousPhoto}>
+              &#8249;
+            </button>
+            <button className="photo-nav-btn next" onClick={goToNextPhoto}>
+              &#8250;
+            </button>
+          </>
+        )}
+
+        <div className={`film-strip-content ${selectedPhotoIndex === null ? '' : 'has-selected'}`} style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+          gap: '32px',
+          justifyItems: 'center',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '100%',
+          maxWidth: '1600px',
+          margin: '0 auto',
+          padding: '32px',
+        }}>
+          {photos.map((photo, index) => {
+            const isSelected = index === selectedPhotoIndex;
+            const isReference = photo.isOriginal;
+            const placeholderUrl = photo.originalDataUrl;
+            const progress = Math.floor(photo.progress || 0);
+            const loadingLabel = progress > 0 ? `${progress}%` : "";
+            const labelText = isReference ? "Reference" : `#${index-keepOriginalPhoto+1}`;
+            const aspectRatio = 1152 / 896;
+
+            // Loading or error state
+            if ((photo.loading && photo.images.length === 0) || (photo.error && photo.images.length === 0)) {
+              return (
+                <div
+                  key={photo.id}
+                  className={`film-frame loading ${isSelected ? 'selected' : ''}`}
+                  data-fadepolaroid={photo.loading && !photo.error ? 'true' : undefined}
+                  onClick={() => isSelected ? setSelectedPhotoIndex(null) : setSelectedPhotoIndex(index)}
+                >
+                  <div className="aspect-ratio-box">
+                    {placeholderUrl && (
+                      <img
+                        src={placeholderUrl}
+                        alt="Reference"
+                        className="placeholder"
+                        style={{ opacity: photo.loading && !photo.error ? undefined : 0.2, transition: 'opacity 0.5s' }}
+                      />
+                    )}
+                  </div>
+                  <div className="photo-label" style={{ color: photo.error ? '#d32f2f' : undefined, fontWeight: photo.error ? 700 : undefined }}>
+                    {photo.error ? 
+                      `Error: ${typeof photo.error === 'object' ? 'Generation failed' : photo.error}` 
+                      : (loadingLabel || labelText)}
+                  </div>
+                </div>
+              );
+            }
+
+            // Show completed image
+            const thumbUrl = photo.images[0] || '';
+
+            const handlePhotoSelect = (index, e) => {
+              const element = e.currentTarget;
+              
+              if (selectedPhotoIndex === index) {
+                // Capture current position before removing selected state
+                const first = element.getBoundingClientRect();
+                setSelectedPhotoIndex(null);
+                
+                // Animate back to grid position
+                requestAnimationFrame(() => {
+                  const last = element.getBoundingClientRect();
+                  const deltaX = first.left - last.left;
+                  const deltaY = first.top - last.top;
+                  const deltaScale = first.width / last.width;
+
+                  // Apply starting transform
+                  element.style.transition = 'none';
+                  element.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${deltaScale})`;
+                  
+                  // Force reflow
+                  element.offsetHeight;
+                  
+                  // Animate to final position
+                  element.style.transition = 'transform 0.5s cubic-bezier(0.2, 0, 0.2, 1)';
+                  element.style.transform = `rotate(var(--rotation))`;
+                  
+                  // Clean up after animation
+                  setTimeout(() => {
+                    element.style.transition = '';
+                    element.style.transform = '';
+                  }, 500);
+                });
+                return;
+              }
+
+              // When selecting a photo
+              // Scroll to top first to ensure proper positioning
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+              
+              // Capture starting position
+              const first = element.getBoundingClientRect();
+              
+              // Update state to mark as selected
+              setSelectedPhotoIndex(index);
+              
+              // After state update, calculate and animate
+              requestAnimationFrame(() => {
+                const last = element.getBoundingClientRect();
+                const deltaX = first.left - last.left;
+                const deltaY = first.top - last.top;
+                const deltaScale = first.width / last.width;
+                
+                // Apply starting transform
+                element.style.transition = 'none';
+                element.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${deltaScale}) rotate(var(--rotation))`;
+                
+                // Force reflow
+                element.offsetHeight;
+                
+                // Animate to final position
+                element.style.transition = 'transform 0.5s cubic-bezier(0.2, 0, 0.2, 1)';
+                element.style.transform = 'rotate(0deg)';
+              });
+            };
+
+            // Update the film-frame rendering to use the new handler
+            return (
+              <div 
+                key={photo.id}
+                className={`film-frame ${isSelected ? 'selected' : ''}`}
+                onClick={(e) => handlePhotoSelect(index, e)}
+                style={{
+                  '--rotation': `${isSelected ? '0deg' : 
+                    `${(index % 2 === 0 ? 1 : -1) * (0.8 + (index % 3) * 0.5)}deg`}`  // More natural rotation based on index
+                }}
+              >
+                <div className="aspect-ratio-box">
+                    <img
+                      src={thumbUrl}
+                      alt={`Generated #${index}`}
+                  />
+                </div>
+                <div className="photo-label">
+                  {labelText}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // Create a wrapper setter for each setting that also saves to cookies
+  const updateSetting = (setter, settingName) => (value) => {
+    setter(value);
+    saveSettingsToCookies({ [settingName]: value });
+  };
+
+  // Reset all settings to defaults
+  const resetAllSettings = () => {
+    setSelectedModel(DEFAULT_SETTINGS.selectedModel);
+    setNumberImages(DEFAULT_SETTINGS.numImages);
+    setPromptGuidance(DEFAULT_SETTINGS.promptGuidance);
+    setControlNetStrength(DEFAULT_SETTINGS.controlNetStrength);
+    setControlNetGuidanceEnd(DEFAULT_SETTINGS.controlNetGuidanceEnd);
+    setFlashEnabled(DEFAULT_SETTINGS.flashEnabled);
+    setKeepOriginalPhoto(DEFAULT_SETTINGS.keepOriginalPhoto);
+    setSelectedStyle(DEFAULT_SETTINGS.selectedStyle);
+    setCustomPrompt('');
+    
+    // Save all defaults to cookies
+    saveSettingsToCookies(DEFAULT_SETTINGS);
+  };
+
+  // Add state for photo grid view
+  const [cameraAnimating, setCameraAnimating] = useState(false);
+
+  // Update state for studio lights
+  const [studioLightsHidden, setStudioLightsHidden] = useState(false);
+  const [lightsAnimating, setLightsAnimating] = useState(false);
+
+  // Add state to track if user returned from photo grid
+  const [returnedFromPhotos, setReturnedFromPhotos] = useState(false);
+
+  // Add state to track dropdown position
+  const [dropdownPosition, setDropdownPosition] = useState('bottom');
+  
+  // Add ref for dropdown button
+  const styleButtonReference = useRef(null);
+
+  // Add function to detect dropdown position and prevent clipping
+  const toggleStyleDropdown = () => {
+    // If already open, just close it
+    if (showStyleDropdown) {
+      setShowStyleDropdown(false);
+      return;
+    }
+    
+    // Calculate dropdown position based on button position
+    if (styleButtonReference.current) {
+      const buttonRect = styleButtonReference.current.getBoundingClientRect();
+      const spaceAbove = buttonRect.top;
+      const spaceBelow = window.innerHeight - buttonRect.bottom;
+      
+      // If more space below than above or if not enough space above for dropdown, position below
+      // Otherwise position above (which is the default for our bottom toolbar)
+      if (spaceBelow > spaceAbove || spaceAbove < 350) {
+        setDropdownPosition('bottom');
+      } else {
+        setDropdownPosition('top');
+      }
+      } else {
+      // Default to above if we can't find the button
+      setDropdownPosition('top');
+    }
+    
+    setShowStyleDropdown(true);
+  };
+
+  // Add this helper function for style display
+  const styleIdToDisplay = (styleId) => {
+    return styleId.replaceAll(/([A-Z])/g, ' $1').replace(/^./, string_ => string_.toUpperCase()).trim();
+  };
+
+  // Add these helper functions for random styles
+  const getRandomStyle = () => {
+    const availableStyles = Object.keys(defaultStylePrompts)
+      .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix');
+    return availableStyles[Math.floor(Math.random() * availableStyles.length)];
+  };
+
+  const getRandomMixPrompts = (count) => {
+    const availableStyles = Object.keys(defaultStylePrompts)
+      .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix');
+    
+    const selectedPrompts = [];
+    for (let index = 0; index < count; index++) {
+      const randomStyle = availableStyles[Math.floor(Math.random() * availableStyles.length)];
+      selectedPrompts.push(defaultStylePrompts[randomStyle]);
+    }
+    
+    return `{${selectedPrompts.join('|')}}`;
+  };
+
+  // Fix the animation transition issue by ensuring we clear state correctly
+  const handleBackToCamera = () => {
+    // Scroll to top first
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Mark the photo grid as hiding 
+    const filmStrip = document.querySelector('.film-strip-container');
+    if (filmStrip) {
+      filmStrip.classList.remove('visible');
+      filmStrip.classList.add('hiding');
+    }
+    
+    // Wait for the hiding animation to finish before showing camera
+    setTimeout(() => {
+      // Hide photo grid and reset states
+      setShowPhotoGrid(false);
+      setSelectedPhotoIndex(null);
+      setReturnedFromPhotos(true);
+      setStudioLightsHidden(false);
+      
+      // No additional animations - camera should just appear normally
+    }, 600); // Match the duration of photoGrid Hide animation
+  };
+
+  // Add effect to reset newlyArrived status after animation completes
+  useEffect(() => {
+    const newPhotos = photos.filter(photo => photo.newlyArrived);
+    if (newPhotos.length > 0) {
+      const timer = setTimeout(() => {
+        setPhotos(previous => 
+          previous.map(photo => 
+            photo.newlyArrived ? { ...photo, newlyArrived: false } : photo
+          )
+        );
+      }, 600); // Slightly longer than animation duration
+      
+      return () => clearTimeout(timer);
+    }
+  }, [photos]);
+
+  // Add handler for clicks outside the image
+  const handlePhotoViewerClick = (e) => {
+    // Check if the click is outside the image
+    const imageWrapperElement = e.target.closest('.image-wrapper');
+    const navButtonElement = e.target.closest('.photo-nav-btn');
+    const previewElement = e.target.closest('.photo-preview');
+    
+    if (!imageWrapperElement && !navButtonElement && !previewElement) {
+      handleClosePhoto();
+    }
+  };
+
+  // Add toggle function for notes modal
+  const toggleNotesModal = () => {
+    setShowInfoModal(!showInfoModal);
+  };
+
+  // Add an effect to close dropdown when clicking outside
+  useEffect(() => {
+    if (showStyleDropdown) {
+      const handleClickOutside = (e) => {
+        const dropdown = document.querySelector('.style-dropdown');
+        const button = document.querySelector('.header-style-select');
+        
+        // If click is outside dropdown and button, close dropdown
+        if (dropdown && 
+            button && 
+            !dropdown.contains(e.target) && 
+            !button.contains(e.target)) {
+          setShowStyleDropdown(false);
+        }
+      };
+      
+      document.addEventListener('click', handleClickOutside);
+      
+      // Make sure selected option is scrolled into view
+      setTimeout(() => {
+        const selectedOption = document.querySelector('.style-option.selected');
+        if (selectedOption) {
+          selectedOption.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+      
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [showStyleDropdown]);
+
+  // -------------------------
+  //   Render
+  // -------------------------
+  return (
+    <>
+      {currentThought && (
+        <div style={{ 
+          position: 'fixed', 
+          bottom: '5px',
+          ...currentThought.position,
+          color: 'black', 
+          fontWeight: 'bold',
+          fontSize: '16px',
+          padding: '5px', 
+          zIndex: 99_999,
+          whiteSpace: 'nowrap'
+        }}>
+          {currentThought.text}
+        </div>
+      )}
+
+      <div className="w-full h-screen photobooth-app"
+        onDragOver={handleDragOver}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        style={{ position: 'relative', zIndex: 1 }}
+      >
+        {/* Control overlay panel */}
+        <div className={`control-overlay ${showControlOverlay ? 'visible' : ''}`}>
+          <div className="control-overlay-content">
+            <h2 className="settings-title">Advanced Settings</h2>
+            
+            <button 
+              className="dismiss-overlay-btn"
+              onClick={() => setShowControlOverlay(false)}
+            >
+              ×
+            </button>
+            
+            {/* Camera selector - moved to top */}
+            {cameraDevices.length > 0 && (
+              <div className="control-option">
+                <label className="control-label">Camera:</label>
+                <select
+                  className="camera-select"
+                  onChange={handleCameraSelection}
+                  value={selectedCameraDeviceId || ''}
+                >
+                  <option value="">Default (user-facing)</option>
+                  {cameraDevices.map((development) => (
+                    <option key={development.deviceId} value={development.deviceId}>
+                      {development.label || `Camera ${development.deviceId}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {selectedStyle === 'custom' && (
+              <div className="control-option">
+                <label className="control-label">Custom Style Prompt:</label>
+                <textarea
+                  className="custom-style-input"
+                  placeholder="Enter your custom style prompt here..."
+                  value={customPrompt}
+                  onChange={(e) => {
+                    setCustomPrompt(e.target.value);
+                    saveSettingsToCookies({ customPrompt: e.target.value });
+                  }}
+                  rows={4}
+                />
+              </div>
+            )}
+
+            {/* Model selector */}
+            <div className="control-option">
+              <label className="control-label">Pick an Image Model:</label>
+              <select
+                className="model-select"
+                value={selectedModel}
+                onChange={(e) => updateSetting(setSelectedModel, 'selectedModel')(e.target.value)}
+              >
+                {modelOptions.map((model) => (
+                  <option key={model.value} value={model.value}>
+                    {model.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Number of Images slider */}
+            <div className="control-option">
+              <label className="control-label">Number of Images:</label>
+              <input
+                type="range"
+                min={1}
+                max={64}
+                step={1}
+                value={numberImages}
+                onChange={(e) => updateSetting(setNumberImages, 'numImages')(Number.parseInt(e.target.value))}
+                className="slider-input"
+              />
+              <span className="slider-value">{numberImages}</span>
+            </div>
+
+            {/* Prompt Guidance slider */}
+            <div className="control-option">
+              <label className="control-label">Prompt Guidance:</label>
+              <input
+                type="range"
+                min={2}
+                max={3}
+                step={0.1}
+                value={promptGuidance}
+                onChange={(e) => updateSetting(setPromptGuidance, 'promptGuidance')(Number.parseFloat(e.target.value))}
+                className="slider-input"
+              />
+              <span className="slider-value">{promptGuidance.toFixed(1)}</span>
+            </div>
+
+            {/* Instant ID Strength slider */}
+            <div className="control-option">
+              <label className="control-label">Instant ID Strength:</label>
+              <input
+                type="range"
+                min={0.4}
+                max={1}
+                step={0.1}
+                value={controlNetStrength}
+                onChange={(e) => updateSetting(setControlNetStrength, 'controlNetStrength')(Number.parseFloat(e.target.value))}
+                className="slider-input"
+              />
+              <span className="slider-value">{controlNetStrength.toFixed(1)}</span>
+            </div>
+
+            {/* Instant ID Impact Stop slider */}
+            <div className="control-option">
+              <label className="control-label">Instant ID Impact Stop:</label>
+              <input
+                type="range"
+                min={0.2}
+                max={0.8}
+                step={0.1}
+                value={controlNetGuidanceEnd}
+                onChange={(e) => updateSetting(setControlNetGuidanceEnd, 'controlNetGuidanceEnd')(Number.parseFloat(e.target.value))}
                 className="slider-input"
               />
               <span className="slider-value">{controlNetGuidanceEnd.toFixed(1)}</span>
@@ -1631,436 +2871,74 @@ const App = () => {
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  );
 
-  // -------------------------
-  //   Selected Photo Display
-  // -------------------------
-  const renderSelectedPhoto = () => {
-    const currentPhoto = photos[selectedPhotoIndex];
-    if (!currentPhoto) return null;
-
-    // If still generating and no images, show loading animation
-    if (currentPhoto.generating && currentPhoto.images.length === 0) {
-      return (
-        <div className="photo-loading">
-          <div className="spinner"></div>
-        </div>
-      );
-    }
-
-    // If error and no images, show error
-    if (currentPhoto.error && currentPhoto.images.length === 0) {
-      return (
-        <div className="error-indicator">
-          <div className="text-red-500">
-            {currentPhoto.error}
-          </div>
-        </div>
-      );
-    }
-
-    // Show whichever subIndex
-    const imageUrl = currentPhoto.images[selectedSubIndex] || (currentPhoto.originalDataUrl || '');
-    const handleImageClick = () => {
-      if (currentPhoto.images.length > 1) {
-        setSelectedSubIndex((prev) => (prev + 1) % currentPhoto.images.length);
-      }
-    };
-
-    // Frame number for display (1-based)
-    const frameNumber = selectedPhotoIndex + 1;
-
-    return (
-      <>
-        <img
-          src={imageUrl}
-          alt="Selected"
-          onClick={handleImageClick}
-        />
-        <div className="photo-frame-number">#{frameNumber}</div>
-        <div className="stack-index-indicator">
-          {currentPhoto.images.length > 1 ? 
-            `${selectedSubIndex + 1}/${currentPhoto.images.length}` : 
-            currentPhoto.isOriginal ? "Original" : ""
-          }
-        </div>
-      </>
-    );
-  };
-
-  // -------------------------
-  //   Control Panel
-  // -------------------------
-  const renderControlPanel = () => {
-    return null;
-  };
-
-  // -------------------------
-  //   Thumbnails at bottom
-  // -------------------------
-  const renderGallery = () => {
-    // Check if on mobile
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    // Generate an appropriate number of sprocket holes
-    const holeCount = isMobile ? 8 : 20;
-    
-    return (
-      <div style={{ 
-        position: 'fixed',
-        bottom: '0',
-        left: '0',
-        right: '0',
-        display: 'flex',
-        justifyContent: 'center',
-        zIndex: 50,
-        width: '100%',
-        maxWidth: '100vw',
-        overflow: 'visible'
-      }}>
-        {photos.length > 0 && showFilmStrip && (
-          <div className="film-strip-container" style={{ width: '100%' }}>
-            {/* Close button for film strip */}
-            <button 
-              className="film-strip-close-btn" 
-              onClick={() => setShowFilmStrip(false)}
-              aria-label="Close film strip"
-            >
-              ×
-            </button>
-            
-            {/* Top sprocket holes - reduced for mobile */}
-            <div className="film-strip-holes top">
-              {Array(holeCount).fill(null).map((_, i) => (
-                <div key={`hole-top-${i}`} className="sprocket-hole" />
-              ))}
-            </div>
-            
-            {/* Film content area */}
-            <div className="film-strip-content"
-              onWheel={(e) => {
-                // Prevent vertical scroll of the page
-                if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
-                  e.preventDefault();
-                  e.currentTarget.scrollLeft += e.deltaY;
-                }
-              }}
-            >
-              {photos.map((photo, i) => {
-                const isSelected = i === selectedPhotoIndex;
-                const isReference = photo.isOriginal;
-
-                // If generating + no images => show loading with inverted original
-                if (photo.loading && photo.images.length === 0) {
-                  // Always use the original photo as placeholder while loading
-                  const placeholderUrl = photo.originalDataUrl;
-                  if (!placeholderUrl) return null;
-
-                  return (
-                    <div
-                      key={photo.id}
-                      className={`film-frame loading ${isSelected ? 'selected' : ''}`}
-                      data-progress={Math.floor(photo.progress || 0)}
-                    >
-                      <img
-                        src={placeholderUrl}
-                        alt={`Loading #${i}`}
-                        style={{
-                          filter: `invert(${1 - (photo.progress || 0) / 100})`
-                        }}
-                      />
-                      <div className="photo-label">Loading...</div>
-                    </div>
-                  );
-                }
-
-                // If error + no images => show error state with inverted original
-                if (photo.error && photo.images.length === 0) {
-                  return (
-                    <div
-                      key={photo.id}
-                      className={`film-frame error ${isSelected ? 'selected' : ''}`}
-                    >
-                      {photo.originalDataUrl && (
-                        <img
-                          src={photo.originalDataUrl}
-                          alt={`Error #${i}`}
-                          style={{ filter: 'invert(1) opacity(0.3)' }}
-                        />
-                      )}
-                      <div className="photo-label">Error</div>
-                    </div>
-                  );
-                }
-
-                // Show completed image
-                const thumbUrl = photo.images[0] || '';
-                const handleThumbClick = () => {
-                  setSelectedPhotoIndex(i);
-                  setSelectedSubIndex(0);
-                };
-
-                // Create the appropriate label text
-                let labelText = isReference ? "Reference" : `#${i-keepOriginalPhoto+1}`;
-                
-                // Add 'new-photo' class for animation when photo is newly arrived
-                const photoClasses = `film-frame ${isSelected ? 'selected' : ''} ${photo.newlyArrived ? 'new-photo' : ''}`;
-
-                return (
-                  <div 
-                    key={photo.id}
-                    className={photoClasses}
-                    onClick={handleThumbClick}
-                  >
-                    <img
-                      src={thumbUrl}
-                      alt={`Generated #${i}`}
-                      className={photo.newlyArrived ? 'thumbnail-fade' : ''}
-                    />
-                    <div className="photo-label">{labelText}</div>
-                  </div>
-                );
-              })}
-            </div>
-            
-            {/* Bottom sprocket holes - reduced for mobile */}
-            <div className="film-strip-holes bottom">
-              {Array(holeCount).fill(null).map((_, i) => (
-                <div key={`hole-bottom-${i}`} className="sprocket-hole" />
-              ))}
-            </div>
-          </div>
+        {/* Help button - only show in camera view */}
+        {!showPhotoGrid && !selectedPhotoIndex && (
+          <button
+            className="header-info-btn"
+            onClick={toggleNotesModal}
+            style={{
+              position: 'fixed',
+              top: 24,
+              right: 24,
+              background: 'linear-gradient(135deg, #ffb6e6 0%, #ff5e8a 100%)',
+              border: 'none',
+              color: '#fff',
+              fontSize: 22,
+              width: 38,
+              height: 38,
+              borderRadius: '50%',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+              cursor: 'pointer',
+              fontWeight: 900,
+              lineHeight: 1,
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'background 0.2s',
+              zIndex: 1000,
+            }}
+            title="Photobooth Tips"
+          >
+            ?
+          </button>
         )}
         
-        {/* Show a button to restore the film strip if it's hidden */}
-        {photos.length > 0 && !showFilmStrip && (
-          <div style={{ marginBottom: '15px' }}>
-            <button 
-              className="film-strip-restore-btn"
-              onClick={() => setShowFilmStrip(true)}
-              aria-label="Show film strip"
-            >
-              Show Photos
-            </button>
+        {/* Studio lights - permanent background elements */}
+        <div className={`studio-lights-container ${studioLightsHidden ? 'studio-lights-hidden' : ''}`}>
+          <img 
+            src={light1Image} 
+            alt="Studio Light" 
+            className={`studio-light left ${lightsAnimating ? 'sliding-out' : ''}`} 
+          />
+          <img 
+            src={light2Image} 
+            alt="Studio Light" 
+            className={`studio-light right ${lightsAnimating ? 'sliding-out' : ''}`} 
+          />
+        </div>
+        
+        {/* Drag overlay */}
+        {dragActive && (
+          <div className="drag-overlay">
+            <p>Drop your image here to generate!</p>
           </div>
         )}
-      </div>
-    );
-  };
-
-  // Add an effect to close dropdown when clicking outside
-  useEffect(() => {
-    if (showStyleDropdown) {
-      const handleClickOutside = (e) => {
-        const dropdown = document.querySelector('.style-dropdown');
-        const button = document.querySelector('.header-style-select');
-        
-        // If click is outside dropdown and button, close dropdown
-        if (dropdown && 
-            button && 
-            !dropdown.contains(e.target) && 
-            !button.contains(e.target)) {
-          setShowStyleDropdown(false);
-        }
-      };
-      
-      document.addEventListener('click', handleClickOutside);
-      
-      // Make sure selected option is scrolled into view
-      setTimeout(() => {
-        const selectedOption = document.querySelector('.style-option.selected');
-        if (selectedOption) {
-          selectedOption.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 100);
-      
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
-  }, [showStyleDropdown]);
-
-  // Add handler for clicks outside the image
-  const handlePhotoViewerClick = (e) => {
-    // Check if the click is outside the image
-    const imageWrapperEl = e.target.closest('.image-wrapper');
-    const navButtonEl = e.target.closest('.photo-nav-btn');
-    const previewEl = e.target.closest('.photo-preview');
-    
-    if (!imageWrapperEl && !navButtonEl && !previewEl) {
-      handleClosePhoto();
-    }
-  };
-
-  // Add new state for info modal
-  const [showInfoModal, setShowInfoModal] = useState(false);
-
-  // Add toggle function for notes modal
-  const toggleNotesModal = () => {
-    setShowInfoModal(!showInfoModal);
-  };
-
-  // Add this helper function near the top with other utility functions
-  const styleIdToDisplay = (styleId) => {
-    return styleId.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).trim();
-  };
-
-  // Add these helper functions near the top with other utility functions
-  const getRandomStyle = () => {
-    const availableStyles = Object.keys(defaultStylePrompts)
-      .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix');
-    return availableStyles[Math.floor(Math.random() * availableStyles.length)];
-  };
-
-  const getRandomMixPrompts = (count) => {
-    const availableStyles = Object.keys(defaultStylePrompts)
-      .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix');
-    
-    const selectedPrompts = [];
-    for (let i = 0; i < count; i++) {
-      const randomStyle = availableStyles[Math.floor(Math.random() * availableStyles.length)];
-      selectedPrompts.push(defaultStylePrompts[randomStyle]);
-    }
-    
-    return `{${selectedPrompts.join('|')}}`;
-  };
-
-  // Add effect to reset newlyArrived status after animation completes
-  useEffect(() => {
-    const newPhotos = photos.filter(photo => photo.newlyArrived);
-    if (newPhotos.length > 0) {
-      const timer = setTimeout(() => {
-        setPhotos(prev => 
-          prev.map(photo => 
-            photo.newlyArrived ? { ...photo, newlyArrived: false } : photo
-          )
-        );
-      }, 600); // Slightly longer than animation duration
-      
-      return () => clearTimeout(timer);
-    }
-  }, [photos]);
-
-  // Create a wrapper setter for each setting that also saves to cookies
-  const updateSetting = (setter, settingName) => (value) => {
-    setter(value);
-    saveSettingsToCookies({ [settingName]: value });
-  };
-
-  // Reset all settings to defaults
-  const resetAllSettings = () => {
-    setSelectedModel(DEFAULT_SETTINGS.selectedModel);
-    setNumImages(DEFAULT_SETTINGS.numImages);
-    setPromptGuidance(DEFAULT_SETTINGS.promptGuidance);
-    setControlNetStrength(DEFAULT_SETTINGS.controlNetStrength);
-    setControlNetGuidanceEnd(DEFAULT_SETTINGS.controlNetGuidanceEnd);
-    setFlashEnabled(DEFAULT_SETTINGS.flashEnabled);
-    setKeepOriginalPhoto(DEFAULT_SETTINGS.keepOriginalPhoto);
-    setSelectedStyle(DEFAULT_SETTINGS.selectedStyle);
-    setCustomPrompt('');
-    
-    // Save all defaults to cookies
-    saveSettingsToCookies(DEFAULT_SETTINGS);
-  };
-
-  // -------------------------
-  //   Render
-  // -------------------------
-  return (
-    <>
-      {currentThought && (
-        <div style={{ 
-          position: 'fixed', 
-          bottom: '5px',
-          ...currentThought.position,
-          color: 'black', 
-          fontWeight: 'bold',
-          fontSize: '16px',
-          padding: '5px', 
-          zIndex: 99999,
-          whiteSpace: 'nowrap'
-        }}>
-          {currentThought.text}
-        </div>
-      )}
-
-      <div className="relative w-full h-screen photobooth-app"
-      onDragOver={handleDragOver}
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-    >
-      {/* Add meta tag for mobile viewport - this runs once on mount */}
-      {useEffect(() => {
-        // Check if viewport meta tag exists
-        let viewportMeta = document.querySelector('meta[name="viewport"]');
-        
-        // If it doesn't exist, create it
-        if (!viewportMeta) {
-          viewportMeta = document.createElement('meta');
-          viewportMeta.name = 'viewport';
-          document.head.appendChild(viewportMeta);
-        }
-        
-        // Set properties for proper mobile scaling with notch support
-        viewportMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
-        
-        // Add meta tag for Apple devices to use full screen
-        let appleMeta = document.querySelector('meta[name="apple-mobile-web-app-capable"]');
-        if (!appleMeta) {
-          appleMeta = document.createElement('meta');
-          appleMeta.name = 'apple-mobile-web-app-capable';
-          appleMeta.content = 'yes';
-          document.head.appendChild(appleMeta);
-        }
-        
-        // Set body class based on orientation
-        const setOrientation = () => {
-          if (window.innerHeight > window.innerWidth) {
-            document.body.classList.add('portrait');
-            document.body.classList.remove('landscape');
-          } else {
-            document.body.classList.add('landscape');
-            document.body.classList.remove('portrait');
-          }
-        };
-        
-        // Set initial orientation
-        setOrientation();
-        
-        // Listen for orientation changes
-        window.addEventListener('resize', setOrientation);
-        
-        return () => {
-          window.removeEventListener('resize', setOrientation);
-        };
-      }, [])}
-      
-      {/* Studio lights - permanent background elements */}
-      <div className="studio-lights-container">
-        <img src={light1Image} alt="Studio Light" className="studio-light left" />
-        <img src={light2Image} alt="Studio Light" className="studio-light right" />
-      </div>
-      
-      {/* Drag overlay */}
-      {dragActive && (
-        <div className="drag-overlay">
-          <p>Drop your image here to generate!</p>
-        </div>
-      )}
 
         {/* Info Modal */}
         {showInfoModal && (
-          <div className="notes-modal-overlay" onClick={() => setShowInfoModal(false)}>
+          <div className="notes-modal-overlay" style={{zIndex: 30_000}} onClick={() => setShowInfoModal(false)}>
             <div className="notes-modal" onClick={e => e.stopPropagation()}>
               <div className="sticky-note">
                 <button className="note-close" onClick={() => setShowInfoModal(false)}>×</button>
-                <h2>Photobooth Tips</h2>
-                <ul>
+                <h2 className="marker-font">Photobooth Tips</h2>
+                <ul className="marker-font">
                   <li>Generated compositions reuses the same face size, position, and orientation as the camera snapshot so step back and get creative!</li>
                   <li>Only one face at a time! If multiple faces the biggest one in frame is used.</li>
                   <li>The more light / dark depth on your face the better, flat even light results can be subpar.</li>
-                  <li>Try using the Custom Style feature and providing your own prompt!</li>
+                  <li>Try using the Custom Prompt feature and providing your own prompt!</li>
+                  <li>You can even drag a photo into the camera window to use as a reference!</li>
                 </ul>
                 <div className="note-footer">
                   <a href="https://www.sogni.ai/sdk" target="_blank" rel="noopener noreferrer">
@@ -2072,90 +2950,368 @@ const App = () => {
           </div>
         )}
 
-      {/* Main area with video */}
-      {renderMainArea()}
+        {/* Main area with video - conditional rendering based on showPhotoGrid */}
+        {renderMainArea()}
 
-      {/* Photo viewer - with previews and next/prev navigation */}
-      {(selectedPhotoIndex !== null || photoViewerClosing) && (
+        {/* Photo gallery grid - shown when showPhotoGrid is true */}
+        {renderGallery()}
+
+        <canvas ref={canvasReference} className="hidden" />
+
+        {/* Slothicorn mascot with direct DOM manipulation */}
         <div 
-          className={`selected-photo-container ${photoViewerClosing ? 'fade-out' : ''}`}
-          onClick={handlePhotoViewerClick}
+          ref={slothicornReference}
+          className="slothicorn-container"
         >
-          {/* Photos carousel with prev/next previews */}
-          <div className="photos-carousel">
-            {/* Previous photo preview */}
-            {photos.length > 1 && selectedPhotoIndex !== null && (
-              <div className="photo-preview prev" onClick={goToPrevPhoto}>
-                <img 
-                  src={photos[getPrevPhotoIndex(selectedPhotoIndex)]?.images?.[0] || ''}
-                  alt="Previous"
-                  className="photo-preview-img"
-                />
-              </div>
-            )}
-            
-            {/* Navigation buttons */}
-            {photos.length > 1 && selectedPhotoIndex !== null && (
-              <>
-                <button className="photo-nav-btn prev" onClick={goToPrevPhoto}>
-                  &#8249;
-                </button>
-                <button className="photo-nav-btn next" onClick={goToNextPhoto}>
-                  &#8250;
-                </button>
-              </>
-            )}
-            
-            {/* Current photo - remove animation classes */}
-            <div className="image-wrapper">
-              {selectedPhotoIndex !== null && renderSelectedPhoto()}
-            </div>
-            
-            {/* Next photo preview */}
-            {photos.length > 1 && selectedPhotoIndex !== null && (
-              <div className="photo-preview next" onClick={goToNextPhoto}>
-                <img 
-                  src={photos[getNextPhotoIndex(selectedPhotoIndex)]?.images?.[0] || ''}
-                  alt="Next"
-                  className="photo-preview-img"
-                />
-              </div>
-            )}
-          </div>
+          <img 
+            src={slothicornImage} 
+            alt="Slothicorn mascot" 
+            className="slothicorn-image" 
+          />
         </div>
-      )}
 
-      <canvas ref={canvasRef} className="hidden" />
+        {/* Camera shutter sound */}
+        <audio ref={shutterSoundReference} preload="auto">
+          <source src={clickSound} type="audio/mpeg" />
+          Your browser does not support the audio element.
+        </audio>
 
-      {/* Slothicorn mascot with direct DOM manipulation */}
-      <div 
-        ref={slothicornRef}
-        className="slothicorn-container"
-        style={{ bottom: '-240px' }} // Start hidden
-      >
-        <img 
-          src={slothicornImage} 
-          alt="Slothicorn mascot" 
-          className="slothicorn-image" 
-        />
+        {/* Camera wind sound */}
+        <audio ref={cameraWindSoundReference} preload="auto">
+          <source src={cameraWindSound} type="audio/mpeg" />
+          Your browser does not support the audio element.
+        </audio>
+
+        {/* FIX: Floating 'View Photos' button only if user has taken a photo */}
+        {selectedPhotoIndex === null && !showPhotoGrid && photos.length > 0 && (
+          <button
+            onClick={() => {
+              // Mark the camera as hiding
+              setCameraAnimating(true);
+              // Show the photo grid with animation
+              setShowPhotoGrid(true);
+              // Reset camera animating after animation completes
+              setTimeout(() => {
+                setCameraAnimating(false);
+              }, 600);
+            }}
+            style={{
+              position: 'absolute',
+              bottom: 18,
+              right: 18,
+              zIndex: 10,
+              background: 'linear-gradient(135deg, #ff5e8a 0%, #ff3366 100%)',
+              color: '#fff',
+              border: '2px solid #fff',
+              borderRadius: 16,
+              boxShadow: '0 4px 16px rgba(255, 51, 102, 0.25)',
+              padding: '12px 24px',
+              fontWeight: 900,
+              fontSize: 18,
+              cursor: 'pointer',
+              fontFamily: '"Permanent Marker", cursive',
+              letterSpacing: 1,
+          display: 'flex',
+          alignItems: 'center',
+              gap: 10,
+              transition: 'all 0.2s',
+            }}
+          >
+            <span style={{fontSize: 22, marginRight: 6}}>📸</span> View Photos
+          </button>
+        )}
       </div>
 
-      {/* Thumbnail strip at bottom */}
-      {renderGallery()}
+      {/* Add a dedicated useEffect for the aspect ratio CSS */}
+      {useEffect(() => {
+        // Add our CSS fixes (all 5 issues at once)
+        const styleElement = document.createElement('style');
+        styleElement.textContent = `
+          /* ------- FIX 1: Style dropdown ------- */
+          .style-dropdown {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+            max-height: 380px;
+            width: 240px;
+            overflow-y: auto;
+            padding: 8px;
+            z-index: 1000;
+            position: absolute;
+            animation: dropdownAppear 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards;
+            border: 1px solid rgba(0,0,0,0.1);
+          }
+          
+          /* Position variations */
+          .style-dropdown.top-position {
+            bottom: 100%;
+            top: auto !important;
+            margin-bottom: 10px;
+            transform-origin: center bottom !important;
+            animation: dropdownAppearTop 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards;
+          }
+          
+          .style-dropdown.bottom-position {
+            top: 100%;
+            bottom: auto !important;
+            margin-top: 10px;
+            transform-origin: center top !important;
+            animation: dropdownAppearBottom 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards;
+          }
+          
+          @keyframes dropdownAppearTop {
+            from {
+              opacity: 0;
+              transform: translateX(-50%) translateY(10px);
+            }
+            to {
+              opacity: 1; 
+              transform: translateX(-50%) translateY(0);
+            }
+          }
+          
+          @keyframes dropdownAppearBottom {
+            from {
+              opacity: 0;
+              transform: translateX(-50%) translateY(-10px);
+            }
+            to {
+              opacity: 1; 
+              transform: translateX(-50%) translateY(0);
+            }
+          }
+          
+          .style-section.featured {
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+          }
+          
+          .style-option {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            margin: 2px 0;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #333;
+            transition: background-color 0.2s;
+          }
+          
+          .style-option:hover {
+            background-color: #f5f5f5;
+          }
+          
+          .style-option:hover:before {
+            display: none !important; /* Remove the carat */
+          }
+          
+          .style-option.selected {
+            background-color: #fff0f4 !important; /* Light pink background */
+            color: #ff5e8a !important;
+            font-weight: 500;
+          }
+          
+          .style-icon {
+            margin-right: 10px;
+            z-index: 2;
+          }
+          
+          /* ------- FIX 2: Camera widget Polaroid style ------- */
+          .photobooth-frame {
+            background: white;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            border-radius: 4px;
+            width: auto;
+            max-width: 70%;
+            margin: 20px auto;
+            padding: 8px 8px 60px 8px;
+            position: relative;
+          }
+          
+          .photobooth-header {
+            margin-bottom: 8px;
+          }
+          
+          /* Move Take Photo button to bottom */
+          .header-take-photo-btn {
+            position: absolute !important;
+            bottom: 15px !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            background: #ff5252 !important;
+            color: white !important;
+            font-weight: bold !important;
+            padding: 10px 20px !important;
+            border-radius: 25px !important;
+            border: none !important;
+            cursor: pointer !important;
+            z-index: 10 !important;
+          }
+          
+          .header-take-photo-btn:hover {
+            background: #ff7272 !important;
+          }
+          
+          /* ------- FIX 3: Back to Camera button positioning ------- */
+          .film-strip-container .back-to-camera-btn {
+            position: fixed !important;
+            left: 20px !important;
+            bottom: 20px !important;
+            top: auto !important;
+            right: auto !important;
+            background: #ff5252 !important;
+            color: white !important;
+            border: none !important;
+            padding: 10px 20px !important;
+            border-radius: 8px !important;
+            z-index: 9999 !important;
+            margin: 0 !important;
+            transform: none !important;
+          }
+          
+          /* ------- FIX 4: Loading image fade effect ------- */
+          .film-frame.loading {
+            position: relative;
+          }
+          
+          .film-frame.loading img {
+            transition: opacity 0.5s;
+            opacity: 0.3 !important;
+          }
+          
+          /* Set opacity based on progress attribute */
+          .film-frame.loading[data-progress="0"] img { opacity: 0 !important; }
+          .film-frame.loading[data-progress="10"] img { opacity: 0.05 !important; }
+          .film-frame.loading[data-progress="20"] img { opacity: 0.10 !important; }
+          .film-frame.loading[data-progress="30"] img { opacity: 0.15 !important; }
+          .film-frame.loading[data-progress="40"] img { opacity: 0.20 !important; }
+          .film-frame.loading[data-progress="50"] img { opacity: 0.25 !important; }
+          .film-frame.loading[data-progress="60"] img { opacity: 0.30 !important; }
+          .film-frame.loading[data-progress="70"] img { opacity: 0.35 !important; }
+          .film-frame.loading[data-progress="80"] img { opacity: 0.40 !important; }
+          .film-frame.loading[data-progress="90"] img { opacity: 0.45 !important; }
+          .film-frame.loading[data-progress="100"] img { opacity: 0.50 !important; }
+          
+          /* ------- FIX 5: Slideshow Polaroid frame ------- */
+          .selected-photo-container {
+            background: rgba(0,0,0,0.85);
+          }
+          
+          .image-wrapper {
+            background: white !important;
+            padding: 16px 16px 60px 16px !important;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3) !important;
+            border-radius: 4px !important;
+            margin: 20px auto !important;
+            position: relative !important;
+            max-width: 80% !important;
+            max-height: 80vh !important;
+          }
+          
+          .image-wrapper img {
+            width: 100% !important;
+            height: auto !important;
+            object-fit: cover !important;
+            display: block !important;
+            border-radius: 2px !important;
+          }
+          
+          /* Set aspect ratio CSS variable based on orientation */
+          :root {
+            --current-aspect-ratio: ${window.innerHeight > window.innerWidth ? '896/1152' : '1152/896'};
+          }
+          
+          /* Ensure images display properly */
+          #webcam {
+            object-fit: cover;
+            width: 100%;
+            height: auto;
+          }
+          
+          /* Update film frame images */
+          .film-frame img {
+            object-fit: cover;
+            width: 100%;
+            height: 100%;
+          }
+          .fade-in {
+            transition: opacity 0.5s !important;
+          }
 
-      {/* Camera shutter sound */}
-      <audio ref={shutterSoundRef} preload="auto">
-        <source src={clickSound} type="audio/mpeg" />
-        Your browser does not support the audio element.
-      </audio>
-
-      {/* Camera wind sound */}
-      <audio ref={cameraWindSoundRef} preload="auto">
-        <source src={cameraWindSound} type="audio/mpeg" />
-        Your browser does not support the audio element.
-      </audio>
-
-    </div>
+          /* ------- Responsive Polaroid Frame for Mobile ------- */
+          @media (max-width: 600px) {
+            .polaroid-frame {
+              max-width: 99vw !important;
+              border-radius: 12px !important;
+            }
+            .polaroid-frame > div:first-child {
+              height: 40px !important;
+              padding: 0 8px !important;
+            }
+            .polaroid-frame .photobooth-title {
+              font-size: 14px !important;
+            }
+            .polaroid-frame .header-style-select,
+            .polaroid-frame .header-config-btn {
+              font-size: 13px !important;
+              width: 24px !important;
+              height: 24px !important;
+              min-width: 24px !important;
+              min-height: 24px !important;
+            }
+            .polaroid-frame > div[style*='aspect-ratio'] {
+              border-left-width: 12px !important;
+              border-right-width: 12px !important;
+              border-top-width: 40px !important;
+              border-bottom-width: 40px !important;
+              border-radius: 0 0 8px 8px !important;
+            }
+            .polaroid-bottom-tab {
+              margin-top: -40px !important;
+              height: 40px !important;
+            }
+            .take-photo-polaroid-btn.camera-shutter-btn {
+              width: 40px !important;
+              height: 40px !important;
+              font-size: 13px !important;
+            }
+            .take-photo-polaroid-btn.camera-shutter-btn span {
+              width: 16px !important;
+              height: 16px !important;
+              font-size: 11px !important;
+            }
+            .take-photo-polaroid-btn.camera-shutter-btn span:last-child {
+              bottom: -14px !important;
+              font-size: 10px !important;
+            }
+          }
+        `;
+        
+        document.head.append(styleElement);
+        
+        // Update aspect ratio when orientation changes
+        const updateAspectRatio = () => {
+          const isPortrait = window.innerHeight > window.innerWidth;
+          document.documentElement.style.setProperty(
+            '--current-aspect-ratio', 
+            isPortrait ? '896/1152' : '1152/896'
+          );
+        };
+        
+        // Set initial aspect ratio
+        updateAspectRatio();
+        
+        // Update on resize
+        window.addEventListener('resize', updateAspectRatio);
+        
+        return () => {
+          window.removeEventListener('resize', updateAspectRatio);
+          if (styleElement && document.head.contains(styleElement)) {
+            styleElement.remove();
+          }
+        };
+      }, [])}
     </>
   );
 };
