@@ -1308,7 +1308,8 @@ const App = () => {
             ...updated[photoIndex],
             generating: false,
             loading: false,
-            error: job.error || 'Generation failed'
+            error: typeof job.error === 'object' ? 'Generation failed' : (job.error || 'Generation failed'),
+            permanentError: true // Add flag to prevent overwriting by other successful jobs
           };
           
           // Check if all photos are done generating
@@ -1782,13 +1783,16 @@ const App = () => {
           <div className="style-selector bottom-style-selector" style={{
             position: 'absolute',
             left: '50%',
-            marginLeft: '-180px', /* Center in the left area, offset from the middle */
+            marginLeft: '-180px',
             top: '50%',
             transform: 'translateY(-50%)',
             zIndex: 5,
-            textAlign: 'center',
-            width: '200px', /* Increased width for longer text */
-            maxWidth: '35%' /* Ensure it doesn't exceed available space */
+            textAlign: 'left',
+            width: 'calc(100% - 64px)', // clamp to polaroid inner width
+            maxWidth: 340,
+            marginBottom: '18px',
+            marginRight: '24px',
+            wordBreak: 'break-word',
         }}>
           <button
               ref={styleButtonReference}
@@ -1803,9 +1807,11 @@ const App = () => {
                 padding: 0,
                 cursor: 'pointer',
                 display: 'block',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
+                whiteSpace: 'normal',
+                overflow: 'visible',
+                textOverflow: 'clip',
+                wordBreak: 'break-word',
+                textAlign: 'left',
                 position: 'relative',
                 textTransform: 'none',
                 boxShadow: 'none',
@@ -1894,7 +1900,7 @@ const App = () => {
                       color: selectedStyle === 'random' ? '#ff5e8a' : '#333',
                       background: selectedStyle === 'random' ? '#fff0f4' : 'transparent',
                       fontFamily: '"Permanent Marker", cursive',
-                      fontSize: 13, /* Smaller text (swapped) */
+                      fontSize: 13,
                       textAlign: 'left'
                     }}
                   >
@@ -1916,7 +1922,7 @@ const App = () => {
                       color: selectedStyle === 'custom' ? '#ff5e8a' : '#333',
                       background: selectedStyle === 'custom' ? '#fff0f4' : 'transparent',
                       fontFamily: '"Permanent Marker", cursive',
-                      fontSize: 13, /* Smaller text (swapped) */
+                      fontSize: 13,
                       textAlign: 'left'
                     }}
                   >
@@ -1944,7 +1950,7 @@ const App = () => {
                           color: selectedStyle === styleKey ? '#ff5e8a' : '#333',
                           background: selectedStyle === styleKey ? '#fff0f4' : 'transparent',
                           fontFamily: '"Permanent Marker", cursive',
-                          fontSize: 13, /* Smaller text (swapped) */
+                          fontSize: 13,
                           textAlign: 'left'
                         }}
                       >
@@ -2042,7 +2048,7 @@ const App = () => {
                 </select>
               </div>
             )}
-
+            
             {selectedStyle === 'custom' && (
               <div className="control-option">
                 <label className="control-label">Custom Style Prompt:</label>
@@ -2171,15 +2177,25 @@ const App = () => {
   );
 
   // -------------------------
-  //   Selected Photo Display
+  //   Selected Photo Display (Fullscreen Polaroid)
   // -------------------------
   const renderSelectedPhoto = () => {
-    if (!selectedPhotoIndex || selectedPhotoIndex < 0 || !photos[selectedPhotoIndex]) return null;
-    
+    if (selectedPhotoIndex == null || selectedPhotoIndex < 0 || !photos[selectedPhotoIndex]) return null;
     const currentPhoto = photos[selectedPhotoIndex];
     const imageUrl = currentPhoto.images[selectedSubIndex] || currentPhoto.originalDataUrl;
     if (!imageUrl) return null;
-      
+    // Get natural size
+    const [naturalSize, setNaturalSize] = React.useState({ width: null, height: null });
+    React.useEffect(() => {
+      if (!imageUrl) return;
+      const img = new window.Image();
+      img.onload = () => setNaturalSize({ width: img.naturalWidth, height: img.naturalHeight });
+      img.src = imageUrl;
+    }, [imageUrl]);
+    // Use same sizing as camera view
+    const aspectRatio = 1152 / 896;
+    const maxFrameWidth = Math.min(window.innerWidth * 0.85, 700, naturalSize.width || Infinity);
+    const maxFrameHeight = Math.min(window.innerHeight * 0.85, 700 / aspectRatio, naturalSize.height || Infinity);
       return (
       <div className="selected-photo-container" style={{
         position: 'fixed',
@@ -2194,38 +2210,99 @@ const App = () => {
         zIndex: 99_999,
         padding: '40px',
       }}>
-        <div className="selected-photo-wrapper" style={{
-          background: 'white',
-          padding: '24px 24px 80px 24px',
-          borderRadius: '4px',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
+        <div className="polaroid-frame" style={{
+          background: '#faf9f6',
+          borderRadius: 8,
+          boxShadow: '0 8px 30px rgba(0,0,0,0.18), 0 1.5px 0 #e5e5e5',
+          border: '1.5px solid #ececec',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+          padding: 0,
+          width: '100%',
+          maxWidth: maxFrameWidth,
+          minWidth: 380,
+          height: 'auto',
+          maxHeight: maxFrameHeight,
           position: 'relative',
-          maxWidth: '90vw',
-          maxHeight: '90vh',
+          overflow: 'visible',
+          margin: '0 auto',
+          zIndex: 10_001,
         }}>
+          <div style={{
+            width: '100%',
+            aspectRatio: '9 / 7',
+            background: 'white',
+            borderLeft: '32px solid white',
+            borderRight: '32px solid white',
+            borderTop: '56px solid white',
+            borderBottom: '120px solid white',
+            borderRadius: 8,
+            boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
+            overflow: 'hidden',
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginTop: 0,
+            transition: 'none', // Remove animation
+          }}>
+            <div style={{
+              width: '100%',
+              aspectRatio: '9 / 7',
+              background: 'white',
+              borderLeft: '32px solid white',
+              borderRight: '32px solid white',
+              borderTop: '56px solid white',
+              borderBottom: '120px solid white',
+              borderRadius: 8,
+              boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
+              overflow: 'hidden',
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginTop: 0,
+              transition: 'none', // Remove animation
+              paddingBottom: '77.78%',
+              height: 0,
+              minHeight: 0,
+            }}>
         <img
           src={imageUrl}
-            alt={`Photo #${selectedPhotoIndex + 1}`}
-            style={{
-              display: 'block',
-              width: 'auto',
-              height: 'auto',
-              maxWidth: '100%',
-              maxHeight: 'calc(90vh - 104px)',
-              objectFit: 'contain',
-            }}
-          />
-          <div style={{
-            position: 'absolute',
-            bottom: '24px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            fontFamily: '"Permanent Marker", cursive',
-            fontSize: '24px',
-            color: '#333',
-          }}>
-            #{selectedPhotoIndex + 1}
+                alt={`Photo #${selectedPhotoIndex + 1}`}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: 'block',
+                  background: '#fff',
+                  borderRadius: 0,
+                  aspectRatio: '9 / 7',
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  transition: 'none', // Remove animation
+                }}
+              />
         </div>
+            <div className="photo-label" style={{
+              position: 'absolute',
+              bottom: 24,
+              left: 0,
+              right: 0,
+              textAlign: 'center',
+              fontFamily: '"Permanent Marker", cursive',
+              fontSize: 24,
+              color: '#333',
+              zIndex: 2,
+            }}>
+              #{selectedPhotoIndex + 1}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -2315,6 +2392,7 @@ const App = () => {
                 <div
                   key={photo.id}
                   className={`film-frame loading ${isSelected ? 'selected' : ''}`}
+                  data-fadepolaroid={photo.loading && !photo.error ? 'true' : undefined}
                   onClick={() => isSelected ? setSelectedPhotoIndex(null) : setSelectedPhotoIndex(index)}
                 >
                   <div className="aspect-ratio-box">
@@ -2323,11 +2401,14 @@ const App = () => {
                         src={placeholderUrl}
                         alt="Reference"
                         className="placeholder"
+                        style={{ opacity: photo.loading && !photo.error ? undefined : 0.2, transition: 'opacity 0.5s' }}
                       />
                     )}
                   </div>
-                  <div className="photo-label">
-                    {loadingLabel || labelText}
+                  <div className="photo-label" style={{ color: photo.error ? '#d32f2f' : undefined, fontWeight: photo.error ? 700 : undefined }}>
+                    {photo.error ? 
+                      `Error: ${typeof photo.error === 'object' ? 'Generation failed' : photo.error}` 
+                      : (loadingLabel || labelText)}
                   </div>
                 </div>
               );
@@ -2918,19 +2999,24 @@ const App = () => {
               bottom: 18,
               right: 18,
               zIndex: 10,
-              background: '#fff',
-              color: '#222',
-              border: '2px solid #ff5e8a',
+              background: 'linear-gradient(135deg, #ff5e8a 0%, #ff3366 100%)',
+              color: '#fff',
+              border: '2px solid #fff',
               borderRadius: 16,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
-              padding: '10px 18px',
-              fontWeight: 700,
-              fontSize: 15,
+              boxShadow: '0 4px 16px rgba(255, 51, 102, 0.25)',
+              padding: '12px 24px',
+              fontWeight: 900,
+              fontSize: 18,
               cursor: 'pointer',
+              fontFamily: '"Permanent Marker", cursive',
+              letterSpacing: 1,
+          display: 'flex',
+          alignItems: 'center',
+              gap: 10,
               transition: 'all 0.2s',
             }}
           >
-            View Photos
+            <span style={{fontSize: 22, marginRight: 6}}>📸</span> View Photos
           </button>
         )}
       </div>
@@ -3090,6 +3176,7 @@ const App = () => {
           
           .film-frame.loading img {
             transition: opacity 0.5s;
+            opacity: 0.3 !important;
           }
           
           /* Set opacity based on progress attribute */
