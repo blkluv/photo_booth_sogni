@@ -78,7 +78,7 @@
 .custom-dropdown-option:hover { background-color: #444; }
 
 .custom-dropdown-option.selected::before {
-  content: '✓';
+  content: '';
   position: absolute;
   left: 15px;
   top: 50%;
@@ -167,7 +167,7 @@
 .style-option:hover { background: #444; }
 
 .style-option.selected::before {
-  content: '✓';
+  content: '';
   position: absolute;
   left: 15px;
   top: 50%;

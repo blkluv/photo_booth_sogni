@@ -25,7 +25,7 @@ const StyleDropdown = ({
 }) => {
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const [mounted, setMounted] = useState(false);
-  const dropdownRef = useRef(null);
+  const dropdownReference = useRef(null);
   
   useEffect(() => {
     if (isOpen) {
@@ -49,7 +49,7 @@ const StyleDropdown = ({
   useEffect(() => {
     if (isOpen) {
       const handleClickOutside = (e) => {
-        if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        if (dropdownReference.current && !dropdownReference.current.contains(e.target)) {
           // Check if the click was on the style button
           const styleButton = document.querySelector('.bottom-style-select');
           if (!styleButton || !styleButton.contains(e.target)) {
@@ -63,7 +63,7 @@ const StyleDropdown = ({
       // Scroll selected option into view
       setTimeout(() => {
         const selectedOption = document.querySelector('.style-option.selected');
-        if (selectedOption && dropdownRef.current) {
+        if (selectedOption && dropdownReference.current) {
           selectedOption.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       }, 100);
@@ -78,7 +78,7 @@ const StyleDropdown = ({
   // Create portal to render the dropdown at the document root
   return ReactDOM.createPortal(
     <div 
-      ref={dropdownRef}
+      ref={dropdownReference}
       className={`style-dropdown ${dropdownPosition}-position`}
       style={{
         position: 'fixed',
@@ -93,7 +93,7 @@ const StyleDropdown = ({
         borderRadius: 5,
         boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
         overflow: 'auto',
-        zIndex: 10000,
+        zIndex: 10_000,
         transformOrigin: dropdownPosition === 'top' ? 'center bottom' : 'center top',
         animation: 'dropdownAppear 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards',
         border: '1px solid rgba(0,0,0,0.1)',
@@ -219,9 +219,9 @@ const saveSettingsToCookies = (settings) => {
   expiryDate.setMonth(expiryDate.getMonth() + 6); // Expire in 6 months
   const expires = `; expires=${expiryDate.toUTCString()}`;
   
-  Object.entries(settings).forEach(([key, value]) => {
+  for (const [key, value] of Object.entries(settings)) {
     document.cookie = `sogni_${key}=${value}${expires}; path=/`;
-  });
+  }
 };
 
 const getSettingFromCookie = (name, defaultValue) => {
@@ -231,7 +231,7 @@ const getSettingFromCookie = (name, defaultValue) => {
   for (let cookie of cookies) {
     cookie = cookie.trim();
     if (cookie.indexOf(cookieName) === 0) {
-      const value = cookie.substring(cookieName.length);
+      const value = cookie.slice(cookieName.length);
       
       // Try to parse numbers and booleans
       if (!isNaN(Number(value))) {
@@ -296,17 +296,17 @@ function getCustomDimensions() {
 async function resizeDataUrl(dataUrl, width, height) {
   return new Promise((resolve) => {
     const img = new Image();
-    img.onload = () => {
+    img.addEventListener('load', () => {
       const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
-      const ctx = canvas.getContext('2d');
+      const context = canvas.getContext('2d');
       // fill black to avoid any transparent edges
-      ctx.fillStyle = 'black';
-      ctx.fillRect(0, 0, width, height);
-      ctx.drawImage(img, 0, 0, width, height);
+      context.fillStyle = 'black';
+      context.fillRect(0, 0, width, height);
+      context.drawImage(img, 0, 0, width, height);
       resolve(canvas.toDataURL('image/png'));
-    };
+    });
     img.src = dataUrl;
   });
 }
@@ -340,7 +340,7 @@ async function describeImage(photoBlob) {
 }
 
 const generateUUID = () => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replaceAll(/[xy]/g, function(c) {
     const r = Math.random() * 16 | 0;
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
@@ -348,11 +348,11 @@ const generateUUID = () => {
 };
 
 const App = () => {
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const shutterSoundRef = useRef(null);
-  const cameraWindSoundRef = useRef(null);
-  const slothicornRef = useRef(null);
+  const videoReference = useRef(null);
+  const canvasReference = useRef(null);
+  const shutterSoundReference = useRef(null);
+  const cameraWindSoundReference = useRef(null);
+  const slothicornReference = useRef(null);
 
   // Style selection -- default to what's in cookies
   const [selectedStyle, setSelectedStyle] = useState(getSettingFromCookie('selectedStyle', DEFAULT_SETTINGS.selectedStyle));
@@ -408,13 +408,13 @@ const App = () => {
   const [dragActive, setDragActive] = useState(false);
 
   // First, let's create a proper job tracking map at the top of the App component:
-  const jobMapRef = useRef(new Map());
+  const jobMapReference = useRef(new Map());
 
   // First, let's track project setup progress properly
   const [projectSetupProgress, setProjectSetupProgress] = useState(0);
 
   // At the top of App component, add a new ref for tracking project state
-  const projectStateRef = useRef({
+  const projectStateReference = useRef({
     currentPhotoIndex: 0,
     jobs: new Map(), // Map<jobId, {index: number, status: string, resultUrl?: string}>
     startedJobs: new Set(), // Track which indices have started jobs
@@ -455,7 +455,7 @@ const App = () => {
 
   // At the top of App component, add new state variables - now loaded from cookies
   const [selectedModel, setSelectedModel] = useState(getSettingFromCookie('selectedModel', DEFAULT_SETTINGS.selectedModel));
-  const [numImages, setNumImages] = useState(getSettingFromCookie('numImages', DEFAULT_SETTINGS.numImages));
+  const [numberImages, setNumberImages] = useState(getSettingFromCookie('numImages', DEFAULT_SETTINGS.numImages));
   const [promptGuidance, setPromptGuidance] = useState(getSettingFromCookie('promptGuidance', DEFAULT_SETTINGS.promptGuidance));
   const [controlNetStrength, setControlNetStrength] = useState(getSettingFromCookie('controlNetStrength', DEFAULT_SETTINGS.controlNetStrength));
   const [controlNetGuidanceEnd, setControlNetGuidanceEnd] = useState(getSettingFromCookie('controlNetGuidanceEnd', DEFAULT_SETTINGS.controlNetGuidanceEnd));
@@ -478,7 +478,7 @@ const App = () => {
   // Add new state for button cooldown
   const [isPhotoButtonCooldown, setIsPhotoButtonCooldown] = useState(false);
   // Ref to track current project
-  const activeProjectRef = useRef(null);
+  const activeProjectReference = useRef(null);
 
   // Add back the thought arrays
   const photoThoughts = [
@@ -546,7 +546,7 @@ const App = () => {
     if (thoughtInProgress) return;
     thoughtInProgress = true;
     // Select thoughts based on whether there's an active project
-    const thoughts = activeProjectRef.current ? photoThoughts : randomThoughts;
+    const thoughts = activeProjectReference.current ? photoThoughts : randomThoughts;
     const randomThought = thoughts[Math.floor(Math.random() * thoughts.length)];
     const isLeftSide = Math.random() < 0.5;
     
@@ -566,7 +566,7 @@ const App = () => {
   // Update timing in useEffect
   useEffect(() => {
     // Initial delay between 5-15 seconds
-    const initialDelay = 5000 + Math.random() * 15000;
+    const initialDelay = 5000 + Math.random() * 15_000;
     const firstThought = setTimeout(() => {
       showThought();
     }, initialDelay);
@@ -576,7 +576,7 @@ const App = () => {
       if (selectedPhotoIndex === null) {
         showThought();
       }
-    }, 18000); // Fixed 18 second interval
+    }, 18_000); // Fixed 18 second interval
 
     return () => {
       clearTimeout(firstThought);
@@ -587,8 +587,8 @@ const App = () => {
   // Camera aspect ratio useEffect
   useEffect(() => {
     const handleVideoLoaded = () => {
-      if (videoRef.current) {
-        const { videoWidth, videoHeight } = videoRef.current;
+      if (videoReference.current) {
+        const { videoWidth, videoHeight } = videoReference.current;
         if (videoWidth && videoHeight) {
           // Set CSS variable for camera aspect ratio
           document.documentElement.style.setProperty(
@@ -601,7 +601,7 @@ const App = () => {
     };
 
     // Add event listener for when video metadata is loaded
-    const videoElement = videoRef.current;
+    const videoElement = videoReference.current;
     if (videoElement) {
       videoElement.addEventListener('loadedmetadata', handleVideoLoaded);
       // If already loaded, set it now
@@ -616,7 +616,7 @@ const App = () => {
         videoElement.removeEventListener('loadedmetadata', handleVideoLoaded);
       }
     };
-  }, [videoRef.current]);
+  }, [videoReference.current]);
 
   // Fix for iOS viewport height issues
   useEffect(() => {
@@ -637,14 +637,14 @@ const App = () => {
     });
     
     // On iOS, add a class to handle content safely with notches
-    if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
       document.body.classList.add('ios-device');
       
       // When showing the photo viewer, prevent background scrolling
-      if (selectedPhotoIndex !== null) {
-        document.body.classList.add('prevent-scroll');
-      } else {
+      if (selectedPhotoIndex === null) {
         document.body.classList.remove('prevent-scroll');
+      } else {
+        document.body.classList.add('prevent-scroll');
       }
     }
     
@@ -657,7 +657,7 @@ const App = () => {
   // Add this useEffect at the beginning of the component
   useEffect(() => {
     // Simple mobile detection
-    const isMobile = /iPhone|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+    const isMobile = /iphone|ipod|android|webos|blackberry|iemobile|opera mini/i.test(navigator.userAgent) 
       || (window.innerWidth <= 768);
     
     if (isMobile) {
@@ -701,8 +701,8 @@ const App = () => {
    */
   const startCamera = useCallback(async (deviceId) => {
     // Check if we're on mobile and iOS
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isMobile = /iphone|ipad|ipod|android/i.test(navigator.userAgent);
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
     const isPortrait = window.innerHeight > window.innerWidth;
     
     console.log(`Camera setup - isMobile: ${isMobile}, isIOS: ${isIOS}, isPortrait: ${isPortrait}`);
@@ -754,12 +754,12 @@ const App = () => {
       console.log('Getting user media with constraints:', JSON.stringify(constraints));
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+      if (videoReference.current) {
+        videoReference.current.srcObject = stream;
         
         // Add proper class for iOS
         if (isIOS) {
-          videoRef.current.classList.add('ios-fix');
+          videoReference.current.classList.add('ios-fix');
         }
         
         // Get actual stream dimensions for debugging
@@ -771,36 +771,36 @@ const App = () => {
         
         // Add a small delay before playing to prevent potential errors
         setTimeout(() => {
-          if (videoRef.current) {
-            videoRef.current.play().catch(err => {
-              console.warn("Video play error:", err);
+          if (videoReference.current) {
+            videoReference.current.play().catch(error => {
+              console.warn("Video play error:", error);
             });
           }
         }, 100);
       }
-    } catch (err) {
-      console.error(`Error accessing webcam: ${err}`);
+    } catch (error) {
+      console.error(`Error accessing webcam: ${error}`);
       
       // If failed with ideal settings, try again with more flexible constraints
-      if (!deviceId && err.name === 'OverconstrainedError') {
+      if (!deviceId && error.name === 'OverconstrainedError') {
         console.log('Trying with more flexible constraints');
         try {
           const backupConstraints = { video: true };
           const stream = await navigator.mediaDevices.getUserMedia(backupConstraints);
           
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            if (isIOS) videoRef.current.classList.add('ios-fix');
+          if (videoReference.current) {
+            videoReference.current.srcObject = stream;
+            if (isIOS) videoReference.current.classList.add('ios-fix');
             
             setTimeout(() => {
-              videoRef.current?.play().catch(e => console.warn("Backup video play error:", e));
+              videoReference.current?.play().catch(error_ => console.warn("Backup video play error:", error_));
             }, 100);
           }
-        } catch (backupErr) {
-          alert(`Could not access camera: ${backupErr.message}`);
+        } catch (error_) {
+          alert(`Could not access camera: ${error_.message}`);
         }
       } else {
-        alert(`Error accessing webcam: ${err.message}`);
+        alert(`Error accessing webcam: ${error.message}`);
       }
     }
   }, [desiredWidth, desiredHeight]);
@@ -813,8 +813,8 @@ const App = () => {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(d => d.kind === 'videoinput');
       setCameraDevices(videoDevices);
-    } catch (err) {
-      console.warn('Error enumerating devices', err);
+    } catch (error) {
+      console.warn('Error enumerating devices', error);
     }
   }, []);
 
@@ -831,13 +831,13 @@ const App = () => {
 
   // If we return to camera, ensure the video is playing
   useEffect(() => {
-    if (selectedPhotoIndex === null && videoRef.current) {
+    if (selectedPhotoIndex === null && videoReference.current) {
       console.log("Restarting video playback");
       // Add a small delay to ensure DOM updates before attempting to play
       setTimeout(() => {
-        if (videoRef.current && videoRef.current.srcObject) {
-          videoRef.current.play().catch(err => {
-            console.warn("Video re-play error:", err);
+        if (videoReference.current && videoReference.current.srcObject) {
+          videoReference.current.play().catch(error => {
+            console.warn("Video re-play error:", error);
           });
         } else {
           console.log("Video ref or srcObject not available, restarting camera");
@@ -851,10 +851,10 @@ const App = () => {
   // Preload images for the selected photo
   useEffect(() => {
     if (selectedPhotoIndex !== null && photos[selectedPhotoIndex]) {
-      photos[selectedPhotoIndex].images.forEach((url) => {
+      for (const url of photos[selectedPhotoIndex].images) {
         const img = new Image();
         img.src = url;
-      });
+      }
     }
   }, [selectedPhotoIndex, photos]);
 
@@ -870,32 +870,32 @@ const App = () => {
   };
 
   // Simplified function to navigate to previous photo with looping
-  const goToPrevPhoto = () => {
+  const goToPreviousPhoto = () => {
     // Check if there are any loaded photos to navigate to
     if (photos.length <= 1) return;
     
     // Find the previous loaded photo
-    let prevIndex = selectedPhotoIndex;
+    let previousIndex = selectedPhotoIndex;
     let iterations = 0;
     
     // Only try once around the array to avoid infinite loop
     while (iterations < photos.length) {
-      prevIndex = prevIndex === 0 ? photos.length - 1 : prevIndex - 1;
+      previousIndex = previousIndex === 0 ? photos.length - 1 : previousIndex - 1;
       iterations++;
       
       // Skip photos that are still loading or have errors
-      const prevPhoto = photos[prevIndex];
-      if (prevPhoto && 
-          ((prevPhoto.images && prevPhoto.images.length > 0) || 
-           prevPhoto.isOriginal)) {
+      const previousPhoto = photos[previousIndex];
+      if (previousPhoto && 
+          ((previousPhoto.images && previousPhoto.images.length > 0) || 
+           previousPhoto.isOriginal)) {
         // We found a valid photo
         break;
       }
     }
     
     // Only proceed if we found a valid previous photo
-    if (prevIndex !== selectedPhotoIndex && iterations < photos.length) {
-      setSelectedPhotoIndex(prevIndex);
+    if (previousIndex !== selectedPhotoIndex && iterations < photos.length) {
+      setSelectedPhotoIndex(previousIndex);
       setSelectedSubIndex(0);
     }
   };
@@ -932,21 +932,21 @@ const App = () => {
   };
 
   // Get previous photo index with looping
-  const getPrevPhotoIndex = (currentIndex) => {
+  const getPreviousPhotoIndex = (currentIndex) => {
     // Find previous valid photo
-    let prevIndex = currentIndex;
+    let previousIndex = currentIndex;
     let iterations = 0;
     
     while (iterations < photos.length) {
-      prevIndex = prevIndex === 0 ? photos.length - 1 : prevIndex - 1;
+      previousIndex = previousIndex === 0 ? photos.length - 1 : previousIndex - 1;
       iterations++;
       
-      const prevPhoto = photos[prevIndex];
-      if (prevPhoto && 
-          ((prevPhoto.images && prevPhoto.images.length > 0) || 
-           prevPhoto.isOriginal)) {
+      const previousPhoto = photos[previousIndex];
+      if (previousPhoto && 
+          ((previousPhoto.images && previousPhoto.images.length > 0) || 
+           previousPhoto.isOriginal)) {
         // We found a valid photo
-        return prevIndex;
+        return previousIndex;
       }
     }
     
@@ -995,8 +995,8 @@ const App = () => {
 
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        const prevIndex = selectedPhotoIndex === 0 ? photos.length - 1 : selectedPhotoIndex - 1;
-        setSelectedPhotoIndex(prevIndex);
+        const previousIndex = selectedPhotoIndex === 0 ? photos.length - 1 : selectedPhotoIndex - 1;
+        setSelectedPhotoIndex(previousIndex);
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
         const nextIndex = selectedPhotoIndex === photos.length - 1 ? 0 : selectedPhotoIndex + 1;
@@ -1013,8 +1013,8 @@ const App = () => {
   // Global 1s timer for generation countdown
   useEffect(() => {
     const interval = setInterval(() => {
-      setPhotos((prevPhotos) => {
-        return prevPhotos.map((p) => {
+      setPhotos((previousPhotos) => {
+        return previousPhotos.map((p) => {
           if (p.generating && p.generationCountdown > 0) {
             return { ...p, generationCountdown: p.generationCountdown - 1 };
           }
@@ -1028,23 +1028,23 @@ const App = () => {
   // iOS orientation fix
   useEffect(() => {
     function isIOS() {
-      return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      return /iphone|ipad|ipod/i.test(navigator.userAgent);
     }
-    if (isIOS() && videoRef.current) {
+    if (isIOS() && videoReference.current) {
       // Add a special class so CSS can rotate it if in portrait
-      videoRef.current.classList.add('ios-fix');
+      videoReference.current.classList.add('ios-fix');
     }
   }, []);
 
   // Add an effect to properly initialize the slothicorn
   useEffect(() => {
     // Ensure slothicorn is properly initialized
-    if (slothicornRef.current) {
+    if (slothicornReference.current) {
       // Just initialize the transition property to prevent abrupt changes
-      slothicornRef.current.style.transition = 'none';
+      slothicornReference.current.style.transition = 'none';
       
       // Force a reflow to ensure style is applied
-      void slothicornRef.current.offsetHeight;
+      void slothicornReference.current.offsetHeight;
     }
   }, []);
 
@@ -1056,9 +1056,9 @@ const App = () => {
       .map(([key, value]) => ({ key, value }));
     
     // Shuffle array using Fisher-Yates algorithm
-    for (let i = availablePrompts.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [availablePrompts[i], availablePrompts[j]] = [availablePrompts[j], availablePrompts[i]];
+    for (let index = availablePrompts.length - 1; index > 0; index--) {
+      const index_ = Math.floor(Math.random() * (index + 1));
+      [availablePrompts[index], availablePrompts[index_]] = [availablePrompts[index_], availablePrompts[index]];
     }
     
     // Take first 'count' items and join their prompts
@@ -1074,19 +1074,19 @@ const App = () => {
       // Get the style prompt, generating random if selected
       const stylePrompt = (selectedStyle === 'custom')
         ? (customPrompt || 'A custom style portrait')
-        : selectedStyle === 'random'
+        : (selectedStyle === 'random'
           ? defaultStylePrompts[getRandomStyle()]
           : selectedStyle === 'randomMix'
-            ? getRandomMixPrompts(numImages)
-            : defaultStylePrompts[selectedStyle];
+            ? getRandomMixPrompts(numberImages)
+            : defaultStylePrompts[selectedStyle]);
       console.log('Style prompt:', stylePrompt);
-      projectStateRef.current = {
+      projectStateReference.current = {
         currentPhotoIndex: newPhotoIndex,
         pendingCompletions: new Map()
       };
 
       // Set up photos state first
-      setPhotos(prev => {
+      setPhotos(previous => {
         const newPhotos = [];
         if (keepOriginalPhoto) {
           newPhotos.push({
@@ -1100,9 +1100,9 @@ const App = () => {
           });
         }
         
-        for (let i = 0; i < numImages; i++) {
+        for (let index = 0; index < numberImages; index++) {
           newPhotos.push({
-            id: Date.now() + i + 1,
+            id: Date.now() + index + 1,
             generating: true,
             loading: true,
             progress: 0,
@@ -1148,9 +1148,9 @@ const App = () => {
             const offset = keepOriginalPhoto ? 1 : 0;
             const photoIndex = jobIndex + offset;
             
-            setPhotos(prev => {
-              const updated = [...prev];
-              if (!updated[photoIndex]) return prev;
+            setPhotos(previous => {
+              const updated = [...previous];
+              if (!updated[photoIndex]) return previous;
               
               updated[photoIndex] = {
                 ...updated[photoIndex],
@@ -1173,7 +1173,7 @@ const App = () => {
         height: desiredHeight,
         steps: 7,
         guidance: promptGuidance,
-        numberOfImages: numImages,
+        numberOfImages: numberImages,
         scheduler: 'DPM Solver Multistep (DPM-Solver++)',
         timeStepSpacing: 'Karras',
         controlNet: {
@@ -1181,12 +1181,12 @@ const App = () => {
           image: new Uint8Array(arrayBuffer),
           strength: controlNetStrength,
           mode: 'balanced',
-          guidanceStart: 0.0,
+          guidanceStart: 0,
           guidanceEnd: controlNetGuidanceEnd,
         }
       });
 
-      activeProjectRef.current = project.id;
+      activeProjectReference.current = project.id;
       console.log('Project created:', project.id);
 
       // Set up handlers for any jobs that exist immediately
@@ -1206,16 +1206,16 @@ const App = () => {
 
       project.on('completed', (urls) => {
         console.log('Project completed:', urls);
-        activeProjectRef.current = null; // Clear active project reference when complete
+        activeProjectReference.current = null; // Clear active project reference when complete
         if (urls.length === 0) return;
         
-        urls.forEach((url, index) => {
+        for (const [index, url] of urls.entries()) {
           const offset = keepOriginalPhoto ? 1 : 0;
           const photoIndex = index + offset;
           
-          setPhotos(prev => {
-            const updated = [...prev];
-            if (!updated[photoIndex]) return prev;
+          setPhotos(previous => {
+            const updated = [...previous];
+            if (!updated[photoIndex]) return previous;
             
             if (updated[photoIndex].loading || updated[photoIndex].images.length === 0) {
               updated[photoIndex] = {
@@ -1228,12 +1228,12 @@ const App = () => {
             }
             return updated;
           });
-        });
+        }
       });
 
       project.on('failed', (error) => {
         console.error('Project failed:', error);
-        activeProjectRef.current = null; // Clear active project reference when failed
+        activeProjectReference.current = null; // Clear active project reference when failed
       });
 
       // Individual job events
@@ -1250,9 +1250,9 @@ const App = () => {
           return;
         }
         
-        if (cameraWindSoundRef.current) {
-          cameraWindSoundRef.current.play().catch(err => {
-            console.warn("Error playing camera wind sound:", err);
+        if (cameraWindSoundReference.current) {
+          cameraWindSoundReference.current.play().catch(error => {
+            console.warn("Error playing camera wind sound:", error);
           });
         }
         
@@ -1261,12 +1261,12 @@ const App = () => {
         console.log(`Loading image for job ${job.id} into box ${photoIndex}`);
         
         const img = new Image();
-        img.onload = () => {
-          setPhotos(prev => {
-            const updated = [...prev];
+        img.addEventListener('load', () => {
+          setPhotos(previous => {
+            const updated = [...previous];
             if (!updated[photoIndex]) {
               console.error(`No photo box found at index ${photoIndex}`);
-              return prev;
+              return previous;
             }
             
             updated[photoIndex] = {
@@ -1280,15 +1280,15 @@ const App = () => {
             
             // Check if all photos are done generating
             const stillGenerating = updated.some(photo => photo.generating);
-            if (!stillGenerating && activeProjectRef.current) {
+            if (!stillGenerating && activeProjectReference.current) {
               // All photos are done, clear the active project
               console.log('All jobs completed, clearing active project');
-              activeProjectRef.current = null;
+              activeProjectReference.current = null;
             }
             
             return updated;
           });
-        };
+        });
         img.src = job.resultUrl;
       });
 
@@ -1300,9 +1300,9 @@ const App = () => {
         const offset = keepOriginalPhoto ? 1 : 0;
         const photoIndex = jobIndex + offset;
         
-        setPhotos(prev => {
-          const updated = [...prev];
-          if (!updated[photoIndex]) return prev;
+        setPhotos(previous => {
+          const updated = [...previous];
+          if (!updated[photoIndex]) return previous;
           
           updated[photoIndex] = {
             ...updated[photoIndex],
@@ -1313,41 +1313,41 @@ const App = () => {
           
           // Check if all photos are done generating
           const stillGenerating = updated.some(photo => photo.generating);
-          if (!stillGenerating && activeProjectRef.current) {
+          if (!stillGenerating && activeProjectReference.current) {
             // All photos are done, clear the active project
             console.log('All jobs failed or completed, clearing active project');
-            activeProjectRef.current = null;
+            activeProjectReference.current = null;
           }
           
           return updated;
         });
       });
 
-    } catch (err) {
-      console.error('Generation failed:', err);
+    } catch (error) {
+      console.error('Generation failed:', error);
       
-      if (err && err.code === 4015) {
+      if (error && error.code === 4015) {
         console.warn("Socket error (4015). Re-initializing Sogni.");
         setIsSogniReady(false);
         initializeSogni();
       }
 
-      setPhotos(prev => {
+      setPhotos(previous => {
         const updated = [];
         if (keepOriginalPhoto) {
-          const originalPhoto = prev.find(p => p.isOriginal);
+          const originalPhoto = previous.find(p => p.isOriginal);
           if (originalPhoto) {
             updated.push(originalPhoto);
           }
         }
         
-        for (let i = 0; i < numImages; i++) {
+        for (let index = 0; index < numberImages; index++) {
           updated.push({
-            id: Date.now() + i,
+            id: Date.now() + index,
             generating: false,
             loading: false,
             images: [],
-            error: `Error: ${err.message || err}`,
+            error: `Error: ${error.message || error}`,
             originalDataUrl: dataUrl, // Use reference photo as placeholder
           });
         }
@@ -1410,18 +1410,18 @@ const App = () => {
       newlyArrived: false,
       generationCountdown: 10,
     };
-    setPhotos((prev) => [...prev, newPhoto]);
+    setPhotos((previous) => [...previous, newPhoto]);
     const newPhotoIndex = photos.length;
 
     // Read the file as dataURL so we can keep it (originalDataUrl)
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.addEventListener('load', (event) => {
       const dataUrl = event.target.result;
       newPhoto.originalDataUrl = dataUrl;
 
       // Now feed the Blob itself into the generator
       generateFromBlob(file, newPhotoIndex, dataUrl);
-    };
+    });
     reader.readAsDataURL(file);
   };
 
@@ -1434,16 +1434,16 @@ const App = () => {
     }
 
     // Cancel any existing project
-    if (activeProjectRef.current) {
-      console.log('Cancelling existing project:', activeProjectRef.current);
+    if (activeProjectReference.current) {
+      console.log('Cancelling existing project:', activeProjectReference.current);
       if (sogniClient) {
         try {
-          await sogniClient.cancelProject(activeProjectRef.current);
-        } catch (err) {
-          console.warn('Error cancelling previous project:', err);
+          await sogniClient.cancelProject(activeProjectReference.current);
+        } catch (error) {
+          console.warn('Error cancelling previous project:', error);
         }
       }
-      activeProjectRef.current = null;
+      activeProjectReference.current = null;
     }
 
     // Start cooldown
@@ -1452,26 +1452,26 @@ const App = () => {
       setIsPhotoButtonCooldown(false);
     }, 5000);
 
-    console.log('handleTakePhoto called - device type:', /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop');
+    console.log('handleTakePhoto called - device type:', /iphone|ipad|ipod|android/i.test(navigator.userAgent) ? 'mobile' : 'desktop');
     
     // Start countdown without slothicorn initially
-    for (let i = 3; i > 0; i--) {
-      setCountdown(i);
+    for (let index = 3; index > 0; index--) {
+      setCountdown(index);
       
       // Show slothicorn when countdown reaches 2
-      if (i === 2 && slothicornRef.current) {
+      if (index === 2 && slothicornReference.current) {
         // Force the slothicorn to be visible and animated
-        slothicornRef.current.style.setProperty('bottom', '-360px', 'important');
-        slothicornRef.current.style.transition = 'none';
-        slothicornRef.current.classList.add('animating');
+        slothicornReference.current.style.setProperty('bottom', '-360px', 'important');
+        slothicornReference.current.style.transition = 'none';
+        slothicornReference.current.classList.add('animating');
         
         // Force reflow
-        void slothicornRef.current.offsetHeight;
+        void slothicornReference.current.offsetHeight;
         
         // After a small delay, start the upward animation
         setTimeout(() => {
-          slothicornRef.current.style.transition = 'bottom 0.8s cubic-bezier(0.34, 1.2, 0.64, 1)';
-          slothicornRef.current.style.setProperty('bottom', '0px', 'important');
+          slothicornReference.current.style.transition = 'bottom 0.8s cubic-bezier(0.34, 1.2, 0.64, 1)';
+          slothicornReference.current.style.setProperty('bottom', '0px', 'important');
         }, 50);
       }
       
@@ -1483,14 +1483,14 @@ const App = () => {
     
     // Make slothicorn return more gradually
     setTimeout(() => {
-      if (slothicornRef.current) {
-        slothicornRef.current.style.transition = 'bottom 1.5s cubic-bezier(0.25, 0.1, 0.25, 1)';
-        slothicornRef.current.style.setProperty('bottom', '-340px', 'important');
+      if (slothicornReference.current) {
+        slothicornReference.current.style.transition = 'bottom 1.5s cubic-bezier(0.25, 0.1, 0.25, 1)';
+        slothicornReference.current.style.setProperty('bottom', '-340px', 'important');
         
         // Wait for animation to complete, then clean up
         setTimeout(() => {
-          slothicornRef.current.style.transition = 'none';
-          slothicornRef.current.classList.remove('animating');
+          slothicornReference.current.style.transition = 'none';
+          slothicornReference.current.classList.remove('animating');
         }, 1500);
       }
     }, 1200);
@@ -1498,9 +1498,9 @@ const App = () => {
 
   const triggerFlashAndCapture = () => {
     // Play camera shutter sound
-    if (shutterSoundRef.current) {
-      shutterSoundRef.current.play().catch(err => {
-        console.warn("Error playing shutter sound:", err);
+    if (shutterSoundReference.current) {
+      shutterSoundReference.current.play().catch(error => {
+        console.warn("Error playing shutter sound:", error);
       });
     }
 
@@ -1517,8 +1517,8 @@ const App = () => {
   };
 
   const captureAndSend = async () => {
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
+    const canvas = canvasReference.current;
+    const video = videoReference.current;
     const isPortrait = window.innerHeight > window.innerWidth;
     
     // Set canvas dimensions to 1152x896 for landscape (or 896x1152 for portrait)
@@ -1530,11 +1530,11 @@ const App = () => {
       canvas.height = 896;
     }
     
-    const ctx = canvas.getContext('2d');
+    const context = canvas.getContext('2d');
     
     // Fill with black to prevent transparency
-    ctx.fillStyle = 'black';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = 'black';
+    context.fillRect(0, 0, canvas.width, canvas.height);
     
     // Calculate dimensions to maintain aspect ratio without stretching
     const videoAspect = video.videoWidth / video.videoHeight;
@@ -1542,27 +1542,27 @@ const App = () => {
     
     let sourceWidth = video.videoWidth;
     let sourceHeight = video.videoHeight;
-    let destX = 0;
-    let destY = 0;
-    let destWidth = canvas.width;
-    let destHeight = canvas.height;
+    let destinationX = 0;
+    let destinationY = 0;
+    let destinationWidth = canvas.width;
+    let destinationHeight = canvas.height;
     
     // If video aspect is wider than desired, crop width
     if (videoAspect > canvasAspect) {
       sourceWidth = video.videoHeight * canvasAspect;
       const sourceX = (video.videoWidth - sourceWidth) / 2;
-      ctx.drawImage(video, 
+      context.drawImage(video, 
         sourceX, 0, sourceWidth, sourceHeight,
-        destX, destY, destWidth, destHeight
+        destinationX, destinationY, destinationWidth, destinationHeight
       );
     } 
     // If video aspect is taller than desired, crop height
     else {
       sourceHeight = video.videoWidth / canvasAspect;
       const sourceY = (video.videoHeight - sourceHeight) / 2;
-      ctx.drawImage(video, 
+      context.drawImage(video, 
         0, sourceY, sourceWidth, sourceHeight,
-        destX, destY, destWidth, destHeight
+        destinationX, destinationY, destinationWidth, destinationHeight
       );
     }
 
@@ -1583,8 +1583,8 @@ const App = () => {
   //   Delete photo
   // -------------------------
   const handleDeletePhoto = (photoIndex) => {
-    setPhotos((prev) => {
-      const newPhotos = [...prev];
+    setPhotos((previous) => {
+      const newPhotos = [...previous];
       newPhotos.splice(photoIndex, 1);
       return newPhotos;
     });
@@ -1592,8 +1592,8 @@ const App = () => {
     setSelectedPhotoIndex((current) => {
       if (current === null) return null;
       if (current === photoIndex) {
-        const newIdx = current - 1;
-        return newIdx < 0 ? null : newIdx;
+        const newIndex = current - 1;
+        return newIndex < 0 ? null : newIndex;
       } else if (photoIndex < current) {
         return current - 1;
       }
@@ -1616,7 +1616,7 @@ const App = () => {
   //   Main area (video)
   // -------------------------
   const renderMainArea = () => (
-    <div className={`camera-polaroid-bg ${cameraAnimating ? showPhotoGrid ? 'camera-flying-in' : 'camera-flying-out' : ''}`}
+    <div className={`camera-polaroid-bg ${cameraAnimating ? (showPhotoGrid ? 'camera-flying-in' : 'camera-flying-out') : ''}`}
       style={{
         display: showPhotoGrid ? 'none' : 'flex',
         justifyContent: 'center',
@@ -1649,7 +1649,7 @@ const App = () => {
         position: 'relative',
         overflow: 'visible',
         margin: '0 auto',
-        zIndex: 10001,
+        zIndex: 10_001,
       }}>
         {/* FIX: Controls row is visually inside the thick top border, not floating above or outside */}
         <div style={{
@@ -1735,7 +1735,7 @@ const App = () => {
           }}>
             <video
               id="webcam"
-              ref={videoRef}
+              ref={videoReference}
               autoPlay
               playsInline
               muted
@@ -1791,7 +1791,7 @@ const App = () => {
             maxWidth: '35%' /* Ensure it doesn't exceed available space */
         }}>
           <button
-              ref={styleButtonRef}
+              ref={styleButtonReference}
               className="bottom-style-select" 
               onClick={toggleStyleDropdown}
               style={{
@@ -1833,7 +1833,7 @@ const App = () => {
                 borderRadius: 5,
                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                 overflow: 'auto',
-                zIndex: 10000,
+                zIndex: 10_000,
                 transformOrigin: dropdownPosition === 'top' ? 'center bottom' : 'center top',
                 animation: 'dropdownAppear 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards',
                 left: '50%',
@@ -1957,11 +1957,11 @@ const App = () => {
           </div>
 
           <button
-            className={`take-photo-polaroid-btn camera-shutter-btn ${isPhotoButtonCooldown || activeProjectRef.current ? 'cooldown' : ''}`}
+            className={`take-photo-polaroid-btn camera-shutter-btn ${isPhotoButtonCooldown || activeProjectReference.current ? 'cooldown' : ''}`}
             onClick={handleTakePhoto}
-            disabled={!isSogniReady || isPhotoButtonCooldown || activeProjectRef.current}
+            disabled={!isSogniReady || isPhotoButtonCooldown || activeProjectReference.current}
             style={{
-              background: isPhotoButtonCooldown || activeProjectRef.current ? '#eee' : '#fff',
+              background: isPhotoButtonCooldown || activeProjectReference.current ? '#eee' : '#fff',
               color: '#222',
               border: '4px solid #222',
               borderRadius: '50%',
@@ -1973,7 +1973,7 @@ const App = () => {
               justifyContent: 'center',
               fontSize: 20,
               fontWeight: 700,
-              cursor: isPhotoButtonCooldown || activeProjectRef.current ? 'not-allowed' : 'pointer',
+              cursor: isPhotoButtonCooldown || activeProjectReference.current ? 'not-allowed' : 'pointer',
               transition: 'background 0.2s',
               outline: 'none',
               margin: 0,
@@ -1987,7 +1987,7 @@ const App = () => {
               display: 'block',
               width: 28,
               height: 28,
-              background: isPhotoButtonCooldown || activeProjectRef.current ? '#bbb' : '#ff5252',
+              background: isPhotoButtonCooldown || activeProjectReference.current ? '#bbb' : '#ff5252',
               borderRadius: '50%',
               margin: '0 auto',
               border: '2px solid #fff',
@@ -1998,17 +1998,17 @@ const App = () => {
               bottom: -25, // Moved down slightly for more space
               left: '50%',
               transform: 'translateX(-50%)',
-              fontSize: activeProjectRef.current ? 11 : 13, // Smaller font for longer text
+              fontSize: activeProjectReference.current ? 11 : 13, // Smaller font for longer text
               fontWeight: 600,
               color: '#222',
-              letterSpacing: activeProjectRef.current ? 0 : 1, // Remove letter spacing for longer text
+              letterSpacing: activeProjectReference.current ? 0 : 1, // Remove letter spacing for longer text
               textShadow: '0 1px 2px #fff',
               whiteSpace: 'nowrap',
               width: 'auto',
               minWidth: '140px', // Ensure there's enough width for the longer text
               textAlign: 'center'
             }}>
-              {activeProjectRef.current ? "Photo in Progress" : "Take Photo"}
+              {activeProjectReference.current ? "Photo in Progress" : "Take Photo"}
             </span>
           </button>
         </div>
@@ -2034,9 +2034,9 @@ const App = () => {
                   value={selectedCameraDeviceId || ''}
                 >
                   <option value="">Default (user-facing)</option>
-                  {cameraDevices.map((dev) => (
-                    <option key={dev.deviceId} value={dev.deviceId}>
-                      {dev.label || `Camera ${dev.deviceId}`}
+                  {cameraDevices.map((development) => (
+                    <option key={development.deviceId} value={development.deviceId}>
+                      {development.label || `Camera ${development.deviceId}`}
                     </option>
                   ))}
                 </select>
@@ -2083,11 +2083,11 @@ const App = () => {
                 min={1}
                 max={64}
                 step={1}
-                value={numImages}
-                onChange={(e) => updateSetting(setNumImages, 'numImages')(parseInt(e.target.value))}
+                value={numberImages}
+                onChange={(e) => updateSetting(setNumberImages, 'numImages')(Number.parseInt(e.target.value))}
                 className="slider-input"
               />
-              <span className="slider-value">{numImages}</span>
+              <span className="slider-value">{numberImages}</span>
             </div>
 
             {/* Prompt Guidance slider */}
@@ -2099,7 +2099,7 @@ const App = () => {
                 max={3}
                 step={0.1}
                 value={promptGuidance}
-                onChange={(e) => updateSetting(setPromptGuidance, 'promptGuidance')(parseFloat(e.target.value))}
+                onChange={(e) => updateSetting(setPromptGuidance, 'promptGuidance')(Number.parseFloat(e.target.value))}
                 className="slider-input"
               />
               <span className="slider-value">{promptGuidance.toFixed(1)}</span>
@@ -2114,7 +2114,7 @@ const App = () => {
                 max={1}
                 step={0.1}
                 value={controlNetStrength}
-                onChange={(e) => updateSetting(setControlNetStrength, 'controlNetStrength')(parseFloat(e.target.value))}
+                onChange={(e) => updateSetting(setControlNetStrength, 'controlNetStrength')(Number.parseFloat(e.target.value))}
                 className="slider-input"
               />
               <span className="slider-value">{controlNetStrength.toFixed(1)}</span>
@@ -2129,7 +2129,7 @@ const App = () => {
                 max={0.8}
                 step={0.1}
                 value={controlNetGuidanceEnd}
-                onChange={(e) => updateSetting(setControlNetGuidanceEnd, 'controlNetGuidanceEnd')(parseFloat(e.target.value))}
+                onChange={(e) => updateSetting(setControlNetGuidanceEnd, 'controlNetGuidanceEnd')(Number.parseFloat(e.target.value))}
                 className="slider-input"
               />
               <span className="slider-value">{controlNetGuidanceEnd.toFixed(1)}</span>
@@ -2191,7 +2191,7 @@ const App = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 99999,
+        zIndex: 99_999,
         padding: '40px',
       }}>
         <div className="selected-photo-wrapper" style={{
@@ -2251,7 +2251,7 @@ const App = () => {
     if (photos.length === 0 || !showPhotoGrid) return null;
     
     return (
-      <div className={`film-strip-container ${showPhotoGrid ? 'visible' : 'hiding'} ${selectedPhotoIndex !== null ? 'has-selected' : ''}`}>
+      <div className={`film-strip-container ${showPhotoGrid ? 'visible' : 'hiding'} ${selectedPhotoIndex === null ? '' : 'has-selected'}`}>
         {/* Back to Camera button */}
         <button
           className="back-to-camera-btn"
@@ -2279,7 +2279,7 @@ const App = () => {
         {/* Navigation buttons - only show when a photo is selected */}
         {selectedPhotoIndex !== null && photos.length > 1 && (
           <>
-            <button className="photo-nav-btn prev" onClick={goToPrevPhoto}>
+            <button className="photo-nav-btn prev" onClick={goToPreviousPhoto}>
               &#8249;
             </button>
             <button className="photo-nav-btn next" onClick={goToNextPhoto}>
@@ -2288,7 +2288,7 @@ const App = () => {
           </>
         )}
 
-        <div className={`film-strip-content ${selectedPhotoIndex !== null ? 'has-selected' : ''}`} style={{
+        <div className={`film-strip-content ${selectedPhotoIndex === null ? '' : 'has-selected'}`} style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
           gap: '32px',
@@ -2300,13 +2300,13 @@ const App = () => {
           margin: '0 auto',
           padding: '32px',
         }}>
-          {photos.map((photo, i) => {
-            const isSelected = i === selectedPhotoIndex;
+          {photos.map((photo, index) => {
+            const isSelected = index === selectedPhotoIndex;
             const isReference = photo.isOriginal;
             const placeholderUrl = photo.originalDataUrl;
             const progress = Math.floor(photo.progress || 0);
             const loadingLabel = progress > 0 ? `${progress}%` : "";
-            const labelText = isReference ? "Reference" : `#${i-keepOriginalPhoto+1}`;
+            const labelText = isReference ? "Reference" : `#${index-keepOriginalPhoto+1}`;
             const aspectRatio = 1152 / 896;
 
             // Loading or error state
@@ -2315,7 +2315,7 @@ const App = () => {
                 <div
                   key={photo.id}
                   className={`film-frame loading ${isSelected ? 'selected' : ''}`}
-                  onClick={() => isSelected ? setSelectedPhotoIndex(null) : setSelectedPhotoIndex(i)}
+                  onClick={() => isSelected ? setSelectedPhotoIndex(null) : setSelectedPhotoIndex(index)}
                 >
                   <div className="aspect-ratio-box">
                     {placeholderUrl && (
@@ -2406,16 +2406,16 @@ const App = () => {
               <div 
                 key={photo.id}
                 className={`film-frame ${isSelected ? 'selected' : ''}`}
-                onClick={(e) => handlePhotoSelect(i, e)}
+                onClick={(e) => handlePhotoSelect(index, e)}
                 style={{
                   '--rotation': `${isSelected ? '0deg' : 
-                    `${(i % 2 === 0 ? 1 : -1) * (0.8 + (i % 3) * 0.5)}deg`}`  // More natural rotation based on index
+                    `${(index % 2 === 0 ? 1 : -1) * (0.8 + (index % 3) * 0.5)}deg`}`  // More natural rotation based on index
                 }}
               >
                 <div className="aspect-ratio-box">
                     <img
                       src={thumbUrl}
-                      alt={`Generated #${i}`}
+                      alt={`Generated #${index}`}
                   />
                 </div>
                 <div className="photo-label">
@@ -2438,7 +2438,7 @@ const App = () => {
   // Reset all settings to defaults
   const resetAllSettings = () => {
     setSelectedModel(DEFAULT_SETTINGS.selectedModel);
-    setNumImages(DEFAULT_SETTINGS.numImages);
+    setNumberImages(DEFAULT_SETTINGS.numImages);
     setPromptGuidance(DEFAULT_SETTINGS.promptGuidance);
     setControlNetStrength(DEFAULT_SETTINGS.controlNetStrength);
     setControlNetGuidanceEnd(DEFAULT_SETTINGS.controlNetGuidanceEnd);
@@ -2465,7 +2465,7 @@ const App = () => {
   const [dropdownPosition, setDropdownPosition] = useState('bottom');
   
   // Add ref for dropdown button
-  const styleButtonRef = useRef(null);
+  const styleButtonReference = useRef(null);
 
   // Add function to detect dropdown position and prevent clipping
   const toggleStyleDropdown = () => {
@@ -2476,8 +2476,8 @@ const App = () => {
     }
     
     // Calculate dropdown position based on button position
-    if (styleButtonRef.current) {
-      const buttonRect = styleButtonRef.current.getBoundingClientRect();
+    if (styleButtonReference.current) {
+      const buttonRect = styleButtonReference.current.getBoundingClientRect();
       const spaceAbove = buttonRect.top;
       const spaceBelow = window.innerHeight - buttonRect.bottom;
       
@@ -2498,7 +2498,7 @@ const App = () => {
 
   // Add this helper function for style display
   const styleIdToDisplay = (styleId) => {
-    return styleId.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).trim();
+    return styleId.replaceAll(/([A-Z])/g, ' $1').replace(/^./, string_ => string_.toUpperCase()).trim();
   };
 
   // Add these helper functions for random styles
@@ -2513,7 +2513,7 @@ const App = () => {
       .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix');
     
     const selectedPrompts = [];
-    for (let i = 0; i < count; i++) {
+    for (let index = 0; index < count; index++) {
       const randomStyle = availableStyles[Math.floor(Math.random() * availableStyles.length)];
       selectedPrompts.push(defaultStylePrompts[randomStyle]);
     }
@@ -2550,8 +2550,8 @@ const App = () => {
     const newPhotos = photos.filter(photo => photo.newlyArrived);
     if (newPhotos.length > 0) {
       const timer = setTimeout(() => {
-        setPhotos(prev => 
-          prev.map(photo => 
+        setPhotos(previous => 
+          previous.map(photo => 
             photo.newlyArrived ? { ...photo, newlyArrived: false } : photo
           )
         );
@@ -2564,11 +2564,11 @@ const App = () => {
   // Add handler for clicks outside the image
   const handlePhotoViewerClick = (e) => {
     // Check if the click is outside the image
-    const imageWrapperEl = e.target.closest('.image-wrapper');
-    const navButtonEl = e.target.closest('.photo-nav-btn');
-    const previewEl = e.target.closest('.photo-preview');
+    const imageWrapperElement = e.target.closest('.image-wrapper');
+    const navButtonElement = e.target.closest('.photo-nav-btn');
+    const previewElement = e.target.closest('.photo-preview');
     
-    if (!imageWrapperEl && !navButtonEl && !previewEl) {
+    if (!imageWrapperElement && !navButtonElement && !previewElement) {
       handleClosePhoto();
     }
   };
@@ -2622,7 +2622,7 @@ const App = () => {
           fontWeight: 'bold',
           fontSize: '16px',
           padding: '5px', 
-          zIndex: 99999,
+          zIndex: 99_999,
           whiteSpace: 'nowrap'
         }}>
           {currentThought.text}
@@ -2658,9 +2658,9 @@ const App = () => {
                   value={selectedCameraDeviceId || ''}
                 >
                   <option value="">Default (user-facing)</option>
-                  {cameraDevices.map((dev) => (
-                    <option key={dev.deviceId} value={dev.deviceId}>
-                      {dev.label || `Camera ${dev.deviceId}`}
+                  {cameraDevices.map((development) => (
+                    <option key={development.deviceId} value={development.deviceId}>
+                      {development.label || `Camera ${development.deviceId}`}
                     </option>
                   ))}
                 </select>
@@ -2707,11 +2707,11 @@ const App = () => {
                 min={1}
                 max={64}
                 step={1}
-                value={numImages}
-                onChange={(e) => updateSetting(setNumImages, 'numImages')(parseInt(e.target.value))}
+                value={numberImages}
+                onChange={(e) => updateSetting(setNumberImages, 'numImages')(Number.parseInt(e.target.value))}
                 className="slider-input"
               />
-              <span className="slider-value">{numImages}</span>
+              <span className="slider-value">{numberImages}</span>
             </div>
 
             {/* Prompt Guidance slider */}
@@ -2723,7 +2723,7 @@ const App = () => {
                 max={3}
                 step={0.1}
                 value={promptGuidance}
-                onChange={(e) => updateSetting(setPromptGuidance, 'promptGuidance')(parseFloat(e.target.value))}
+                onChange={(e) => updateSetting(setPromptGuidance, 'promptGuidance')(Number.parseFloat(e.target.value))}
                 className="slider-input"
               />
               <span className="slider-value">{promptGuidance.toFixed(1)}</span>
@@ -2738,7 +2738,7 @@ const App = () => {
                 max={1}
                 step={0.1}
                 value={controlNetStrength}
-                onChange={(e) => updateSetting(setControlNetStrength, 'controlNetStrength')(parseFloat(e.target.value))}
+                onChange={(e) => updateSetting(setControlNetStrength, 'controlNetStrength')(Number.parseFloat(e.target.value))}
                 className="slider-input"
               />
               <span className="slider-value">{controlNetStrength.toFixed(1)}</span>
@@ -2753,7 +2753,7 @@ const App = () => {
                 max={0.8}
                 step={0.1}
                 value={controlNetGuidanceEnd}
-                onChange={(e) => updateSetting(setControlNetGuidanceEnd, 'controlNetGuidanceEnd')(parseFloat(e.target.value))}
+                onChange={(e) => updateSetting(setControlNetGuidanceEnd, 'controlNetGuidanceEnd')(Number.parseFloat(e.target.value))}
                 className="slider-input"
               />
               <span className="slider-value">{controlNetGuidanceEnd.toFixed(1)}</span>
@@ -2847,7 +2847,7 @@ const App = () => {
 
         {/* Info Modal */}
         {showInfoModal && (
-          <div className="notes-modal-overlay" style={{zIndex: 30000}} onClick={() => setShowInfoModal(false)}>
+          <div className="notes-modal-overlay" style={{zIndex: 30_000}} onClick={() => setShowInfoModal(false)}>
             <div className="notes-modal" onClick={e => e.stopPropagation()}>
               <div className="sticky-note">
                 <button className="note-close" onClick={() => setShowInfoModal(false)}>×</button>
@@ -2874,11 +2874,11 @@ const App = () => {
         {/* Photo gallery grid - shown when showPhotoGrid is true */}
         {renderGallery()}
 
-        <canvas ref={canvasRef} className="hidden" />
+        <canvas ref={canvasReference} className="hidden" />
 
         {/* Slothicorn mascot with direct DOM manipulation */}
         <div 
-          ref={slothicornRef}
+          ref={slothicornReference}
           className="slothicorn-container"
         >
           <img 
@@ -2889,13 +2889,13 @@ const App = () => {
         </div>
 
         {/* Camera shutter sound */}
-        <audio ref={shutterSoundRef} preload="auto">
+        <audio ref={shutterSoundReference} preload="auto">
           <source src={clickSound} type="audio/mpeg" />
           Your browser does not support the audio element.
         </audio>
 
         {/* Camera wind sound */}
-        <audio ref={cameraWindSoundRef} preload="auto">
+        <audio ref={cameraWindSoundReference} preload="auto">
           <source src={cameraWindSound} type="audio/mpeg" />
           Your browser does not support the audio element.
         </audio>
@@ -2938,8 +2938,8 @@ const App = () => {
       {/* Add a dedicated useEffect for the aspect ratio CSS */}
       {useEffect(() => {
         // Add our CSS fixes (all 5 issues at once)
-        const styleEl = document.createElement('style');
-        styleEl.textContent = `
+        const styleElement = document.createElement('style');
+        styleElement.textContent = `
           /* ------- FIX 1: Style dropdown ------- */
           .style-dropdown {
             background-color: #fff;
@@ -3200,7 +3200,7 @@ const App = () => {
           }
         `;
         
-        document.head.appendChild(styleEl);
+        document.head.append(styleElement);
         
         // Update aspect ratio when orientation changes
         const updateAspectRatio = () => {
@@ -3219,8 +3219,8 @@ const App = () => {
         
         return () => {
           window.removeEventListener('resize', updateAspectRatio);
-          if (styleEl && document.head.contains(styleEl)) {
-            document.head.removeChild(styleEl);
+          if (styleElement && document.head.contains(styleElement)) {
+            styleElement.remove();
           }
         };
       }, [])}

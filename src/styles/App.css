@@ -515,7 +515,7 @@ html body .photobooth-app .photobooth-frame .photobooth-header .tips-ribbon {
 /* Flash overlay should be above everything including thoughts */
 .flash-overlay {
   z-index: 999999 !important;
-}
+  }
 
 /* Style button and dropdown fixes */
 .style-selector {
