@@ -5,14 +5,21 @@
 /* Base container fixed at bottom center, off-screen until animated */
 .slothicorn-container {
   position: fixed;
-  bottom: -240px;
+  bottom: -340px !important; /* Show a bit of the horn peeking through, must use !important to ensure it's applied */
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) scale(1.5); /* 50% larger */
+  transform-origin: bottom center;
   width: 200px;
   height: auto;
   z-index: 100000; /* Ensure this is higher than any other z-index in the app */
   pointer-events: none;
   will-change: transform, bottom;
+}
+
+/* When animating, don't use !important on bottom to allow JS control */
+.slothicorn-container.animating {
+  animation: none !important;
+  bottom: -360px; /* Starting position, will be overridden by JS */
 }
 
 /* Idle wiggle when not actively animating via JS */
@@ -21,10 +28,10 @@
 }
 
 @keyframes sloth-fidget {
-  0%, 100% { transform: translateX(-50%) rotate(0deg); }
-  25%      { transform: translateX(-51%) rotate(-1deg); }
-  50%      { transform: translateX(-50%) rotate(0deg); }
-  75%      { transform: translateX(-49%) rotate(1deg); }
+  0%, 100% { transform: translateX(-50%) scale(1.5) rotate(0deg); }
+  25%      { transform: translateX(-51%) scale(1.5) rotate(-1deg); }
+  50%      { transform: translateX(-50%) scale(1.5) rotate(0deg); }
+  75%      { transform: translateX(-49%) scale(1.5) rotate(1deg); }
 }
 
 /* Mascot image inside the container */
@@ -37,36 +44,65 @@
   animation: horn-wiggle 5s ease-in-out infinite;
 }
 
+/* Disable image animation when container is animating */
+.slothicorn-container.animating .slothicorn-image { 
+  animation: none !important; 
+}
+
 @keyframes horn-wiggle {
   0%, 100% { transform: rotate(0deg); }
   30%      { transform: rotate(-0.8deg); }
   60%      { transform: rotate(0.8deg); }
 }
 
-/* When JS adds .animating we disable internal wiggles */
-.slothicorn-container.animating .slothicorn-image { animation: none; }
-.slothicorn-container.animating { animation: none; }
-
 /* Variants triggered by JS (.peek, .wave, .dance) for portrait mobile */
 @media (max-width: 768px) and (orientation: portrait) {
-  .slothicorn-container { width: 140px; }
+  .slothicorn-container { 
+    width: 140px; 
+    transform: translateX(-50%) scale(1.5); /* Keep the scale consistent */
+    bottom: -280px !important; /* Show horn better on mobile */
+  }
 
-  .slothicorn-container.peek  { animation: slothPeek 2s ease-in-out infinite;  bottom: -180px !important; }
-  .slothicorn-container.wave  { animation: slothWave 1s ease-in-out infinite;  bottom: -160px !important; }
-  .slothicorn-container.dance { animation: slothDance 0.5s ease-in-out infinite; bottom: -140px !important; }
+  .slothicorn-container.peek  { 
+    animation: slothPeek 2s ease-in-out infinite;  
+    bottom: -280px !important; /* Adjusted for larger size */
+  }
+  
+  .slothicorn-container.wave  { 
+    animation: slothWave 1s ease-in-out infinite;  
+    bottom: -260px !important; /* Adjusted for larger size */
+  }
+  
+  .slothicorn-container.dance { 
+    animation: slothDance 0.5s ease-in-out infinite; 
+    bottom: -240px !important; /* Adjusted for larger size */
+  }
 
-  @keyframes slothPeek  { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-20px);} }
-  @keyframes slothWave  { 0%,100% { transform: translateX(-50%) rotate(0deg);} 25% { transform: translateX(-50%) rotate(-10deg);} 75% { transform: translateX(-50%) rotate(10deg);} }
-  @keyframes slothDance { 0%,100% { transform: translateX(-50%) scale(1);} 50% { transform: translateX(-50%) scale(1.1);} }
+  @keyframes slothPeek  { 
+    0%,100% { transform: translateX(-50%) scale(1.5) translateY(0); } 
+    50% { transform: translateX(-50%) scale(1.5) translateY(-20px); }
+  }
+  
+  @keyframes slothWave  { 
+    0%,100% { transform: translateX(-50%) scale(1.5) rotate(0deg); } 
+    25% { transform: translateX(-50%) scale(1.5) rotate(-10deg); } 
+    75% { transform: translateX(-50%) scale(1.5) rotate(10deg); }
+  }
+  
+  @keyframes slothDance { 
+    0%,100% { transform: translateX(-50%) scale(1.5); } 
+    50% { transform: translateX(-50%) scale(1.65); } /* Slightly larger on dance bounce */
+  }
 }
 
-/* General mobile size reduct */
+/* General mobile size adjustments */
 @media (max-width: 768px) {
   .slothicorn-container {
     position: absolute;
-    bottom: -240px;
+    bottom: -280px !important; /* Show it better on mobile */
     width: 180px;
     z-index: 10;
     transition: bottom 0.5s cubic-bezier(0.34, 1.2, 0.64, 1);
+    transform: translateX(-50%) scale(1.5); /* Keep the scale consistent */
   }
 } 

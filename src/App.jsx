@@ -9,6 +9,209 @@ import light1Image from './light1.png';
 import light2Image from './light2.png';
 import './App.css';
 import prompts from './prompts.json';
+import ReactDOM from 'react-dom';
+
+// StyleDropdown component that uses portals to render outside the DOM hierarchy
+const StyleDropdown = ({ 
+  isOpen, 
+  onClose, 
+  selectedStyle, 
+  updateStyle, 
+  defaultStylePrompts, 
+  styleIdToDisplay, 
+  showControlOverlay, 
+  setShowControlOverlay, 
+  dropdownPosition = 'top' // Add default value
+}) => {
+  const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [mounted, setMounted] = useState(false);
+  const dropdownRef = useRef(null);
+  
+  useEffect(() => {
+    if (isOpen) {
+      // Find the style button in the DOM to position the dropdown
+      const styleButton = document.querySelector('.bottom-style-select');
+      if (styleButton) {
+        const rect = styleButton.getBoundingClientRect();
+        // Position above the button for the bottom toolbar
+        setPosition({
+          bottom: window.innerHeight - rect.top + 10,
+          left: rect.left + rect.width / 2,
+          width: 280
+        });
+        setMounted(true);
+      }
+    } else {
+      setMounted(false);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      const handleClickOutside = (e) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+          // Check if the click was on the style button
+          const styleButton = document.querySelector('.bottom-style-select');
+          if (!styleButton || !styleButton.contains(e.target)) {
+            onClose();
+          }
+        }
+      };
+      
+      document.addEventListener('click', handleClickOutside);
+      
+      // Scroll selected option into view
+      setTimeout(() => {
+        const selectedOption = document.querySelector('.style-option.selected');
+        if (selectedOption && dropdownRef.current) {
+          selectedOption.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+      
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [isOpen, onClose]);
+
+  // If not mounted or not open, don't render anything
+  if (!mounted || !isOpen) return null;
+
+  // Create portal to render the dropdown at the document root
+  return ReactDOM.createPortal(
+    <div 
+      ref={dropdownRef}
+      className={`style-dropdown ${dropdownPosition}-position`}
+      style={{
+        position: 'fixed',
+        ...(dropdownPosition === 'top' 
+          ? { bottom: position.bottom } 
+          : { top: position.bottom }),
+        left: position.left,
+        transform: 'translateX(-50%)',
+        maxHeight: 300,
+        width: position.width,
+        background: 'white',
+        borderRadius: 5,
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        overflow: 'auto',
+        zIndex: 10000,
+        transformOrigin: dropdownPosition === 'top' ? 'center bottom' : 'center top',
+        animation: 'dropdownAppear 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards',
+        border: '1px solid rgba(0,0,0,0.1)',
+        fontFamily: '"Permanent Marker", cursive',
+        fontSize: 13,
+      }}
+    >
+      <style>{`
+        @keyframes dropdownAppear {
+          from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(${dropdownPosition === 'top' ? '10px' : '-10px'});
+          }
+          to {
+            opacity: 1; 
+            transform: translateX(-50%) translateY(0);
+          }
+        }
+      `}</style>
+
+      <div className="style-section featured">
+        {/* Featured options */}
+        <div 
+          className={`style-option ${selectedStyle === 'randomMix' ? 'selected' : ''}`} 
+          onClick={() => { 
+            updateStyle('randomMix');
+            onClose();
+          }}
+          style={{
+            padding: '8px 12px',
+            cursor: 'pointer',
+            transition: 'background-color 0.2s',
+            color: selectedStyle === 'randomMix' ? '#ff5e8a' : '#333',
+            background: selectedStyle === 'randomMix' ? '#fff0f4' : 'transparent',
+            fontFamily: '"Permanent Marker", cursive',
+            fontSize: 13,
+            textAlign: 'left'
+          }}
+        >
+          <span style={{ marginRight: 8 }}>🎲</span>
+          <span>Random Mix</span>
+        </div>
+        
+        <div 
+          className={`style-option ${selectedStyle === 'random' ? 'selected' : ''}`} 
+          onClick={() => { 
+            updateStyle('random');
+            onClose();
+          }}
+          style={{
+            padding: '8px 12px',
+            cursor: 'pointer',
+            transition: 'background-color 0.2s',
+            color: selectedStyle === 'random' ? '#ff5e8a' : '#333',
+            background: selectedStyle === 'random' ? '#fff0f4' : 'transparent',
+            fontFamily: '"Permanent Marker", cursive',
+            fontSize: 13,
+            textAlign: 'left'
+          }}
+        >
+          <span style={{ marginRight: 8 }}>🔀</span>
+          <span>Random</span>
+        </div>
+        
+        <div 
+          className={`style-option ${selectedStyle === 'custom' ? 'selected' : ''}`} 
+          onClick={() => { 
+            updateStyle('custom');
+            onClose();
+            setShowControlOverlay(true);
+          }}
+          style={{
+            padding: '8px 12px',
+            cursor: 'pointer',
+            transition: 'background-color 0.2s',
+            color: selectedStyle === 'custom' ? '#ff5e8a' : '#333',
+            background: selectedStyle === 'custom' ? '#fff0f4' : 'transparent',
+            fontFamily: '"Permanent Marker", cursive',
+            fontSize: 13,
+            textAlign: 'left'
+          }}
+        >
+          <span style={{ marginRight: 8 }}>✏️</span>
+          <span>Custom...</span>
+        </div>
+      </div>
+      
+      <div className="style-section regular">
+        {Object.keys(defaultStylePrompts)
+          .filter(key => key !== 'random' && key !== 'custom' && key !== 'randomMix')
+          .sort()
+          .map(styleKey => (
+            <div 
+              key={styleKey}
+              className={`style-option ${selectedStyle === styleKey ? 'selected' : ''}`} 
+              onClick={() => { 
+                updateStyle(styleKey);
+                onClose();
+              }}
+              style={{
+                padding: '8px 12px',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s',
+                color: selectedStyle === styleKey ? '#ff5e8a' : '#333',
+                background: selectedStyle === styleKey ? '#fff0f4' : 'transparent',
+                fontFamily: '"Permanent Marker", cursive',
+                fontSize: 13,
+                textAlign: 'left'
+              }}
+            >
+              <span>{styleIdToDisplay(styleKey)}</span>
+            </div>
+          ))}
+      </div>
+    </div>,
+    document.body
+  );
+};
 
 // Cookie utility functions
 const saveSettingsToCookies = (settings) => {
@@ -837,12 +1040,10 @@ const App = () => {
   useEffect(() => {
     // Ensure slothicorn is properly initialized
     if (slothicornRef.current) {
-      console.log('Initializing slothicorn position');
+      // Just initialize the transition property to prevent abrupt changes
       slothicornRef.current.style.transition = 'none';
-      slothicornRef.current.style.bottom = '-240px';
       
       // Force a reflow to ensure style is applied
-      // This helps fix issues with styles not being applied on some mobile browsers
       void slothicornRef.current.offsetHeight;
     }
   }, []);
@@ -1005,6 +1206,7 @@ const App = () => {
 
       project.on('completed', (urls) => {
         console.log('Project completed:', urls);
+        activeProjectRef.current = null; // Clear active project reference when complete
         if (urls.length === 0) return;
         
         urls.forEach((url, index) => {
@@ -1031,6 +1233,7 @@ const App = () => {
 
       project.on('failed', (error) => {
         console.error('Project failed:', error);
+        activeProjectRef.current = null; // Clear active project reference when failed
       });
 
       // Individual job events
@@ -1074,6 +1277,15 @@ const App = () => {
               images: [job.resultUrl],
               newlyArrived: true
             };
+            
+            // Check if all photos are done generating
+            const stillGenerating = updated.some(photo => photo.generating);
+            if (!stillGenerating && activeProjectRef.current) {
+              // All photos are done, clear the active project
+              console.log('All jobs completed, clearing active project');
+              activeProjectRef.current = null;
+            }
+            
             return updated;
           });
         };
@@ -1098,6 +1310,15 @@ const App = () => {
             loading: false,
             error: job.error || 'Generation failed'
           };
+          
+          // Check if all photos are done generating
+          const stillGenerating = updated.some(photo => photo.generating);
+          if (!stillGenerating && activeProjectRef.current) {
+            // All photos are done, clear the active project
+            console.log('All jobs failed or completed, clearing active project');
+            activeProjectRef.current = null;
+          }
+          
           return updated;
         });
       });
@@ -1239,21 +1460,18 @@ const App = () => {
       
       // Show slothicorn when countdown reaches 2
       if (i === 2 && slothicornRef.current) {
-        console.log('Animating slothicorn up - slothicorn element:', slothicornRef.current ? 'exists' : 'missing');
+        // Force the slothicorn to be visible and animated
+        slothicornRef.current.style.setProperty('bottom', '-360px', 'important');
+        slothicornRef.current.style.transition = 'none';
+        slothicornRef.current.classList.add('animating');
         
-        // Start hidden (if not already)
-        slothicornRef.current.style.bottom = '-240px';
-        console.log('Set initial bottom position:', slothicornRef.current.style.bottom);
+        // Force reflow
+        void slothicornRef.current.offsetHeight;
         
-        // Animate with a timeout for visibility
+        // After a small delay, start the upward animation
         setTimeout(() => {
-          // Apply a transition temporarily (will be removed later)
-          slothicornRef.current.style.transition = 'bottom 1s cubic-bezier(0.34, 1.2, 0.64, 1)';
-          console.log('Applied transition:', slothicornRef.current.style.transition);
-          
-          // Move up
-          slothicornRef.current.style.bottom = '0px';
-          console.log('Set new bottom position:', slothicornRef.current.style.bottom);
+          slothicornRef.current.style.transition = 'bottom 0.8s cubic-bezier(0.34, 1.2, 0.64, 1)';
+          slothicornRef.current.style.setProperty('bottom', '0px', 'important');
         }, 50);
       }
       
@@ -1266,20 +1484,13 @@ const App = () => {
     // Make slothicorn return more gradually
     setTimeout(() => {
       if (slothicornRef.current) {
-        console.log('Animating slothicorn down');
-        
-        // Apply a different transition for going down
         slothicornRef.current.style.transition = 'bottom 1.5s cubic-bezier(0.25, 0.1, 0.25, 1)';
-        console.log('Applied down transition:', slothicornRef.current.style.transition);
+        slothicornRef.current.style.setProperty('bottom', '-340px', 'important');
         
-        // Move down
-        slothicornRef.current.style.bottom = '-240px';
-        console.log('Set final bottom position:', slothicornRef.current.style.bottom);
-        
-        // Remove the transition after animation completes
+        // Wait for animation to complete, then clean up
         setTimeout(() => {
           slothicornRef.current.style.transition = 'none';
-          console.log('Removed transition');
+          slothicornRef.current.classList.remove('animating');
         }, 1500);
       }
     }, 1200);
@@ -1474,145 +1685,7 @@ const App = () => {
             SOGNI PHOTOBOOTH
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div className="style-selector">
-              <button 
-                ref={styleButtonRef}
-                className="header-style-select" 
-                onClick={toggleStyleDropdown}
-                style={{
-                  all: 'unset',
-                  background: 'none',
-                  border: 'none',
-                  color: '#333',
-                  fontSize: 16,
-                  padding: 0,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  fontWeight: 'normal',
-                  whiteSpace: 'nowrap',
-                  position: 'relative',
-                  textTransform: 'none',
-                  boxShadow: 'none',
-                  borderRadius: 0,
-                  minWidth: 0,
-                  minHeight: 0,
-                  lineHeight: 'normal',
-                  margin: 0,
-                  fontFamily: '"Permanent Marker", cursive',
-                }}
-              >
-                {selectedStyle === 'custom' 
-                  ? 'Prompt: Custom...' 
-                  : `Prompt: ${styleIdToDisplay(selectedStyle)}`}
-              </button>
-              
-              {showStyleDropdown && (
-                <div className="style-dropdown" style={{
-                  position: 'absolute',
-                  maxHeight: 300,
-                  width: 280,
-                  background: 'white',
-                  borderRadius: 5,
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                  overflow: 'auto',
-                  zIndex: 10000,
-                  transformOrigin: 'top center',
-                  animation: 'dropdownAppear 0.2s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards',
-                  left: 0,
-                  border: '1px solid rgba(0,0,0,0.1)',
-                  fontFamily: '"Permanent Marker", cursive',
-                  fontSize: 13,
-                }}>
-                  <div className="style-section featured">
-                    {/* Featured options */}
-                    <div 
-                      className={`style-option ${selectedStyle === 'randomMix' ? 'selected' : ''}`} 
-                      onClick={() => { 
-                        updateSetting(setSelectedStyle, 'selectedStyle')('randomMix');
-                        setShowStyleDropdown(false);
-                      }}
-                      style={{
-                        padding: '8px 12px',
-                        cursor: 'pointer',
-                        transition: 'background-color 0.2s',
-                        color: selectedStyle === 'randomMix' ? '#ff5e8a' : '#333',
-                        background: selectedStyle === 'randomMix' ? '#fff0f4' : 'transparent',
-                        fontFamily: '"Permanent Marker", cursive',
-                      }}
-                    >
-                      <span style={{ marginRight: 8 }}>🎲</span>
-                      <span>Random Mix</span>
-                    </div>
-                    
-                    <div 
-                      className={`style-option ${selectedStyle === 'random' ? 'selected' : ''}`} 
-                      onClick={() => { 
-                        updateSetting(setSelectedStyle, 'selectedStyle')('random');
-                        setShowStyleDropdown(false);
-                      }}
-                      style={{
-                        padding: '8px 12px',
-                        cursor: 'pointer',
-                        transition: 'background-color 0.2s',
-                        color: selectedStyle === 'random' ? '#ff5e8a' : '#333',
-                        background: selectedStyle === 'random' ? '#fff0f4' : 'transparent',
-                        fontFamily: '"Permanent Marker", cursive',
-                      }}
-                    >
-                      <span style={{ marginRight: 8 }}>🔀</span>
-                      <span>Random</span>
-                    </div>
-                    
-                    <div 
-                      className={`style-option ${selectedStyle === 'custom' ? 'selected' : ''}`} 
-                      onClick={() => { 
-                        updateSetting(setSelectedStyle, 'selectedStyle')('custom');
-                        setShowStyleDropdown(false);
-                        setShowControlOverlay(true);
-                      }}
-                      style={{
-                        padding: '8px 12px',
-                        cursor: 'pointer',
-                        transition: 'background-color 0.2s',
-                        color: selectedStyle === 'custom' ? '#ff5e8a' : '#333',
-                        background: selectedStyle === 'custom' ? '#fff0f4' : 'transparent',
-                        fontFamily: '"Permanent Marker", cursive',
-                      }}
-                    >
-                      <span style={{ marginRight: 8 }}>✏️</span>
-                      <span>Custom...</span>
-                    </div>
-                  </div>
-                  
-                  <div className="style-section regular">
-                    {Object.keys(defaultStylePrompts)
-                      .filter(key => key !== 'random' && key !== 'custom' && key !== 'randomMix')
-                      .sort()
-                      .map(styleKey => (
-                        <div 
-                          key={styleKey}
-                          className={`style-option ${selectedStyle === styleKey ? 'selected' : ''}`} 
-                          onClick={() => { 
-                            updateSetting(setSelectedStyle, 'selectedStyle')(styleKey);
-                            setShowStyleDropdown(false);
-                          }}
-                          style={{
-                            padding: '8px 12px',
-                            cursor: 'pointer',
-                            transition: 'background-color 0.2s',
-                            color: selectedStyle === styleKey ? '#ff5e8a' : '#333',
-                            background: selectedStyle === styleKey ? '#fff0f4' : 'transparent',
-                            fontFamily: '"Permanent Marker", cursive',
-                          }}
-                        >
-                          <span>{styleIdToDisplay(styleKey)}</span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* Remove the header style selector completely */}
             <button 
               className="header-config-btn"
               onClick={() => {
@@ -1705,12 +1778,190 @@ const App = () => {
           position: 'relative',
           height: 120, // FIX: Match new bottom border height
         }}>
+          {/* Add style selector to the left of the Take Photo button */}
+          <div className="style-selector bottom-style-selector" style={{
+            position: 'absolute',
+            left: '50%',
+            marginLeft: '-180px', /* Center in the left area, offset from the middle */
+            top: '50%',
+            transform: 'translateY(-50%)',
+            zIndex: 5,
+            textAlign: 'center',
+            width: '200px', /* Increased width for longer text */
+            maxWidth: '35%' /* Ensure it doesn't exceed available space */
+        }}>
           <button
-            className={`take-photo-polaroid-btn camera-shutter-btn ${isPhotoButtonCooldown ? 'cooldown' : ''}`}
+              ref={styleButtonRef}
+              className="bottom-style-select" 
+              onClick={toggleStyleDropdown}
+              style={{
+                all: 'unset',
+                background: 'none',
+                border: 'none',
+                color: '#333',
+                fontSize: 18,
+                padding: 0,
+                cursor: 'pointer',
+                display: 'block',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                position: 'relative',
+                textTransform: 'none',
+                boxShadow: 'none',
+                borderRadius: 0,
+                minWidth: 0,
+                minHeight: 0,
+                lineHeight: 'normal',
+                margin: '0 auto',
+                maxWidth: '100%',
+                fontFamily: '"Permanent Marker", cursive',
+                fontWeight: 'bold'
+              }}
+            >
+              Prompt: {selectedStyle === 'custom' 
+                ? 'Custom...' 
+                : styleIdToDisplay(selectedStyle)}
+            </button>
+            
+            {showStyleDropdown && (
+              <div className={`style-dropdown ${dropdownPosition}-position`} style={{
+                position: 'absolute',
+                maxHeight: 300,
+                width: 280,
+                background: 'white',
+                borderRadius: 5,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                overflow: 'auto',
+                zIndex: 10000,
+                transformOrigin: dropdownPosition === 'top' ? 'center bottom' : 'center top',
+                animation: 'dropdownAppear 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                ...(dropdownPosition === 'top' 
+                  ? { bottom: '100%', marginBottom: '10px' } 
+                  : { top: '100%', marginTop: '10px' }),
+                border: '1px solid rgba(0,0,0,0.1)',
+                fontFamily: '"Permanent Marker", cursive',
+                fontSize: 13,
+              }}>
+            
+            <style>{`
+              @keyframes dropdownAppear {
+                from {
+                  opacity: 0;
+                  transform: translateX(-50%) translateY(10px);
+                }
+                to {
+                  opacity: 1; 
+                  transform: translateX(-50%) translateY(0);
+                }
+              }
+            `}</style>
+                <div className="style-section featured">
+                  {/* Featured options */}
+                  <div 
+                    className={`style-option ${selectedStyle === 'randomMix' ? 'selected' : ''}`} 
+                    onClick={() => { 
+                      updateSetting(setSelectedStyle, 'selectedStyle')('randomMix');
+                      setShowStyleDropdown(false);
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s',
+                      color: selectedStyle === 'randomMix' ? '#ff5e8a' : '#333',
+                      background: selectedStyle === 'randomMix' ? '#fff0f4' : 'transparent',
+                      fontFamily: '"Permanent Marker", cursive',
+                      fontSize: 13,
+                      textAlign: 'left'
+                    }}
+                  >
+                    <span style={{ marginRight: 8 }}>🎲</span>
+                    <span>Random Mix</span>
+                  </div>
+                  
+                  <div 
+                    className={`style-option ${selectedStyle === 'random' ? 'selected' : ''}`} 
+                    onClick={() => { 
+                      updateSetting(setSelectedStyle, 'selectedStyle')('random');
+                      setShowStyleDropdown(false);
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s',
+                      color: selectedStyle === 'random' ? '#ff5e8a' : '#333',
+                      background: selectedStyle === 'random' ? '#fff0f4' : 'transparent',
+                      fontFamily: '"Permanent Marker", cursive',
+                      fontSize: 13, /* Smaller text (swapped) */
+                      textAlign: 'left'
+                    }}
+                  >
+                    <span style={{ marginRight: 8 }}>🔀</span>
+                    <span>Random</span>
+                  </div>
+                  
+                  <div 
+                    className={`style-option ${selectedStyle === 'custom' ? 'selected' : ''}`} 
+                    onClick={() => { 
+                      updateSetting(setSelectedStyle, 'selectedStyle')('custom');
+                      setShowStyleDropdown(false);
+                      setShowControlOverlay(true);
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s',
+                      color: selectedStyle === 'custom' ? '#ff5e8a' : '#333',
+                      background: selectedStyle === 'custom' ? '#fff0f4' : 'transparent',
+                      fontFamily: '"Permanent Marker", cursive',
+                      fontSize: 13, /* Smaller text (swapped) */
+                      textAlign: 'left'
+                    }}
+                  >
+                    <span style={{ marginRight: 8 }}>✏️</span>
+                    <span>Custom...</span>
+                  </div>
+                </div>
+                
+                <div className="style-section regular">
+                  {Object.keys(defaultStylePrompts)
+                    .filter(key => key !== 'random' && key !== 'custom' && key !== 'randomMix')
+                    .sort()
+                    .map(styleKey => (
+                      <div 
+                        key={styleKey}
+                        className={`style-option ${selectedStyle === styleKey ? 'selected' : ''}`} 
+                        onClick={() => { 
+                          updateSetting(setSelectedStyle, 'selectedStyle')(styleKey);
+                          setShowStyleDropdown(false);
+                        }}
+                        style={{
+                          padding: '8px 12px',
+                          cursor: 'pointer',
+                          transition: 'background-color 0.2s',
+                          color: selectedStyle === styleKey ? '#ff5e8a' : '#333',
+                          background: selectedStyle === styleKey ? '#fff0f4' : 'transparent',
+                          fontFamily: '"Permanent Marker", cursive',
+                          fontSize: 13, /* Smaller text (swapped) */
+                          textAlign: 'left'
+                        }}
+                      >
+                        <span>{styleIdToDisplay(styleKey)}</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button
+            className={`take-photo-polaroid-btn camera-shutter-btn ${isPhotoButtonCooldown || activeProjectRef.current ? 'cooldown' : ''}`}
             onClick={handleTakePhoto}
-            disabled={!isSogniReady || isPhotoButtonCooldown}
+            disabled={!isSogniReady || isPhotoButtonCooldown || activeProjectRef.current}
             style={{
-              background: isPhotoButtonCooldown ? '#eee' : '#fff',
+              background: isPhotoButtonCooldown || activeProjectRef.current ? '#eee' : '#fff',
               color: '#222',
               border: '4px solid #222',
               borderRadius: '50%',
@@ -1722,7 +1973,7 @@ const App = () => {
               justifyContent: 'center',
               fontSize: 20,
               fontWeight: 700,
-              cursor: isPhotoButtonCooldown ? 'not-allowed' : 'pointer',
+              cursor: isPhotoButtonCooldown || activeProjectRef.current ? 'not-allowed' : 'pointer',
               transition: 'background 0.2s',
               outline: 'none',
               margin: 0,
@@ -1736,7 +1987,7 @@ const App = () => {
               display: 'block',
               width: 28,
               height: 28,
-              background: isPhotoButtonCooldown ? '#bbb' : '#ff5252',
+              background: isPhotoButtonCooldown || activeProjectRef.current ? '#bbb' : '#ff5252',
               borderRadius: '50%',
               margin: '0 auto',
               border: '2px solid #fff',
@@ -1744,16 +1995,21 @@ const App = () => {
             }} />
             <span style={{
               position: 'absolute',
-              bottom: -22,
+              bottom: -25, // Moved down slightly for more space
               left: '50%',
               transform: 'translateX(-50%)',
-              fontSize: 13,
+              fontSize: activeProjectRef.current ? 11 : 13, // Smaller font for longer text
               fontWeight: 600,
               color: '#222',
-              letterSpacing: 1,
+              letterSpacing: activeProjectRef.current ? 0 : 1, // Remove letter spacing for longer text
               textShadow: '0 1px 2px #fff',
               whiteSpace: 'nowrap',
-            }}>Take Photo</span>
+              width: 'auto',
+              minWidth: '140px', // Ensure there's enough width for the longer text
+              textAlign: 'center'
+            }}>
+              {activeProjectRef.current ? "Photo in Progress" : "Take Photo"}
+            </span>
           </button>
         </div>
         {/* Control overlay that slides down when visible */}
@@ -1923,8 +2179,8 @@ const App = () => {
     const currentPhoto = photos[selectedPhotoIndex];
     const imageUrl = currentPhoto.images[selectedSubIndex] || currentPhoto.originalDataUrl;
     if (!imageUrl) return null;
-
-    return (
+      
+      return (
       <div className="selected-photo-container" style={{
         position: 'fixed',
         top: 0,
@@ -1947,8 +2203,8 @@ const App = () => {
           maxWidth: '90vw',
           maxHeight: '90vh',
         }}>
-          <img
-            src={imageUrl}
+        <img
+          src={imageUrl}
             alt={`Photo #${selectedPhotoIndex + 1}`}
             style={{
               display: 'block',
@@ -1969,7 +2225,7 @@ const App = () => {
             color: '#333',
           }}>
             #{selectedPhotoIndex + 1}
-          </div>
+        </div>
         </div>
       </div>
     );
@@ -2034,12 +2290,14 @@ const App = () => {
 
         <div className={`film-strip-content ${selectedPhotoIndex !== null ? 'has-selected' : ''}`} style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
           gap: '32px',
           justifyItems: 'center',
-          alignItems: 'end',
+          alignItems: 'center',
+          justifyContent: 'center',
           width: '100%',
-          maxWidth: '100vw',
+          maxWidth: '1600px',
+          margin: '0 auto',
           padding: '32px',
         }}>
           {photos.map((photo, i) => {
@@ -2077,16 +2335,87 @@ const App = () => {
 
             // Show completed image
             const thumbUrl = photo.images[0] || '';
+
+            const handlePhotoSelect = (index, e) => {
+              const element = e.currentTarget;
+              
+              if (selectedPhotoIndex === index) {
+                // Capture current position before removing selected state
+                const first = element.getBoundingClientRect();
+                setSelectedPhotoIndex(null);
+                
+                // Animate back to grid position
+                requestAnimationFrame(() => {
+                  const last = element.getBoundingClientRect();
+                  const deltaX = first.left - last.left;
+                  const deltaY = first.top - last.top;
+                  const deltaScale = first.width / last.width;
+
+                  // Apply starting transform
+                  element.style.transition = 'none';
+                  element.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${deltaScale})`;
+                  
+                  // Force reflow
+                  element.offsetHeight;
+                  
+                  // Animate to final position
+                  element.style.transition = 'transform 0.5s cubic-bezier(0.2, 0, 0.2, 1)';
+                  element.style.transform = `rotate(var(--rotation))`;
+                  
+                  // Clean up after animation
+                  setTimeout(() => {
+                    element.style.transition = '';
+                    element.style.transform = '';
+                  }, 500);
+                });
+                return;
+              }
+
+              // When selecting a photo
+              // Scroll to top first to ensure proper positioning
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+              
+              // Capture starting position
+              const first = element.getBoundingClientRect();
+              
+              // Update state to mark as selected
+              setSelectedPhotoIndex(index);
+              
+              // After state update, calculate and animate
+              requestAnimationFrame(() => {
+                const last = element.getBoundingClientRect();
+                const deltaX = first.left - last.left;
+                const deltaY = first.top - last.top;
+                const deltaScale = first.width / last.width;
+                
+                // Apply starting transform
+                element.style.transition = 'none';
+                element.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${deltaScale}) rotate(var(--rotation))`;
+                
+                // Force reflow
+                element.offsetHeight;
+                
+                // Animate to final position
+                element.style.transition = 'transform 0.5s cubic-bezier(0.2, 0, 0.2, 1)';
+                element.style.transform = 'rotate(0deg)';
+              });
+            };
+
+            // Update the film-frame rendering to use the new handler
             return (
               <div 
                 key={photo.id}
                 className={`film-frame ${isSelected ? 'selected' : ''}`}
-                onClick={() => isSelected ? setSelectedPhotoIndex(null) : setSelectedPhotoIndex(i)}
+                onClick={(e) => handlePhotoSelect(i, e)}
+                style={{
+                  '--rotation': `${isSelected ? '0deg' : 
+                    `${(i % 2 === 0 ? 1 : -1) * (0.8 + (i % 3) * 0.5)}deg`}`  // More natural rotation based on index
+                }}
               >
                 <div className="aspect-ratio-box">
-                  <img
-                    src={thumbUrl}
-                    alt={`Generated #${i}`}
+                    <img
+                      src={thumbUrl}
+                      alt={`Generated #${i}`}
                   />
                 </div>
                 <div className="photo-label">
@@ -2146,19 +2475,22 @@ const App = () => {
       return;
     }
     
-    // Check if dropdown would be clipped at bottom
+    // Calculate dropdown position based on button position
     if (styleButtonRef.current) {
       const buttonRect = styleButtonRef.current.getBoundingClientRect();
-      const windowHeight = window.innerHeight;
-      // Calculate dropdown height based on number of options (approx 40px per option)
-      const styleCount = Object.keys(defaultStylePrompts).length;
-      const estimatedHeight = Math.min(400, styleCount * 40); // Cap at 400px
+      const spaceAbove = buttonRect.top;
+      const spaceBelow = window.innerHeight - buttonRect.bottom;
       
-      if (buttonRect.bottom + estimatedHeight > windowHeight) {
-        setDropdownPosition('top');
-      } else {
+      // If more space below than above or if not enough space above for dropdown, position below
+      // Otherwise position above (which is the default for our bottom toolbar)
+      if (spaceBelow > spaceAbove || spaceAbove < 350) {
         setDropdownPosition('bottom');
+      } else {
+        setDropdownPosition('top');
       }
+      } else {
+      // Default to above if we can't find the button
+      setDropdownPosition('top');
     }
     
     setShowStyleDropdown(true);
@@ -2191,6 +2523,9 @@ const App = () => {
 
   // Fix the animation transition issue by ensuring we clear state correctly
   const handleBackToCamera = () => {
+    // Scroll to top first
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
     // Mark the photo grid as hiding 
     const filmStrip = document.querySelector('.film-strip-container');
     if (filmStrip) {
@@ -2488,7 +2823,7 @@ const App = () => {
             ?
           </button>
         )}
-
+        
         {/* Studio lights - permanent background elements */}
         <div className={`studio-lights-container ${studioLightsHidden ? 'studio-lights-hidden' : ''}`}>
           <img 
@@ -2545,7 +2880,6 @@ const App = () => {
         <div 
           ref={slothicornRef}
           className="slothicorn-container"
-          style={{ bottom: '-240px' }} // Start hidden
         >
           <img 
             src={slothicornImage} 
@@ -2608,7 +2942,7 @@ const App = () => {
         styleEl.textContent = `
           /* ------- FIX 1: Style dropdown ------- */
           .style-dropdown {
-            background-color: #292d3e;
+            background-color: #fff;
             border-radius: 8px;
             box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
             max-height: 380px;
@@ -2617,10 +2951,51 @@ const App = () => {
             padding: 8px;
             z-index: 1000;
             position: absolute;
+            animation: dropdownAppear 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards;
+            border: 1px solid rgba(0,0,0,0.1);
+          }
+          
+          /* Position variations */
+          .style-dropdown.top-position {
+            bottom: 100%;
+            top: auto !important;
+            margin-bottom: 10px;
+            transform-origin: center bottom !important;
+            animation: dropdownAppearTop 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards;
+          }
+          
+          .style-dropdown.bottom-position {
+            top: 100%;
+            bottom: auto !important;
+            margin-top: 10px;
+            transform-origin: center top !important;
+            animation: dropdownAppearBottom 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards;
+          }
+          
+          @keyframes dropdownAppearTop {
+            from {
+              opacity: 0;
+              transform: translateX(-50%) translateY(10px);
+            }
+            to {
+              opacity: 1; 
+              transform: translateX(-50%) translateY(0);
+            }
+          }
+          
+          @keyframes dropdownAppearBottom {
+            from {
+              opacity: 0;
+              transform: translateX(-50%) translateY(-10px);
+            }
+            to {
+              opacity: 1; 
+              transform: translateX(-50%) translateY(0);
+            }
           }
           
           .style-section.featured {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
             padding-bottom: 8px;
             margin-bottom: 8px;
           }
@@ -2632,12 +3007,12 @@ const App = () => {
             margin: 2px 0;
             border-radius: 4px;
             cursor: pointer;
-            color: #e1e1e6;
+            color: #333;
             transition: background-color 0.2s;
           }
           
           .style-option:hover {
-            background-color: #3a3f55;
+            background-color: #f5f5f5;
           }
           
           .style-option:hover:before {
@@ -2645,8 +3020,8 @@ const App = () => {
           }
           
           .style-option.selected {
-            background-color: #5050ff !important; /* Blue background instead of red */
-            color: white !important;
+            background-color: #fff0f4 !important; /* Light pink background */
+            color: #ff5e8a !important;
             font-weight: 500;
           }
           

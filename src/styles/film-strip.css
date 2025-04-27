@@ -30,7 +30,9 @@
   grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)) !important;
   gap: 32px !important;
   justify-content: center !important;
+  justify-items: center !important;
   align-content: flex-start !important;
+  align-items: center !important;
   width: 100% !important;
   max-width: 1600px !important;
   margin: 0 auto !important;
@@ -140,18 +142,19 @@
   border-radius: 3px !important;
   background-color: white !important;
   padding: 12px !important;
-  padding-bottom: 40px !important;
+  padding-bottom: 60px !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
   display: flex !important;
   flex-direction: column !important;
   transform-style: preserve-3d !important;
   backface-visibility: hidden !important;
   -webkit-backface-visibility: hidden !important;
-  transform: rotate(var(--rotation, 0deg)) translateZ(0) !important;
-  will-change: transform, box-shadow !important;
-  transition: none !important; /* Remove default transition */
-  z-index: 1 !important;
+  will-change: transform !important;
+  transform-origin: 0 0 !important;
   cursor: pointer !important;
+  z-index: 1 !important;
+  transform: rotate(var(--rotation)) !important;
+  transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s cubic-bezier(0.23, 1, 0.32, 1) !important;
 }
 
 /* Apply portrait aspect ratio on mobile */
@@ -249,7 +252,7 @@
 /* Add label for each photo in the polaroid white space */
 .film-frame .photo-label {
   position: absolute !important;
-  bottom: 0 !important;
+  bottom: 16px !important;
   left: 0 !important;
   right: 0 !important;
   height: 40px !important;
@@ -258,7 +261,7 @@
   justify-content: center !important;
   text-align: center !important;
   font-family: "Permanent Marker", cursive !important;
-  font-size: 14px !important;
+  font-size: 16px !important;
   color: #333 !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
@@ -324,7 +327,7 @@
   transform: scale(1.1);
 }
 
-/* Back to Camera button */
+/* Back to Camera button - ensure it stays fixed */
 .back-to-camera-btn {
   position: fixed !important;
   bottom: 20px !important;
@@ -450,7 +453,7 @@
   height: 100vh !important;
   max-width: none !important;
   margin: 0 !important;
-  padding: 40px !important;
+  padding: 0 !important;
   z-index: 9998 !important;
   display: flex !important;
   align-items: center !important;
@@ -459,34 +462,34 @@
   box-shadow: none !important;
   cursor: zoom-out !important;
   border-radius: 0 !important;
-  /* Remove transform here - will be handled by JS */
+  transform: rotate(0deg) !important;
 }
 
 /* Smooth grid rearrangement */
 .film-strip-content.has-selected .film-frame:not(.selected) {
-  transform-origin: center center !important;
-  transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1), 
-              filter 0.5s cubic-bezier(0.23, 1, 0.32, 1) !important;
+  filter: blur(4px) brightness(0.7);
+  pointer-events: none;
+  transition: filter 0.5s cubic-bezier(0.2, 0, 0.2, 1);
+  opacity: 0.3;
 }
 
 .film-frame.selected .aspect-ratio-box {
   width: auto !important;
   height: auto !important;
-  max-width: 90vw !important;
+  max-width: min(90vw, 90vh * (1152/896)) !important;
   max-height: 90vh !important;
   padding-bottom: 0 !important;
   background: white !important;
   border-radius: 8px !important;
   box-shadow: 0 10px 40px rgba(0,0,0,0.3) !important;
-  padding: 24px 24px 64px 24px !important;
+  padding: 24px 24px 84px 24px !important;
   position: relative !important;
   transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1) !important;
-  transform: translateZ(0) !important;
 }
 
 .film-frame.selected img {
   position: static !important;
-  width: auto !important;
+  width: 100% !important;
   height: auto !important;
   max-width: 100% !important;
   max-height: calc(90vh - 88px) !important;
@@ -498,11 +501,11 @@
 
 .film-frame.selected .photo-label {
   position: absolute !important;
-  bottom: 24px !important;
+  bottom: 30px !important;
   left: 0 !important;
   right: 0 !important;
   text-align: center !important;
-  font-size: 24px !important;
+  font-size: 22px !important;
   color: #222 !important;
   margin: 0 !important;
   transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1) !important;
@@ -520,10 +523,9 @@
   background: rgba(0, 0, 0, 0.85);
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+  transition: opacity 0.5s cubic-bezier(0.2, 0, 0.2, 1);
   pointer-events: none;
   z-index: 9997;
-  will-change: opacity;
 }
 
 .film-strip-container.has-selected::before {
@@ -541,4 +543,38 @@
   right: 12px; /* Match padding */
   bottom: 40px; /* Leave space for label */
   z-index: 5;
+}
+
+/* Improved navigation buttons for photo viewer */
+.film-strip-container.has-selected .photo-nav-btn {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.8);
+  color: #333;
+  border: none;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  font-size: 36px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  z-index: 9999;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+.film-strip-container.has-selected .photo-nav-btn:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.film-strip-container.has-selected .photo-nav-btn.prev {
+  left: 20px;
+}
+
+.film-strip-container.has-selected .photo-nav-btn.next {
+  right: 20px;
 }
