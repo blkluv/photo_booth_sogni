@@ -2937,7 +2937,8 @@ const App = () => {
                   <li>Generated compositions reuses the same face size, position, and orientation as the camera snapshot so step back and get creative!</li>
                   <li>Only one face at a time! If multiple faces the biggest one in frame is used.</li>
                   <li>The more light / dark depth on your face the better, flat even light results can be subpar.</li>
-                  <li>Try using the Custom Style feature and providing your own prompt!</li>
+                  <li>Try using the Custom Prompt feature and providing your own prompt!</li>
+                  <li>You can even drag a photo into the camera window to use as a reference!</li>
                 </ul>
                 <div className="note-footer">
                   <a href="https://www.sogni.ai/sdk" target="_blank" rel="noopener noreferrer">
