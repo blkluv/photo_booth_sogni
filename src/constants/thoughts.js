@@ -43,7 +43,6 @@ export const randomThoughts = [
   "Maybe my horn gets WiFi...",
   "Wonder if my horn glows in the dark...",
   "Maybe I should start a podcast...",
-  "Sometimes I pretend I'm a disco ball",
   "I'm sensing a viral photo coming!",
   "Today is going to be a good day.",
   "My horn doubles as a selfie stick.",
