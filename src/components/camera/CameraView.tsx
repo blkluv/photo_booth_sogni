@@ -273,13 +273,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
           <div className={styles.title}>
             SOGNI PHOTOBOOTH
           </div>
-          <button 
-            className={`${styles.settingsButton} header-config-btn`}
-            onClick={onToggleSettings}
-            data-testid="settings-button"
-          >
-            {showSettings ? '✕' : '⚙️'}
-          </button>
         </div>
         
         {/* Camera view */}

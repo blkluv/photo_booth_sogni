@@ -14,6 +14,7 @@ import { photoThoughts, randomThoughts } from './constants/thoughts';
 import promptsData from './prompts.json';
 import ReactDOM from 'react-dom';
 import CameraView from './components/camera/CameraView';
+import CameraStartMenu from './components/camera/CameraStartMenu';
 import ControlPanel from './components/ControlPanel';
 import StyleDropdown from './components/shared/StyleDropdown';
 import { AppProvider, useApp } from './context/AppContext';
@@ -625,16 +626,14 @@ const App = () => {
     }
   }, []);
 
-  // On mount: init sogni, enumerate devices, start default camera
+  // Modified useEffect to not start camera automatically
   useEffect(() => {
     (async () => {
       await listCameras();
-      // Start default camera (facingMode: user)
-      await startCamera(null);
-      // Initialize sogni
+      // Only initialize Sogni, don't start camera yet
       await initializeSogni();
     })();
-  }, [startCamera, listCameras]);
+  }, [listCameras]);
 
   // If we return to camera, ensure the video is playing
   useEffect(() => {
@@ -1238,6 +1237,12 @@ const App = () => {
     e.preventDefault();
     setDragActive(false);
 
+    // Don't accept files if we're already processing another one
+    if (activeProjectReference.current || isPhotoButtonCooldown) {
+      alert('Please wait for the current image to finish processing.');
+      return;
+    }
+
     if (!isSogniReady) {
       alert('Sogni is not ready yet.');
       return;
@@ -1246,6 +1251,9 @@ const App = () => {
     // If user dropped multiple files, just take the first
     const file = e.dataTransfer.files && e.dataTransfer.files[0];
     if (!file) return;
+
+    // Hide the start menu if it's visible
+    setShowStartMenu(false);
 
     // Create a new photo item
     const newPhoto = {
@@ -1466,46 +1474,73 @@ const App = () => {
   //   Main area (video)
   // -------------------------
   const renderMainArea = () => (
-    <CameraView
-      videoRef={videoReference}
-      isReady={isSogniReady}
-      countdown={countdown}
-      showFlash={showFlash}
-      isDisabled={isPhotoButtonCooldown || activeProjectReference.current}
-      buttonLabel={activeProjectReference.current ? "Photo in Progress" : "Take Photo"}
-      onTakePhoto={handleTakePhoto}
-      isAnimating={cameraAnimating}
-      showPhotoGrid={showPhotoGrid}
-      selectedStyle={selectedStyle}
-      onStyleSelect={(value) => updateSetting(setSelectedStyle, 'selectedStyle')(value)}
-      showSettings={showControlOverlay}
-      onToggleSettings={() => setShowControlOverlay(!showControlOverlay)}
-      stylePrompts={defaultStylePrompts}
-      customPrompt={customPrompt}
-      onCustomPromptChange={(value) => {
-        setCustomPrompt(value);
-        saveSettingsToCookies({ customPrompt: value });
-      }}
-      cameraDevices={cameraDevices}
-      selectedCameraDeviceId={selectedCameraDeviceId}
-      onCameraSelect={handleCameraSelection}
-      modelOptions={modelOptions}
-      selectedModel={selectedModel}
-      onModelSelect={(value) => updateSetting(setSelectedModel, 'selectedModel')(value)}
-      numImages={numberImages}
-      onNumImagesChange={(value) => updateSetting(setNumberImages, 'numImages')(value)}
-      promptGuidance={promptGuidance}
-      onPromptGuidanceChange={(value) => updateSetting(setPromptGuidance, 'promptGuidance')(value)}
-      controlNetStrength={controlNetStrength}
-      onControlNetStrengthChange={(value) => updateSetting(setControlNetStrength, 'controlNetStrength')(value)}
-      controlNetGuidanceEnd={controlNetGuidanceEnd}
-      onControlNetGuidanceEndChange={(value) => updateSetting(setControlNetGuidanceEnd, 'controlNetGuidanceEnd')(value)}
-      flashEnabled={flashEnabled}
-      onFlashEnabledChange={(value) => updateSetting(setFlashEnabled, 'flashEnabled')(value)}
-      keepOriginalPhoto={keepOriginalPhoto}
-      onKeepOriginalPhotoChange={(value) => updateSetting(setKeepOriginalPhoto, 'keepOriginalPhoto')(value)}
-      onResetSettings={resetAllSettings}
-    />
+    <div className="main-content-area">
+      {showStartMenu ? (
+        <CameraStartMenu
+          onTakePhoto={handleTakePhotoOption}
+          onBrowsePhoto={handleBrowsePhotoOption}
+          onDragPhoto={handleDragPhotoOption}
+          isProcessing={!!activeProjectReference.current || isPhotoButtonCooldown}
+          hasPhotos={photos.length > 0}
+          onViewPhotos={() => {
+            // Pre-scroll to top for smooth transition
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            // Show photo grid
+            setShowPhotoGrid(true);
+          }}
+        />
+      ) : (
+        <>
+          {/* Show camera view only when start menu is not shown */}
+          <CameraView
+            videoRef={videoReference}
+            isReady={isSogniReady && !isPhotoButtonCooldown}
+            countdown={countdown}
+            isDisabled={isPhotoButtonCooldown}
+            buttonLabel={isPhotoButtonCooldown ? "Please wait..." : "Take Photo"}
+            onTakePhoto={handleTakePhoto}
+            showPhotoGrid={showPhotoGrid}
+            selectedStyle={selectedStyle}
+            onStyleSelect={(style) => updateSetting(setSelectedStyle, 'selectedStyle')(style)}
+            showSettings={showControlOverlay}
+            onToggleSettings={() => setShowControlOverlay(!showControlOverlay)}
+            testId="camera-view"
+            stylePrompts={defaultStylePrompts}
+            customPrompt={customPrompt}
+            onCustomPromptChange={(value) => updateSetting(setCustomPrompt, 'customPrompt')(value)}
+            cameraDevices={cameraDevices}
+            selectedCameraDeviceId={selectedCameraDeviceId}
+            onCameraSelect={handleCameraSelection}
+            modelOptions={getModelOptions()}
+            selectedModel={selectedModel}
+            onModelSelect={(value) => updateSetting(setSelectedModel, 'selectedModel')(value)}
+            numImages={numberImages}
+            onNumImagesChange={(value) => updateSetting(setNumberImages, 'numImages')(value)}
+            promptGuidance={promptGuidance}
+            onPromptGuidanceChange={(value) => updateSetting(setPromptGuidance, 'promptGuidance')(value)}
+            controlNetStrength={controlNetStrength}
+            onControlNetStrengthChange={(value) => updateSetting(setControlNetStrength, 'controlNetStrength')(value)}
+            controlNetGuidanceEnd={controlNetGuidanceEnd}
+            onControlNetGuidanceEndChange={(value) => updateSetting(setControlNetGuidanceEnd, 'controlNetGuidanceEnd')(value)}
+            flashEnabled={flashEnabled}
+            onFlashEnabledChange={(value) => updateSetting(setFlashEnabled, 'flashEnabled')(value)}
+            keepOriginalPhoto={keepOriginalPhoto}
+            onKeepOriginalPhotoChange={(value) => updateSetting(setKeepOriginalPhoto, 'keepOriginalPhoto')(value)}
+            onResetSettings={resetAllSettings}
+          />
+          
+          {/* Other UI elements like canvas, flash effect, etc. */}
+          <canvas ref={canvasReference} style={{ display: 'none' }} />
+          
+          {/* Conditionally render flash overlay */}
+          {showFlash && (
+            <div className="flash-overlay" data-testid="flash-overlay" />
+          )}
+          
+          {/* Rest of UI components */}
+        </>
+      )}
+    </div>
   );
 
   // -------------------------
@@ -1541,6 +1576,12 @@ const App = () => {
         justifyContent: 'center',
         zIndex: 99_999,
         padding: '40px',
+      }}
+      onClick={(e) => {
+        // Check if the click was directly on the container (background), not on its children
+        if (e.target === e.currentTarget) {
+          setSelectedPhotoIndex(null);
+        }
       }}>
       <div className="polaroid-frame" style={{
         background: '#faf9f6',
@@ -1660,7 +1701,17 @@ const App = () => {
     if (photos.length === 0 || !showPhotoGrid) return null;
     
     return (
-      <div className={`film-strip-container ${showPhotoGrid ? 'visible' : 'hiding'} ${selectedPhotoIndex === null ? '' : 'has-selected'}`}>
+      <div className={`film-strip-container ${showPhotoGrid ? 'visible' : 'hiding'} ${selectedPhotoIndex === null ? '' : 'has-selected'}`}
+        style={{
+          background: 'rgba(248, 248, 248, 0.85)',
+          backgroundImage: `
+            linear-gradient(125deg, rgba(255,138,0,0.8), rgba(229,46,113,0.8), rgba(185,54,238,0.8), rgba(58,134,255,0.8)),
+            repeating-linear-gradient(45deg, rgba(255,255,255,0.15) 0px, rgba(255,255,255,0.15) 2px, transparent 2px, transparent 4px),
+            repeating-linear-gradient(-45deg, rgba(255,255,255,0.15) 0px, rgba(255,255,255,0.15) 2px, transparent 2px, transparent 4px)
+          `,
+          backgroundSize: '400% 400%, 20px 20px, 20px 20px',
+          animation: 'psychedelic-shift 15s ease infinite',
+        }}>
         {/* Back to Camera button */}
         <button
           className="back-to-camera-btn"
@@ -1707,7 +1758,7 @@ const App = () => {
           width: '100%',
           maxWidth: '1600px',
           margin: '0 auto',
-          padding: '32px',
+          padding: '32px'
         }}>
           {photos.map((photo, index) => {
             const isSelected = index === selectedPhotoIndex;
@@ -1716,7 +1767,15 @@ const App = () => {
             const progress = Math.floor(photo.progress || 0);
             const loadingLabel = progress > 0 ? `${progress}%` : "";
             const labelText = isReference ? "Reference" : `#${index-keepOriginalPhoto+1}`;
-            const aspectRatio = 1152 / 896;
+            
+            // Force square aspect ratio with important flags
+            const squareStyle = {
+              width: '100%',
+              maxWidth: '240px',
+              aspectRatio: '1 / 1',
+              margin: '0 auto',
+              backgroundColor: 'white'
+            };
 
             // Loading or error state
             if ((photo.loading && photo.images.length === 0) || (photo.error && photo.images.length === 0)) {
@@ -1726,14 +1785,38 @@ const App = () => {
                   className={`film-frame loading ${isSelected ? 'selected' : ''}`}
                   data-fadepolaroid={photo.loading && !photo.error ? 'true' : undefined}
                   onClick={() => isSelected ? setSelectedPhotoIndex(null) : setSelectedPhotoIndex(index)}
+                  style={{
+                    ...squareStyle,
+                    position: 'relative',
+                    borderRadius: '3px',
+                    padding: '12px',
+                    paddingBottom: '60px',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                    display: 'flex',
+                    flexDirection: 'column'
+                  }}
                 >
-                  <div className="aspect-ratio-box">
+                  <div style={{
+                    position: 'relative',
+                    width: '100%', 
+                    height: '100%'
+                  }}>
                     {placeholderUrl && (
                       <img
                         src={placeholderUrl}
-                        alt="Reference"
+                        alt="Original reference"
                         className="placeholder"
-                        style={{ opacity: photo.loading && !photo.error ? undefined : 0.2, transition: 'opacity 0.5s' }}
+                        style={{ 
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          position: 'relative',
+                          top: 0,
+                          left: 0,
+                          opacity: 0.2,
+                          animation: 'placeholderPulse 2s ease-in-out infinite',
+                          zIndex: 1
+                        }}
                       />
                     )}
                   </div>
@@ -1821,14 +1904,36 @@ const App = () => {
                 className={`film-frame ${isSelected ? 'selected' : ''}`}
                 onClick={(e) => handlePhotoSelect(index, e)}
                 style={{
+                  ...squareStyle,
                   '--rotation': `${isSelected ? '0deg' : 
-                    `${(index % 2 === 0 ? 1 : -1) * (0.8 + (index % 3) * 0.5)}deg`}`  // More natural rotation based on index
+                    `${(index % 2 === 0 ? 1 : -1) * (0.8 + (index % 3) * 0.5)}deg`}`,
+                  position: 'relative',
+                  borderRadius: '3px',
+                  padding: '12px',
+                  paddingBottom: '60px',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                  display: 'flex',
+                  flexDirection: 'column'
                 }}
               >
-                <div className="aspect-ratio-box">
+                <div style={{
+                  position: 'relative',
+                  width: '100%', 
+                  height: '100%'
+                }}>
                     <img
                       src={thumbUrl}
                       alt={`Generated #${index}`}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        position: 'relative',
+                        top: 0,
+                        left: 0,
+                        display: 'block',
+                        animation: 'targetImageFadeIn 0.3s ease-in forwards'
+                      }}
                   />
                 </div>
                 <div className="photo-label">
@@ -1973,10 +2078,23 @@ const App = () => {
       setShowPhotoGrid(false);
       setSelectedPhotoIndex(null);
       setReturnedFromPhotos(true);
-      setStudioLightsHidden(false);
+      
+      // Hide slothicorn to prevent double appearance
+      if (slothicornReference.current) {
+        slothicornReference.current.style.setProperty('bottom', '-360px', 'important');
+        slothicornReference.current.classList.remove('animating');
+      }
+      setStudioLightsHidden(true);
+      
+      // Show the start menu again instead of the camera
+      setShowStartMenu(true);
       
       // Clean reveal for the camera - no flying animations, just appear
       setCameraAnimating(false);
+      
+      setTimeout(() => {
+        setStudioLightsHidden(false);
+      }, 300);
     }, 450); // Reduced time to match our new animation duration
   };
 
@@ -2042,6 +2160,65 @@ const App = () => {
       return () => document.removeEventListener('click', handleClickOutside);
     }
   }, [showStyleDropdown]);
+
+  // Add a new state to control whether to show the start menu
+  const [showStartMenu, setShowStartMenu] = useState(true);
+  
+  // Handler for the "Take Photo" option in start menu
+  const handleTakePhotoOption = async () => {
+    setShowStartMenu(false);
+    // Start camera after user selects the option
+    await startCamera(null);
+  };
+
+  // Handler for the "Browse Photo" option in start menu
+  const handleBrowsePhotoOption = (file) => {
+    setShowStartMenu(false);
+    
+    // Make sure we have a valid file
+    if (!file) return;
+    
+    // Check if Sogni is ready
+    if (!isSogniReady) {
+      alert('Sogni is not ready yet. Please try again in a moment.');
+      setShowStartMenu(true);
+      return;
+    }
+    
+    // Create a new photo item
+    const newPhoto = {
+      id: Date.now().toString(),
+      generating: true,
+      images: [],
+      error: null,
+      originalDataUrl: null,
+      newlyArrived: false,
+      generationCountdown: 10,
+    };
+    
+    setPhotos((previous) => [...previous, newPhoto]);
+    const newPhotoIndex = photos.length;
+
+    // Read the file as dataURL
+    const reader = new FileReader();
+    reader.addEventListener('load', (event) => {
+      const dataUrl = event.target.result;
+      newPhoto.originalDataUrl = dataUrl;
+
+      // Generate from the blob
+      generateFromBlob(file, newPhotoIndex, dataUrl);
+    });
+    
+    reader.readAsDataURL(file);
+  };
+
+  // Handler for the "Drag Photo" option in start menu
+  const handleDragPhotoOption = () => {
+    setShowStartMenu(false);
+    // Show an overlay or instructions for drag and drop
+    setDragActive(true);
+    // This will use the existing drag and drop handlers
+  };
 
   // -------------------------
   //   Render
@@ -2228,6 +2405,44 @@ const App = () => {
 
         {/* Help button - only show in camera view */}
         {!showPhotoGrid && !selectedPhotoIndex && (
+          <>
+            <button
+              className="header-settings-btn"
+              onClick={() => setShowControlOverlay(!showControlOverlay)}
+              style={{
+                position: 'fixed',
+                top: 24,
+                right: 72, // Position it to the left of the help button
+                background: 'linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%)',
+                border: 'none',
+                color: '#fff',
+                fontSize: 20,
+                width: 38,
+                height: 38,
+                borderRadius: '50%',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                cursor: 'pointer',
+                fontWeight: 900,
+                lineHeight: 1,
+                padding: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease',
+                zIndex: 1000,
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
+              }}
+              title="Settings"
+            >
+              ⚙️
+            </button>
           <button
             className="header-info-btn"
             onClick={toggleNotesModal}
@@ -2250,13 +2465,22 @@ const App = () => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              transition: 'background 0.2s',
+                transition: 'all 0.2s ease',
               zIndex: 1000,
             }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
+              }}
             title="Photobooth Tips"
           >
             ?
           </button>
+          </>
         )}
         
         {/* Studio lights - permanent background elements */}
@@ -2313,16 +2537,18 @@ const App = () => {
         <canvas ref={canvasReference} className="hidden" />
 
         {/* Slothicorn mascot with direct DOM manipulation */}
-        <div 
-          ref={slothicornReference}
-          className="slothicorn-container"
-        >
-          <img 
-            src={slothicornImage} 
-            alt="Slothicorn mascot" 
-            className="slothicorn-image" 
-          />
-        </div>
+        {!showStartMenu && (
+          <div 
+            ref={slothicornReference}
+            className="slothicorn-container"
+          >
+            <img 
+              src={slothicornImage} 
+              alt="Slothicorn mascot" 
+              className="slothicorn-image" 
+            />
+          </div>
+        )}
 
         {/* Camera shutter sound */}
         <audio ref={shutterSoundReference} preload="auto">
@@ -2337,7 +2563,7 @@ const App = () => {
         </audio>
 
         {/* Show photos button - only visible when we have photos and camera is shown */}
-        {selectedPhotoIndex === null && !showPhotoGrid && photos.length > 0 && (
+        {selectedPhotoIndex === null && !showPhotoGrid && photos.length > 0 && !showStartMenu && (
           <button
             onClick={() => {
               // Pre-scroll to top for smooth transition
@@ -2371,20 +2597,6 @@ const App = () => {
         />
       )}
       
-      {/* Slothicorn - our mascot */}
-      {!showPhotoGrid && !selectedPhotoIndex && (
-        <div 
-          ref={slothicornReference}
-          className="slothicorn-container"
-        >
-          <img 
-            src={slothicornImage} 
-            alt="Slothicorn mascot" 
-            className="slothicorn-image" 
-          />
-        </div>
-      )}
-
       {/* Add a dedicated useEffect for the aspect ratio CSS */}
       {useEffect(() => {
         // Add our CSS fixes (all 5 issues at once)
@@ -2601,7 +2813,20 @@ const App = () => {
           .fade-in {
             transition: opacity 0.5s !important;
           }
-
+          
+          /* Add placeholder pulse animation */
+          @keyframes placeholderPulse {
+            0% { opacity: 0.05; }
+            50% { opacity: 0.2; }
+            100% { opacity: 0.05; }
+          }
+          
+          /* Target image fade-in animation */
+          @keyframes targetImageFadeIn {
+            from { opacity: 0.2; }
+            to { opacity: 1; }
+          }
+          
           /* ------- Responsive Polaroid Frame for Mobile ------- */
           @media (max-width: 600px) {
             .polaroid-frame {
@@ -2647,6 +2872,25 @@ const App = () => {
             .take-photo-polaroid-btn.camera-shutter-btn span:last-child {
               bottom: -14px !important;
               font-size: 10px !important;
+            }
+          }
+          
+          /* ------- ADD: Psychedelic animation ------- */
+          @keyframes psychedelic-shift {
+            0% {
+              background-position: 0% 0%, 0 0, 0 0;
+            }
+            25% {
+              background-position: 100% 0%, 10px 10px, -10px -10px;
+            }
+            50% {
+              background-position: 100% 100%, 20px 20px, -20px -20px;
+            }
+            75% {
+              background-position: 0% 100%, 10px 30px, -10px -30px;
+            }
+            100% {
+              background-position: 0% 0%, 0 0, 0 0;
             }
           }
         `;

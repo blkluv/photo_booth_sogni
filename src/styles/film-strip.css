@@ -179,8 +179,8 @@
   position: relative !important;
   width: 100% !important;
   min-width: 180px !important;
-  max-width: 400px !important;
-  aspect-ratio: calc(1152 / 896) !important;
+  max-width: 240px !important;
+  aspect-ratio: 1 / 1 !important; /* Perfect square */
   margin: 0 auto !important;
   border-radius: 3px !important;
   background-color: white !important;
@@ -251,20 +251,15 @@
 
 /* Make placeholder pulse animation VERY prominent and visible */
 .film-frame.loading .placeholder-image,
-.film-frame.loading[data-fadepolaroid="true"] .placeholder {
-  animation: placeholderPulse 3s ease-in-out infinite !important;
-  animation-delay: 0s !important;
-  animation-fill-mode: forwards !important;
-  animation-direction: alternate !important;
-  opacity: 0.1 !important;
+.film-frame.loading[data-fadepolaroid="true"] .placeholder,
+.film-frame.loading .placeholder {
+  animation: none !important;
+  opacity: 0.2 !important;
   will-change: opacity !important;
 }
 
-/* Strong, clearly defined animation for placeholder images */
-@keyframes placeholderPulse {
-  0% { opacity: 0.1 !important; }
-  50% { opacity: 0.2 !important; }
-  100% { opacity: 0.1 !important; }
+.placeholder {
+  opacity: 0.2 !important;
 }
 
 /* Remove progress indicator */
@@ -552,12 +547,12 @@
   object-fit: contain !important;
   aspect-ratio: auto !important;
   background: transparent !important;
-  border-radius: 12px !important;
+  border-radius: 2px !important; /* Less rounded corners */
   box-shadow: 0 8px 30px rgba(0,0,0,0.18) !important;
   border-left: 22px solid white !important;
   border-right: 22px solid white !important;
   border-top: 22px solid white !important;
-  border-bottom: 100px solid white !important;
+  border-bottom: 120px solid white !important; /* Increased bottom border */
   margin: 0 auto !important;
   display: block !important;
   transition: none !important;
@@ -677,4 +672,30 @@
 
 .view-photos-icon {
   font-size: 20px;
+}
+
+/* Restore the placeholder animation, making sure it works */
+.film-frame.loading .placeholder-image,
+.film-frame.loading[data-fadepolaroid="true"] .placeholder,
+.film-frame.loading .placeholder {
+  animation: placeholderPulse 2s ease-in-out infinite !important;
+  opacity: 0.2 !important;
+  will-change: opacity !important;
+}
+
+/* Updated placeholder animation */
+@keyframes placeholderPulse {
+  0% { opacity: 0.05 !important; }
+  50% { opacity: 0.2 !important; }
+  100% { opacity: 0.05 !important; }
+}
+
+/* Add a fade-in animation for loaded images */
+.film-frame img:not(.placeholder) {
+  transition: opacity 0.3s ease-in !important;
+}
+
+/* Ensure the placeholder has correct opacity without animation too */
+.placeholder {
+  opacity: 0.2 !important;
 }
