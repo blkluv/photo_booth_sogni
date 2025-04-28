@@ -15,3 +15,10 @@
    and stop on any error.
 7. Never rewrite or delete files unless explicitly asked.
 8. Switch to **gpt-4o-xl** automatically when a single file > 800 lines.
+9. **NEVER** duplicate large portions of code or create alternate versions of files. If a file needs refactoring:
+   - Create smaller, modular components
+   - Use proper React patterns like HOCs, render props, or hooks
+   - Document WHY the code exists in comments
+10. Always check if files are actually used in the codebase before modifying them.
+11. When creating experimental features, use feature flags instead of duplicate files.
+12. Maintain a single source of truth for all functionality.
