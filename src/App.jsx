@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo, useReducer } from 'react';
 import { SogniClient } from "@sogni-ai/sogni-client";
 import { API_CONFIG } from './config/cors';
 import { SOGNI_URLS } from './config/sogni';
@@ -8,6 +8,8 @@ import slothicornImage from './slothicorn-camera.png';
 import light1Image from './light1.png';
 import light2Image from './light2.png';
 import './App.css';
+import { DEFAULT_SETTINGS } from './constants/settings';
+import { photoThoughts, randomThoughts } from './constants/thoughts';
 import prompts from './prompts.json';
 import ReactDOM from 'react-dom';
 import CameraView from './components/camera/CameraView';
@@ -49,18 +51,6 @@ const getSettingFromCookie = (name, defaultValue) => {
   }
   
   return defaultValue;
-};
-
-// Default settings
-const DEFAULT_SETTINGS = {
-  selectedModel: 'coreml-sogniXLturbo_alpha1_ad',
-  numImages: 16,
-  promptGuidance: 2,
-  controlNetStrength: 0.8,
-  controlNetGuidanceEnd: 0.6,
-  flashEnabled: true,
-  keepOriginalPhoto: false,
-  selectedStyle: 'randomMix'
 };
 
 /**
@@ -281,60 +271,6 @@ const App = () => {
   const [isPhotoButtonCooldown, setIsPhotoButtonCooldown] = useState(false);
   // Ref to track current project
   const activeProjectReference = useRef(null);
-
-  // Add back the thought arrays
-  const photoThoughts = [
-    "Ooh, I can't wait to see how this turns out!",
-    "I wonder if they'll try the anime style...",
-    "These photos are going to be amazing!",
-    "I love being your photography assistant! 💕",
-    "I learned this technique from Annie Leibovitz!",
-    "This reminds me of my modeling days...",
-    "Should we try a different angle?",
-    "The composition is *chef's kiss*",
-    "Getting some real Vogue vibes here!",
-    "I used to be a roadie for the Gorillaz.",
-    "Let's get creative with the styles!",
-    "Beep Boop, you made this!",
-    "My other camera is a Diffuser",
-    "The lighting is perfect today!",
-    "Ooh, I can't wait to see how this turns out!",
-    "The magic is happening...",
-    "Making something special just for you!",
-    "Almost there...",
-    "This is going to look amazing!",
-    "Adding the finishing touches...",
-    "Sprinkling some digital pixie dust...",
-    "Just a few more seconds...",
-    "Creating something magical...",
-    "The anticipation is killing me!",
-    "Ur participating in decentralized art right now!",
-    "A buncha magical art robots hard at work...",
-    "Good art takes time to develop..."
-  ];
-
-  const randomThoughts = [
-    "We put the ComfyUI in UR Automatic1111",
-    "Our CFG scale goes up to 11",
-    "Ask me about my IT/S",
-    "Prompt me, I dare you",
-    "Teaching computers to draw since 2023",
-    "Keep Calm and Diffuse On",
-    "ControlNet is My Co-Pilot",
-    "My unicorn horn adds +10 to photo magic",
-    "Let's make some art!",
-    "Time for some photobooth magic!",
-    "Do rainbows taste like Skittles?",,
-    "Maybe my horn gets WiFi...",
-    "Wonder if my horn glows in the dark...",
-    "Maybe I should start a podcast...",
-    "Sometimes I pretend I'm a disco ball",
-    "I'm sensing a viral photo coming!",
-    "Today is going to be a good day.",
-    "My horn doubles as a selfie stick.",
-    "First the photobooth, and then the world baby!",
-    "You down to clown? Style Prompt that is."
-  ];
 
   // Add state for current thought
   const [currentThought, setCurrentThought] = useState(null);

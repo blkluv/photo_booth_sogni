@@ -41,19 +41,4 @@ export const defaultStylePrompts: { [key: string]: string } = {
   steampunk: "steampunk style, victorian, brass and copper",
   fantasy: "fantasy art style, magical, ethereal",
   random: "{photorealistic|anime|watercolor|oilPainting|pencilSketch|popArt|cyberpunk|steampunk|fantasy}",
-};
-
-export const photoThoughts = [
-  "Ooh, I can't wait to see how this turns out!",
-  "I wonder if they'll try the anime style...",
-  "These photos are going to be amazing!",
-  "I love being your photography assistant! 💕",
-  "I learned this technique from Annie Leibovitz!",
-  "This reminds me of my modeling days...",
-  "Should we try a different angle?",
-  "The composition is *chef's kiss*",
-  "Getting some real Vogue vibes here!",
-  "I used to be a roadie for the Gorillaz.",
-  "Let's get creative with the styles!",
-  "Beep Boop, you made this!",
-]; 
+}; 
