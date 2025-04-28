@@ -1854,7 +1854,7 @@ const App = () => {
       } else {
         setDropdownPosition('top');
       }
-    } else {
+      } else {
       // Default to above if we can't find the button
       setDropdownPosition('top');
     }
