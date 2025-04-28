@@ -13,7 +13,6 @@ interface CameraStartMenuProps {
 const CameraStartMenu: React.FC<CameraStartMenuProps> = ({ 
   onTakePhoto, 
   onBrowsePhoto,
-  onDragPhoto,
   isProcessing = false,
   hasPhotos = false,
   onViewPhotos
