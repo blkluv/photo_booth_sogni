@@ -21,6 +21,12 @@ export default defineConfig(({ mode }) => {
       host: "photobooth-local.sogni.ai",
       port: 5174,
     },
+    build: {
+      outDir: 'dist',
+      assetsDir: 'assets',
+      // Ensure JSON files and JavaScript configs are included in the build
+      assetsInclude: ['**/*.json', 'src/constants/**/*.js'],
+    },
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),

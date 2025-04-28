@@ -8,9 +8,10 @@ import slothicornImage from './slothicorn-camera.png';
 import light1Image from './light1.png';
 import light2Image from './light2.png';
 import './App.css';
-import { DEFAULT_SETTINGS } from './constants/settings';
+import { DEFAULT_SETTINGS, modelOptions, getModelOptions, getValidModelValue } from './constants/settings';
 import { photoThoughts, randomThoughts } from './constants/thoughts';
-import prompts from './prompts.json';
+// Modify the prompts import to use dynamic import for production compatibility
+import promptsData from './prompts.json';
 import ReactDOM from 'react-dom';
 import CameraView from './components/camera/CameraView';
 import ControlPanel from './components/ControlPanel';
@@ -56,16 +57,65 @@ const getSettingFromCookie = (name, defaultValue) => {
 /**
  * Default style prompts
  */
-const defaultStylePrompts = {
-  custom: ``,
-  ...Object.fromEntries(
-    Object.entries(prompts)
-      .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
-  )
+// Handle the case where prompts might not be immediately available
+const loadPrompts = () => {
+  if (typeof promptsData !== 'undefined' && Object.keys(promptsData).length > 0) {
+    console.log('Prompts loaded from import');
+    return Promise.resolve(promptsData);
+  }
+  
+  console.warn('Prompts data not immediately available, attempting to fetch...');
+  
+  // Try multiple locations in order
+  const tryFetchFromPath = (path) => {
+    return fetch(path)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Failed to fetch from ${path}: ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log(`Successfully loaded prompts from ${path}`);
+        return data;
+      });
+  };
+  
+  // Try multiple paths in sequence
+  return tryFetchFromPath('/photobooth/prompts.json')
+    .catch(error => {
+      console.warn(error.message);
+      return tryFetchFromPath('/prompts.json');
+    })
+    .catch(error => {
+      console.warn(error.message);
+      return tryFetchFromPath('./prompts.json');
+    })
+    .catch(error => {
+      console.error('All attempts to fetch prompts failed:', error);
+      return {}; // Return empty object as last resort
+    });
 };
 
-// Add random style that uses all prompts
-defaultStylePrompts.random = `{${Object.values(prompts).join('|')}}`;
+// Initialize defaultStylePrompts with a placeholder
+let defaultStylePrompts = { custom: '' };
+
+// Load prompts asynchronously
+loadPrompts().then(prompts => {
+  defaultStylePrompts = {
+    custom: '',
+    ...Object.fromEntries(
+      Object.entries(prompts)
+        .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+    )
+  };
+  
+  // Add random style that uses all prompts
+  defaultStylePrompts.random = `{${Object.values(prompts).join('|')}}`;
+  console.log('Prompts loaded successfully:', Object.keys(defaultStylePrompts).length);
+}).catch(error => {
+  console.error('Error initializing prompts:', error);
+});
 
 /**
  * Returns 1280×720 (landscape) or 720×1280 (portrait)
@@ -139,6 +189,8 @@ const generateUUID = () => {
   });
 };
 
+// Helper function to get a valid model option value
+
 const App = () => {
   const videoReference = useRef(null);
   const canvasReference = useRef(null);
@@ -199,6 +251,28 @@ const App = () => {
   // Drag-and-drop state
   const [dragActive, setDragActive] = useState(false);
 
+  // Add effect to load prompts on component mount
+  useEffect(() => {
+    // Try to load prompts from both import and fetch
+    loadPrompts().then(prompts => {
+      if (Object.keys(prompts).length > 0) {
+        console.log('Successfully loaded prompts on component mount, loaded styles:', Object.keys(prompts).length);
+        defaultStylePrompts = {
+          custom: '',
+          ...Object.fromEntries(
+            Object.entries(prompts)
+              .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+          )
+        };
+        defaultStylePrompts.random = `{${Object.values(prompts).join('|')}}`;
+      } else {
+        console.warn('Failed to load prompts from import or fetch');
+      }
+    }).catch(error => {
+      console.error('Error loading prompts on component mount:', error);
+    });
+  }, []);
+
   // First, let's create a proper job tracking map at the top of the App component:
   const jobMapReference = useRef(new Map());
 
@@ -218,13 +292,6 @@ const App = () => {
   const isPortrait = desiredHeight > desiredWidth;
   const thumbnailWidth = 220; // Wider for landscape
   const thumbnailHeight = 130; // Shorter for landscape
-
-  // First, add the model options at the top of the file
-  const modelOptions = [
-    { label: '🅂 Sogni.XLT 𝛂1 (SDXL Turbo)', value: 'coreml-sogniXLturbo_alpha1_ad' },
-    { label: 'DreamShaper v2.1 (SDXL Turbo)', value: 'coreml-dreamshaperXL_v21TurboDPMSDE' },
-    { label: 'JuggernautXL 9 + RD Photo2 (SDXL Lightning)', value: 'coreml-juggernautXL_v9Rdphoto2Lightning' }
-  ];
 
   // Add useEffect for checking scrollability at top level
   useEffect(() => {
@@ -246,7 +313,9 @@ const App = () => {
   }, [photos.length, showPhotoGrid]);
 
   // At the top of App component, add new state variables - now loaded from cookies
-  const [selectedModel, setSelectedModel] = useState(getSettingFromCookie('selectedModel', DEFAULT_SETTINGS.selectedModel));
+  const [selectedModel, setSelectedModel] = useState(
+    getValidModelValue(getSettingFromCookie('selectedModel', DEFAULT_SETTINGS.selectedModel))
+  );
   const [numberImages, setNumberImages] = useState(getSettingFromCookie('numImages', DEFAULT_SETTINGS.numImages));
   const [promptGuidance, setPromptGuidance] = useState(getSettingFromCookie('promptGuidance', DEFAULT_SETTINGS.promptGuidance));
   const [controlNetStrength, setControlNetStrength] = useState(getSettingFromCookie('controlNetStrength', DEFAULT_SETTINGS.controlNetStrength));
@@ -810,13 +879,39 @@ const App = () => {
   const generateFromBlob = async (photoBlob, newPhotoIndex, dataUrl) => {
     try {
       // Get the style prompt, generating random if selected
-      const stylePrompt = (selectedStyle === 'custom')
-        ? (customPrompt || 'A custom style portrait')
-        : (selectedStyle === 'random'
-          ? defaultStylePrompts[getRandomStyle()]
-          : selectedStyle === 'randomMix'
-            ? getRandomMixPrompts(numberImages)
-            : defaultStylePrompts[selectedStyle]);
+      let stylePrompt;
+      
+      if (selectedStyle === 'custom') {
+        stylePrompt = customPrompt || 'A custom style portrait';
+      } else if (selectedStyle === 'random') {
+        // Ensure we have prompts loaded
+        if (Object.keys(defaultStylePrompts).length <= 2) {
+          // Reload prompts if they're not available
+          try {
+            const prompts = await loadPrompts();
+            if (Object.keys(prompts).length > 0) {
+              defaultStylePrompts = {
+                custom: '',
+                ...Object.fromEntries(
+                  Object.entries(prompts)
+                    .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+                )
+              };
+              defaultStylePrompts.random = `{${Object.values(prompts).join('|')}}`;
+            }
+          } catch (error) {
+            console.error('Error loading prompts on demand:', error);
+          }
+        }
+        
+        const randomStyle = getRandomStyle();
+        stylePrompt = defaultStylePrompts[randomStyle] || 'A creative portrait style';
+      } else if (selectedStyle === 'randomMix') {
+        stylePrompt = getRandomMixPrompts(numberImages);
+      } else {
+        stylePrompt = defaultStylePrompts[selectedStyle] || 'A creative portrait style';
+      }
+      
       console.log('Style prompt:', stylePrompt);
       projectStateReference.current = {
         currentPhotoIndex: newPhotoIndex,
@@ -1755,7 +1850,7 @@ const App = () => {
 
   // Reset all settings to defaults
   const resetAllSettings = () => {
-    setSelectedModel(DEFAULT_SETTINGS.selectedModel);
+    setSelectedModel(getValidModelValue(DEFAULT_SETTINGS.selectedModel));
     setNumberImages(DEFAULT_SETTINGS.numImages);
     setPromptGuidance(DEFAULT_SETTINGS.promptGuidance);
     setControlNetStrength(DEFAULT_SETTINGS.controlNetStrength);
@@ -1766,7 +1861,10 @@ const App = () => {
     setCustomPrompt('');
     
     // Save all defaults to cookies
-    saveSettingsToCookies(DEFAULT_SETTINGS);
+    saveSettingsToCookies({
+      ...DEFAULT_SETTINGS,
+      selectedModel: getValidModelValue(DEFAULT_SETTINGS.selectedModel)
+    });
   };
 
   // Add state for photo grid view
@@ -1823,6 +1921,12 @@ const App = () => {
   const getRandomStyle = () => {
     const availableStyles = Object.keys(defaultStylePrompts)
       .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix');
+    
+    if (availableStyles.length === 0) {
+      console.warn('No styles available for random selection');
+      return 'custom'; // Fallback to custom if no styles are available
+    }
+    
     return availableStyles[Math.floor(Math.random() * availableStyles.length)];
   };
 
@@ -1830,10 +1934,22 @@ const App = () => {
     const availableStyles = Object.keys(defaultStylePrompts)
       .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix');
     
+    if (availableStyles.length === 0) {
+      console.warn('No styles available for random mix');
+      return 'A creative portrait style'; // Fallback if no styles are available
+    }
+    
     const selectedPrompts = [];
     for (let index = 0; index < count; index++) {
       const randomStyle = availableStyles[Math.floor(Math.random() * availableStyles.length)];
-      selectedPrompts.push(defaultStylePrompts[randomStyle]);
+      const prompt = defaultStylePrompts[randomStyle];
+      if (prompt) {
+        selectedPrompts.push(prompt);
+      }
+    }
+    
+    if (selectedPrompts.length === 0) {
+      return 'A creative portrait style'; // Fallback if no valid prompts
     }
     
     return `{${selectedPrompts.join('|')}}`;

@@ -13,6 +13,44 @@ export const modelOptions = [
   },
 ];
 
+// Helper function to safely get model options
+export const getModelOptions = () => {
+  // In case import fails or isn't available, return a fallback set
+  if (!Array.isArray(modelOptions) || modelOptions.length === 0) {
+    console.warn("Model options not loaded correctly, using fallbacks");
+    return [
+      {
+        label: "🅂 Sogni.XLT 𝛂1 (SDXL Turbo)",
+        value: "coreml-sogniXLturbo_alpha1_ad",
+      },
+      {
+        label: "DreamShaper v2.1 (SDXL Turbo)",
+        value: "coreml-dreamshaperXL_v21TurboDPMSDE",
+      },
+      {
+        label: "JuggernautXL 9 + RD Photo2 (SDXL Lightning)",
+        value: "coreml-juggernautXL_v9Rdphoto2Lightning",
+      },
+    ];
+  }
+  
+  return modelOptions;
+};
+
+// Helper function to get a valid model option value
+export const getValidModelValue = (selectedValue: string) => {
+  const options = getModelOptions();
+  const defaultValue = options[0].value;
+  
+  // If the selected value exists in options, use it
+  if (selectedValue && options.some(option => option.value === selectedValue)) {
+    return selectedValue;
+  }
+  
+  // Otherwise use the first option as default
+  return defaultValue;
+};
+
 export const DEFAULT_SETTINGS = {
   selectedModel: "coreml-sogniXLturbo_alpha1_ad",
   numImages: 16,
