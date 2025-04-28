@@ -16,9 +16,10 @@
   margin: 0;
   overflow: auto;
   z-index: 1000;
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(248, 248, 248, 0.96); /* Lighter, cleaner background */
   opacity: 1;
   transform: none;
+  transition: opacity 0.4s ease-out;
 }
 
 .film-strip-holes {
@@ -28,7 +29,7 @@
 .film-strip-content {
   display: grid !important;
   grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)) !important;
-  gap: 32px !important;
+  gap: 48px 32px !important; /* Increased vertical gap between rows for better spacing */
   justify-content: center !important;
   justify-items: center !important;
   align-content: flex-start !important;
@@ -42,96 +43,138 @@
   max-height: none;
 }
 
+/* Add specific grid layouts for small item counts to ensure even distribution */
+.film-strip-content:only-child,
+.film-strip-content:nth-last-child(-n+3) {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 24px 40px !important; /* Increased horizontal spacing for few items */
+  max-width: 1200px !important; /* Constrain width for fewer items */
+}
+
+/* Fix for when there are exactly 3 or fewer photos - distribute them evenly */
+.film-strip-content:has(.film-frame:nth-last-child(-n+3):first-child) {
+  grid-template-columns: repeat(3, 1fr) !important;
+  width: 100% !important;
+  justify-content: space-evenly !important; /* Use space-evenly for better distribution */
+  gap: 24px 40px !important; /* Increased horizontal gap for better spacing */
+  max-width: 1100px !important; /* More constrained for 3 or fewer */
+}
+
+/* When there are 1-3 items, ensure they take up full width */
+.film-strip-content:has(.film-frame:nth-last-child(-n+3):first-child) .film-frame {
+  margin: 0 auto !important;
+  width: 100% !important;
+  max-width: 280px !important; /* Slightly smaller max-width to accommodate gap */
+}
+
+/* For very small screens, revert to auto-fill */
+@media (max-width: 900px) {
+  .film-strip-content:only-child,
+  .film-strip-content:nth-last-child(-n+3),
+  .film-strip-content:has(.film-frame:nth-last-child(-n+3):first-child) {
+    grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)) !important;
+  }
+}
+
 /* Animation for grid appearing */
 @keyframes gridAppear {
   0% {
     opacity: 0;
-    transform: translateY(50px);
+    transform: translateY(20px);
+    filter: blur(8px);
   }
   100% {
     opacity: 1;
     transform: translateY(0);
+    filter: blur(0);
   }
 }
 
 .film-strip-container.visible {
-  animation: gridAppear 0.5s ease-out forwards;
+  animation: photoGridReveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-/* Create more synchronous animation for camera view transitions */
-@keyframes cameraReveal {
-  0% {
-    transform: scale(0.7) rotate3d(1, 0, 0, 30deg);
-    opacity: 0;
-    filter: blur(5px) brightness(1.5);
-  }
-  100% {
-    transform: scale(1) rotate3d(0, 0, 0, 0);
-    opacity: 1;
-    filter: blur(0) brightness(1);
-  }
-}
-
-@keyframes cameraHide {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-    filter: blur(0) brightness(1) saturate(1);
-  }
-  100% {
-    transform: scale(1.2) translateY(-50px);
-    opacity: 0;
-    filter: blur(20px) brightness(0) saturate(0);
-  }
-}
-
-.camera-flying-in {
-  animation: cameraReveal 0.8s cubic-bezier(0.215, 0.61, 0.355, 1) forwards;
-  transform-origin: center center;
-}
-
+/* SIMPLIFIED TRANSITIONS - Completely remove the old camera animations */
+/* Camera should never be visible during transitions to photo grid */
+.camera-flying-in,
 .camera-flying-out {
-  animation: cameraHide 0.7s cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards;
-  transform-origin: center center;
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  position: absolute !important;
+  z-index: -1 !important;
+  animation: none !important;
+  transition: none !important;
 }
 
-/* Create animation for photo grid transition */
+/* Clean crossfade animation for photo grid transitions */
 @keyframes photoGridReveal {
   0% {
     opacity: 0;
-    transform: translateY(100px) scale(0.9);
-    filter: saturate(0) brightness(0.5);
+    filter: blur(6px) saturate(0.8);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: saturate(1) brightness(1);
+    filter: blur(0) saturate(1);
   }
 }
 
 @keyframes photoGridHide {
   0% {
     opacity: 1;
-    transform: scale(1);
     filter: blur(0);
   }
   100% {
     opacity: 0;
-    transform: scale(0.9) translateY(100px);
-    filter: blur(15px);
+    filter: blur(8px);
   }
 }
 
-/* Fixed animation sequences */
+/* Clean transitions */
 .film-strip-container.visible {
-  animation: photoGridReveal 0.7s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+  animation: photoGridReveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .film-strip-container.hiding {
-  animation: photoGridHide 0.6s cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards;
+  animation: photoGridHide 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-/* Fix the film frame to correctly handle our aspect ratio */
+/* Remove all fly animations completely */
+@keyframes flyIn {
+  from { opacity: 0; }
+  to { opacity: 0; }
+}
+
+@keyframes flyOut {
+  from { opacity: 0; }
+  to { opacity: 0; }
+}
+
+/* All photos now stay perfectly straight - no rotation */
+.film-frame:nth-child(11n + 1),
+.film-frame:nth-child(11n + 2),
+.film-frame:nth-child(11n + 3),
+.film-frame:nth-child(11n + 4),
+.film-frame:nth-child(11n + 5),
+.film-frame:nth-child(11n + 6),
+.film-frame:nth-child(11n + 7),
+.film-frame:nth-child(11n + 8),
+.film-frame:nth-child(11n + 9),
+.film-frame:nth-child(11n + 10),
+.film-frame:nth-child(11n + 11) {
+  --rotation: 0deg; /* No rotation at all */
+}
+
+/* Full-screen flash animation */
+@keyframes fullScreenFlash {
+  0% { opacity: 1; }
+  40% { opacity: 1; } /* Maintain full opacity longer */
+  100% { opacity: 0; }
+}
+
+/* Fix the film frame to have no rotation */
 .film-frame {
   position: relative !important;
   width: 100% !important;
@@ -153,7 +196,7 @@
   transform-origin: 0 0 !important;
   cursor: pointer !important;
   z-index: 1 !important;
-  transform: rotate(var(--rotation)) !important;
+  transform: none !important; /* No rotation */
   transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s cubic-bezier(0.23, 1, 0.32, 1) !important;
 }
 
@@ -193,33 +236,35 @@
   transition: opacity 100ms ease-in !important;
 }
 
-/* More natural and subtle rotation for polaroids */
-.film-frame:nth-child(11n + 1) { --rotation: -2.1deg; }
-.film-frame:nth-child(11n + 2) { --rotation: 1.7deg; }
-.film-frame:nth-child(11n + 3) { --rotation: -0.8deg; }
-.film-frame:nth-child(11n + 4) { --rotation: 2.3deg; }
-.film-frame:nth-child(11n + 5) { --rotation: -1.5deg; }
-.film-frame:nth-child(11n + 6) { --rotation: 0.9deg; }
-.film-frame:nth-child(11n + 7) { --rotation: -1.8deg; }
-.film-frame:nth-child(11n + 8) { --rotation: 1.2deg; }
-.film-frame:nth-child(11n + 9) { --rotation: -0.6deg; }
-.film-frame:nth-child(11n + 10) { --rotation: 1.6deg; }
-.film-frame:nth-child(11n + 11) { --rotation: -1.1deg; }
-
-/* Loading polaroid styles */
+/* Loading polaroid styles - no rotation */
 .film-frame.loading {
   position: relative !important;
+  will-change: transform !important;
+  transform: none !important; /* No rotation when loading */
 }
 
-.film-frame.loading .placeholder-image {
-  opacity: 0.2 !important;
-  position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover !important;
-  transition: opacity 0.3s ease !important;
+/* Additional code to ensure the placeholder pulse animation works properly */
+.film-frame.loading img,
+.film-frame.loading .placeholder {
+  opacity: 1 !important;
+}
+
+/* Make placeholder pulse animation VERY prominent and visible */
+.film-frame.loading .placeholder-image,
+.film-frame.loading[data-fadepolaroid="true"] .placeholder {
+  animation: placeholderPulse 3s ease-in-out infinite !important;
+  animation-delay: 0s !important;
+  animation-fill-mode: forwards !important;
+  animation-direction: alternate !important;
+  opacity: 0.1 !important;
+  will-change: opacity !important;
+}
+
+/* Strong, clearly defined animation for placeholder images */
+@keyframes placeholderPulse {
+  0% { opacity: 0.1 !important; }
+  50% { opacity: 0.2 !important; }
+  100% { opacity: 0.1 !important; }
 }
 
 /* Remove progress indicator */
@@ -232,16 +277,23 @@
   filter: none !important;
 }
 
-/* Keep reference photo visible during loading */
+/* Keep reference photo visible during loading without changing rotation */
 .film-frame.loading img {
   /* Remove the static opacity so animation can work */
   opacity: unset !important;
+  transform: none !important; /* Don't transform the image within the frame */
 }
 
-/* Move the loading percentage to the label */
-.film-frame.loading .photo-label {
-  color: #333 !important; /* Black text instead of red */
-  font-weight: bold !important;
+/* Fix the loading animation for polaroids */
+.film-frame.loading[data-fadepolaroid="true"] .placeholder {
+  animation: placeholderPulse 3s ease-in-out infinite !important;
+}
+
+/* Replace the old polaroid fade animation with our new smoother one */
+@keyframes polaroidFadeInOut {
+  0% { opacity: 0.1; }
+  50% { opacity: 0.2; }
+  100% { opacity: 0.1; }
 }
 
 /* Hide REF label and stack count, we'll use photo-label instead */
@@ -437,7 +489,7 @@
 
 /* Remove the "hovered" class approach completely and use only pure CSS */
 .film-frame:hover {
-  transform: rotate(0deg) translateY(-10px) translateZ(0) !important;
+  transform: translateY(-10px) translateZ(0) !important;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4) !important;
   z-index: 10 !important;
   transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s cubic-bezier(0.23, 1, 0.32, 1) !important;
@@ -590,15 +642,39 @@
   right: 20px;
 }
 
-.film-frame.loading[data-fadepolaroid="true"] .placeholder {
-  animation: polaroidFadeInOut 2.2s ease-in-out infinite alternate;
-  opacity: 0.18;
+/* Improved button for showing the photos */
+.view-photos-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 100;
+  background: linear-gradient(135deg, #ff5e8a 0%, #ff3366 100%);
+  color: #fff;
+  border: none;
+  border-radius: 25px;
+  padding: 14px 24px;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s, box-shadow 0.2s;
+  font-family: "Permanent Marker", cursive;
 }
 
-@keyframes polaroidFadeInOut {
-  0% { opacity: 0.18; }
-  40% { opacity: 0.32; }
-  60% { opacity: 0.45; }
-  80% { opacity: 0.32; }
-  100% { opacity: 0.18; }
+.view-photos-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(135deg, #ff7aa1 0%, #ff4b78 100%);
+}
+
+.view-photos-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.view-photos-icon {
+  font-size: 20px;
 }

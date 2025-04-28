@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import '../../styles/components/photoGallery.css'; // Create this file next
+import '../../styles/film-strip.css'; // Using film-strip.css which contains the gallery styles
 
 const PhotoGallery = ({
   photos,

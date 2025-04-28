@@ -263,9 +263,13 @@ export const CameraView: React.FC<CameraViewProps> = ({
 
   return (
     <div 
-      className={`${styles.cameraContainer} ${isAnimating ? (showPhotoGrid ? 'camera-flying-in' : 'camera-flying-out') : ''}`}
+      className={`${styles.cameraContainer}`}
       style={{
         display: showPhotoGrid ? 'none' : 'flex',
+        visibility: showPhotoGrid ? 'hidden' : 'visible',
+        opacity: showPhotoGrid ? 0 : 1,
+        position: showPhotoGrid ? 'absolute' : 'relative',
+        zIndex: showPhotoGrid ? -999 : 'auto',
       }}
       data-testid={testId || 'camera-container'}
     >
@@ -302,9 +306,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
             </div>
           )}
           
-          {showFlash && (
-            <div className={styles.flashOverlay} data-testid="flash" />
-          )}
+          {/* Local flash effect removed - using global overlay instead */}
         </div>
 
         {/* Bottom controls */}
@@ -312,7 +314,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
       </div>
 
       {/* Advanced Settings Overlay */}
-      <div className={`control-overlay ${showSettings ? 'visible' : ''}`}>
+      <div className={`control-overlay ${showSettings ? 'visible' : ''}`} style={{ position: 'fixed', zIndex: 99999 }}>
         <div className="control-overlay-content">
           <h2 className="settings-title">Advanced Settings</h2>
           

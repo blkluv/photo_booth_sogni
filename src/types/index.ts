@@ -9,6 +9,7 @@ export interface Photo {
   isOriginal?: boolean;
   loading?: boolean;
   progress?: number;
+  permanentError?: boolean;
 }
 
 export interface ProjectState {

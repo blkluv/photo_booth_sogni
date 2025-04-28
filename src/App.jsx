@@ -955,6 +955,12 @@ const App = () => {
             const updated = [...previous];
             if (!updated[photoIndex]) return previous;
             
+            // Check if this photo has a permanent error - if so, don't update it
+            if (updated[photoIndex].permanentError) {
+              console.log(`Photo at index ${photoIndex} has permanent error, skipping update`);
+              return previous;
+            }
+            
             if (updated[photoIndex].loading || updated[photoIndex].images.length === 0) {
               updated[photoIndex] = {
                 ...updated[photoIndex],
@@ -1004,6 +1010,12 @@ const App = () => {
             const updated = [...previous];
             if (!updated[photoIndex]) {
               console.error(`No photo box found at index ${photoIndex}`);
+              return previous;
+            }
+            
+            // Check if this photo has a permanent error - if so, don't update it
+            if (updated[photoIndex].permanentError) {
+              console.log(`Photo at index ${photoIndex} has permanent error, skipping update`);
               return previous;
             }
             
@@ -1088,6 +1100,7 @@ const App = () => {
             images: [],
             error: `Error: ${error.message || error}`,
             originalDataUrl: dataUrl, // Use reference photo as placeholder
+            permanentError: true // Add permanent error flag
           });
         }
         return updated;
@@ -1236,23 +1249,26 @@ const App = () => {
   };
 
   const triggerFlashAndCapture = () => {
+    // Check if we're in countdown mode, and if so, abort
+    if (countdown > 0) return;
+    
     // Play camera shutter sound
     if (shutterSoundReference.current) {
       shutterSoundReference.current.play().catch(error => {
         console.warn("Error playing shutter sound:", error);
       });
     }
-
+    
+    // Count 3..2..1
     if (flashEnabled) {
       setShowFlash(true);
-      // Increased delay to 250ms to allow camera to adjust exposure
+      // Keep flash visible longer for better exposure compensation
       setTimeout(() => {
         setShowFlash(false);
-        captureAndSend();
-      }, 250);
-    } else {
-      captureAndSend();
+      }, 700); // Increased from the default 250ms to 700ms
     }
+    // Process the capture
+    captureAndSend();
   };
 
   const captureAndSend = async () => {
@@ -1366,7 +1382,7 @@ const App = () => {
       isAnimating={cameraAnimating}
       showPhotoGrid={showPhotoGrid}
       selectedStyle={selectedStyle}
-      onStyleSelect={setSelectedStyle}
+      onStyleSelect={(value) => updateSetting(setSelectedStyle, 'selectedStyle')(value)}
       showSettings={showControlOverlay}
       onToggleSettings={() => setShowControlOverlay(!showControlOverlay)}
       stylePrompts={defaultStylePrompts}
@@ -1823,19 +1839,19 @@ const App = () => {
     return `{${selectedPrompts.join('|')}}`;
   };
 
-  // Fix the animation transition issue by ensuring we clear state correctly
+  // Clean, polished transition from photogrid to camera
   const handleBackToCamera = () => {
-    // Scroll to top first
+    // Scroll to top smoothly
     window.scrollTo({ top: 0, behavior: 'smooth' });
     
-    // Mark the photo grid as hiding 
+    // Mark the photo grid as hiding with a clean fade-out
     const filmStrip = document.querySelector('.film-strip-container');
     if (filmStrip) {
       filmStrip.classList.remove('visible');
       filmStrip.classList.add('hiding');
     }
     
-    // Wait for the hiding animation to finish before showing camera
+    // Use a shorter timeout for a snappier UI feel
     setTimeout(() => {
       // Hide photo grid and reset states
       setShowPhotoGrid(false);
@@ -1843,8 +1859,9 @@ const App = () => {
       setReturnedFromPhotos(true);
       setStudioLightsHidden(false);
       
-      // No additional animations - camera should just appear normally
-    }, 600); // Match the duration of photoGrid Hide animation
+      // Clean reveal for the camera - no flying animations, just appear
+      setCameraAnimating(false);
+    }, 450); // Reduced time to match our new animation duration
   };
 
   // Add effect to reset newlyArrived status after animation completes
@@ -2203,45 +2220,54 @@ const App = () => {
           Your browser does not support the audio element.
         </audio>
 
-        {/* FIX: Floating 'View Photos' button only if user has taken a photo */}
+        {/* Show photos button - only visible when we have photos and camera is shown */}
         {selectedPhotoIndex === null && !showPhotoGrid && photos.length > 0 && (
           <button
             onClick={() => {
-              // Mark the camera as hiding
-              setCameraAnimating(true);
-              // Show the photo grid with animation
+              // Pre-scroll to top for smooth transition
+              window.scrollTo(0, 0);
+              // Clean transition - explicitly ensure camera is hidden first
+              setCameraAnimating(false);
               setShowPhotoGrid(true);
-              // Reset camera animating after animation completes
-              setTimeout(() => {
-                setCameraAnimating(false);
-              }, 600);
             }}
-            style={{
-              position: 'absolute',
-              bottom: 18,
-              right: 18,
-              zIndex: 10,
-              background: 'linear-gradient(135deg, #ff5e8a 0%, #ff3366 100%)',
-              color: '#fff',
-              border: '2px solid #fff',
-              borderRadius: 16,
-              boxShadow: '0 4px 16px rgba(255, 51, 102, 0.25)',
-              padding: '12px 24px',
-              fontWeight: 900,
-              fontSize: 18,
-              cursor: 'pointer',
-              fontFamily: '"Permanent Marker", cursive',
-              letterSpacing: 1,
-          display: 'flex',
-          alignItems: 'center',
-              gap: 10,
-              transition: 'all 0.2s',
-            }}
+            className="view-photos-btn"
           >
-            <span style={{fontSize: 22, marginRight: 6}}>📸</span> View Photos
+            <span className="view-photos-icon">📸</span>
+            <span className="view-photos-label">View Photos ({photos.length})</span>
           </button>
         )}
       </div>
+      
+      {/* Global flash overlay - covers the entire screen */}
+      {showFlash && (
+        <div 
+          className="global-flash-overlay" 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'white',
+            zIndex: 99999,
+            animation: 'fullScreenFlash 700ms ease-out' // Longer flash duration
+          }}
+        />
+      )}
+      
+      {/* Slothicorn - our mascot */}
+      {!showPhotoGrid && !selectedPhotoIndex && (
+        <div 
+          ref={slothicornReference}
+          className="slothicorn-container"
+        >
+          <img 
+            src={slothicornImage} 
+            alt="Slothicorn mascot" 
+            className="slothicorn-image" 
+          />
+        </div>
+      )}
 
       {/* Add a dedicated useEffect for the aspect ratio CSS */}
       {useEffect(() => {

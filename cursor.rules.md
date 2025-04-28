@@ -33,3 +33,11 @@
     - Before deleting ANY file, check that it isn't referenced in imports or directly used by the app
     - If creating a new CSS file, make sure it's imported in the component or in the global index.css
 14. Every PR should result in LESS code, not more duplicated code.
+15. **MEMORY PERSISTENCE AND EFFICIENCY RULES**:
+    - Maintain memory of files already examined in the current session
+    - Never re-check if a file exists after its existence has been confirmed
+    - Keep track of file contents that have been viewed and refer to stored information
+    - Avoid redundant tool calls to check for the same information repeatedly
+    - Before using tools to find information, check if that information has already been discovered
+    - Maintain conversational context and user history to prevent repetitive work
+    - Use information persistence to minimize response time and redundant operations
