@@ -56,7 +56,7 @@ describe('PhotoGallery Component', () => {
     handleBackToCamera: jest.fn(),
     goToPreviousPhoto: jest.fn(),
     goToNextPhoto: jest.fn(),
-    keepOriginalPhoto: true,
+    keepOriginalPhoto: false,
   };
 
   beforeEach(() => {

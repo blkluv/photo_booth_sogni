@@ -58,7 +58,7 @@ export const DEFAULT_SETTINGS = {
   controlNetStrength: 0.8,
   controlNetGuidanceEnd: 0.6,
   flashEnabled: true,
-  keepOriginalPhoto: true,
+  keepOriginalPhoto: false,
   selectedStyle: "randomMix",
 };
 
