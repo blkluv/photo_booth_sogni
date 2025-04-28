@@ -26,7 +26,10 @@
     - **NEVER** create a component file without immediately importing and using it
     - **NEVER** leave code in the original file after migrating it to a component (complete the migration)
     - **NEVER** create both .tsx and .jsx versions of the same component
+    - **NEVER** create new CSS files that aren't immediately imported and used
     - Any new component MUST be imported and used immediately or NOT created at all
     - Only use TypeScript (.tsx) OR JavaScript (.jsx) for a component, never both
     - Always verify the migration is complete by checking imports and removing the original code
+    - Before deleting ANY file, check that it isn't referenced in imports or directly used by the app
+    - If creating a new CSS file, make sure it's imported in the component or in the global index.css
 14. Every PR should result in LESS code, not more duplicated code.
