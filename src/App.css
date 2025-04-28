@@ -536,22 +536,9 @@ html body .photobooth-app .photobooth-frame .photobooth-header .tips-ribbon {
 
 /* Style button and dropdown fixes */
 .style-selector {
-  position: relative !important;
   display: inline-block !important;
   max-width: 280px !important; /* Increased width to accommodate longest option */
   flex-shrink: 0 !important;
-}
-
-.header-style-select {
-  width: 100% !important;
-  max-width: 280px !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  padding-right: 35px !important; /* Increased right padding for carat */
-  padding-left: 15px !important;
-  text-align: left !important;
-  position: relative !important;
 }
 
 /* Style the carat */

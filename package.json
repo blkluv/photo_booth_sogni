@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\" --fix"
+    "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\" --fix",
+    "deploy-prod": "npm run build && rsync -ar --progress dist/ sogni-api:/var/www/superapps.sogni.ai/photobooth/",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@sogni-ai/sogni-client": "3.0.0-alpha.11",

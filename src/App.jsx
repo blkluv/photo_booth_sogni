@@ -1779,21 +1779,19 @@ const App = () => {
           position: 'relative',
           height: 120, // FIX: Match new bottom border height
         }}>
-          {/* Add style selector to the left of the Take Photo button */}
+          {/* Style selector moved to the left corner */}
           <div className="style-selector bottom-style-selector" style={{
             position: 'absolute',
-            left: '50%',
-            marginLeft: '-180px',
-            top: '50%',
+            left: '25px', // Fixed position at left corner
+            top: '80%',
             transform: 'translateY(-50%)',
             zIndex: 5,
             textAlign: 'left',
-            width: 'calc(100% - 64px)', // clamp to polaroid inner width
-            maxWidth: 340,
+            width: 'auto',
+            maxWidth: 180,
             marginBottom: '18px',
-            marginRight: '24px',
             wordBreak: 'break-word',
-        }}>
+          }}>
           <button
               ref={styleButtonReference}
               className="bottom-style-select" 
@@ -1819,7 +1817,7 @@ const App = () => {
                 minWidth: 0,
                 minHeight: 0,
                 lineHeight: 'normal',
-                margin: '0 auto',
+                margin: 0,
                 maxWidth: '100%',
                 fontFamily: '"Permanent Marker", cursive',
                 fontWeight: 'bold'
@@ -1842,8 +1840,8 @@ const App = () => {
                 zIndex: 10_000,
                 transformOrigin: dropdownPosition === 'top' ? 'center bottom' : 'center top',
                 animation: 'dropdownAppear 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards',
-                left: '50%',
-                transform: 'translateX(-50%)',
+                left: '0%',
+                transform: 'translateX(0%)',
                 ...(dropdownPosition === 'top' 
                   ? { bottom: '100%', marginBottom: '10px' } 
                   : { top: '100%', marginTop: '10px' }),
@@ -1856,11 +1854,11 @@ const App = () => {
               @keyframes dropdownAppear {
                 from {
                   opacity: 0;
-                  transform: translateX(-50%) translateY(10px);
+                  transform: translateX(0%) translateY(10px);
                 }
                 to {
                   opacity: 1; 
-                  transform: translateX(-50%) translateY(0);
+                  transform: translateX(0%) translateY(0);
                 }
               }
             `}</style>

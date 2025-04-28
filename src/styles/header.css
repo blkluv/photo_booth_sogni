@@ -75,12 +75,6 @@
   transform: rotate(15deg);
 }
 
-/* Optional style selector dropdown positioned in header */
-.style-selector {
-  position: relative;
-  max-width: 200px;
-}
-
 /* ------------------------------ */
 /* Mobile adjustments below 768px */
 /* ------------------------------ */

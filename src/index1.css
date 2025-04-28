@@ -92,12 +92,6 @@ div[style*="film content area"] {
     justify-content: center;
   }
   
-  .style-selector {
-    position: relative !important;
-    max-width: none;
-    width: 100%;
-  }
-  
   .header-take-photo-btn {
     width: 100%;
   }
