@@ -22,18 +22,7 @@ export async function initializeSogniClient(): Promise<SogniClient> {
   return client;
 }
 
-export async function generateImage(
-  client: SogniClient,
-  photoBlob: Blob,
-  settings: {
-    model: string;
-    prompt: string;
-    numImages: number;
-    promptGuidance: number;
-    controlNetStrength: number;
-    controlNetGuidanceEnd: number;
-  }
-): Promise<string[]> {
+export async function generateImage(): Promise<string[]> {
   // Implementation will be moved from App.jsx
   // This is just the interface for now
   return [];

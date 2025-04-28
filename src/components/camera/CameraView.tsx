@@ -3,21 +3,17 @@ import styles from '../../styles/components/camera.module.css';
 
 interface CameraViewProps {
   /** Video ref for the webcam stream */
-  videoRef: React.RefObject<HTMLVideoElement>;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
   /** Whether the camera is ready to take photos */
   isReady: boolean;
   /** Current countdown value (0 means no countdown) */
   countdown: number;
-  /** Whether to show the flash effect */
-  showFlash: boolean;
   /** Whether the shutter button is disabled */
   isDisabled?: boolean;
   /** Label to show on the shutter button */
   buttonLabel?: string;
   /** Handler for when the shutter button is clicked */
   onTakePhoto: () => void;
-  /** Whether the camera is animating */
-  isAnimating?: boolean;
   /** Whether to show the photo grid */
   showPhotoGrid?: boolean;
   /** Current style selection */
@@ -80,11 +76,9 @@ export const CameraView: React.FC<CameraViewProps> = ({
   videoRef,
   isReady,
   countdown,
-  showFlash,
   isDisabled = false,
   buttonLabel = 'Take Photo',
   onTakePhoto,
-  isAnimating = false,
   showPhotoGrid = false,
   selectedStyle = '',
   onStyleSelect = () => {},

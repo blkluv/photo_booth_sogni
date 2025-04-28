@@ -17,7 +17,7 @@
     "allowJs": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "types": ["jest", "node", "@testing-library/jest-dom"],
+    "types": ["jest", "node", "@testing-library/jest-dom", "vite/client"],
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]

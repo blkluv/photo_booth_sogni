@@ -9,7 +9,6 @@ describe('CameraView', () => {
     videoRef: mockVideoRef,
     isReady: true,
     countdown: 0,
-    showFlash: false,
     onTakePhoto: jest.fn(),
     selectedStyle: 'watercolor',
     onStyleSelect: jest.fn(),
@@ -52,12 +51,6 @@ describe('CameraView', () => {
     
     expect(screen.getByTestId('countdown')).toBeInTheDocument();
     expect(screen.getByTestId('countdown').textContent).toBe('3');
-  });
-
-  it('shows flash overlay when showFlash is true', () => {
-    render(<CameraView {...defaultProps} showFlash={true} />);
-    
-    expect(screen.getByTestId('flash')).toBeInTheDocument();
   });
 
   it('disables shutter button when isReady is false', () => {

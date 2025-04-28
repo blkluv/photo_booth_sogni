@@ -66,7 +66,18 @@ export class PhotoService {
     };
 
     try {
-      const job = await this.sogniClient.generateFromImage({
+      interface SogniClientWithGenerate extends SogniClient {
+        generateFromImage: (params: {
+          image: Blob;
+          model: string;
+          prompt: string;
+          promptGuidance: number;
+          controlNetStrength: number;
+          controlNetGuidanceEnd: number;
+        }) => Promise<any>;
+      }
+      
+      const job = await (this.sogniClient as SogniClientWithGenerate).generateFromImage({
         image: photoBlob,
         model: settings.selectedModel,
         prompt: settings.customPrompt || settings.selectedStyle,
@@ -77,8 +88,8 @@ export class PhotoService {
 
       this.setupJobProgress(job, newPhotoIndex);
       return photo;
-    } catch (error) {
-      photo.error = error.message;
+    } catch (error: unknown) {
+      photo.error = error instanceof Error ? error.message : 'Unknown error occurred';
       photo.generating = false;
       photo.loading = false;
       return photo;

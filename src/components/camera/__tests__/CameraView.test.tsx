@@ -1,19 +1,25 @@
-import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import CameraView from '../CameraView';
+import { createRef } from 'react';
 
 describe('CameraView', () => {
-  const mockVideoRef = { current: document.createElement('video') };
+  // Create a proper ref with a non-null assertion to match the expected type
+  const mockVideo = document.createElement('video');
+  const mockVideoRef = createRef<HTMLVideoElement>();
+  // Force the ref's current property to be the mock video element
+  Object.defineProperty(mockVideoRef, 'current', {
+    value: mockVideo,
+    writable: true
+  });
+  
   const defaultProps = {
     videoRef: mockVideoRef,
     isReady: true,
     countdown: 0,
-    showFlash: false,
     isDisabled: false,
     buttonLabel: 'Take Photo',
     onTakePhoto: jest.fn(),
-    isAnimating: false,
     showPhotoGrid: false,
     selectedStyle: 'Classic',
     onStyleSelect: jest.fn(),
@@ -67,11 +73,6 @@ describe('CameraView', () => {
     expect(screen.getByText('3')).toBeInTheDocument();
   });
 
-  it('shows flash overlay when showFlash is true', () => {
-    render(<CameraView {...defaultProps} showFlash={true} />);
-    expect(screen.getByTestId('flash-overlay')).toBeInTheDocument();
-  });
-
   it('disables shutter button when isDisabled is true', () => {
     render(<CameraView {...defaultProps} isDisabled={true} />);
     const shutterButton = screen.getByRole('button', { name: defaultProps.buttonLabel });
@@ -85,26 +86,14 @@ describe('CameraView', () => {
     expect(defaultProps.onTakePhoto).toHaveBeenCalled();
   });
 
-  it('adds flying-in animation class when animating to grid', () => {
-    render(<CameraView {...defaultProps} isAnimating={true} showPhotoGrid={true} />);
-    const container = screen.getByTestId('camera-container');
-    expect(container.classList.contains('camera-flying-in')).toBe(true);
-  });
-
-  it('adds flying-out animation class when animating from grid', () => {
-    render(<CameraView {...defaultProps} isAnimating={true} showPhotoGrid={false} />);
-    const container = screen.getByTestId('camera-container');
-    expect(container.classList.contains('camera-flying-out')).toBe(true);
-  });
-
   it('hides camera view when photo grid is shown', () => {
-    render(<CameraView {...defaultProps} showPhotoGrid={true} isAnimating={false} />);
+    render(<CameraView {...defaultProps} showPhotoGrid={true} />);
     const container = screen.getByTestId('camera-container');
     expect(container).toHaveStyle({ display: 'none' });
   });
 
   it('shows camera view when photo grid is hidden', () => {
-    render(<CameraView {...defaultProps} showPhotoGrid={false} isAnimating={false} />);
+    render(<CameraView {...defaultProps} showPhotoGrid={false} />);
     const container = screen.getByTestId('camera-container');
     expect(container).not.toHaveStyle({ display: 'none' });
   });
@@ -117,7 +106,7 @@ describe('CameraView', () => {
     });
 
     render(<CameraView {...defaultProps} />);
-    expect(mockVideoRef.current.classList.contains('ios-fix')).toBe(true);
+    expect(mockVideoRef.current?.classList.contains('ios-fix')).toBe(true);
 
     // Restore original userAgent
     Object.defineProperty(window.navigator, 'userAgent', {
