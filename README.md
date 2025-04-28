@@ -196,3 +196,128 @@ npm run build
 
 The build output will be in the `dist` directory.
 
+### Development Workflow & Testing
+
+#### Visual Testing
+
+The project uses Playwright for visual regression testing. Here are the key testing commands:
+
+```bash
+# Run visual tests with HTML report (interactive development)
+npm run test:visual
+
+# Run visual tests with list reporter (CI/automation)
+npm run test:visual:ci
+
+# Update visual test snapshots
+npm run test:visual:update
+```
+
+##### Visual Test Structure
+- `/tests/visual/`: Main test directory
+  - `camera-view.spec.ts`: Camera UI component tests
+  - `components.spec.ts`: Shared component tests
+  - `photo-grid.spec.ts`: Photo gallery tests
+  - `reference.spec.ts`: Captures reference states
+  - `verify.spec.ts`: Verifies component states against references
+
+##### Test Utilities
+- `/tests/helpers/`:
+  - `test-utils.ts`: Common test helpers (camera mocking, waiting functions)
+  - `component-test-utils.ts`: Component-specific test utilities
+
+##### Best Practices
+1. **Running Tests**
+   - Use `test:visual:ci` for automation/CI to avoid hanging on HTML report server
+   - Use `test:visual` for local development when you need the HTML report
+   - Always check selector existence before running visual tests
+
+2. **Maintaining Tests**
+   - Keep reference snapshots up to date with `test:visual:update`
+   - Ensure unique, specific selectors for components
+   - Handle loading states and animations appropriately
+   - Mock external dependencies (camera, API calls)
+
+3. **Common Issues & Solutions**
+   - Selector not found: Check component class names and wait for render
+   - Multiple elements matching selector: Use more specific selectors
+   - Timeout on animations: Use `waitForAnimations` helper
+   - Camera permission issues: Use `mockCameraPermissions` helper
+
+4. **Visual Test Guidelines**
+   - Test both desktop and mobile layouts
+   - Verify component states (default, hover, active)
+   - Check responsive behavior
+   - Validate layout measurements
+   - Test user interaction flows
+
+### Refactoring Workflow
+
+#### Visual Regression Testing
+
+The project uses a comprehensive visual regression testing system to ensure refactoring doesn't introduce visual changes:
+
+```bash
+# Before refactoring:
+npm run test:visual:baseline  # Capture current state
+
+# After refactoring:
+npm run test:visual:refactor  # Run full comparison workflow
+```
+
+The comparison workflow:
+1. Captures baseline snapshots of the current UI state
+2. Updates test snapshots after refactoring
+3. Compares snapshots with pixel-perfect precision (0.1% tolerance)
+4. Generates a report of any visual differences
+
+#### Component Extraction Process
+
+When extracting components from `App.jsx`:
+
+1. **Capture Baseline**
+   ```bash
+   npm run test:visual:baseline
+   ```
+
+2. **Create New Component**
+   - Create component file in appropriate directory
+   - Move relevant code from App.jsx
+   - Update imports and props
+
+3. **Verify Visual Match**
+   ```bash
+   npm run test:visual:refactor
+   ```
+
+4. **Handle Differences**
+   - If differences detected, check the comparison report
+   - Fix any styling issues
+   - Re-run verification until passing
+
+5. **Update Tests**
+   - Add component-specific tests
+   - Update existing tests if needed
+
+#### Best Practices
+
+1. **Component Organization**
+   - Place components in appropriate directories under `/src/components`
+   - Use feature-based organization (e.g., `/camera`, `/photo-grid`)
+   - Keep shared components in `/shared`
+
+2. **Style Management**
+   - Maintain CSS modules in `/src/styles/components`
+   - Use consistent class naming
+   - Preserve existing style classes when refactoring
+
+3. **Testing**
+   - Add unit tests for new components
+   - Maintain visual regression tests
+   - Test responsive behavior
+
+4. **Documentation**
+   - Update component props documentation
+   - Document any new features or changes
+   - Keep README up to date
+

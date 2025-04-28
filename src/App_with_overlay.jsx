@@ -8,12 +8,211 @@ import slothicornImage from './slothicorn-camera.png';
 import light1Image from './light1.png';
 import light2Image from './light2.png';
 import './App.css';
+import InitialOverlay from './components/InitialOverlay';
 import prompts from './prompts.json';
 import ReactDOM from 'react-dom';
-import CameraView from './components/camera/CameraView';
-import ControlPanel from './components/ControlPanel';
-import StyleDropdown from './components/shared/StyleDropdown';
-import { AppProvider, useApp } from './context/AppContext';
+
+// StyleDropdown component that uses portals to render outside the DOM hierarchy
+const StyleDropdown = ({ 
+  isOpen, 
+  onClose, 
+  selectedStyle, 
+  updateStyle, 
+  defaultStylePrompts, 
+  styleIdToDisplay, 
+  showControlOverlay, 
+  setShowControlOverlay, 
+  dropdownPosition = 'top' // Add default value
+}) => {
+  const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [mounted, setMounted] = useState(false);
+  const dropdownReference = useRef(null);
+  
+  useEffect(() => {
+    if (isOpen) {
+      // Find the style button in the DOM to position the dropdown
+      const styleButton = document.querySelector('.bottom-style-select');
+      if (styleButton) {
+        const rect = styleButton.getBoundingClientRect();
+        // Position above the button for the bottom toolbar
+        setPosition({
+          bottom: window.innerHeight - rect.top + 10,
+          left: rect.left + rect.width / 2,
+          width: 280
+        });
+        setMounted(true);
+      }
+    } else {
+      setMounted(false);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      const handleClickOutside = (e) => {
+        if (dropdownReference.current && !dropdownReference.current.contains(e.target)) {
+          // Check if the click was on the style button
+          const styleButton = document.querySelector('.bottom-style-select');
+          if (!styleButton || !styleButton.contains(e.target)) {
+            onClose();
+          }
+        }
+      };
+      
+      document.addEventListener('click', handleClickOutside);
+      
+      // Scroll selected option into view
+      setTimeout(() => {
+        const selectedOption = document.querySelector('.style-option.selected');
+        if (selectedOption && dropdownReference.current) {
+          selectedOption.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+      
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [isOpen, onClose]);
+
+  // If not mounted or not open, don't render anything
+  if (!mounted || !isOpen) return null;
+
+  // Create portal to render the dropdown at the document root
+  return ReactDOM.createPortal(
+    <div 
+      ref={dropdownReference}
+      className={`style-dropdown ${dropdownPosition}-position`}
+      style={{
+        position: 'fixed',
+        ...(dropdownPosition === 'top' 
+          ? { bottom: position.bottom } 
+          : { top: position.bottom }),
+        left: position.left,
+        transform: 'translateX(-50%)',
+        maxHeight: 300,
+        width: position.width,
+        background: 'white',
+        borderRadius: 5,
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        overflow: 'auto',
+        zIndex: 10_000,
+        transformOrigin: dropdownPosition === 'top' ? 'center bottom' : 'center top',
+        animation: 'dropdownAppear 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards',
+        border: '1px solid rgba(0,0,0,0.1)',
+        fontFamily: '"Permanent Marker", cursive',
+        fontSize: 13,
+      }}
+    >
+      <style>{`
+        @keyframes dropdownAppear {
+          from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(${dropdownPosition === 'top' ? '10px' : '-10px'});
+          }
+          to {
+            opacity: 1; 
+            transform: translateX(-50%) translateY(0);
+          }
+        }
+      `}</style>
+
+      <div className="style-section featured">
+        {/* Featured options */}
+        <div 
+          className={`style-option ${selectedStyle === 'randomMix' ? 'selected' : ''}`} 
+          onClick={() => { 
+            updateStyle('randomMix');
+            onClose();
+          }}
+          style={{
+            padding: '8px 12px',
+            cursor: 'pointer',
+            transition: 'background-color 0.2s',
+            color: selectedStyle === 'randomMix' ? '#ff5e8a' : '#333',
+            background: selectedStyle === 'randomMix' ? '#fff0f4' : 'transparent',
+            fontFamily: '"Permanent Marker", cursive',
+            fontSize: 13,
+            textAlign: 'left'
+          }}
+        >
+          <span style={{ marginRight: 8 }}>🎲</span>
+          <span>Random Mix</span>
+        </div>
+        
+        <div 
+          className={`style-option ${selectedStyle === 'random' ? 'selected' : ''}`} 
+          onClick={() => { 
+            updateStyle('random');
+            onClose();
+          }}
+          style={{
+            padding: '8px 12px',
+            cursor: 'pointer',
+            transition: 'background-color 0.2s',
+            color: selectedStyle === 'random' ? '#ff5e8a' : '#333',
+            background: selectedStyle === 'random' ? '#fff0f4' : 'transparent',
+            fontFamily: '"Permanent Marker", cursive',
+            fontSize: 13,
+            textAlign: 'left'
+          }}
+        >
+          <span style={{ marginRight: 8 }}>🔀</span>
+          <span>Random</span>
+        </div>
+        
+        <div 
+          className={`style-option ${selectedStyle === 'custom' ? 'selected' : ''}`} 
+          onClick={() => { 
+            updateStyle('custom');
+            onClose();
+            setShowControlOverlay(true);
+          }}
+          style={{
+            padding: '8px 12px',
+            cursor: 'pointer',
+            transition: 'background-color 0.2s',
+            color: selectedStyle === 'custom' ? '#ff5e8a' : '#333',
+            background: selectedStyle === 'custom' ? '#fff0f4' : 'transparent',
+            fontFamily: '"Permanent Marker", cursive',
+            fontSize: 13,
+            textAlign: 'left'
+          }}
+        >
+          <span style={{ marginRight: 8 }}>✏️</span>
+          <span>Custom...</span>
+        </div>
+      </div>
+      
+      <div className="style-section regular">
+        {Object.keys(defaultStylePrompts)
+          .filter(key => key !== 'random' && key !== 'custom' && key !== 'randomMix')
+          .sort()
+          .map(styleKey => (
+            <div 
+              key={styleKey}
+              className={`style-option ${selectedStyle === styleKey ? 'selected' : ''}`} 
+              onClick={() => { 
+                updateStyle(styleKey);
+                onClose();
+              }}
+              style={{
+                padding: '8px 12px',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s',
+                color: selectedStyle === styleKey ? '#ff5e8a' : '#333',
+                background: selectedStyle === styleKey ? '#fff0f4' : 'transparent',
+                fontFamily: '"Permanent Marker", cursive',
+                fontSize: 13,
+                textAlign: 'left'
+              }}
+            >
+              <span>{styleIdToDisplay(styleKey)}</span>
+            </div>
+          ))}
+      </div>
+    </div>,
+    document.body
+  );
+};
 
 // Cookie utility functions
 const saveSettingsToCookies = (settings) => {
@@ -208,6 +407,10 @@ const App = () => {
 
   // Drag-and-drop state
   const [dragActive, setDragActive] = useState(false);
+
+  // Add state for initial overlay
+  const [showInitialOverlay, setShowInitialOverlay] = useState(true);
+  const fileInputRef = useRef(null);
 
   // First, let's create a proper job tracking map at the top of the App component:
   const jobMapReference = useRef(new Map());
@@ -624,12 +827,10 @@ const App = () => {
   useEffect(() => {
     (async () => {
       await listCameras();
-      // Start default camera (facingMode: user)
-      await startCamera(null);
-      // Initialize sogni
+      // Only initialize Sogni, don't start camera automatically
       await initializeSogni();
     })();
-  }, [startCamera, listCameras]);
+  }, [listCameras]);
 
   // If we return to camera, ensure the video is playing
   useEffect(() => {
@@ -1190,6 +1391,136 @@ const App = () => {
     setDragActive(false);
   };
 
+  // File input handling
+  const handleBrowseClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Camera start handling
+  const handleStartCamera = async () => {
+    setShowInitialOverlay(false);
+    // Start default camera (facingMode: user)
+    await startCamera(null);
+  };
+
+  const handleFileSelect = (e) => {
+    // Get the selected file
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.match('image/(jpeg|jpg|png)')) {
+      alert('Only JPG and PNG images are supported.');
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    if (file.size > MAX_FILE_SIZE) {
+      alert('Image is too large. Maximum size is 10MB.');
+      return;
+    }
+
+    // Hide initial overlay
+    setShowInitialOverlay(false);
+
+    // Create a new photo item
+    const newPhoto = {
+      id: Date.now(),
+      generating: true,
+      images: [],
+      error: null,
+      originalDataUrl: null,
+      newlyArrived: false,
+      generationCountdown: 10,
+    };
+    setPhotos((previous) => [...previous, newPhoto]);
+    const newPhotoIndex = photos.length;
+
+    // Read the file as dataURL
+    const reader = new FileReader();
+    reader.addEventListener('load', (event) => {
+      const dataUrl = event.target.result;
+      newPhoto.originalDataUrl = dataUrl;
+
+      // Process the image while maintaining aspect ratio
+      processAndGenerateFromFile(file, newPhotoIndex, dataUrl);
+    });
+    reader.readAsDataURL(file);
+  };
+
+  // Process image while maintaining aspect ratio
+  const processAndGenerateFromFile = async (file, newPhotoIndex, dataUrl) => {
+    try {
+      // Create an image to get dimensions
+      const img = new Image();
+      img.onload = async () => {
+        const originalWidth = img.width;
+        const originalHeight = img.height;
+        
+        // Determine if the image is portrait or landscape
+        const isImagePortrait = originalHeight > originalWidth;
+        
+        // Determine the desired dimensions based on original aspect ratio
+        let targetWidth, targetHeight;
+        if (isImagePortrait) {
+          targetWidth = 896;
+          targetHeight = 1152;
+        } else {
+          targetWidth = 1152;
+          targetHeight = 896;
+        }
+        
+        // Create a canvas to resize the image properly
+        const canvas = document.createElement('canvas');
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        const ctx = canvas.getContext('2d');
+        
+        // Fill with black to prevent transparency
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, targetWidth, targetHeight);
+        
+        // Calculate dimensions to maintain aspect ratio
+        const originalAspect = originalWidth / originalHeight;
+        const targetAspect = targetWidth / targetHeight;
+        
+        let drawWidth, drawHeight, offsetX = 0, offsetY = 0;
+        
+        // If original aspect is wider than target, fit to height
+        if (originalAspect > targetAspect) {
+          drawHeight = targetHeight;
+          drawWidth = drawHeight * originalAspect;
+          offsetX = (targetWidth - drawWidth) / 2;
+        } else {
+          // Otherwise fit to width
+          drawWidth = targetWidth;
+          drawHeight = drawWidth / originalAspect;
+          offsetY = (targetHeight - drawHeight) / 2;
+        }
+        
+        // Draw the image centered on the canvas
+        ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+        
+        // Get the resized image as blob
+        canvas.toBlob(async (blob) => {
+          if (!blob) {
+            console.error('Failed to create blob from canvas');
+            return;
+          }
+          
+          // Generate from the properly sized blob
+          generateFromBlob(blob, newPhotoIndex, dataUrl);
+        }, 'image/png');
+      };
+      
+      img.src = dataUrl;
+    } catch (error) {
+      console.error('Error processing image:', error);
+      alert('Error processing image. Please try again.');
+    }
+  };
+
   const handleDrop = (e) => {
     e.preventDefault();
     setDragActive(false);
@@ -1199,9 +1530,25 @@ const App = () => {
       return;
     }
 
+    // Hide initial overlay if it's showing
+    setShowInitialOverlay(false);
+
     // If user dropped multiple files, just take the first
     const file = e.dataTransfer.files && e.dataTransfer.files[0];
     if (!file) return;
+
+    // Validate file type
+    if (!file.type.match('image/(jpeg|jpg|png)')) {
+      alert('Only JPG and PNG images are supported.');
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    if (file.size > MAX_FILE_SIZE) {
+      alert('Image is too large. Maximum size is 10MB.');
+      return;
+    }
 
     // Create a new photo item
     const newPhoto = {
@@ -1222,8 +1569,8 @@ const App = () => {
       const dataUrl = event.target.result;
       newPhoto.originalDataUrl = dataUrl;
 
-      // Now feed the Blob itself into the generator
-      generateFromBlob(file, newPhotoIndex, dataUrl);
+      // Process the image while maintaining aspect ratio
+      processAndGenerateFromFile(file, newPhotoIndex, dataUrl);
     });
     reader.readAsDataURL(file);
   };
@@ -1419,46 +1766,561 @@ const App = () => {
   //   Main area (video)
   // -------------------------
   const renderMainArea = () => (
-    <CameraView
-      videoRef={videoReference}
-      isReady={isSogniReady}
-      countdown={countdown}
-      showFlash={showFlash}
-      isDisabled={isPhotoButtonCooldown || activeProjectReference.current}
-      buttonLabel={activeProjectReference.current ? "Photo in Progress" : "Take Photo"}
-      onTakePhoto={handleTakePhoto}
-      isAnimating={cameraAnimating}
-      showPhotoGrid={showPhotoGrid}
-      selectedStyle={selectedStyle}
-      onStyleSelect={setSelectedStyle}
-      showSettings={showControlOverlay}
-      onToggleSettings={() => setShowControlOverlay(!showControlOverlay)}
-      stylePrompts={defaultStylePrompts}
-      customPrompt={customPrompt}
-      onCustomPromptChange={(value) => {
-        setCustomPrompt(value);
-        saveSettingsToCookies({ customPrompt: value });
-      }}
-      cameraDevices={cameraDevices}
-      selectedCameraDeviceId={selectedCameraDeviceId}
-      onCameraSelect={handleCameraSelection}
-      modelOptions={modelOptions}
-      selectedModel={selectedModel}
-      onModelSelect={(value) => updateSetting(setSelectedModel, 'selectedModel')(value)}
-      numImages={numberImages}
-      onNumImagesChange={(value) => updateSetting(setNumberImages, 'numImages')(value)}
-      promptGuidance={promptGuidance}
-      onPromptGuidanceChange={(value) => updateSetting(setPromptGuidance, 'promptGuidance')(value)}
-      controlNetStrength={controlNetStrength}
-      onControlNetStrengthChange={(value) => updateSetting(setControlNetStrength, 'controlNetStrength')(value)}
-      controlNetGuidanceEnd={controlNetGuidanceEnd}
-      onControlNetGuidanceEndChange={(value) => updateSetting(setControlNetGuidanceEnd, 'controlNetGuidanceEnd')(value)}
-      flashEnabled={flashEnabled}
-      onFlashEnabledChange={(value) => updateSetting(setFlashEnabled, 'flashEnabled')(value)}
-      keepOriginalPhoto={keepOriginalPhoto}
-      onKeepOriginalPhotoChange={(value) => updateSetting(setKeepOriginalPhoto, 'keepOriginalPhoto')(value)}
-      onResetSettings={resetAllSettings}
-    />
+    <div className={`camera-polaroid-bg ${cameraAnimating ? (showPhotoGrid ? 'camera-flying-in' : 'camera-flying-out') : ''}`}
+      style={{
+        display: showPhotoGrid ? 'none' : 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: '100vw',
+        height: '100vh',
+        minHeight: 0,
+        minWidth: 0,
+        background: 'transparent',
+        zIndex: 10,
+        position: 'absolute', // Changed from relative to absolute
+        pointerEvents: 'none', // Add this to let clicks through
+      }}>
+      <div className="polaroid-frame" style={{
+        pointerEvents: 'auto', // Add this to restore clicks on the frame
+        background: '#faf9f6',
+        borderRadius: 8, // FIX: Subtle, authentic polaroid corners
+        boxShadow: '0 8px 30px rgba(0,0,0,0.18), 0 1.5px 0 #e5e5e5',
+        border: '1.5px solid #ececec',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        padding: 0,
+        width: '100%',
+        maxWidth: 'min(98vw, 700px)',
+        minWidth: 380,
+        height: 'auto',
+        maxHeight: '90vh',
+        position: 'relative',
+        overflow: 'visible',
+        margin: '0 auto',
+        zIndex: 10_001,
+      }}>
+        {/* FIX: Controls row is visually inside the thick top border, not floating above or outside */}
+        <div style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 20px',
+          boxSizing: 'border-box',
+          minHeight: 0,
+          gap: 12,
+          height: 56, // Make the top bar tall
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 2,
+        }}>
+          <div className="photobooth-title" style={{
+            fontFamily: '"Permanent Marker", cursive',
+            fontSize: 20,
+            fontWeight: 'bold',
+            color: '#ff5e8a',
+            textShadow: '0 1px 0 #fff',
+            letterSpacing: 1,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            margin: 0,
+            padding: 0,
+            lineHeight: 1.2,
+          }}>
+            SOGNI PHOTOBOOTH
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Remove the header style selector completely */}
+            <button 
+              className="header-config-btn"
+              onClick={() => {
+                setShowControlOverlay(!showControlOverlay);
+                if (!showControlOverlay) {
+                  setShowStyleDropdown(false);
+                }
+              }}
+              style={{ marginLeft: 4 }}
+            >
+              {showControlOverlay ? '✕' : '⚙️'}
+            </button>
+          </div>
+        </div>
+        {/* FIX: Strict 9:7 aspect ratio, subtle 8px border radius, with fallback for browsers without aspect-ratio */}
+        <div style={{
+          width: '100%',
+          aspectRatio: '9 / 7', // Strict 9:7 aspect ratio
+          background: 'white',
+          borderLeft: '32px solid white',
+          borderRight: '32px solid white',
+          borderTop: '56px solid white',
+          borderBottom: '120px solid white',
+          borderRadius: 8, // Subtle corners
+          boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
+          overflow: 'hidden',
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginTop: 0,
+          transition: 'all 0.2s',
+          // Fallback for browsers without aspect-ratio
+          paddingBottom: '77.78%', // 7/9 = 0.7778, so 9:7 aspect
+          height: 0,
+          minHeight: 0,
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <video
+              id="webcam"
+              ref={videoReference}
+              autoPlay
+              playsInline
+              muted
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                display: 'block',
+                background: '#222',
+                borderRadius: 0, // Remove border radius for sharp corners
+                aspectRatio: '9 / 7',
+                maxWidth: '100%',
+                maxHeight: '100%',
+                transition: 'all 0.2s',
+              }}
+            />
+            {countdown > 0 && (
+              <div className="countdown-overlay">
+                {countdown}
+              </div>
+            )}
+            {showFlash && <div className="flash-overlay" />}
+          </div>
+        </div>
+        {/* FIX: Take Photo button is always fully inside the bottom border, vertically centered, never hanging off */}
+        <div className="polaroid-bottom-tab" style={{
+          width: '100%',
+          minHeight: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 0,
+          boxSizing: 'border-box',
+          background: 'transparent',
+          borderBottomLeftRadius: 20,
+          borderBottomRightRadius: 20,
+          boxShadow: 'none',
+          marginTop: '-120px', // FIX: Match new bottom border height
+          zIndex: 3,
+          position: 'relative',
+          height: 120, // FIX: Match new bottom border height
+        }}>
+          {/* Style selector moved to the left corner */}
+          <div className="style-selector bottom-style-selector" style={{
+            position: 'absolute',
+            left: '25px', // Fixed position at left corner
+            top: '80%',
+            transform: 'translateY(-50%)',
+            zIndex: 5,
+            textAlign: 'left',
+            width: 'auto',
+            maxWidth: 180,
+            marginBottom: '18px',
+            wordBreak: 'break-word',
+          }}>
+          <button
+              ref={styleButtonReference}
+              className="bottom-style-select" 
+              onClick={toggleStyleDropdown}
+              style={{
+                all: 'unset',
+                background: 'none',
+                border: 'none',
+                color: '#333',
+                fontSize: 18,
+                padding: 0,
+                cursor: 'pointer',
+                display: 'block',
+                whiteSpace: 'normal',
+                overflow: 'visible',
+                textOverflow: 'clip',
+                wordBreak: 'break-word',
+                textAlign: 'left',
+                position: 'relative',
+                textTransform: 'none',
+                boxShadow: 'none',
+                borderRadius: 0,
+                minWidth: 0,
+                minHeight: 0,
+                lineHeight: 'normal',
+                margin: 0,
+                maxWidth: '100%',
+                fontFamily: '"Permanent Marker", cursive',
+                fontWeight: 'bold'
+              }}
+            >
+              Prompt: {selectedStyle === 'custom' 
+                ? 'Custom...' 
+                : styleIdToDisplay(selectedStyle)}
+            </button>
+            
+            {showStyleDropdown && (
+              <div className={`style-dropdown ${dropdownPosition}-position`} style={{
+                position: 'absolute',
+                maxHeight: 300,
+                width: 280,
+                background: 'white',
+                borderRadius: 5,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                overflow: 'auto',
+                zIndex: 10_000,
+                transformOrigin: dropdownPosition === 'top' ? 'center bottom' : 'center top',
+                animation: 'dropdownAppear 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards',
+                left: '0%',
+                transform: 'translateX(0%)',
+                ...(dropdownPosition === 'top' 
+                  ? { bottom: '100%', marginBottom: '10px' } 
+                  : { top: '100%', marginTop: '10px' }),
+                border: '1px solid rgba(0,0,0,0.1)',
+                fontFamily: '"Permanent Marker", cursive',
+                fontSize: 13,
+              }}>
+            
+            <style>{`
+              @keyframes dropdownAppear {
+                from {
+                  opacity: 0;
+                  transform: translateX(0%) translateY(10px);
+                }
+                to {
+                  opacity: 1; 
+                  transform: translateX(0%) translateY(0);
+                }
+              }
+            `}</style>
+                <div className="style-section featured">
+                  {/* Featured options */}
+                  <div 
+                    className={`style-option ${selectedStyle === 'randomMix' ? 'selected' : ''}`} 
+                    onClick={() => { 
+                      updateSetting(setSelectedStyle, 'selectedStyle')('randomMix');
+                      setShowStyleDropdown(false);
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s',
+                      color: selectedStyle === 'randomMix' ? '#ff5e8a' : '#333',
+                      background: selectedStyle === 'randomMix' ? '#fff0f4' : 'transparent',
+                      fontFamily: '"Permanent Marker", cursive',
+                      fontSize: 13,
+                      textAlign: 'left'
+                    }}
+                  >
+                    <span style={{ marginRight: 8 }}>🎲</span>
+                    <span>Random Mix</span>
+                  </div>
+                  
+                  <div 
+                    className={`style-option ${selectedStyle === 'random' ? 'selected' : ''}`} 
+                    onClick={() => { 
+                      updateSetting(setSelectedStyle, 'selectedStyle')('random');
+                      setShowStyleDropdown(false);
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s',
+                      color: selectedStyle === 'random' ? '#ff5e8a' : '#333',
+                      background: selectedStyle === 'random' ? '#fff0f4' : 'transparent',
+                      fontFamily: '"Permanent Marker", cursive',
+                      fontSize: 13,
+                      textAlign: 'left'
+                    }}
+                  >
+                    <span style={{ marginRight: 8 }}>🔀</span>
+                    <span>Random</span>
+                  </div>
+                  
+                  <div 
+                    className={`style-option ${selectedStyle === 'custom' ? 'selected' : ''}`} 
+                    onClick={() => { 
+                      updateSetting(setSelectedStyle, 'selectedStyle')('custom');
+                      setShowStyleDropdown(false);
+                      setShowControlOverlay(true);
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s',
+                      color: selectedStyle === 'custom' ? '#ff5e8a' : '#333',
+                      background: selectedStyle === 'custom' ? '#fff0f4' : 'transparent',
+                      fontFamily: '"Permanent Marker", cursive',
+                      fontSize: 13,
+                      textAlign: 'left'
+                    }}
+                  >
+                    <span style={{ marginRight: 8 }}>✏️</span>
+                    <span>Custom...</span>
+                  </div>
+                </div>
+                
+                <div className="style-section regular">
+                  {Object.keys(defaultStylePrompts)
+                    .filter(key => key !== 'random' && key !== 'custom' && key !== 'randomMix')
+                    .sort()
+                    .map(styleKey => (
+                      <div 
+                        key={styleKey}
+                        className={`style-option ${selectedStyle === styleKey ? 'selected' : ''}`} 
+                        onClick={() => { 
+                          updateSetting(setSelectedStyle, 'selectedStyle')(styleKey);
+                          setShowStyleDropdown(false);
+                        }}
+                        style={{
+                          padding: '8px 12px',
+                          cursor: 'pointer',
+                          transition: 'background-color 0.2s',
+                          color: selectedStyle === styleKey ? '#ff5e8a' : '#333',
+                          background: selectedStyle === styleKey ? '#fff0f4' : 'transparent',
+                          fontFamily: '"Permanent Marker", cursive',
+                          fontSize: 13,
+                          textAlign: 'left'
+                        }}
+                      >
+                        <span>{styleIdToDisplay(styleKey)}</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button
+            className={`take-photo-polaroid-btn camera-shutter-btn ${isPhotoButtonCooldown || activeProjectReference.current ? 'cooldown' : ''}`}
+            onClick={handleTakePhoto}
+            disabled={!isSogniReady || isPhotoButtonCooldown || activeProjectReference.current}
+            style={{
+              background: isPhotoButtonCooldown || activeProjectReference.current ? '#eee' : '#fff',
+              color: '#222',
+              border: '4px solid #222',
+              borderRadius: '50%',
+              width: 64,
+              height: 64,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 20,
+              fontWeight: 700,
+              cursor: isPhotoButtonCooldown || activeProjectReference.current ? 'not-allowed' : 'pointer',
+              transition: 'background 0.2s',
+              outline: 'none',
+              margin: 0,
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)', // Centered in tab
+            }}
+          >
+            <span style={{
+              display: 'block',
+              width: 28,
+              height: 28,
+              background: isPhotoButtonCooldown || activeProjectReference.current ? '#bbb' : '#ff5252',
+              borderRadius: '50%',
+              margin: '0 auto',
+              border: '2px solid #fff',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.10)',
+            }} />
+            <span style={{
+              position: 'absolute',
+              bottom: -25, // Moved down slightly for more space
+              left: '50%',
+              transform: 'translateX(-50%)',
+              fontSize: activeProjectReference.current ? 11 : 13, // Smaller font for longer text
+              fontWeight: 600,
+              color: '#222',
+              letterSpacing: activeProjectReference.current ? 0 : 1, // Remove letter spacing for longer text
+              textShadow: '0 1px 2px #fff',
+              whiteSpace: 'nowrap',
+              width: 'auto',
+              minWidth: '140px', // Ensure there's enough width for the longer text
+              textAlign: 'center'
+            }}>
+              {activeProjectReference.current ? "Photo in Progress" : "Take Photo"}
+            </span>
+          </button>
+        </div>
+        {/* Control overlay that slides down when visible */}
+        <div className={`control-overlay ${showControlOverlay ? 'visible' : ''}`}>
+          <div className="control-overlay-content">
+            <h2 className="settings-title">Advanced Settings</h2>
+            
+            <button 
+              className="dismiss-overlay-btn"
+              onClick={() => setShowControlOverlay(false)}
+            >
+              ×
+            </button>
+            
+            {/* Camera selector - moved to top */}
+            {cameraDevices.length > 0 && (
+              <div className="control-option">
+                <label className="control-label">Camera:</label>
+                <select
+                  className="camera-select"
+                  onChange={handleCameraSelection}
+                  value={selectedCameraDeviceId || ''}
+                >
+                  <option value="">Default (user-facing)</option>
+                  {cameraDevices.map((development) => (
+                    <option key={development.deviceId} value={development.deviceId}>
+                      {development.label || `Camera ${development.deviceId}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            
+            {selectedStyle === 'custom' && (
+              <div className="control-option">
+                <label className="control-label">Custom Style Prompt:</label>
+                <textarea
+                  className="custom-style-input"
+                  placeholder="Enter your custom style prompt here..."
+                  value={customPrompt}
+                  onChange={(e) => {
+                    setCustomPrompt(e.target.value);
+                    saveSettingsToCookies({ customPrompt: e.target.value });
+                  }}
+                  rows={4}
+                />
+              </div>
+            )}
+
+            {/* Model selector */}
+            <div className="control-option">
+              <label className="control-label">Pick an Image Model:</label>
+              <select
+                className="model-select"
+                value={selectedModel}
+                onChange={(e) => updateSetting(setSelectedModel, 'selectedModel')(e.target.value)}
+              >
+                {modelOptions.map((model) => (
+                  <option key={model.value} value={model.value}>
+                    {model.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Number of Images slider */}
+            <div className="control-option">
+              <label className="control-label">Number of Images:</label>
+              <input
+                type="range"
+                min={1}
+                max={64}
+                step={1}
+                value={numberImages}
+                onChange={(e) => updateSetting(setNumberImages, 'numImages')(Number.parseInt(e.target.value))}
+                className="slider-input"
+              />
+              <span className="slider-value">{numberImages}</span>
+            </div>
+
+            {/* Prompt Guidance slider */}
+            <div className="control-option">
+              <label className="control-label">Prompt Guidance:</label>
+              <input
+                type="range"
+                min={2}
+                max={3}
+                step={0.1}
+                value={promptGuidance}
+                onChange={(e) => updateSetting(setPromptGuidance, 'promptGuidance')(Number.parseFloat(e.target.value))}
+                className="slider-input"
+              />
+              <span className="slider-value">{promptGuidance.toFixed(1)}</span>
+            </div>
+
+            {/* Instant ID Strength slider */}
+            <div className="control-option">
+              <label className="control-label">Instant ID Strength:</label>
+              <input
+                type="range"
+                min={0.4}
+                max={1}
+                step={0.1}
+                value={controlNetStrength}
+                onChange={(e) => updateSetting(setControlNetStrength, 'controlNetStrength')(Number.parseFloat(e.target.value))}
+                className="slider-input"
+              />
+              <span className="slider-value">{controlNetStrength.toFixed(1)}</span>
+            </div>
+
+            {/* Instant ID Impact Stop slider */}
+            <div className="control-option">
+              <label className="control-label">Instant ID Impact Stop:</label>
+              <input
+                type="range"
+                min={0.2}
+                max={0.8}
+                step={0.1}
+                value={controlNetGuidanceEnd}
+                onChange={(e) => updateSetting(setControlNetGuidanceEnd, 'controlNetGuidanceEnd')(Number.parseFloat(e.target.value))}
+                className="slider-input"
+              />
+              <span className="slider-value">{controlNetGuidanceEnd.toFixed(1)}</span>
+            </div>
+
+            <div className="control-option checkbox">
+              <input
+                type="checkbox"
+                id="flash-toggle"
+                checked={flashEnabled}
+                onChange={(e) => updateSetting(setFlashEnabled, 'flashEnabled')(e.target.checked)}
+              />
+              <label htmlFor="flash-toggle" className="control-label">Flash</label>
+            </div>
+
+            <div className="control-option checkbox">
+              <input
+                type="checkbox"
+                id="keep-original-toggle"
+                checked={keepOriginalPhoto}
+                onChange={(e) => updateSetting(setKeepOriginalPhoto, 'keepOriginalPhoto')(e.target.checked)}
+              />
+              <label htmlFor="keep-original-toggle" className="control-label">Show Original Imag In Grid</label>
+            </div>
+            
+            {/* Reset settings button */}
+            <div className="control-option reset-option">
+              <button 
+                className="reset-settings-btn"
+                onClick={resetAllSettings}
+              >
+                Reset to Defaults
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 
   // -------------------------
@@ -1495,28 +2357,28 @@ const App = () => {
         zIndex: 99_999,
         padding: '40px',
       }}>
-      <div className="polaroid-frame" style={{
-        background: '#faf9f6',
+        <div className="polaroid-frame" style={{
+          background: '#faf9f6',
           borderRadius: 8,
-        boxShadow: '0 8px 30px rgba(0,0,0,0.18), 0 1.5px 0 #e5e5e5',
-        border: '1.5px solid #ececec',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'flex-start',
-        padding: 0,
-        width: '100%',
-          maxWidth: maxFrameWidth,
-        minWidth: 380,
-        height: 'auto',
-          maxHeight: maxFrameHeight,
-        position: 'relative',
-        overflow: 'visible',
-        margin: '0 auto',
-          zIndex: 10_001,
-      }}>
-        <div style={{
+          boxShadow: '0 8px 30px rgba(0,0,0,0.18), 0 1.5px 0 #e5e5e5',
+          border: '1.5px solid #ececec',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+          padding: 0,
           width: '100%',
+          maxWidth: maxFrameWidth,
+          minWidth: 380,
+          height: 'auto',
+          maxHeight: maxFrameHeight,
+          position: 'relative',
+          overflow: 'visible',
+          margin: '0 auto',
+          zIndex: 10_001,
+        }}>
+          <div style={{
+            width: '100%',
             aspectRatio: '9 / 7',
             background: 'white',
             borderLeft: '32px solid white',
@@ -1527,53 +2389,53 @@ const App = () => {
             boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
             overflow: 'hidden',
             position: 'relative',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             marginTop: 0,
             transition: 'none', // Remove animation
           }}>
-        <div style={{
-          width: '100%',
+            <div style={{
+              width: '100%',
               aspectRatio: '9 / 7',
-          background: 'white',
-          borderLeft: '32px solid white',
-          borderRight: '32px solid white',
-          borderTop: '56px solid white',
-          borderBottom: '120px solid white',
+              background: 'white',
+              borderLeft: '32px solid white',
+              borderRight: '32px solid white',
+              borderTop: '56px solid white',
+              borderBottom: '120px solid white',
               borderRadius: 8,
-          boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
-          overflow: 'hidden',
-          position: 'relative',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginTop: 0,
+              boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
+              overflow: 'hidden',
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginTop: 0,
               transition: 'none', // Remove animation
               paddingBottom: '77.78%',
-          height: 0,
-          minHeight: 0,
-        }}>
+              height: 0,
+              minHeight: 0,
+            }}>
         <img
           src={imageUrl}
                 alt={`Photo #${selectedPhotoIndex + 1}`}
                 style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                display: 'block',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: 'block',
                   background: '#fff',
                   borderRadius: 0,
-                aspectRatio: '9 / 7',
-                maxWidth: '100%',
-                maxHeight: '100%',
+                  aspectRatio: '9 / 7',
+                  maxWidth: '100%',
+                  maxHeight: '100%',
                   transition: 'none', // Remove animation
-              }}
-            />
-              </div>
+                }}
+              />
+        </div>
             <div className="photo-label" style={{
               position: 'absolute',
               bottom: 24,
@@ -1586,10 +2448,10 @@ const App = () => {
               zIndex: 2,
             }}>
               #{selectedPhotoIndex + 1}
+            </div>
+          </div>
         </div>
-              </div>
       </div>
-    </div>
     );
   };
 
@@ -1604,6 +2466,60 @@ const App = () => {
   // -------------------------
   const renderControlPanel = () => {
     return null;
+  };
+
+  // -------------------------
+  //   Initial Overlay
+  // -------------------------
+  const renderInitialOverlay = () => {
+    if (!showInitialOverlay) return null;
+
+    return (
+      <div className="initial-overlay">
+        <div className="initial-overlay-content">
+          <h1 className="title">Sogni Photobooth</h1>
+          
+          <div className="options-container">
+            <div 
+              className="option-card"
+              onClick={handleStartCamera}
+            >
+              <div className="option-icon">📸</div>
+              <h2>Start Camera</h2>
+              <p>Use your webcam to take a photo</p>
+            </div>
+            
+            <div 
+              className="option-card drag-area"
+              onDragOver={handleDragOver}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <div className="option-icon">🖼️</div>
+              <h2>Drag & Drop Photo</h2>
+              <p>Drag an image file here</p>
+            </div>
+            
+            <div 
+              className="option-card"
+              onClick={handleBrowseClick}
+            >
+              <div className="option-icon">📁</div>
+              <h2>Browse for Photo</h2>
+              <p>Select an image from your device</p>
+              <input 
+                type="file"
+                ref={fileInputRef}
+                style={{ display: 'none' }}
+                onChange={handleFileSelect}
+                accept="image/jpeg, image/jpg, image/png"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // -------------------------
@@ -1854,7 +2770,7 @@ const App = () => {
       } else {
         setDropdownPosition('top');
       }
-    } else {
+      } else {
       // Default to above if we can't find the button
       setDropdownPosition('top');
     }
@@ -1995,317 +2911,358 @@ const App = () => {
         </div>
       )}
 
-      <div className="w-full h-screen photobooth-app"
-        onDragOver={handleDragOver}
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        style={{ position: 'relative', zIndex: 1 }}
-      >
-        {/* Control overlay panel */}
-        <div className={`control-overlay ${showControlOverlay ? 'visible' : ''}`}>
-          <div className="control-overlay-content">
-            <h2 className="settings-title">Advanced Settings</h2>
+      {/* Initial overlay with options */}
+      {showInitialOverlay && (
+        <div className="initial-overlay">
+          <div className="initial-overlay-content">
+            <h1 className="title">Sogni Photobooth</h1>
             
-            <button 
-              className="dismiss-overlay-btn"
-              onClick={() => setShowControlOverlay(false)}
-            >
-              ×
-            </button>
-            
-            {/* Camera selector - moved to top */}
-            {cameraDevices.length > 0 && (
+            <div className="options-container">
+              <div 
+                className="option-card"
+                onClick={handleStartCamera}
+              >
+                <div className="option-icon">📸</div>
+                <h2>Start Camera</h2>
+                <p>Use your webcam to take a photo</p>
+              </div>
+              
+              <div 
+                className="option-card drag-area"
+                onDragOver={handleDragOver}
+                onDragEnter={handleDragEnter}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                <div className="option-icon">🖼️</div>
+                <h2>Drag & Drop Photo</h2>
+                <p>Drag an image file here</p>
+              </div>
+              
+              <div 
+                className="option-card"
+                onClick={handleBrowseClick}
+              >
+                <div className="option-icon">📁</div>
+                <h2>Browse for Photo</h2>
+                <p>Select an image from your device</p>
+                <input 
+                  type="file"
+                  ref={fileInputRef}
+                  style={{ display: 'none' }}
+                  onChange={handleFileSelect}
+                  accept="image/jpeg, image/jpg, image/png"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main app content - only show when initial overlay is not shown */}
+      {!showInitialOverlay && (
+        <div className="w-full h-screen photobooth-app"
+          onDragOver={handleDragOver}
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          style={{ position: 'relative', zIndex: 1 }}
+        >
+          {/* Control overlay panel */}
+          <div className={`control-overlay ${showControlOverlay ? 'visible' : ''}`}>
+            <div className="control-overlay-content">
+              <h2 className="settings-title">Advanced Settings</h2>
+              
+              <button 
+                className="dismiss-overlay-btn"
+                onClick={() => setShowControlOverlay(false)}
+              >
+                ×
+              </button>
+              
+              {/* Camera selector - moved to top */}
+              {cameraDevices.length > 0 && (
+                <div className="control-option">
+                  <label className="control-label">Camera:</label>
+                  <select
+                    className="camera-select"
+                    onChange={handleCameraSelection}
+                    value={selectedCameraDeviceId || ''}
+                  >
+                    <option value="">Default (user-facing)</option>
+                    {cameraDevices.map((development) => (
+                      <option key={development.deviceId} value={development.deviceId}>
+                        {development.label || `Camera ${development.deviceId}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {selectedStyle === 'custom' && (
+                <div className="control-option">
+                  <label className="control-label">Custom Style Prompt:</label>
+                  <textarea
+                    className="custom-style-input"
+                    placeholder="Enter your custom style prompt here..."
+                    value={customPrompt}
+                    onChange={(e) => {
+                      setCustomPrompt(e.target.value);
+                      saveSettingsToCookies({ customPrompt: e.target.value });
+                    }}
+                    rows={4}
+                  />
+                </div>
+              )}
+
+              {/* Model selector */}
               <div className="control-option">
-                <label className="control-label">Camera:</label>
+                <label className="control-label">Pick an Image Model:</label>
                 <select
-                  className="camera-select"
-                  onChange={handleCameraSelection}
-                  value={selectedCameraDeviceId || ''}
+                  className="model-select"
+                  value={selectedModel}
+                  onChange={(e) => updateSetting(setSelectedModel, 'selectedModel')(e.target.value)}
                 >
-                  <option value="">Default (user-facing)</option>
-                  {cameraDevices.map((development) => (
-                    <option key={development.deviceId} value={development.deviceId}>
-                      {development.label || `Camera ${development.deviceId}`}
+                  {modelOptions.map((model) => (
+                    <option key={model.value} value={model.value}>
+                      {model.label}
                     </option>
                   ))}
                 </select>
               </div>
-            )}
 
-            {selectedStyle === 'custom' && (
+              {/* Number of Images slider */}
               <div className="control-option">
-                <label className="control-label">Custom Style Prompt:</label>
-                <textarea
-                  className="custom-style-input"
-                  placeholder="Enter your custom style prompt here..."
-                  value={customPrompt}
-                  onChange={(e) => {
-                    setCustomPrompt(e.target.value);
-                    saveSettingsToCookies({ customPrompt: e.target.value });
-                  }}
-                  rows={4}
+                <label className="control-label">Number of Images:</label>
+                <input
+                  type="range"
+                  min={1}
+                  max={64}
+                  step={1}
+                  value={numberImages}
+                  onChange={(e) => updateSetting(setNumberImages, 'numImages')(Number.parseInt(e.target.value))}
+                  className="slider-input"
                 />
+                <span className="slider-value">{numberImages}</span>
               </div>
-            )}
 
-            {/* Model selector */}
-            <div className="control-option">
-              <label className="control-label">Pick an Image Model:</label>
-              <select
-                className="model-select"
-                value={selectedModel}
-                onChange={(e) => updateSetting(setSelectedModel, 'selectedModel')(e.target.value)}
-              >
-                {modelOptions.map((model) => (
-                  <option key={model.value} value={model.value}>
-                    {model.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+              {/* Prompt Guidance slider */}
+              <div className="control-option">
+                <label className="control-label">Prompt Guidance:</label>
+                <input
+                  type="range"
+                  min={2}
+                  max={3}
+                  step={0.1}
+                  value={promptGuidance}
+                  onChange={(e) => updateSetting(setPromptGuidance, 'promptGuidance')(Number.parseFloat(e.target.value))}
+                  className="slider-input"
+                />
+                <span className="slider-value">{promptGuidance.toFixed(1)}</span>
+              </div>
 
-            {/* Number of Images slider */}
-            <div className="control-option">
-              <label className="control-label">Number of Images:</label>
-              <input
-                type="range"
-                min={1}
-                max={64}
-                step={1}
-                value={numberImages}
-                onChange={(e) => updateSetting(setNumberImages, 'numImages')(Number.parseInt(e.target.value))}
-                className="slider-input"
-              />
-              <span className="slider-value">{numberImages}</span>
-            </div>
+              {/* Instant ID Strength slider */}
+              <div className="control-option">
+                <label className="control-label">Instant ID Strength:</label>
+                <input
+                  type="range"
+                  min={0.4}
+                  max={1}
+                  step={0.1}
+                  value={controlNetStrength}
+                  onChange={(e) => updateSetting(setControlNetStrength, 'controlNetStrength')(Number.parseFloat(e.target.value))}
+                  className="slider-input"
+                />
+                <span className="slider-value">{controlNetStrength.toFixed(1)}</span>
+              </div>
 
-            {/* Prompt Guidance slider */}
-            <div className="control-option">
-              <label className="control-label">Prompt Guidance:</label>
-              <input
-                type="range"
-                min={2}
-                max={3}
-                step={0.1}
-                value={promptGuidance}
-                onChange={(e) => updateSetting(setPromptGuidance, 'promptGuidance')(Number.parseFloat(e.target.value))}
-                className="slider-input"
-              />
-              <span className="slider-value">{promptGuidance.toFixed(1)}</span>
-            </div>
+              {/* Instant ID Impact Stop slider */}
+              <div className="control-option">
+                <label className="control-label">Instant ID Impact Stop:</label>
+                <input
+                  type="range"
+                  min={0.2}
+                  max={0.8}
+                  step={0.1}
+                  value={controlNetGuidanceEnd}
+                  onChange={(e) => updateSetting(setControlNetGuidanceEnd, 'controlNetGuidanceEnd')(Number.parseFloat(e.target.value))}
+                  className="slider-input"
+                />
+                <span className="slider-value">{controlNetGuidanceEnd.toFixed(1)}</span>
+              </div>
 
-            {/* Instant ID Strength slider */}
-            <div className="control-option">
-              <label className="control-label">Instant ID Strength:</label>
-              <input
-                type="range"
-                min={0.4}
-                max={1}
-                step={0.1}
-                value={controlNetStrength}
-                onChange={(e) => updateSetting(setControlNetStrength, 'controlNetStrength')(Number.parseFloat(e.target.value))}
-                className="slider-input"
-              />
-              <span className="slider-value">{controlNetStrength.toFixed(1)}</span>
-            </div>
+              <div className="control-option checkbox">
+                <input
+                  type="checkbox"
+                  id="flash-toggle"
+                  checked={flashEnabled}
+                  onChange={(e) => updateSetting(setFlashEnabled, 'flashEnabled')(e.target.checked)}
+                />
+                <label htmlFor="flash-toggle" className="control-label">Flash</label>
+              </div>
 
-            {/* Instant ID Impact Stop slider */}
-            <div className="control-option">
-              <label className="control-label">Instant ID Impact Stop:</label>
-              <input
-                type="range"
-                min={0.2}
-                max={0.8}
-                step={0.1}
-                value={controlNetGuidanceEnd}
-                onChange={(e) => updateSetting(setControlNetGuidanceEnd, 'controlNetGuidanceEnd')(Number.parseFloat(e.target.value))}
-                className="slider-input"
-              />
-              <span className="slider-value">{controlNetGuidanceEnd.toFixed(1)}</span>
-            </div>
-
-            <div className="control-option checkbox">
-              <input
-                type="checkbox"
-                id="flash-toggle"
-                checked={flashEnabled}
-                onChange={(e) => updateSetting(setFlashEnabled, 'flashEnabled')(e.target.checked)}
-              />
-              <label htmlFor="flash-toggle" className="control-label">Flash</label>
-            </div>
-
-            <div className="control-option checkbox">
-              <input
-                type="checkbox"
-                id="keep-original-toggle"
-                checked={keepOriginalPhoto}
-                onChange={(e) => updateSetting(setKeepOriginalPhoto, 'keepOriginalPhoto')(e.target.checked)}
-              />
-              <label htmlFor="keep-original-toggle" className="control-label">Show Original Image</label>
-            </div>
-            
-            {/* Reset settings button */}
-            <div className="control-option reset-option">
-              <button 
-                className="reset-settings-btn"
-                onClick={resetAllSettings}
-              >
-                Reset to Defaults
-              </button>
+              <div className="control-option checkbox">
+                <input
+                  type="checkbox"
+                  id="keep-original-toggle"
+                  checked={keepOriginalPhoto}
+                  onChange={(e) => updateSetting(setKeepOriginalPhoto, 'keepOriginalPhoto')(e.target.checked)}
+                />
+                <label htmlFor="keep-original-toggle" className="control-label">Show Original Image</label>
+              </div>
+              
+              {/* Reset settings button */}
+              <div className="control-option reset-option">
+                <button 
+                  className="reset-settings-btn"
+                  onClick={resetAllSettings}
+                >
+                  Reset to Defaults
+                </button>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Help button - only show in camera view */}
-        {!showPhotoGrid && !selectedPhotoIndex && (
-          <button
-            className="header-info-btn"
-            onClick={toggleNotesModal}
-            style={{
-              position: 'fixed',
-              top: 24,
-              right: 24,
-              background: 'linear-gradient(135deg, #ffb6e6 0%, #ff5e8a 100%)',
-              border: 'none',
-              color: '#fff',
-              fontSize: 22,
-              width: 38,
-              height: 38,
-              borderRadius: '50%',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-              cursor: 'pointer',
-              fontWeight: 900,
-              lineHeight: 1,
-              padding: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'background 0.2s',
-              zIndex: 1000,
-            }}
-            title="Photobooth Tips"
-          >
-            ?
-          </button>
-        )}
-        
-        {/* Studio lights - permanent background elements */}
-        <div className={`studio-lights-container ${studioLightsHidden ? 'studio-lights-hidden' : ''}`}>
-          <img 
-            src={light1Image} 
-            alt="Studio Light" 
-            className={`studio-light left ${lightsAnimating ? 'sliding-out' : ''}`} 
-          />
-          <img 
-            src={light2Image} 
-            alt="Studio Light" 
-            className={`studio-light right ${lightsAnimating ? 'sliding-out' : ''}`} 
-          />
-        </div>
-        
-        {/* Drag overlay */}
-        {dragActive && (
-          <div className="drag-overlay">
-            <p>Drop your image here to generate!</p>
+          {/* Help button - only show in camera view */}
+          {!showPhotoGrid && !selectedPhotoIndex && (
+            <button
+              className="header-info-btn"
+              onClick={toggleNotesModal}
+              style={{
+                position: 'fixed',
+                top: 24,
+                right: 24,
+                background: 'linear-gradient(135deg, #ffb6e6 0%, #ff5e8a 100%)',
+                border: 'none',
+                color: '#fff',
+                fontSize: 22,
+                width: 38,
+                height: 38,
+                borderRadius: '50%',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+              }}
+            >
+              ?
+            </button>
+          )}
+          
+          {/* Studio lights - permanent background elements */}
+          <div className={`studio-lights-container ${studioLightsHidden ? 'studio-lights-hidden' : ''}`}>
+            <img 
+              src={light1Image} 
+              alt="Studio Light" 
+              className={`studio-light left ${lightsAnimating ? 'sliding-out' : ''}`} 
+            />
+            <img 
+              src={light2Image} 
+              alt="Studio Light" 
+              className={`studio-light right ${lightsAnimating ? 'sliding-out' : ''}`} 
+            />
           </div>
-        )}
+          
+          {/* Drag overlay */}
+          {dragActive && (
+            <div className="drag-overlay">
+              <p>Drop your image here to generate!</p>
+            </div>
+          )}
 
-        {/* Info Modal */}
-        {showInfoModal && (
-          <div className="notes-modal-overlay" style={{zIndex: 30_000}} onClick={() => setShowInfoModal(false)}>
-            <div className="notes-modal" onClick={e => e.stopPropagation()}>
-              <div className="sticky-note">
-                <button className="note-close" onClick={() => setShowInfoModal(false)}>×</button>
-                <h2 className="marker-font">Photobooth Tips</h2>
-                <ul className="marker-font">
-                  <li>Generated compositions reuses the same face size, position, and orientation as the camera snapshot so step back and get creative!</li>
-                  <li>Only one face at a time! If multiple faces the biggest one in frame is used.</li>
-                  <li>The more light / dark depth on your face the better, flat even light results can be subpar.</li>
-                  <li>Try using the Custom Prompt feature and providing your own prompt!</li>
-                  <li>You can even drag a photo into the camera window to use as a reference!</li>
-                </ul>
-                <div className="note-footer">
-                  <a href="https://www.sogni.ai/sdk" target="_blank" rel="noopener noreferrer">
-                  Vibe Coded with Sogni Client SDK<br/>Powered by Sogni Supernet ❤️
-                  </a>
+          {/* Info Modal */}
+          {showInfoModal && (
+            <div className="notes-modal-overlay" style={{zIndex: 30_000}} onClick={() => setShowInfoModal(false)}>
+              <div className="notes-modal" onClick={e => e.stopPropagation()}>
+                <div className="sticky-note">
+                  <button className="note-close" onClick={() => setShowInfoModal(false)}>×</button>
+                  <h2 className="marker-font">Photobooth Tips</h2>
+                  <ul className="marker-font">
+                    <li>Generated compositions reuses the same face size, position, and orientation as the camera snapshot so step back and get creative!</li>
+                    <li>Only one face at a time! If multiple faces the biggest one in frame is used.</li>
+                    <li>The more light / dark depth on your face the better, flat even light results can be subpar.</li>
+                    <li>Try using the Custom Prompt feature and providing your own prompt!</li>
+                    <li>You can even drag a photo into the camera window to use as a reference!</li>
+                  </ul>
+                  <div className="note-footer">
+                    <a href="https://www.sogni.ai/sdk" target="_blank" rel="noopener noreferrer">
+                    Vibe Coded with Sogni Client SDK<br/>Powered by Sogni Supernet ❤️
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Main area with video - conditional rendering based on showPhotoGrid */}
-        {renderMainArea()}
+          {/* Main area with video - conditional rendering based on showPhotoGrid */}
+          {renderMainArea()}
 
-        {/* Photo gallery grid - shown when showPhotoGrid is true */}
-        {renderGallery()}
+          {/* Photo gallery grid - shown when showPhotoGrid is true */}
+          {renderGallery()}
 
-        <canvas ref={canvasReference} className="hidden" />
+          <canvas ref={canvasReference} className="hidden" />
 
-        {/* Slothicorn mascot with direct DOM manipulation */}
-        <div 
-          ref={slothicornReference}
-          className="slothicorn-container"
-        >
-          <img 
-            src={slothicornImage} 
-            alt="Slothicorn mascot" 
-            className="slothicorn-image" 
-          />
-        </div>
-
-        {/* Camera shutter sound */}
-        <audio ref={shutterSoundReference} preload="auto">
-          <source src={clickSound} type="audio/mpeg" />
-          Your browser does not support the audio element.
-        </audio>
-
-        {/* Camera wind sound */}
-        <audio ref={cameraWindSoundReference} preload="auto">
-          <source src={cameraWindSound} type="audio/mpeg" />
-          Your browser does not support the audio element.
-        </audio>
-
-        {/* FIX: Floating 'View Photos' button only if user has taken a photo */}
-        {selectedPhotoIndex === null && !showPhotoGrid && photos.length > 0 && (
-          <button
-            onClick={() => {
-              // Mark the camera as hiding
-              setCameraAnimating(true);
-              // Show the photo grid with animation
-              setShowPhotoGrid(true);
-              // Reset camera animating after animation completes
-              setTimeout(() => {
-                setCameraAnimating(false);
-              }, 600);
-            }}
-            style={{
-              position: 'absolute',
-              bottom: 18,
-              right: 18,
-              zIndex: 10,
-              background: 'linear-gradient(135deg, #ff5e8a 0%, #ff3366 100%)',
-              color: '#fff',
-              border: '2px solid #fff',
-              borderRadius: 16,
-              boxShadow: '0 4px 16px rgba(255, 51, 102, 0.25)',
-              padding: '12px 24px',
-              fontWeight: 900,
-              fontSize: 18,
-              cursor: 'pointer',
-              fontFamily: '"Permanent Marker", cursive',
-              letterSpacing: 1,
-          display: 'flex',
-          alignItems: 'center',
-              gap: 10,
-              transition: 'all 0.2s',
-            }}
+          {/* Slothicorn mascot with direct DOM manipulation */}
+          <div 
+            ref={slothicornReference}
+            className="slothicorn-container"
           >
-            <span style={{fontSize: 22, marginRight: 6}}>📸</span> View Photos
-          </button>
-        )}
-      </div>
+            <img 
+              src={slothicornImage} 
+              alt="Slothicorn mascot" 
+              className="slothicorn-image" 
+            />
+          </div>
+
+          {/* Camera shutter sound */}
+          <audio ref={shutterSoundReference} preload="auto">
+            <source src={clickSound} type="audio/mpeg" />
+            Your browser does not support the audio element.
+          </audio>
+
+          {/* Camera wind sound */}
+          <audio ref={cameraWindSoundReference} preload="auto">
+            <source src={cameraWindSound} type="audio/mpeg" />
+            Your browser does not support the audio element.
+          </audio>
+
+          {/* FIX: Floating 'View Photos' button only if user has taken a photo */}
+          {selectedPhotoIndex === null && !showPhotoGrid && photos.length > 0 && (
+            <button
+              onClick={() => {
+                // Mark the camera as hiding
+                setCameraAnimating(true);
+                // Show the photo grid with animation
+                setShowPhotoGrid(true);
+                // Reset camera animating after animation completes
+                setTimeout(() => {
+                  setCameraAnimating(false);
+                }, 600);
+              }}
+              style={{
+                position: 'absolute',
+                bottom: 18,
+                right: 18,
+                zIndex: 10,
+                background: 'linear-gradient(135deg, #ff5e8a 0%, #ff3366 100%)',
+                color: '#fff',
+                border: '2px solid #fff',
+                borderRadius: 16,
+                boxShadow: '0 4px 16px rgba(255, 51, 102, 0.25)',
+                padding: '12px 24px',
+                fontWeight: 900,
+                fontSize: 18,
+                cursor: 'pointer',
+                fontFamily: '"Permanent Marker", cursive',
+                letterSpacing: 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                transition: 'all 0.2s',
+              }}
+            >
+              <span style={{fontSize: 22, marginRight: 6}}>📸</span> View Photos
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Add a dedicated useEffect for the aspect ratio CSS */}
       {useEffect(() => {

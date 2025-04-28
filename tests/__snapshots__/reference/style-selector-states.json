@@ -1,0 +1,24 @@
+{
+  "default": {
+    "selector": ".header-style-select",
+    "styles": {
+      "backgroundColor": "#ffffff",
+      "borderRadius": "4px",
+      "padding": "8px 16px",
+      "minWidth": "120px",
+      "height": "36px"
+    }
+  },
+  "hover": {
+    "selector": ".header-style-select:hover",
+    "styles": {
+      "backgroundColor": "#f5f5f5"
+    }
+  },
+  "active": {
+    "selector": ".header-style-select:active",
+    "styles": {
+      "backgroundColor": "#e0e0e0"
+    }
+  }
+} 

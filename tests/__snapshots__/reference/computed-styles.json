@@ -1,0 +1,30 @@
+{
+  ".header-style-select": {
+    "width": "120px",
+    "height": "36px",
+    "padding": "8px 16px",
+    "borderRadius": "4px",
+    "backgroundColor": "#ffffff"
+  },
+  ".style-dropdown": {
+    "maxHeight": "400px",
+    "backgroundColor": "#ffffff",
+    "borderRadius": "4px",
+    "boxShadow": "0 2px 8px rgba(0,0,0,0.15)"
+  },
+  ".style-option": {
+    "padding": "8px 16px",
+    "cursor": "pointer",
+    "userSelect": "none"
+  },
+  ".style-option.selected": {
+    "backgroundColor": "#f0f0f0",
+    "fontWeight": "500"
+  },
+  ".header-config-btn": {
+    "width": "36px",
+    "height": "36px",
+    "borderRadius": "4px",
+    "backgroundColor": "#ffffff"
+  }
+} 

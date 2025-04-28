@@ -1,0 +1,12 @@
+{
+  "open": {
+    "selector": ".style-dropdown",
+    "styles": {
+      "backgroundColor": "#ffffff",
+      "borderRadius": "4px",
+      "boxShadow": "0 2px 8px rgba(0,0,0,0.15)",
+      "maxHeight": "400px",
+      "overflowY": "auto"
+    }
+  }
+} 
