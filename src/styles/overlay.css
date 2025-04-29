@@ -1,17 +1,5 @@
 /* Flash & Countdown overlays (centralised) */
 
-/* Full-screen camera flash */
-.flash-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: white;
-  z-index: 9999;
-  animation: flash 0.4s ease-out;
-}
-
 @keyframes flash {
   0%   { opacity: 1; }
   80%  { opacity: 1; }

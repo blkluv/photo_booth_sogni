@@ -1544,12 +1544,6 @@ const App = () => {
           {/* Other UI elements like canvas, flash effect, etc. */}
           <canvas ref={canvasReference} style={{ display: 'none' }} />
           
-          {/* Conditionally render flash overlay */}
-          {showFlash && (
-            <div className="flash-overlay" data-testid="flash-overlay" />
-          )}
-          
-          {/* Rest of UI components */}
         </>
       )}
     </div>
