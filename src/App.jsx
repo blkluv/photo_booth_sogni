@@ -498,6 +498,18 @@ const App = () => {
 
       setSogniClient(client);
       setIsSogniReady(true);
+
+      client.projects.on('swarmModels', (event) => {
+        console.log('Swarm models event payload:', event);
+      });
+
+      client.projects.on('project', (event) => {
+        console.log('Project event full payload:', event);
+      });
+
+      client.projects.on('job', (event) => {
+        console.log('Job event full payload:', event);
+      });
     } catch (error) {
       console.error('Failed initializing Sogni client:', error);
     }
@@ -1543,180 +1555,6 @@ const App = () => {
     </div>
   );
 
-  // -------------------------
-  //   Selected Photo Display (Fullscreen Polaroid)
-  // -------------------------
-  const renderSelectedPhoto = () => {
-    if (selectedPhotoIndex == null || selectedPhotoIndex < 0 || !photos[selectedPhotoIndex]) return null;
-    const currentPhoto = photos[selectedPhotoIndex];
-    const imageUrl = currentPhoto.images[selectedSubIndex] || currentPhoto.originalDataUrl;
-    if (!imageUrl) return null;
-
-    // Get natural size
-    const [naturalSize, setNaturalSize] = React.useState({ width: null, height: null });
-    React.useEffect(() => {
-      if (!imageUrl) return;
-      const img = new window.Image();
-      img.onload = () => setNaturalSize({ width: img.naturalWidth, height: img.naturalHeight });
-      img.src = imageUrl;
-    }, [imageUrl]);
-    // Use same sizing as camera view
-    const aspectRatio = 1152 / 896;
-    const maxFrameWidth = Math.min(window.innerWidth * 0.85, 700, naturalSize.width || Infinity);
-    const maxFrameHeight = Math.min(window.innerHeight * 0.85, 700 / aspectRatio, naturalSize.height || Infinity);
-      return (
-      <div className="selected-photo-container" style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'rgba(0, 0, 0, 0.85)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 99999,
-        padding: '40px',
-      }}
-      onClick={(e) => {
-        // Check if the click was directly on the container (background), not on its children
-        if (e.target === e.currentTarget) {
-          setSelectedPhotoIndex(null);
-        }
-      }}>
-        <button 
-          className="enhance-photo-btn"
-          onClick={enhanceImage}
-          disabled={currentPhoto.loading || currentPhoto.enhancing}
-          style={{
-            position: 'fixed',
-            right: '20px',
-            top: '20px',
-            background: currentPhoto.loading ? '#cccccc' : 'linear-gradient(135deg, #FF3366 0%, #FF5E8A 100%)',
-            color: 'white',
-            border: 'none',
-            padding: '12px 24px',
-            borderRadius: '8px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            cursor: currentPhoto.loading ? 'default' : 'pointer',
-            fontWeight: 'bold',
-            fontSize: '16px',
-            zIndex: 99999,
-            transition: 'transform 0.2s, box-shadow 0.2s',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}
-          onMouseOver={(e) => {
-            if (!currentPhoto.loading && !currentPhoto.enhancing) {
-              e.currentTarget.style.transform = 'scale(1.05)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 51, 102, 0.7)';
-            }
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.transform = '';
-            e.currentTarget.style.boxShadow = '';
-          }}
-        >
-          <span style={{ fontSize: '20px' }}>✨</span>
-          <span>{currentPhoto.loading ? 'Enhancing...' : 'Enhance'}</span>
-        </button>
-        
-      <div className="polaroid-frame" style={{
-        background: '#faf9f6',
-          borderRadius: 8,
-        boxShadow: '0 8px 30px rgba(0,0,0,0.18), 0 1.5px 0 #e5e5e5',
-        border: '1.5px solid #ececec',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'flex-start',
-        padding: 0,
-        width: '100%',
-          maxWidth: maxFrameWidth,
-        minWidth: 380,
-        height: 'auto',
-          maxHeight: maxFrameHeight,
-        position: 'relative',
-        overflow: 'visible',
-        margin: '0 auto',
-          zIndex: 10001,
-          }}>
-        <div style={{
-          width: '100%',
-              aspectRatio: '9 / 7',
-          background: 'white',
-          borderLeft: '32px solid white',
-          borderRight: '32px solid white',
-          borderTop: '56px solid white',
-          borderBottom: '120px solid white',
-              borderRadius: 8,
-          boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
-          overflow: 'hidden',
-          position: 'relative',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginTop: 0,
-              transition: 'none', // Remove animation
-              paddingBottom: '77.78%',
-          height: 0,
-          minHeight: 0,
-        }}>
-        <img
-          src={imageUrl}
-                alt={`Photo #${selectedPhotoIndex + 1}`}
-                style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                display: 'block',
-                  background: '#fff',
-                  borderRadius: 0,
-                aspectRatio: '9 / 7',
-                maxWidth: '100%',
-                maxHeight: '100%',
-                  transition: 'none', // Remove animation
-              }}
-            />
-            {currentPhoto.loading && (
-              <div style={{
-                position: 'absolute',
-                bottom: '10px',
-                right: '10px',
-                transform: 'none',
-                background: 'rgba(0, 0, 0, 0.5)',
-                color: 'white',
-                padding: '8px 16px',
-                borderRadius: '20px',
-                fontSize: '14px',
-                zIndex: 3
-              }}>
-                Enhancing... {Math.floor(currentPhoto.progress || 0)}%
-              </div>
-            )}
-              </div>
-            <div className="photo-label" style={{
-              position: 'absolute',
-              bottom: 24,
-              left: 0,
-              right: 0,
-              textAlign: 'center',
-              fontFamily: '"Permanent Marker", cursive',
-              fontSize: 24,
-              color: '#333',
-              zIndex: 2,
-            }}>
-              #{selectedPhotoIndex + 1}
-              </div>
-      </div>
-    </div>
-    );
-  };
-
   // Determine if we're in portrait or landscape orientation
   const isPortraitOrientation = () => {
     // Check current orientation of device
@@ -2268,7 +2106,7 @@ const App = () => {
                 //scheduler: 'DPM Solver Multistep (DPM-Solver++)',
                 //timeStepSpacing: 'Karras',
                 startingImage: new Uint8Array(arrayBuffer),
-                startingImageStrength: 0.80,
+                startingImageStrength: 0.85,
               });
               
               // Track progress
@@ -2276,6 +2114,7 @@ const App = () => {
               console.log(`[ENHANCE] Project created with ID: ${project.id}`);
               
               project.on('progress', (progress) => {
+                console.log('Job progress full payload:', { jobId: project.id, ...progress });
                 const progressPercent = Math.floor(progress * 100);
                 console.log(`[ENHANCE] Progress: ${progressPercent}%`);
                 
@@ -2293,6 +2132,7 @@ const App = () => {
               
               // Handle completion
               project.on('completed', (urls) => {
+                console.log('Project completed full payload:', { urls });
                 console.log(`[ENHANCE] Enhancement completed successfully`);
                 console.log(`[ENHANCE] Generated URLs:`, urls);
                 activeProjectReference.current = null;
@@ -2355,6 +2195,7 @@ const App = () => {
               });
               
               project.on('failed', (error) => {
+                console.error('Project failed full payload:', error);
                 console.error(`[ENHANCE] Enhancement failed:`, error);
                 activeProjectReference.current = null;
                 
