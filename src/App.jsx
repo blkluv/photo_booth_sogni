@@ -126,7 +126,7 @@ loadPrompts().then(prompts => {
 function getCustomDimensions() {
   const isPortrait = window.innerHeight > window.innerWidth;
   if (isPortrait) {
-    return { width: 896, height: 1152 }; // Portrait: 896:1152 (7:9 ratio - exactly 0.778)
+    return { width: 896, height: 1152 }; // Portrait: 896:1152 (ratio ~0.778)
   } else {
     return { width: 1152, height: 896 }; // Landscape: 1152:896 (ratio ~1.286)
   }
@@ -1551,126 +1551,6 @@ const App = () => {
     const currentPhoto = photos[selectedPhotoIndex];
     const imageUrl = currentPhoto.images[selectedSubIndex] || currentPhoto.originalDataUrl;
     if (!imageUrl) return null;
-    
-    // Function to enhance the current image
-    const enhanceImage = async () => {
-      try {
-        // Get the image as a blob
-        const response = await fetch(imageUrl);
-        const imageBlob = await response.blob();
-        
-        // Create a loading state for this photo
-        setPhotos(previous => {
-          const updated = [...previous];
-          updated[selectedPhotoIndex] = {
-            ...updated[selectedPhotoIndex],
-            loading: true,
-            enhancing: true,
-            progress: 0
-          };
-          return updated;
-        });
-        
-        // Create the enhanced version using specific parameters
-        const arrayBuffer = await imageBlob.arrayBuffer();
-        
-        // Create the project with special parameters for enhancement
-        const project = await sogniClient.projects.create({
-          modelId: "flux1-schnell-fp8",
-          positivePrompt: currentPhoto.prompt || "enhanced photo",
-          sizePreset: 'custom',
-          width: desiredWidth,
-          height: desiredHeight,
-          steps: 7,
-          guidance: promptGuidance,
-          numberOfImages: 1,
-          scheduler: 'DPM Solver Multistep (DPM-Solver++)',
-          timeStepSpacing: 'Karras',
-          startingImage: new Uint8Array(arrayBuffer),
-          startingImageStrength: 0.8,
-        });
-        
-        activeProjectReference.current = project.id;
-        console.log('Enhancement project created:', project.id, currentPhoto.prompt);
-        
-        // Set up progress tracking
-        project.on('progress', (progress) => {
-          setPhotos(previous => {
-            const updated = [...previous];
-            if (!updated[selectedPhotoIndex]) return previous;
-            
-            updated[selectedPhotoIndex] = {
-              ...updated[selectedPhotoIndex],
-              progress
-            };
-            return updated;
-          });
-        });
-        
-        // Handle completion
-        project.on('completed', (urls) => {
-          console.log('Enhancement completed:', urls);
-          activeProjectReference.current = null;
-          
-          if (urls.length > 0) {
-            setPhotos(previous => {
-              const updated = [...previous];
-              if (!updated[selectedPhotoIndex]) return previous;
-              
-              // Add the enhanced image to the images array
-              const newImages = [...updated[selectedPhotoIndex].images, urls[0]];
-              
-              updated[selectedPhotoIndex] = {
-                ...updated[selectedPhotoIndex],
-                loading: false,
-                enhancing: false,
-                images: newImages,
-                newlyArrived: true
-              };
-              
-              // Set the selected sub-index to the new enhanced image
-              setSelectedSubIndex(newImages.length - 1);
-              
-              return updated;
-            });
-          }
-        });
-        
-        // Handle failure
-        project.on('failed', (error) => {
-          console.error('Enhancement failed:', error);
-          activeProjectReference.current = null;
-          
-          setPhotos(previous => {
-            const updated = [...previous];
-            if (!updated[selectedPhotoIndex]) return previous;
-            
-            updated[selectedPhotoIndex] = {
-              ...updated[selectedPhotoIndex],
-              loading: false,
-              enhancing: false,
-              error: 'Enhancement failed'
-            };
-            return updated;
-          });
-        });
-      } catch (error) {
-        console.error('Error enhancing image:', error);
-        
-        setPhotos(previous => {
-          const updated = [...previous];
-          if (!updated[selectedPhotoIndex]) return previous;
-          
-          updated[selectedPhotoIndex] = {
-            ...updated[selectedPhotoIndex],
-            loading: false,
-            enhancing: false,
-            error: 'Enhancement failed'
-          };
-          return updated;
-        });
-      }
-    };
 
     // Get natural size
     const [naturalSize, setNaturalSize] = React.useState({ width: null, height: null });
@@ -1855,139 +1735,6 @@ const App = () => {
   // -------------------------
   const renderGallery = () => {    
     if (photos.length === 0 || !showPhotoGrid) return null;
-    
-    // Expose enhanceImage for selected photos
-    const enhanceCurrentPhoto = async () => {
-      if (selectedPhotoIndex !== null && selectedPhotoIndex >= 0 && photos[selectedPhotoIndex]) {
-        const currentPhoto = photos[selectedPhotoIndex];
-        const imageUrl = currentPhoto.images[selectedSubIndex] || currentPhoto.originalDataUrl;
-        
-        try {
-          // Get the image as a blob
-          const response = await fetch(imageUrl);
-          const imageBlob = await response.blob();
-          
-          // Create a loading state for this photo
-          setPhotos(previous => {
-            const updated = [...previous];
-            updated[selectedPhotoIndex] = {
-              ...updated[selectedPhotoIndex],
-              loading: true,
-              enhancing: true,
-              progress: 0
-            };
-            return updated;
-          });
-          
-          // Create the enhanced version using specific parameters
-          const arrayBuffer = await imageBlob.arrayBuffer();
-          
-          // Create the project with special parameters for enhancement
-          const project = await sogniClient.projects.create({
-            modelId: "flux1-schnell-fp8",
-            positivePrompt: currentPhoto.prompt || "enhanced photo",
-            sizePreset: 'custom',
-            width: desiredWidth,
-            height: desiredHeight,
-            steps: 7,
-            guidance: promptGuidance,
-            numberOfImages: 1,
-            scheduler: 'DPM Solver Multistep (DPM-Solver++)',
-            timeStepSpacing: 'Karras',
-            startingImage: new Uint8Array(arrayBuffer),
-            startingImageStrength: 0.8,
-            controlNet: {
-              name: 'instantid',
-              image: new Uint8Array(arrayBuffer),
-              strength: controlNetStrength,
-              mode: 'balanced',
-              guidanceStart: 0,
-              guidanceEnd: controlNetGuidanceEnd,
-            }
-          });
-          
-          activeProjectReference.current = project.id;
-          console.log('Enhancement project created:', project.id);
-          
-          // Set up progress tracking
-          project.on('progress', (progress) => {
-            setPhotos(previous => {
-              const updated = [...previous];
-              if (!updated[selectedPhotoIndex]) return previous;
-              
-              updated[selectedPhotoIndex] = {
-                ...updated[selectedPhotoIndex],
-                progress
-              };
-              return updated;
-            });
-          });
-          
-          // Handle completion
-          project.on('completed', (urls) => {
-            console.log('Enhancement completed:', urls);
-            activeProjectReference.current = null;
-            
-            if (urls.length > 0) {
-              setPhotos(previous => {
-                const updated = [...previous];
-                if (!updated[selectedPhotoIndex]) return previous;
-                
-                // Add the enhanced image to the images array
-                const newImages = [...updated[selectedPhotoIndex].images, urls[0]];
-                
-                updated[selectedPhotoIndex] = {
-                  ...updated[selectedPhotoIndex],
-                  loading: false,
-                  enhancing: false,
-                  images: newImages,
-                  newlyArrived: true
-                };
-                
-                // Set the selected sub-index to the new enhanced image
-                setSelectedSubIndex(newImages.length - 1);
-                
-                return updated;
-              });
-            }
-          });
-          
-          // Handle failure
-          project.on('failed', (error) => {
-            console.error('Enhancement failed:', error);
-            activeProjectReference.current = null;
-            
-            setPhotos(previous => {
-              const updated = [...previous];
-              if (!updated[selectedPhotoIndex]) return previous;
-              
-              updated[selectedPhotoIndex] = {
-                ...updated[selectedPhotoIndex],
-                loading: false,
-                enhancing: false,
-                error: 'Enhancement failed'
-              };
-              return updated;
-            });
-          });
-        } catch (error) {
-          console.error('Error enhancing image:', error);
-          
-          setPhotos(previous => {
-            const updated = [...previous];
-            if (!updated[selectedPhotoIndex]) return previous;
-            
-            updated[selectedPhotoIndex] = {
-              ...updated[selectedPhotoIndex],
-              loading: false,
-              enhancing: false,
-              error: 'Enhancement failed'
-            };
-            return updated;
-          });
-        }
-      }
-    };
     
     return (
       <div className={`film-strip-container ${showPhotoGrid ? 'visible' : 'hiding'} ${selectedPhotoIndex === null ? '' : 'has-selected'}`}
@@ -2478,7 +2225,6 @@ const App = () => {
           // Implement the enhance function directly here
           const enhanceCurrentPhoto = async () => {
             try {
-              console.log(`[ENHANCE] Starting enhancement for photo #${selectedPhotoIndex}`);
               // Get image data
               const imageUrl = currentPhoto.images[selectedSubIndex] || currentPhoto.originalDataUrl;
               const response = await fetch(imageUrl);
@@ -2511,7 +2257,7 @@ const App = () => {
               console.log(`[ENHANCE] Creating enhancement project with Sogni API`, currentPhoto, desiredWidth, desiredHeight);
               const project = await sogniClient.projects.create({
                 modelId: "flux1-schnell-fp8",
-                positivePrompt: 'professional portrait',//currentPhoto.prompt,
+                positivePrompt: 'make portrait look better',//currentPhoto.prompt,
                 sizePreset: 'custom',
                 width: desiredWidth,
                 height: desiredHeight,
@@ -3296,11 +3042,6 @@ const App = () => {
             display: flex !important;
             align-items: center !important;
             gap: 8px !important;
-          }
-          
-          .enhance-photo-btn:hover {
-            transform: scale(1.05) !important;
-            box-shadow: 0 4px 12px rgba(255, 51, 102, 0.7) !important;
           }
           
           .enhance-photo-btn:disabled {

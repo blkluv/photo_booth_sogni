@@ -73,7 +73,7 @@
     width: 100% !important;
     height: auto !important;
     object-fit: cover !important;
-    aspect-ratio: 7/9; /* Update to 7:9 ratio */
+    aspect-ratio: 3/4; /* Portrait ratio */
   }
   
   .photobooth-app .photobooth-frame > .photobooth-screen {
