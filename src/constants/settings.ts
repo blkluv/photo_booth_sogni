@@ -53,7 +53,7 @@ export const getValidModelValue = (selectedValue: string) => {
 
 export const DEFAULT_SETTINGS = {
   selectedModel: "coreml-sogniXLturbo_alpha1_ad",
-  numImages: 16,
+  numImages: 15,
   promptGuidance: 2,
   controlNetStrength: 0.8,
   controlNetGuidanceEnd: 0.6,
@@ -63,8 +63,8 @@ export const DEFAULT_SETTINGS = {
 };
 
 export const SOGNI_URLS = {
-  api: import.meta.env.VITE_SOGNI_API_URL || "https://api.sogni.io",
-  socket: import.meta.env.VITE_SOGNI_SOCKET_URL || "wss://api.sogni.io",
+  api: import.meta.env.VITE_SOGNI_API_URL || "https://api.sogni.ai",
+  socket: import.meta.env.VITE_SOGNI_SOCKET_URL || "wss://socket.sogni.ai",
 };
 
 export const defaultStylePrompts: { [key: string]: string } = {

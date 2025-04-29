@@ -126,7 +126,7 @@ loadPrompts().then(prompts => {
 function getCustomDimensions() {
   const isPortrait = window.innerHeight > window.innerWidth;
   if (isPortrait) {
-    return { width: 896, height: 1152 }; // Portrait: 896:1152 (ratio ~0.778)
+    return { width: 896, height: 1152 }; // Portrait: 896:1152 (7:9 ratio - exactly 0.778)
   } else {
     return { width: 1152, height: 896 }; // Landscape: 1152:896 (ratio ~1.286)
   }
@@ -186,7 +186,7 @@ const generateUUID = () => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replaceAll(/[xy]/g, function(c) {
     const r = Math.random() * 16 | 0;
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(15);
+    return v.toString(16);
   });
 };
 
@@ -1551,6 +1551,127 @@ const App = () => {
     const currentPhoto = photos[selectedPhotoIndex];
     const imageUrl = currentPhoto.images[selectedSubIndex] || currentPhoto.originalDataUrl;
     if (!imageUrl) return null;
+    
+    // Function to enhance the current image
+    const enhanceImage = async () => {
+      try {
+        // Get the image as a blob
+        const response = await fetch(imageUrl);
+        const imageBlob = await response.blob();
+        
+        // Create a loading state for this photo
+        setPhotos(previous => {
+          const updated = [...previous];
+          updated[selectedPhotoIndex] = {
+            ...updated[selectedPhotoIndex],
+            loading: true,
+            enhancing: true,
+            progress: 0
+          };
+          return updated;
+        });
+        
+        // Create the enhanced version using specific parameters
+        const arrayBuffer = await imageBlob.arrayBuffer();
+        
+        // Create the project with special parameters for enhancement
+        const project = await sogniClient.projects.create({
+          modelId: "flux1-schnell-fp8",
+          positivePrompt: currentPhoto.prompt || "enhanced photo",
+          sizePreset: 'custom',
+          width: desiredWidth,
+          height: desiredHeight,
+          steps: 7,
+          guidance: promptGuidance,
+          numberOfImages: 1,
+          scheduler: 'DPM Solver Multistep (DPM-Solver++)',
+          timeStepSpacing: 'Karras',
+          startingImage: new Uint8Array(arrayBuffer),
+          startingImageStrength: 0.8,
+        });
+        
+        activeProjectReference.current = project.id;
+        console.log('Enhancement project created:', project.id, currentPhoto.prompt);
+        
+        // Set up progress tracking
+        project.on('progress', (progress) => {
+          setPhotos(previous => {
+            const updated = [...previous];
+            if (!updated[selectedPhotoIndex]) return previous;
+            
+            updated[selectedPhotoIndex] = {
+              ...updated[selectedPhotoIndex],
+              progress
+            };
+            return updated;
+          });
+        });
+        
+        // Handle completion
+        project.on('completed', (urls) => {
+          console.log('Enhancement completed:', urls);
+          activeProjectReference.current = null;
+          
+          if (urls.length > 0) {
+            setPhotos(previous => {
+              const updated = [...previous];
+              if (!updated[selectedPhotoIndex]) return previous;
+              
+              // Add the enhanced image to the images array
+              const newImages = [...updated[selectedPhotoIndex].images, urls[0]];
+              
+              updated[selectedPhotoIndex] = {
+                ...updated[selectedPhotoIndex],
+                loading: false,
+                enhancing: false,
+                images: newImages,
+                newlyArrived: true
+              };
+              
+              // Set the selected sub-index to the new enhanced image
+              setSelectedSubIndex(newImages.length - 1);
+              
+              return updated;
+            });
+          }
+        });
+        
+        // Handle failure
+        project.on('failed', (error) => {
+          console.error('Enhancement failed:', error);
+          activeProjectReference.current = null;
+          
+          setPhotos(previous => {
+            const updated = [...previous];
+            if (!updated[selectedPhotoIndex]) return previous;
+            
+            updated[selectedPhotoIndex] = {
+              ...updated[selectedPhotoIndex],
+              loading: false,
+              enhancing: false,
+              error: 'Enhancement failed'
+            };
+            return updated;
+          });
+        });
+      } catch (error) {
+        console.error('Error enhancing image:', error);
+        
+        setPhotos(previous => {
+          const updated = [...previous];
+          if (!updated[selectedPhotoIndex]) return previous;
+          
+          updated[selectedPhotoIndex] = {
+            ...updated[selectedPhotoIndex],
+            loading: false,
+            enhancing: false,
+            error: 'Enhancement failed'
+          };
+          return updated;
+        });
+      }
+    };
+
     // Get natural size
     const [naturalSize, setNaturalSize] = React.useState({ width: null, height: null });
     React.useEffect(() => {
@@ -1574,7 +1695,7 @@ const App = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 99_999,
+        zIndex: 99999,
         padding: '40px',
       }}
       onClick={(e) => {
@@ -1583,6 +1704,44 @@ const App = () => {
           setSelectedPhotoIndex(null);
         }
       }}>
+        <button 
+          className="enhance-photo-btn"
+          onClick={enhanceImage}
+          disabled={currentPhoto.loading || currentPhoto.enhancing}
+          style={{
+            position: 'fixed',
+            right: '20px',
+            top: '20px',
+            background: currentPhoto.loading ? '#cccccc' : 'linear-gradient(135deg, #FF3366 0%, #FF5E8A 100%)',
+            color: 'white',
+            border: 'none',
+            padding: '12px 24px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            cursor: currentPhoto.loading ? 'default' : 'pointer',
+            fontWeight: 'bold',
+            fontSize: '16px',
+            zIndex: 99999,
+            transition: 'transform 0.2s, box-shadow 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+          onMouseOver={(e) => {
+            if (!currentPhoto.loading && !currentPhoto.enhancing) {
+              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 51, 102, 0.7)';
+            }
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = '';
+            e.currentTarget.style.boxShadow = '';
+          }}
+        >
+          <span style={{ fontSize: '20px' }}>✨</span>
+          <span>{currentPhoto.loading ? 'Enhancing...' : 'Enhance'}</span>
+        </button>
+        
       <div className="polaroid-frame" style={{
         background: '#faf9f6',
           borderRadius: 8,
@@ -1601,25 +1760,7 @@ const App = () => {
         position: 'relative',
         overflow: 'visible',
         margin: '0 auto',
-          zIndex: 10_001,
-      }}>
-        <div style={{
-          width: '100%',
-            aspectRatio: '9 / 7',
-            background: 'white',
-            borderLeft: '32px solid white',
-            borderRight: '32px solid white',
-            borderTop: '56px solid white',
-            borderBottom: '120px solid white',
-            borderRadius: 8,
-            boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
-            overflow: 'hidden',
-            position: 'relative',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-            marginTop: 0,
-            transition: 'none', // Remove animation
+          zIndex: 10001,
           }}>
         <div style={{
           width: '100%',
@@ -1661,6 +1802,22 @@ const App = () => {
                   transition: 'none', // Remove animation
               }}
             />
+            {currentPhoto.loading && (
+              <div style={{
+                position: 'absolute',
+                bottom: '10px',
+                right: '10px',
+                transform: 'none',
+                background: 'rgba(0, 0, 0, 0.5)',
+                color: 'white',
+                padding: '8px 16px',
+                borderRadius: '20px',
+                fontSize: '14px',
+                zIndex: 3
+              }}>
+                Enhancing... {Math.floor(currentPhoto.progress || 0)}%
+              </div>
+            )}
               </div>
             <div className="photo-label" style={{
               position: 'absolute',
@@ -1674,7 +1831,6 @@ const App = () => {
               zIndex: 2,
             }}>
               #{selectedPhotoIndex + 1}
-        </div>
               </div>
       </div>
     </div>
@@ -1699,6 +1855,139 @@ const App = () => {
   // -------------------------
   const renderGallery = () => {    
     if (photos.length === 0 || !showPhotoGrid) return null;
+    
+    // Expose enhanceImage for selected photos
+    const enhanceCurrentPhoto = async () => {
+      if (selectedPhotoIndex !== null && selectedPhotoIndex >= 0 && photos[selectedPhotoIndex]) {
+        const currentPhoto = photos[selectedPhotoIndex];
+        const imageUrl = currentPhoto.images[selectedSubIndex] || currentPhoto.originalDataUrl;
+        
+        try {
+          // Get the image as a blob
+          const response = await fetch(imageUrl);
+          const imageBlob = await response.blob();
+          
+          // Create a loading state for this photo
+          setPhotos(previous => {
+            const updated = [...previous];
+            updated[selectedPhotoIndex] = {
+              ...updated[selectedPhotoIndex],
+              loading: true,
+              enhancing: true,
+              progress: 0
+            };
+            return updated;
+          });
+          
+          // Create the enhanced version using specific parameters
+          const arrayBuffer = await imageBlob.arrayBuffer();
+          
+          // Create the project with special parameters for enhancement
+          const project = await sogniClient.projects.create({
+            modelId: "flux1-schnell-fp8",
+            positivePrompt: currentPhoto.prompt || "enhanced photo",
+            sizePreset: 'custom',
+            width: desiredWidth,
+            height: desiredHeight,
+            steps: 7,
+            guidance: promptGuidance,
+            numberOfImages: 1,
+            scheduler: 'DPM Solver Multistep (DPM-Solver++)',
+            timeStepSpacing: 'Karras',
+            startingImage: new Uint8Array(arrayBuffer),
+            startingImageStrength: 0.8,
+            controlNet: {
+              name: 'instantid',
+              image: new Uint8Array(arrayBuffer),
+              strength: controlNetStrength,
+              mode: 'balanced',
+              guidanceStart: 0,
+              guidanceEnd: controlNetGuidanceEnd,
+            }
+          });
+          
+          activeProjectReference.current = project.id;
+          console.log('Enhancement project created:', project.id);
+          
+          // Set up progress tracking
+          project.on('progress', (progress) => {
+            setPhotos(previous => {
+              const updated = [...previous];
+              if (!updated[selectedPhotoIndex]) return previous;
+              
+              updated[selectedPhotoIndex] = {
+                ...updated[selectedPhotoIndex],
+                progress
+              };
+              return updated;
+            });
+          });
+          
+          // Handle completion
+          project.on('completed', (urls) => {
+            console.log('Enhancement completed:', urls);
+            activeProjectReference.current = null;
+            
+            if (urls.length > 0) {
+              setPhotos(previous => {
+                const updated = [...previous];
+                if (!updated[selectedPhotoIndex]) return previous;
+                
+                // Add the enhanced image to the images array
+                const newImages = [...updated[selectedPhotoIndex].images, urls[0]];
+                
+                updated[selectedPhotoIndex] = {
+                  ...updated[selectedPhotoIndex],
+                  loading: false,
+                  enhancing: false,
+                  images: newImages,
+                  newlyArrived: true
+                };
+                
+                // Set the selected sub-index to the new enhanced image
+                setSelectedSubIndex(newImages.length - 1);
+                
+                return updated;
+              });
+            }
+          });
+          
+          // Handle failure
+          project.on('failed', (error) => {
+            console.error('Enhancement failed:', error);
+            activeProjectReference.current = null;
+            
+            setPhotos(previous => {
+              const updated = [...previous];
+              if (!updated[selectedPhotoIndex]) return previous;
+              
+              updated[selectedPhotoIndex] = {
+                ...updated[selectedPhotoIndex],
+                loading: false,
+                enhancing: false,
+                error: 'Enhancement failed'
+              };
+              return updated;
+            });
+          });
+        } catch (error) {
+          console.error('Error enhancing image:', error);
+          
+          setPhotos(previous => {
+            const updated = [...previous];
+            if (!updated[selectedPhotoIndex]) return previous;
+            
+            updated[selectedPhotoIndex] = {
+              ...updated[selectedPhotoIndex],
+              loading: false,
+              enhancing: false,
+              error: 'Enhancement failed'
+            };
+            return updated;
+          });
+        }
+      }
+    };
     
     return (
       <div className={`film-strip-container ${showPhotoGrid ? 'visible' : 'hiding'} ${selectedPhotoIndex === null ? '' : 'has-selected'}`}
@@ -1784,9 +2073,13 @@ const App = () => {
                   key={photo.id}
                   className={`film-frame loading ${isSelected ? 'selected' : ''}`}
                   data-fadepolaroid={photo.loading && !photo.error ? 'true' : undefined}
+                  data-enhancing={photo.enhancing ? 'true' : undefined}
+                  data-error={photo.error ? 'true' : undefined}
+                  data-enhanced={photo.enhanced ? 'true' : undefined}
                   onClick={() => isSelected ? setSelectedPhotoIndex(null) : setSelectedPhotoIndex(index)}
                   style={{
                     ...squareStyle,
+                    '--enhance-progress': photo.progress ? `${Math.floor(photo.progress * 100)}%` : '0%',
                     position: 'relative',
                     borderRadius: '3px',
                     padding: '12px',
@@ -1901,12 +2194,16 @@ const App = () => {
             return (
               <div 
                 key={photo.id}
-                className={`film-frame ${isSelected ? 'selected' : ''}`}
-                onClick={(e) => handlePhotoSelect(index, e)}
+                className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''}`}
+                onClick={(e) => isSelected ? handlePhotoViewerClick(e) : handlePhotoSelect(index, e)}
+                data-enhancing={photo.enhancing ? 'true' : undefined}
+                data-error={photo.error ? 'true' : undefined}
+                data-enhanced={photo.enhanced ? 'true' : undefined}
                 style={{
                   ...squareStyle,
                   '--rotation': `${isSelected ? '0deg' : 
                     `${(index % 2 === 0 ? 1 : -1) * (0.8 + (index % 3) * 0.5)}deg`}`,
+                  '--enhance-progress': photo.progress ? `${Math.floor(photo.progress * 100)}%` : '0%',
                   position: 'relative',
                   borderRadius: '3px',
                   padding: '12px',
@@ -2114,15 +2411,251 @@ const App = () => {
     }
   }, [photos]);
 
-  // Add handler for clicks outside the image
+  // Handle clicks in the photo viewer
   const handlePhotoViewerClick = (e) => {
-    // Check if the click is outside the image
-    const imageWrapperElement = e.target.closest('.image-wrapper');
-    const navButtonElement = e.target.closest('.photo-nav-btn');
-    const previewElement = e.target.closest('.photo-preview');
+    if (selectedPhotoIndex === null) return;
     
-    if (!imageWrapperElement && !navButtonElement && !previewElement) {
-      handleClosePhoto();
+    // Check if the target is the enhance button (::after pseudo-element)
+    // We can detect clicks on ::after by checking the click position relative to the element
+    const target = e.target;
+    
+    if (target.classList.contains('film-frame') && target.classList.contains('selected')) {
+      const rect = target.getBoundingClientRect();
+      const clickX = e.clientX;
+      const clickY = e.clientY;
+      
+      // Check if click is in the bottom-right area where the enhance button is
+      if (clickX >= rect.right - 150 && clickX <= rect.right && 
+          clickY >= rect.bottom - 80 && clickY <= rect.bottom) {
+        // Enhance button clicked
+        const currentPhoto = photos[selectedPhotoIndex];
+        
+        // Handle undo enhance if already enhanced
+        if (currentPhoto.enhanced && !currentPhoto.loading && !currentPhoto.enhancing) {
+          // Implement the undo enhance function
+          const undoEnhance = () => {
+            console.log(`[ENHANCE] Undoing enhancement for photo #${selectedPhotoIndex}`);
+            setPhotos(prev => {
+              const updated = [...prev];
+              const photo = updated[selectedPhotoIndex];
+              
+              // Restore the original image if we have it
+              if (photo.originalEnhancedImage) {
+                const updatedImages = [...photo.images];
+                // Make sure we have a valid subIndex
+                const indexToRestore = selectedSubIndex < updatedImages.length 
+                  ? selectedSubIndex 
+                  : updatedImages.length - 1;
+                
+                if (indexToRestore >= 0) {
+                  updatedImages[indexToRestore] = photo.originalEnhancedImage;
+                }
+                
+                updated[selectedPhotoIndex] = {
+                  ...photo,
+                  enhanced: false,
+                  images: updatedImages
+                };
+              } else {
+                // If we don't have the original, just remove the enhanced flag
+                updated[selectedPhotoIndex] = {
+                  ...photo,
+                  enhanced: false
+                };
+              }
+              
+              return updated;
+            });
+          };
+          
+          undoEnhance();
+          e.stopPropagation();
+          return;
+        }
+        
+        // Normal enhance flow
+        if (!currentPhoto.loading && !currentPhoto.enhancing) {
+          // Implement the enhance function directly here
+          const enhanceCurrentPhoto = async () => {
+            try {
+              console.log(`[ENHANCE] Starting enhancement for photo #${selectedPhotoIndex}`);
+              // Get image data
+              const imageUrl = currentPhoto.images[selectedSubIndex] || currentPhoto.originalDataUrl;
+              const response = await fetch(imageUrl);
+              const imageBlob = await response.blob();
+              
+              // Set loading state
+              setPhotos(prev => {
+                console.log(`[ENHANCE] Setting loading state for photo #${selectedPhotoIndex}`);
+                const updated = [...prev];
+                
+                // Store the original image if not already stored
+                let originalImage = null;
+                if (!updated[selectedPhotoIndex].originalEnhancedImage) {
+                  originalImage = updated[selectedPhotoIndex].images[selectedSubIndex] || updated[selectedPhotoIndex].originalDataUrl;
+                }
+                
+                updated[selectedPhotoIndex] = {
+                  ...updated[selectedPhotoIndex],
+                  loading: true,
+                  enhancing: true,
+                  progress: 0,
+                  error: null, // Clear any previous errors
+                  originalEnhancedImage: originalImage || updated[selectedPhotoIndex].originalEnhancedImage // Store original for undo
+                };
+                return updated;
+              });
+              
+              // Start enhancement
+              const arrayBuffer = await imageBlob.arrayBuffer();
+              console.log(`[ENHANCE] Creating enhancement project with Sogni API`, currentPhoto, desiredWidth, desiredHeight);
+              const project = await sogniClient.projects.create({
+                modelId: "flux1-schnell-fp8",
+                positivePrompt: 'professional portrait',//currentPhoto.prompt,
+                sizePreset: 'custom',
+                width: desiredWidth,
+                height: desiredHeight,
+                stylePrompt: '',
+                steps: 4,
+                guidance: 1,
+                numberOfImages: 1,
+                //scheduler: 'DPM Solver Multistep (DPM-Solver++)',
+                //timeStepSpacing: 'Karras',
+                startingImage: new Uint8Array(arrayBuffer),
+                startingImageStrength: 0.9,
+              });
+              
+              // Track progress
+              activeProjectReference.current = project.id;
+              console.log(`[ENHANCE] Project created with ID: ${project.id}`);
+              
+              project.on('progress', (progress) => {
+                const progressPercent = Math.floor(progress * 100);
+                console.log(`[ENHANCE] Progress: ${progressPercent}%`);
+                
+                setPhotos(prev => {
+                  const updated = [...prev];
+                  if (!updated[selectedPhotoIndex]) return prev;
+                  
+                  updated[selectedPhotoIndex] = {
+                    ...updated[selectedPhotoIndex],
+                    progress
+                  };
+                  return updated;
+                });
+              });
+              
+              // Handle completion
+              project.on('completed', (urls) => {
+                console.log(`[ENHANCE] Enhancement completed successfully`);
+                console.log(`[ENHANCE] Generated URLs:`, urls);
+                activeProjectReference.current = null;
+                
+                if (urls.length > 0) {
+                  console.log(`[ENHANCE] Replacing current image with enhanced version`);
+                  setPhotos(prev => {
+                    const updated = [...prev];
+                    if (!updated[selectedPhotoIndex]) return prev;
+                    
+                    // Replace the current image with the enhanced version
+                    const updatedImages = [...updated[selectedPhotoIndex].images];
+                    
+                    // Log the current state
+                    console.log(`[ENHANCE] Current images: ${updatedImages.length}, subIndex: ${selectedSubIndex}`);
+                    
+                    // Make sure we have a valid subIndex
+                    const indexToReplace = selectedSubIndex < updatedImages.length 
+                      ? selectedSubIndex 
+                      : updatedImages.length - 1;
+                    
+                    if (indexToReplace >= 0) {
+                      // Replace the image at the valid index
+                      updatedImages[indexToReplace] = urls[0];
+                      console.log(`[ENHANCE] Replaced image at index ${indexToReplace}`);
+                    } else {
+                      // If no valid index, just add the image
+                      updatedImages.push(urls[0]);
+                      console.log(`[ENHANCE] Added new image since no valid index found`);
+                    }
+                    
+                    updated[selectedPhotoIndex] = {
+                      ...updated[selectedPhotoIndex],
+                      loading: false,
+                      enhancing: false,
+                      images: updatedImages,
+                      newlyArrived: true,
+                      enhanced: true // Add a flag to indicate enhancement was successful
+                    };
+                    
+                    // Keep the same selected sub-index since we replaced the image
+                    
+                    return updated;
+                  });
+                } else {
+                  console.error(`[ENHANCE] No URLs returned from completed job`);
+                  setPhotos(prev => {
+                    const updated = [...prev];
+                    if (!updated[selectedPhotoIndex]) return prev;
+                    
+                    updated[selectedPhotoIndex] = {
+                      ...updated[selectedPhotoIndex],
+                      loading: false,
+                      enhancing: false,
+                      error: 'No enhanced image generated'
+                    };
+                    return updated;
+                  });
+                }
+              });
+              
+              project.on('failed', (error) => {
+                console.error(`[ENHANCE] Enhancement failed:`, error);
+                activeProjectReference.current = null;
+                
+                setPhotos(prev => {
+                  const updated = [...prev];
+                  if (!updated[selectedPhotoIndex]) return prev;
+                  
+                  updated[selectedPhotoIndex] = {
+                    ...updated[selectedPhotoIndex],
+                    loading: false,
+                    enhancing: false,
+                    error: 'Enhancement failed'
+                  };
+                  return updated;
+                });
+                
+                // Add visual indicator of failure
+                alert('Enhancement failed. Please try again.');
+              });
+            } catch (error) {
+              console.error(`[ENHANCE] Error enhancing image:`, error);
+              setPhotos(prev => {
+                const updated = [...prev];
+                if (!updated[selectedPhotoIndex]) return prev;
+                
+                updated[selectedPhotoIndex] = {
+                  ...updated[selectedPhotoIndex],
+                  loading: false,
+                  enhancing: false,
+                  error: error?.message || 'Enhancement failed'
+                };
+                return updated;
+              });
+              
+              // Add visual indicator of failure
+              alert(`Enhancement error: ${error?.message || 'Unknown error'}`);
+            }
+          };
+          
+          enhanceCurrentPhoto();
+          e.stopPropagation();
+          return;
+        }
+      }
+      
+      // If not clicked on the enhance button, close the photo viewer
+      setSelectedPhotoIndex(null);
     }
   };
 
@@ -2234,7 +2767,7 @@ const App = () => {
           fontWeight: 'bold',
           fontSize: '16px',
           padding: '5px', 
-          zIndex: 99_999,
+          zIndex: 99999,
           whiteSpace: 'nowrap'
         }}>
           {currentThought.text}
@@ -2475,7 +3008,7 @@ const App = () => {
               onMouseOut={(e) => {
                 e.currentTarget.style.transform = 'scale(1)';
                 e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
-              }}
+            }}
             title="Photobooth Tips"
           >
             ?
@@ -2745,6 +3278,38 @@ const App = () => {
             transform: none !important;
           }
           
+          /* ------- ADD: Enhance button styling ------- */
+          .enhance-photo-btn {
+            position: fixed !important;
+            right: 20px !important;
+            top: 20px !important;
+            background: linear-gradient(135deg, #FF3366 0%, #FF5E8A 100%) !important;
+            color: white !important;
+            border: none !important;
+            padding: 12px 24px !important;
+            border-radius: 8px !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+            cursor: pointer !important;
+            font-weight: bold !important;
+            font-size: 16px !important;
+            z-index: 999999 !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+          }
+          
+          .enhance-photo-btn:hover {
+            transform: scale(1.05) !important;
+            box-shadow: 0 4px 12px rgba(255, 51, 102, 0.7) !important;
+          }
+          
+          .enhance-photo-btn:disabled {
+            background: #cccccc !important;
+            cursor: default !important;
+            transform: none !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+          }
+          
           /* ------- FIX 4: Loading image fade effect ------- */
           .film-frame.loading {
             position: relative;
@@ -2771,6 +3336,46 @@ const App = () => {
           /* ------- FIX 5: Slideshow Polaroid frame ------- */
           .selected-photo-container {
             background: rgba(0,0,0,0.85);
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            z-index: 99999 !important;
+          }
+          
+          .selected-photo-container .enhance-photo-btn {
+            position: fixed !important;
+            right: 20px !important;
+            top: 20px !important;
+            background: linear-gradient(135deg, #FF3366 0%, #FF5E8A 100%) !important;
+            color: white !important;
+            border: none !important;
+            padding: 12px 24px !important;
+            border-radius: 8px !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+            cursor: pointer !important;
+            font-weight: bold !important;
+            font-size: 16px !important;
+            z-index: 999999 !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+          }
+          
+          .selected-photo-container .enhance-photo-btn:hover {
+            transform: scale(1.05) !important;
+            box-shadow: 0 4px 12px rgba(255, 51, 102, 0.7) !important;
+          }
+          
+          .selected-photo-container .enhance-photo-btn:disabled {
+            background: #cccccc !important;
+            cursor: default !important;
+            transform: none !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
           }
           
           .image-wrapper {

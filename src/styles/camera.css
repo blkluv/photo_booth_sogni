@@ -60,6 +60,28 @@
   max-width: 66.67%;
 }
 
+/* Mobile portrait optimization */
+@media (orientation: portrait) and (max-width: 768px) {
+  .photobooth-screen {
+    width: 95% !important;
+    max-width: 95% !important;
+    height: auto !important;
+    margin-top: 10px;
+  }
+  
+  #webcam {
+    width: 100% !important;
+    height: auto !important;
+    object-fit: cover !important;
+    aspect-ratio: 7/9; /* Update to 7:9 ratio */
+  }
+  
+  .photobooth-app .photobooth-frame > .photobooth-screen {
+    width: 95% !important;
+    max-width: 95% !important;
+  }
+}
+
 .photobooth-screen video {
   width: 100%;
   display: block;
