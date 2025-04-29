@@ -2257,7 +2257,7 @@ const App = () => {
               console.log(`[ENHANCE] Creating enhancement project with Sogni API`, currentPhoto, desiredWidth, desiredHeight);
               const project = await sogniClient.projects.create({
                 modelId: "flux1-schnell-fp8",
-                positivePrompt: 'make portrait look better',//currentPhoto.prompt,
+                positivePrompt: 'portrait, detailed skin, natural pores, rim-light accent, rich colour depth, finely rendered eyes, 8k, masterpiece',//currentPhoto.prompt,
                 sizePreset: 'custom',
                 width: desiredWidth,
                 height: desiredHeight,
@@ -2268,7 +2268,7 @@ const App = () => {
                 //scheduler: 'DPM Solver Multistep (DPM-Solver++)',
                 //timeStepSpacing: 'Karras',
                 startingImage: new Uint8Array(arrayBuffer),
-                startingImageStrength: 0.9,
+                startingImageStrength: 0.80,
               });
               
               // Track progress
