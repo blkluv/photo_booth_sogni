@@ -319,7 +319,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
               <select
                 className="camera-select"
                 onChange={(e) => onCameraSelect?.(e.target.value)}
-                value={selectedCameraDeviceId}
+                value={selectedCameraDeviceId || ''}
               >
                 <option value="">Default (user-facing)</option>
                 {cameraDevices.map((device) => (
@@ -350,7 +350,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
             <label className="control-label">Pick an Image Model:</label>
             <select
               className="model-select"
-              value={selectedModel}
+              value={selectedModel || ''}
               onChange={(e) => onModelSelect?.(e.target.value)}
             >
               {modelOptions.map((model) => (
