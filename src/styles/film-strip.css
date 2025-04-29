@@ -810,16 +810,9 @@
   opacity: 0.2 !important;
 }
 
-/* Fix hover and active state by using :hover after the element */
-.film-frame.selected:not([data-enhancing="true"]):not([data-error="true"]):not([data-enhanced="true"]):hover::after {
-  transform: scale(1.05) !important;
-  box-shadow: 0 4px 12px rgba(255, 51, 102, 0.7) !important;
-}
-
 /* Add button click behavior */
 .film-frame.selected:not([data-enhancing="true"]):not([data-error="true"]):not([data-enhanced="true"]):active::after {
   transform: scale(0.95) !important;
-  box-shadow: 0 2px 4px rgba(255, 51, 102, 0.4) !important;
 }
 
 /* Add a subtle badge to enhanced photos in grid view */

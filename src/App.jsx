@@ -1007,7 +1007,7 @@ const App = () => {
               error: null,
               originalDataUrl: dataUrl, // Use reference photo as placeholder
               newlyArrived: false,
-              statusText: 'Starting...'
+              statusText: 'Finding Art Robot...'
             });
           }
         }
@@ -1768,8 +1768,8 @@ const App = () => {
                           position: 'relative',
                           top: 0,
                           left: 0,
-                          opacity: 0.2,
-                          animation: 'placeholderPulse 2s ease-in-out infinite',
+                          opacity: photo.error ? 0.7 : 0.2,
+                          animation: photo.error ? '' : 'placeholderPulse 2s ease-in-out infinite',
                           zIndex: 1
                         }}
                       />
@@ -1886,6 +1886,27 @@ const App = () => {
                     <img
                       src={thumbUrl}
                       alt={`Generated #${index}`}
+                      onError={(e) => {
+                        console.log('Image failed to load, using original as fallback');
+                        if (photo.originalDataUrl && e.target.src !== photo.originalDataUrl) {
+                          e.target.src = photo.originalDataUrl;
+                          e.target.style.opacity = '0.7'; // Make it slightly faded to indicate it's a fallback
+                          e.target.classList.add('fallback'); // Add fallback class for styling
+                          
+                          // Update the photo state to mark it as having an error
+                          setPhotos(prev => {
+                            const updated = [...prev];
+                            if (updated[index]) {
+                              updated[index] = {
+                                ...updated[index],
+                                loadError: true,
+                                statusText: `${updated[index].statusText || ''} (Using original)`
+                              };
+                            }
+                            return updated;
+                          });
+                        }
+                      }}
                       style={{
                         width: '100%',
                         height: '100%',
@@ -2178,7 +2199,7 @@ const App = () => {
               console.log(`[ENHANCE] Creating enhancement project with Sogni API`, currentPhoto, desiredWidth, desiredHeight);
               const project = await sogniClient.projects.create({
                 modelId: "flux1-schnell-fp8",
-                positivePrompt: 'portrait, detailed skin, natural pores, rim-light accent, rich colour depth, finely rendered eyes, 8k, masterpiece',//currentPhoto.prompt,
+                positivePrompt: 'Portrait masterpiece',//currentPhoto.prompt,
                 sizePreset: 'custom',
                 width: desiredWidth,
                 height: desiredHeight,
@@ -2953,26 +2974,72 @@ const App = () => {
             position: fixed !important;
             right: 20px !important;
             top: 20px !important;
-            background: linear-gradient(135deg, #FF3366 0%, #FF5E8A 100%) !important;
-            color: white !important;
+            background: rgba(255, 255, 255, 0.85) !important;
+            color: #333 !important;
             border: none !important;
-            padding: 12px 24px !important;
-            border-radius: 8px !important;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+            padding: 10px 18px !important;
+            border-radius: 6px !important;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1) !important;
             cursor: pointer !important;
-            font-weight: bold !important;
-            font-size: 16px !important;
+            font-weight: 500 !important;
+            font-size: 14px !important;
             z-index: 999999 !important;
             display: flex !important;
             align-items: center !important;
-            gap: 8px !important;
+            gap: 6px !important;
+            backdrop-filter: blur(4px) !important;
+            -webkit-backdrop-filter: blur(4px) !important;
+            transition: all 0.2s ease !important;
+          }
+          
+          .enhance-photo-btn:hover {
+            background: white !important;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.15) !important;
           }
           
           .enhance-photo-btn:disabled {
-            background: #cccccc !important;
+            background: rgba(230, 230, 230, 0.8) !important;
+            color: #999 !important;
             cursor: default !important;
             transform: none !important;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05) !important;
+          }
+          
+          /* Selected photo container enhance button styling */
+          .selected-photo-container .enhance-photo-btn {
+            position: fixed !important;
+            right: 20px !important;
+            top: 20px !important;
+            background: rgba(255, 255, 255, 0.85) !important;
+            color: #333 !important;
+            border: none !important;
+            padding: 10px 18px !important;
+            border-radius: 6px !important;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1) !important;
+            cursor: pointer !important;
+            font-weight: 500 !important;
+            font-size: 14px !important;
+            z-index: 999999 !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            backdrop-filter: blur(4px) !important;
+            -webkit-backdrop-filter: blur(4px) !important;
+            transition: all 0.2s ease !important;
+          }
+          
+          .selected-photo-container .enhance-photo-btn:hover {
+            background: white !important;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.15) !important;
+            transform: scale(1.02) !important;
+          }
+          
+          .selected-photo-container .enhance-photo-btn:disabled {
+            background: rgba(230, 230, 230, 0.8) !important;
+            color: #999 !important;
+            cursor: default !important;
+            transform: none !important;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05) !important;
           }
           
           /* ------- FIX 4: Loading image fade effect ------- */
@@ -2997,6 +3064,14 @@ const App = () => {
           .film-frame.loading[data-progress="80"] img { opacity: 0.40 !important; }
           .film-frame.loading[data-progress="90"] img { opacity: 0.45 !important; }
           .film-frame.loading[data-progress="100"] img { opacity: 0.50 !important; }
+          
+          /* Fallback image styling */
+          .film-frame[data-error="true"] img,
+          .film-frame img.fallback {
+            opacity: 0.7 !important;
+            filter: grayscale(20%) !important;
+            border-top: 2px solid #ff9800 !important;
+          }
           
           /* ------- FIX 5: Slideshow Polaroid frame ------- */
           .selected-photo-container {
@@ -3030,12 +3105,7 @@ const App = () => {
             align-items: center !important;
             gap: 8px !important;
           }
-          
-          .selected-photo-container .enhance-photo-btn:hover {
-            transform: scale(1.05) !important;
-            box-shadow: 0 4px 12px rgba(255, 51, 102, 0.7) !important;
-          }
-          
+=
           .selected-photo-container .enhance-photo-btn:disabled {
             background: #cccccc !important;
             cursor: default !important;
