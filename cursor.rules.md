@@ -41,3 +41,5 @@
     - Before using tools to find information, check if that information has already been discovered
     - Maintain conversational context and user history to prevent repetitive work
     - Use information persistence to minimize response time and redundant operations
+
+- Note: App.jsx is over 3000 lines. Always consider this when making changes or reviewing the file.

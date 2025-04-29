@@ -105,14 +105,14 @@ let defaultStylePrompts = { custom: '' };
 loadPrompts().then(prompts => {
   defaultStylePrompts = {
     custom: '',
-    ...Object.fromEntries(
-      Object.entries(prompts)
-        .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
-    )
-  };
-  
-  // Add random style that uses all prompts
-  defaultStylePrompts.random = `{${Object.values(prompts).join('|')}}`;
+  ...Object.fromEntries(
+    Object.entries(prompts)
+      .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+  )
+};
+
+// Add random style that uses all prompts
+defaultStylePrompts.random = `{${Object.values(prompts).join('|')}}`;
   console.log('Prompts loaded successfully:', Object.keys(defaultStylePrompts).length);
 }).catch(error => {
   console.error('Error initializing prompts:', error);
@@ -288,6 +288,9 @@ const App = () => {
     completedJobs: new Map(), // Store completed jobs that arrive before start
     pendingCompletions: new Map() // Store completions that arrive before we have the mapping
   });
+  
+  // Add a ref for handled jobs
+  const handledJobsReference = useRef(new Set());
 
   // Calculate aspect ratio for loading boxes
   const isPortrait = desiredHeight > desiredWidth;
@@ -509,6 +512,25 @@ const App = () => {
 
       client.projects.on('job', (event) => {
         console.log('Job event full payload:', event);
+        const { type, projectId, jobId, workerName } = event;
+        if ((type === 'initiating' || type === 'started') && !handledJobsReference.current.has(jobId)) {
+          handledJobsReference.current.add(jobId);
+          setPhotos((prevPhotos) => {
+            return prevPhotos.map((photo, index) => {
+              if (index === projectStateReference.current.jobMap.get(jobId)) {
+                const statusText = type === 'initiating' 
+                  ? `${workerName} loading model...`
+                  : `${workerName} starting job`;
+                return {
+                  ...photo,
+                  statusText,
+                  jobId,
+                };
+              }
+              return photo;
+            });
+          });
+        }
       });
     } catch (error) {
       console.error('Failed initializing Sogni client:', error);
@@ -675,6 +697,20 @@ const App = () => {
       }
     }
   }, [selectedPhotoIndex, photos]);
+
+  // Add debugging for photos state changes
+  /*
+  useEffect(() => {
+    console.log('Photos state updated:', photos.map(p => ({
+      id: p.id,
+      loading: p.loading,
+      generating: p.generating,
+      progress: p.progress || 0,
+      images: p.images.length,
+      error: p.error
+    })));
+  }, [photos]);
+  */
 
   // Update the close photo handler to simplify it
   const handleClosePhoto = () => {
@@ -926,11 +962,18 @@ const App = () => {
       console.log('Style prompt:', stylePrompt);
       projectStateReference.current = {
         currentPhotoIndex: newPhotoIndex,
-        pendingCompletions: new Map()
+        pendingCompletions: new Map(),
+        jobMap: new Map() // Store jobMap in projectState
       };
 
       // Set up photos state first
       setPhotos(previous => {
+        // Check if there are any existing photos with progress we need to preserve
+        const existingProcessingPhotos = previous.filter(photo => 
+          photo.generating && photo.jobId && photo.progress
+        );
+        console.log('Existing processing photos to preserve:', existingProcessingPhotos);
+        
         const newPhotos = [];
         if (keepOriginalPhoto) {
           newPhotos.push({
@@ -945,16 +988,28 @@ const App = () => {
         }
         
         for (let index = 0; index < numberImages; index++) {
-          newPhotos.push({
-            id: Date.now() + index + 1,
-            generating: true,
-            loading: true,
-            progress: 0,
-            images: [],
-            error: null,
-            originalDataUrl: dataUrl, // Use reference photo as placeholder
-            newlyArrived: false
-          });
+          // Check if we have an existing photo in process
+          const existingPhoto = existingProcessingPhotos[index];
+          
+          if (existingPhoto && existingPhoto.jobId) {
+            console.log(`Preserving existing photo data for index ${index}:`, existingPhoto);
+            newPhotos.push({
+              ...existingPhoto,
+              originalDataUrl: existingPhoto.originalDataUrl || dataUrl
+            });
+          } else {
+            newPhotos.push({
+              id: Date.now() + index + 1,
+              generating: true,
+              loading: true,
+              progress: 0,
+              images: [],
+              error: null,
+              originalDataUrl: dataUrl, // Use reference photo as placeholder
+              newlyArrived: false,
+              statusText: 'Starting...'
+            });
+          }
         }
         return newPhotos;
       });
@@ -976,35 +1031,47 @@ const App = () => {
       const arrayBuffer = await photoBlob.arrayBuffer();
       
       // Create job tracking map and set of handled jobs
-      const jobMap = new Map();
-      const handledJobs = new Set();
+      const handledJobs = {current: new Set()};
 
       // Helper to set up job progress handler
       const setupJobProgress = (job) => {
+        console.log('Setting up job progress handler for job:', job.id);
         // Only set up if we haven't already handled this job
-        if (!handledJobs.has(job.id)) {
-          const jobIndex = jobMap.size;
-          jobMap.set(job.id, jobIndex);
-          handledJobs.add(job.id);
+        if (!handledJobs.current.has(job.id)) {
+          const jobIndex = projectStateReference.current.jobMap.size;
+          projectStateReference.current.jobMap.set(job.id, jobIndex);
+          handledJobs.current.add(job.id);
+          console.log('Job mapping created:', job.id, 'to index', jobIndex);
           
           job.on('progress', (progress) => {
-            console.log('Job progress:', job.id, progress);
+            console.log('Job progress event received:', job.id, progress);
             const offset = keepOriginalPhoto ? 1 : 0;
             const photoIndex = jobIndex + offset;
+            console.log('Updating photo at index:', photoIndex);
             
             setPhotos(previous => {
               const updated = [...previous];
-              if (!updated[photoIndex]) return previous;
+              if (!updated[photoIndex]) {
+                console.warn('No photo at index', photoIndex);
+                return previous;
+              }
               
+              console.log('Current photo state:', updated[photoIndex]);
               updated[photoIndex] = {
                 ...updated[photoIndex],
                 generating: true,
                 loading: true,
-                progress
+                progress,
+                //statusText: `Processing: ${Math.floor(progress)}%`,
+                statusText: `${job.workerName} processing... ${Math.floor(progress)}%`,
+                jobId: job.id
               };
+              console.log('Updated photo state:', updated[photoIndex]);
               return updated;
             });
           });
+        } else {
+          console.log('Job already handled:', job.id);
         }
       };
       
@@ -1031,10 +1098,20 @@ const App = () => {
       });
 
       activeProjectReference.current = project.id;
-      console.log('Project created:', project.id);
+      console.log('Project created:', project.id, 'with jobs:', project.jobs);
+      console.log('Initializing job map for project', project.id);
 
       // Set up handlers for any jobs that exist immediately
-      project.jobs.forEach(setupJobProgress);
+      console.log('Project jobs to set up:', project.jobs);
+      if (project.jobs && project.jobs.length > 0) {
+        project.jobs.forEach((job, index) => {
+          console.log(`Initializing job ${job.id} for index ${index}`);
+          // Initialize the job map with the job ID -> photo index mapping
+          projectStateReference.current.jobMap.set(job.id, index);
+          // Set up progress handler
+          setupJobProgress(job);
+        });
+      }
 
       // Watch for new jobs
       project.on('updated', (keys) => {
@@ -1073,7 +1150,8 @@ const App = () => {
                 generating: false,
                 loading: false,
                 images: [url],
-                newlyArrived: true
+                newlyArrived: true,
+                statusText: `#${photoIndex-keepOriginalPhoto+1}`
               };
             }
             return updated;
@@ -1094,7 +1172,8 @@ const App = () => {
           return;
         }
         
-        const jobIndex = jobMap.get(job.id);
+        const jobIndex = projectStateReference.current.jobMap.get(job.id);
+        console.log('Looking up job index for completed job:', job.id, 'found:', jobIndex, 'in map:', projectStateReference.current.jobMap);
         if (jobIndex === undefined) {
           console.error('Unknown job completed:', job.id);
           return;
@@ -1108,7 +1187,7 @@ const App = () => {
         
         const offset = keepOriginalPhoto ? 1 : 0;
         const photoIndex = jobIndex + offset;
-        console.log(`Loading image for job ${job.id} into box ${photoIndex}`);
+        console.log(`Loading image for job ${job.id} into box ${photoIndex}, keepOriginalPhoto: ${keepOriginalPhoto}, offset: ${offset}`);
         
         const img = new Image();
         img.addEventListener('load', () => {
@@ -1131,7 +1210,8 @@ const App = () => {
               loading: false,
               progress: 100,
               images: [job.resultUrl],
-              newlyArrived: true
+              newlyArrived: true,
+              statusText: `#${photoIndex-keepOriginalPhoto+1}`
             };
             
             // Check if all photos are done generating
@@ -1150,7 +1230,7 @@ const App = () => {
 
       project.on('jobFailed', (job) => {
         console.error('Job failed:', job.id, job.error);
-        const jobIndex = jobMap.get(job.id);
+        const jobIndex = projectStateReference.current.jobMap.get(job.id);
         if (jobIndex === undefined) return;
         
         const offset = keepOriginalPhoto ? 1 : 0;
@@ -1165,7 +1245,8 @@ const App = () => {
             generating: false,
             loading: false,
             error: typeof job.error === 'object' ? 'Generation failed' : (job.error || 'Generation failed'),
-            permanentError: true // Add flag to prevent overwriting by other successful jobs
+            permanentError: true, // Add flag to prevent overwriting by other successful jobs
+            statusText: 'Failed'
           };
           
           // Check if all photos are done generating
@@ -1647,6 +1728,7 @@ const App = () => {
 
             // Loading or error state
             if ((photo.loading && photo.images.length === 0) || (photo.error && photo.images.length === 0)) {
+              console.log(`Rendering loading photo at index ${index}:`, photo);
               return (
                 <div
                   key={photo.id}
@@ -1655,6 +1737,7 @@ const App = () => {
                   data-enhancing={photo.enhancing ? 'true' : undefined}
                   data-error={photo.error ? 'true' : undefined}
                   data-enhanced={photo.enhanced ? 'true' : undefined}
+                  data-progress={Math.floor(photo.progress * 100) || 0}
                   onClick={() => isSelected ? setSelectedPhotoIndex(null) : setSelectedPhotoIndex(index)}
                   style={{
                     ...squareStyle,
@@ -1670,7 +1753,7 @@ const App = () => {
                 >
                   <div style={{
                     position: 'relative',
-                    width: '100%', 
+                    width: '100%',
                     height: '100%'
                   }}>
                     {placeholderUrl && (
@@ -1678,7 +1761,7 @@ const App = () => {
                         src={placeholderUrl}
                         alt="Original reference"
                         className="placeholder"
-                        style={{ 
+                        style={{
                           width: '100%',
                           height: '100%',
                           objectFit: 'cover',
@@ -1691,11 +1774,14 @@ const App = () => {
                         }}
                       />
                     )}
+                    
+                    {/* Progress bar */}
+                    {/* Progress bar removed as requested */}
                   </div>
                   <div className="photo-label" style={{ color: photo.error ? '#d32f2f' : undefined, fontWeight: photo.error ? 700 : undefined }}>
                     {photo.error ? 
                       `Error: ${typeof photo.error === 'object' ? 'Generation failed' : photo.error}` 
-                      : (loadingLabel || labelText)}
+                      : (photo.statusText || loadingLabel || labelText)}
                   </div>
                 </div>
               );
@@ -1781,7 +1867,7 @@ const App = () => {
                 style={{
                   ...squareStyle,
                   '--rotation': `${isSelected ? '0deg' : 
-                    `${(index % 2 === 0 ? 1 : -1) * (0.8 + (index % 3) * 0.5)}deg`}`,
+                    (index % 2 === 0 ? 1 : -1) * (0.8 + (index % 3) * 0.5)}deg`,
                   '--enhance-progress': photo.progress ? `${Math.floor(photo.progress * 100)}%` : '0%',
                   position: 'relative',
                   borderRadius: '3px',
@@ -1794,7 +1880,7 @@ const App = () => {
               >
                 <div style={{
                   position: 'relative',
-                  width: '100%', 
+                  width: '100%',
                   height: '100%'
                 }}>
                     <img
@@ -1811,9 +1897,12 @@ const App = () => {
                         animation: 'targetImageFadeIn 0.3s ease-in forwards'
                       }}
                   />
+                  
+                  {/* Progress bar for photos still loading */}
+                  {/* Progress bar removed as requested */}
                 </div>
                 <div className="photo-label">
-                  {labelText}
+                  {photo.statusText || labelText}
                 </div>
               </div>
             );
@@ -2652,16 +2741,16 @@ const App = () => {
 
         {/* Slothicorn mascot with direct DOM manipulation */}
         {!showStartMenu && (
-          <div 
+        <div 
             ref={slothicornReference}
-            className="slothicorn-container"
-          >
-            <img 
-              src={slothicornImage} 
-              alt="Slothicorn mascot" 
-              className="slothicorn-image" 
-            />
-          </div>
+          className="slothicorn-container"
+        >
+          <img 
+            src={slothicornImage} 
+            alt="Slothicorn mascot" 
+            className="slothicorn-image" 
+          />
+        </div>
         )}
 
         {/* Camera shutter sound */}
@@ -2698,7 +2787,7 @@ const App = () => {
       {showFlash && (
         <div 
           className="global-flash-overlay" 
-          style={{
+            style={{
             position: 'fixed',
             top: 0,
             left: 0,
@@ -2710,7 +2799,7 @@ const App = () => {
           }}
         />
       )}
-      
+
       {/* Add a dedicated useEffect for the aspect ratio CSS */}
       {useEffect(() => {
         // Add our CSS fixes (all 5 issues at once)
@@ -3007,7 +3096,7 @@ const App = () => {
             from { opacity: 0.2; }
             to { opacity: 1; }
           }
-          
+
           /* ------- Responsive Polaroid Frame for Mobile ------- */
           @media (max-width: 600px) {
             .polaroid-frame {
@@ -3073,6 +3162,25 @@ const App = () => {
             100% {
               background-position: 0% 0%, 0 0, 0 0;
             }
+          }
+          
+          /* Improve the photo label */
+          .photo-label {
+            padding: 8px 0;
+            text-align: center;
+            font-size: 14px;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+          }
+          
+          /* Add animation for progress value changes */
+          @keyframes progressPulse {
+            0% { opacity: 0.2; }
+            50% { opacity: 1; }
+            100% { opacity: 0.2; }
           }
         `;
         
