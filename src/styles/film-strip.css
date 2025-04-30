@@ -119,20 +119,25 @@
   .film-frame {
     min-width: 120px !important;
     height: auto !important;
-    aspect-ratio: calc(
-      896 / 1152
-    ) !important; /* Portrait aspect ratio for mobile */
+    aspect-ratio: calc(896 / 1152) !important; /* Portrait aspect ratio for mobile */
+    padding: 8px 8px 40px 8px !important; /* Increase bottom padding to account for portrait photos */
   }
 
   .film-frame img {
-    height: 100px !important;
+    height: calc(100% - 40px) !important; /* Ensure image doesn't overflow into label area */
     width: 100% !important;
     object-fit: cover !important;
+    max-height: calc(100% - 40px) !important; /* Ensure image stays within frame */
   }
 
   .film-frame .photo-label {
-    font-size: 12px !important;
+    position: absolute !important;
     bottom: 5px !important;
+    left: 0 !important;
+    right: 0 !important;
+    text-align: center !important;
+    font-size: 12px !important;
+    height: 30px !important; /* Fixed height for label */
   }
 }
 
@@ -554,11 +559,13 @@
     border-left: 18px solid white !important;
     border-right: 18px solid white !important;
     border-top: 18px solid white !important;
-    border-bottom: 100px solid white !important;
+    border-bottom: 80px solid white !important; /* Adjusted for better portrait appearance */
+    max-width: 90vw !important; /* Ensure it fits on mobile screens */
+    max-height: 80vh !important;
   }
   
   .film-frame.selected::after {
-    bottom: 25px !important;
+    bottom: 18px !important; /* Adjust button position to fit in the frame */
     right: 15px !important;
     font-size: 13px !important;
     padding: 6px 12px !important;
@@ -566,8 +573,8 @@
   
   .film-frame.selected .photo-label {
     width: 60% !important;
-    bottom: 25px !important;
-    font-size: 18px !important;
+    bottom: 18px !important; /* Match the enhance button position */
+    font-size: 16px !important;
   }
 }
 

@@ -952,6 +952,9 @@ const App = () => {
   // -------------------------
   const generateFromBlob = async (photoBlob, newPhotoIndex, dataUrl) => {
     try {
+      // Check if we're on iOS - we'll need special handling
+      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      
       // Get the style prompt, generating random if selected
       let stylePrompt;
       
@@ -1055,7 +1058,17 @@ const App = () => {
         }, 800); // Match animation duration
       }, 700); // Match the duration of cameraFlyUp animation
 
-      const arrayBuffer = await photoBlob.arrayBuffer();
+      // For iOS, ensure the blob is fully ready before sending to API
+      let processedBlob = photoBlob;
+      if (isIOS) {
+        console.log("iOS detected, ensuring blob is properly processed");
+        // Convert to array buffer and back to ensure it's fully loaded
+        const arrayBuffer = await photoBlob.arrayBuffer();
+        processedBlob = new Blob([arrayBuffer], {type: 'image/png'});
+        
+        // Give iOS a moment to fully process the image
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
       
       // Create job tracking map and set of handled jobs
       const handledJobs = {current: new Set()};
@@ -1089,7 +1102,6 @@ const App = () => {
                 generating: true,
                 loading: true,
                 progress,
-                //statusText: `Processing: ${Math.floor(progress)}%`,
                 statusText: `${job.workerName} processing... ${Math.floor(progress)}%`,
                 jobId: job.id
               };
@@ -1101,6 +1113,9 @@ const App = () => {
           console.log('Job already handled:', job.id);
         }
       };
+      
+      // Process the array buffer for iOS as a special precaution
+      const blobArrayBuffer = await processedBlob.arrayBuffer();
       
       // Create the project
       const project = await sogniClient.projects.create({
@@ -1116,7 +1131,7 @@ const App = () => {
         timeStepSpacing: 'Karras',
         controlNet: {
           name: 'instantid',
-          image: new Uint8Array(arrayBuffer),
+          image: new Uint8Array(blobArrayBuffer),
           strength: controlNetStrength,
           mode: 'balanced',
           guidanceStart: 0,
@@ -1544,9 +1559,34 @@ const App = () => {
       );
     }
 
-    const dataUrl = canvas.toDataURL('image/png');
+    // For iOS, ensure we capture a good frame by drawing again after a small delay
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    if (isIOS) {
+      // Small delay to ensure the frame is fully captured before processing
+      await new Promise(resolve => setTimeout(resolve, 100));
+      // Redraw the frame
+      if (videoAspect > canvasAspect) {
+        sourceWidth = video.videoHeight * canvasAspect;
+        const sourceX = (video.videoWidth - sourceWidth) / 2;
+        context.drawImage(video, 
+          sourceX, 0, sourceWidth, sourceHeight,
+          destinationX, destinationY, destinationWidth, destinationHeight
+        );
+      } else {
+        sourceHeight = video.videoWidth / canvasAspect;
+        const sourceY = (video.videoHeight - sourceHeight) / 2;
+        context.drawImage(video, 
+          0, sourceY, sourceWidth, sourceHeight,
+          destinationX, destinationY, destinationWidth, destinationHeight
+        );
+      }
+    }
+
+    const dataUrl = canvas.toDataURL('image/png', 1.0);
+    
+    // Use a quality of 1.0 and explicitly use the PNG MIME type for iOS
     const blob = await new Promise(resolve => {
-      canvas.toBlob(resolve, 'image/png');
+      canvas.toBlob(resolve, 'image/png', 1.0);
     });
     
     if (!blob) {
@@ -1554,7 +1594,18 @@ const App = () => {
       return;
     }
 
-    generateFromBlob(blob, photos.length, dataUrl);
+    // For iOS Chrome, ensure the blob is fully ready by creating a new copy
+    if (isIOS) {
+      const reader = new FileReader();
+      reader.onload = async function() {
+        const arrayBuffer = this.result;
+        const newBlob = new Blob([arrayBuffer], {type: 'image/png'});
+        generateFromBlob(newBlob, photos.length, dataUrl);
+      };
+      reader.readAsArrayBuffer(blob);
+    } else {
+      generateFromBlob(blob, photos.length, dataUrl);
+    }
   };
 
   // -------------------------
