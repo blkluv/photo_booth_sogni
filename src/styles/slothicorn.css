@@ -4,22 +4,23 @@
 
 /* Base container fixed at bottom center, off-screen until animated */
 .slothicorn-container {
-  position: fixed;
+  position: fixed !important;
   bottom: -340px !important; /* Show a bit of the horn peeking through, must use !important to ensure it's applied */
-  left: 50%;
-  transform: translateX(-50%) scale(1.5); /* 50% larger */
-  transform-origin: bottom center;
-  width: 200px;
-  height: auto;
-  z-index: 100000; /* Ensure this is higher than any other z-index in the app */
-  pointer-events: none;
-  will-change: transform, bottom;
+  left: 50% !important;
+  transform: translateX(-50%) scale(1.5) !important; /* 50% larger */
+  transform-origin: bottom center !important;
+  width: 200px !important;
+  height: auto !important;
+  z-index: 100000 !important; /* Ensure this is higher than any other z-index in the app */
+  pointer-events: none !important;
+  will-change: transform, bottom !important;
 }
 
 /* When animating, don't use !important on bottom to allow JS control */
 .slothicorn-container.animating {
   animation: none !important;
   bottom: -360px; /* Starting position, will be overridden by JS */
+  z-index: 999999 !important; /* Extremely high z-index to appear above everything during animation */
 }
 
 /* Idle wiggle when not actively animating via JS */
@@ -36,11 +37,11 @@
 
 /* Mascot image inside the container */
 .slothicorn-image {
-  width: 100%;
-  height: auto;
-  transform-origin: bottom center;
-  will-change: transform;
-  pointer-events: none;
+  width: 100% !important;
+  height: auto !important;
+  transform-origin: bottom center !important;
+  will-change: transform !important;
+  pointer-events: none !important;
   animation: horn-wiggle 5s ease-in-out infinite;
 }
 
@@ -58,11 +59,15 @@
 /* Variants triggered by JS (.peek, .wave, .dance) for portrait mobile */
 @media (max-width: 768px) and (orientation: portrait) {
   .slothicorn-container { 
-    width: 140px; 
-    transform: translateX(-50%) scale(1.5); /* Keep the scale consistent */
+    width: 140px !important; 
+    transform: translateX(-50%) scale(1.5) !important; /* Keep the scale consistent */
     bottom: -280px !important; /* Show horn better on mobile */
   }
 
+  .slothicorn-container.animating {
+    z-index: 999999 !important; /* Ensure it's above everything on mobile too */
+  }
+  
   .slothicorn-container.peek  { 
     animation: slothPeek 2s ease-in-out infinite;  
     bottom: -280px !important; /* Adjusted for larger size */
@@ -97,11 +102,13 @@
 
 @media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
   .slothicorn-container {
-    position: absolute;
-    bottom: -280px !important; /* Show it better on mobile */
-    width: 180px;
-    z-index: 10;
-    transition: bottom 0.5s cubic-bezier(0.34, 1.2, 0.64, 1);
-    transform: translateX(-50%) scale(1.5); /* Keep the scale consistent */
+    width: 150px !important;
+    z-index: 100000 !important;
+    transition: bottom 0.5s cubic-bezier(0.34, 1.2, 0.64, 1) !important;
+    transform: translateX(-50%) scale(1.3) !important; /* Slightly smaller scale for mobile */
+  }
+  
+  .slothicorn-container.animating {
+    z-index: 999999 !important; /* Ensure it's above everything during animation */
   }
 } 

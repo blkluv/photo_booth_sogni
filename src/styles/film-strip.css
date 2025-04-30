@@ -120,7 +120,7 @@
     min-width: 120px !important;
     height: auto !important;
     aspect-ratio: calc(896 / 1152) !important; /* Portrait aspect ratio for mobile */
-    padding: 8px 8px 40px 8px !important; /* Increase bottom padding to account for portrait photos */
+    padding: 8px 8px 30px 8px !important; /* Increase bottom padding to account for portrait photos */
   }
 
   .film-frame img {

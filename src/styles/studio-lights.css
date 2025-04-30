@@ -30,6 +30,12 @@
 
 /* Slightly adjust on mobile orientations for nicer framing */
 @media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
+  /* Hide studio lights completely on mobile */
+  .studio-lights-container {
+    display: none !important;
+  }
+  
+  /* Previous mobile-specific light styling (kept for reference but won't apply) */
   body.portrait .studio-light {
     height: 140vh;
     bottom: -40vh;

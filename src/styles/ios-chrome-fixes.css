@@ -59,7 +59,7 @@
     /* Fix polaroid frames in photo grid to use portrait dimensions on mobile */
     .film-frame {
       aspect-ratio: calc(896 / 1152) !important; /* Portrait aspect ratio for iOS */
-      padding: 8px 8px 40px 8px !important; /* Increase bottom padding */
+      padding: 8px 8px 30px 8px !important; /* Increase bottom padding */
       display: flex !important;
       flex-direction: column !important;
     }

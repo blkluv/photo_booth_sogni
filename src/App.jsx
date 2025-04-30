@@ -1451,6 +1451,8 @@ const App = () => {
       // Show slothicorn when countdown reaches 2
       if (index === 2 && slothicornReference.current) {
         // Force the slothicorn to be visible and animated
+        slothicornReference.current.style.position = 'fixed'; // Ensure it's fixed positioning
+        slothicornReference.current.style.zIndex = '999999'; // Very high z-index to appear above everything
         slothicornReference.current.style.setProperty('bottom', '-360px', 'important');
         slothicornReference.current.style.transition = 'none';
         slothicornReference.current.classList.add('animating');
@@ -1481,6 +1483,8 @@ const App = () => {
         setTimeout(() => {
           slothicornReference.current.style.transition = 'none';
           slothicornReference.current.classList.remove('animating');
+          // Reset z-index after animation completes
+          slothicornReference.current.style.zIndex = '10';
         }, 1500);
       }
     }, 1200);
@@ -2520,7 +2524,7 @@ const App = () => {
   // -------------------------
   return (
     <>
-      {currentThought && (
+      {currentThought && (/iphone|ipad|ipod|android/i.test(navigator.userAgent) === false) && (
         <div style={{ 
           position: 'fixed', 
           bottom: '5px',
@@ -2836,6 +2840,16 @@ const App = () => {
         <div 
             ref={slothicornReference}
           className="slothicorn-container"
+          style={{
+            position: 'fixed',
+            bottom: '-340px',
+            left: '50%',
+            transform: 'translateX(-50%) scale(1.5)',
+            width: '200px',
+            height: 'auto',
+            zIndex: 10,
+            pointerEvents: 'none'
+          }}
         >
           <img 
             src={slothicornImage} 
