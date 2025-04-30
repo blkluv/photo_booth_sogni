@@ -1569,7 +1569,7 @@ const App = () => {
             isReady={isSogniReady && !isPhotoButtonCooldown}
             countdown={countdown}
             isDisabled={isPhotoButtonCooldown}
-            buttonLabel={isPhotoButtonCooldown ? "Please wait..." : "Take Photo"}
+            buttonLabel={isPhotoButtonCooldown ? "Get Ready!" : "Take Photo"}
             onTakePhoto={handleTakePhoto}
             showPhotoGrid={showPhotoGrid}
             selectedStyle={selectedStyle}
@@ -1743,7 +1743,7 @@ const App = () => {
                           position: 'relative',
                           top: 0,
                           left: 0,
-                          opacity: photo.error ? 0.7 : 0.2,
+                          opacity: 0.7,
                           animation: photo.error ? '' : 'placeholderPulse 2s ease-in-out infinite',
                           zIndex: 1
                         }}
@@ -1755,7 +1755,7 @@ const App = () => {
                   </div>
                   <div className="photo-label" style={{ color: photo.error ? '#d32f2f' : undefined, fontWeight: photo.error ? 700 : undefined }}>
                     {photo.error ? 
-                      `Error: ${typeof photo.error === 'object' ? 'Generation failed' : photo.error}` 
+                      `${typeof photo.error === 'object' ? 'Generation failed' : photo.error}` 
                       : (photo.statusText || loadingLabel || labelText)}
                   </div>
                 </div>
