@@ -29,7 +29,7 @@
 .film-strip-content {
   display: grid !important;
   grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)) !important;
-  gap: 48px 32px !important; /* Increased vertical gap between rows for better spacing */
+  gap: 32px 32px !important;
   justify-content: center !important;
   justify-items: center !important;
   align-content: flex-start !important;
@@ -41,40 +41,6 @@
   overflow: visible !important;
   transform: none;
   max-height: none;
-}
-
-/* Add specific grid layouts for small item counts to ensure even distribution */
-.film-strip-content:only-child,
-.film-strip-content:nth-last-child(-n+3) {
-  display: grid !important;
-  grid-template-columns: repeat(3, 1fr) !important;
-  gap: 24px 40px !important; /* Increased horizontal spacing for few items */
-  max-width: 1200px !important; /* Constrain width for fewer items */
-}
-
-/* Fix for when there are exactly 3 or fewer photos - distribute them evenly */
-.film-strip-content:has(.film-frame:nth-last-child(-n+3):first-child) {
-  grid-template-columns: repeat(3, 1fr) !important;
-  width: 100% !important;
-  justify-content: space-evenly !important; /* Use space-evenly for better distribution */
-  gap: 24px 40px !important; /* Increased horizontal gap for better spacing */
-  max-width: 1100px !important; /* More constrained for 3 or fewer */
-}
-
-/* When there are 1-3 items, ensure they take up full width */
-.film-strip-content:has(.film-frame:nth-last-child(-n+3):first-child) .film-frame {
-  margin: 0 auto !important;
-  width: 100% !important;
-  max-width: 280px !important; /* Slightly smaller max-width to accommodate gap */
-}
-
-/* For very small screens, revert to auto-fill */
-@media (max-width: 900px) {
-  .film-strip-content:only-child,
-  .film-strip-content:nth-last-child(-n+3),
-  .film-strip-content:has(.film-frame:nth-last-child(-n+3):first-child) {
-    grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)) !important;
-  }
 }
 
 /* Animation for grid appearing */
@@ -141,32 +107,6 @@
   animation: photoGridHide 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-/* Remove all fly animations completely */
-@keyframes flyIn {
-  from { opacity: 0; }
-  to { opacity: 0; }
-}
-
-@keyframes flyOut {
-  from { opacity: 0; }
-  to { opacity: 0; }
-}
-
-/* All photos now stay perfectly straight - no rotation */
-.film-frame:nth-child(11n + 1),
-.film-frame:nth-child(11n + 2),
-.film-frame:nth-child(11n + 3),
-.film-frame:nth-child(11n + 4),
-.film-frame:nth-child(11n + 5),
-.film-frame:nth-child(11n + 6),
-.film-frame:nth-child(11n + 7),
-.film-frame:nth-child(11n + 8),
-.film-frame:nth-child(11n + 9),
-.film-frame:nth-child(11n + 10),
-.film-frame:nth-child(11n + 11) {
-  --rotation: 0deg; /* No rotation at all */
-}
-
 /* Full-screen flash animation */
 @keyframes fullScreenFlash {
   0% { opacity: 1; }
@@ -196,7 +136,6 @@
   transform-origin: 0 0 !important;
   cursor: pointer !important;
   z-index: 1 !important;
-  transform: none !important; /* No rotation */
   transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s cubic-bezier(0.23, 1, 0.32, 1) !important;
 }
 
@@ -235,19 +174,6 @@
   transition: opacity 100ms ease-in !important;
 }
 
-/* Loading polaroid styles - no rotation */
-.film-frame.loading {
-  position: relative !important;
-  will-change: transform !important;
-  transform: none !important; /* No rotation when loading */
-}
-
-/* Additional code to ensure the placeholder pulse animation works properly */
-.film-frame.loading img,
-.film-frame.loading .placeholder {
-  opacity: 1 !important;
-}
-
 /* Make placeholder pulse animation VERY prominent and visible */
 .film-frame.loading .placeholder-image,
 .film-frame.loading[data-fadepolaroid="true"] .placeholder,
@@ -259,23 +185,6 @@
 
 .placeholder {
   opacity: 0.2 !important;
-}
-
-/* Remove progress indicator */
-.film-frame.loading::after {
-  display: none !important;
-}
-
-/* Remove progress-based fade-in */
-.film-frame[data-progress] img {
-  filter: none !important;
-}
-
-/* Keep reference photo visible during loading without changing rotation */
-.film-frame.loading img {
-  /* Remove the static opacity so animation can work */
-  opacity: unset !important;
-  transform: none !important; /* Don't transform the image within the frame */
 }
 
 /* Prevent darkening during enhancement specifically */

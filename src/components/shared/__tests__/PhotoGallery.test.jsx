@@ -229,18 +229,6 @@ describe('PhotoGallery Component', () => {
     expect(placeholderImg).toHaveStyle({ opacity: 0.2 });
   });
 
-  it('applies correct rotation based on index', () => {
-    render(<PhotoGallery {...defaultProps} />);
-    
-    // Check first photo (index 0) rotation
-    const firstPhoto = screen.getByText('Reference').closest('.film-frame');
-    expect(firstPhoto.style.getPropertyValue('--rotation')).toBe('0.8deg');
-    
-    // Check second photo (index 1) rotation
-    const secondPhoto = screen.getByText('#1').closest('.film-frame');
-    expect(secondPhoto.style.getPropertyValue('--rotation')).toBe('-1.3deg');
-  });
-
   it('handles click on loading/error photos correctly', () => {
     render(<PhotoGallery {...defaultProps} />);
     

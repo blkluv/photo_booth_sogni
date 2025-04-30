@@ -1789,7 +1789,6 @@ const App = () => {
                   
                   // Animate to final position
                   element.style.transition = 'transform 0.5s cubic-bezier(0.2, 0, 0.2, 1)';
-                  element.style.transform = `rotate(var(--rotation))`;
                   
                   // Clean up after animation
                   setTimeout(() => {
@@ -1819,7 +1818,7 @@ const App = () => {
                 
                 // Apply starting transform
                 element.style.transition = 'none';
-                element.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${deltaScale}) rotate(var(--rotation))`;
+                element.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${deltaScale})`;
                 
                 // Force reflow
                 element.offsetHeight;
@@ -1841,8 +1840,6 @@ const App = () => {
                 data-enhanced={photo.enhanced ? 'true' : undefined}
                 style={{
                   ...squareStyle,
-                  '--rotation': `${isSelected ? '0deg' : 
-                    (index % 2 === 0 ? 1 : -1) * (0.8 + (index % 3) * 0.5)}deg`,
                   '--enhance-progress': photo.progress ? `${Math.floor(photo.progress * 100)}%` : '0%',
                   position: 'relative',
                   borderRadius: '3px',

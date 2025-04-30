@@ -39,7 +39,6 @@ const PhotoGallery = ({
         
         // Animate to final position
         element.style.transition = 'transform 0.5s cubic-bezier(0.2, 0, 0.2, 1)';
-        element.style.transform = `rotate(var(--rotation))`;
         
         // Clean up after animation
         setTimeout(() => {
@@ -69,14 +68,13 @@ const PhotoGallery = ({
       
       // Apply starting transform
       element.style.transition = 'none';
-      element.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${deltaScale}) rotate(var(--rotation))`;
+      element.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${deltaScale})`;
       
       // Force reflow
       element.offsetHeight;
       
       // Animate to final position
       element.style.transition = 'transform 0.5s cubic-bezier(0.2, 0, 0.2, 1)';
-      element.style.transform = 'rotate(0deg)';
     });
   };
 
@@ -147,10 +145,6 @@ const PhotoGallery = ({
               key={photo.id}
               className={`film-frame ${isSelected ? 'selected' : ''}`}
               onClick={(e) => handlePhotoSelect(index, e)}
-              style={{
-                '--rotation': `${isSelected ? '0deg' : 
-                  `${(index % 2 === 0 ? 1 : -1) * (0.8 + (index % 3) * 0.5)}deg`}`  // More natural rotation based on index
-              }}
             >
               <div className="aspect-ratio-box">
                 <img

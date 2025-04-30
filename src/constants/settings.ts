@@ -53,9 +53,9 @@ export const getValidModelValue = (selectedValue: string) => {
 
 export const DEFAULT_SETTINGS = {
   selectedModel: "coreml-sogniXLturbo_alpha1_ad",
-  numImages: 15,
+  numImages: 16,
   promptGuidance: 2,
-  controlNetStrength: 0.8,
+  controlNetStrength: 0.7,
   controlNetGuidanceEnd: 0.6,
   flashEnabled: true,
   keepOriginalPhoto: false,
