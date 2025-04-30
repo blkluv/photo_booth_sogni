@@ -192,6 +192,60 @@ const generateUUID = () => {
 
 // Helper function to get a valid model option value
 
+/** 
+ * Center crop an image to match portrait aspect ratio on mobile
+ * This is specifically for photos selected from the camera roll
+ */
+async function centerCropImage(imageBlob, targetWidth, targetHeight) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      const ctx = canvas.getContext('2d');
+      
+      // Fill with black background to avoid transparency
+      ctx.fillStyle = 'black';
+      ctx.fillRect(0, 0, targetWidth, targetHeight);
+      
+      // Calculate dimensions for center crop
+      const imageAspect = img.width / img.height;
+      const targetAspect = targetWidth / targetHeight;
+      
+      let sourceX = 0;
+      let sourceY = 0;
+      let sourceWidth = img.width;
+      let sourceHeight = img.height;
+      
+      // If image is wider than target, crop width
+      if (imageAspect > targetAspect) {
+        sourceWidth = img.height * targetAspect;
+        sourceX = (img.width - sourceWidth) / 2;
+      } 
+      // If image is taller than target, crop height
+      else if (imageAspect < targetAspect) {
+        sourceHeight = img.width / targetAspect;
+        sourceY = (img.height - sourceHeight) / 2;
+      }
+      
+      // Draw the cropped image onto the canvas
+      ctx.drawImage(
+        img, 
+        sourceX, sourceY, sourceWidth, sourceHeight,
+        0, 0, targetWidth, targetHeight
+      );
+      
+      // Convert to blob
+      canvas.toBlob((blob) => {
+        resolve(blob);
+      }, 'image/png', 1.0);
+    };
+    
+    img.src = URL.createObjectURL(imageBlob);
+  });
+}
+
 const App = () => {
   const videoReference = useRef(null);
   const canvasReference = useRef(null);
@@ -1390,27 +1444,64 @@ const App = () => {
     // Hide the start menu if it's visible
     setShowStartMenu(false);
 
-    // Create a new photo item
+    // Create a new photo item with temporary placeholder
     const newPhoto = {
       id: Date.now(),
       generating: true,
       images: [],
       error: null,
-      originalDataUrl: null,
+      originalDataUrl: null, // Will be updated with cropped version
       newlyArrived: false,
       generationCountdown: 10,
     };
+    
     setPhotos((previous) => [...previous, newPhoto]);
     const newPhotoIndex = photos.length;
 
-    // Read the file as dataURL so we can keep it (originalDataUrl)
+    // First save the original image for reference
     const reader = new FileReader();
-    reader.addEventListener('load', (event) => {
-      const dataUrl = event.target.result;
-      newPhoto.originalDataUrl = dataUrl;
-
-      // Now feed the Blob itself into the generator
-      generateFromBlob(file, newPhotoIndex, dataUrl);
+    reader.addEventListener('load', async (event) => {
+      const originalDataUrl = event.target.result;
+      
+      // Get current dimensions based on orientation
+      const { width, height } = getCustomDimensions();
+      
+      try {
+        // Process the image to ensure consistent aspect ratio across all devices
+        const croppedBlob = await centerCropImage(file, width, height);
+        
+        // Create a data URL from the cropped blob to use as placeholder
+        const croppedDataUrl = await blobToDataURL(croppedBlob);
+        
+        // Update the photo with the cropped data URL as placeholder
+        setPhotos(prev => {
+          const updated = [...prev];
+          if (updated[newPhotoIndex]) {
+            updated[newPhotoIndex] = {
+              ...updated[newPhotoIndex],
+              originalDataUrl: croppedDataUrl // Use cropped version as placeholder
+            };
+          }
+          return updated;
+        });
+        
+        // Use the cropped blob for generation
+        generateFromBlob(croppedBlob, newPhotoIndex, croppedDataUrl);
+      } catch (error) {
+        console.error('Error cropping image:', error);
+        // Fallback to original if cropping fails
+        setPhotos(prev => {
+          const updated = [...prev];
+          if (updated[newPhotoIndex]) {
+            updated[newPhotoIndex] = {
+              ...updated[newPhotoIndex],
+              originalDataUrl: originalDataUrl // Fall back to original as placeholder
+            };
+          }
+          return updated;
+        });
+        generateFromBlob(file, newPhotoIndex, originalDataUrl);
+      }
     });
     reader.readAsDataURL(file);
   };
@@ -2484,13 +2575,13 @@ const App = () => {
       return;
     }
     
-    // Create a new photo item
+    // Create a new photo item with temporary placeholder
     const newPhoto = {
       id: Date.now().toString(),
       generating: true,
       images: [],
       error: null,
-      originalDataUrl: null,
+      originalDataUrl: null, // Will be updated with cropped version
       newlyArrived: false,
       generationCountdown: 10,
     };
@@ -2498,16 +2589,51 @@ const App = () => {
     setPhotos((previous) => [...previous, newPhoto]);
     const newPhotoIndex = photos.length;
 
-    // Read the file as dataURL
+    // First save the original image for reference
     const reader = new FileReader();
-    reader.addEventListener('load', (event) => {
-      const dataUrl = event.target.result;
-      newPhoto.originalDataUrl = dataUrl;
-
-      // Generate from the blob
-      generateFromBlob(file, newPhotoIndex, dataUrl);
+    reader.addEventListener('load', async (event) => {
+      const originalDataUrl = event.target.result;
+      
+      // Get current dimensions based on orientation
+      const { width, height } = getCustomDimensions();
+      
+      try {
+        // Process the image to ensure consistent aspect ratio across all devices
+        const croppedBlob = await centerCropImage(file, width, height);
+        
+        // Create a data URL from the cropped blob to use as placeholder
+        const croppedDataUrl = await blobToDataURL(croppedBlob);
+        
+        // Update the photo with the cropped data URL as placeholder
+        setPhotos(prev => {
+          const updated = [...prev];
+          if (updated[newPhotoIndex]) {
+            updated[newPhotoIndex] = {
+              ...updated[newPhotoIndex],
+              originalDataUrl: croppedDataUrl // Use cropped version as placeholder
+            };
+          }
+          return updated;
+        });
+        
+        // Use the cropped blob for generation
+        generateFromBlob(croppedBlob, newPhotoIndex, croppedDataUrl);
+      } catch (error) {
+        console.error('Error cropping image:', error);
+        // Fallback to original if cropping fails
+        setPhotos(prev => {
+          const updated = [...prev];
+          if (updated[newPhotoIndex]) {
+            updated[newPhotoIndex] = {
+              ...updated[newPhotoIndex],
+              originalDataUrl: originalDataUrl // Fall back to original as placeholder
+            };
+          }
+          return updated;
+        });
+        generateFromBlob(file, newPhotoIndex, originalDataUrl);
+      }
     });
-    
     reader.readAsDataURL(file);
   };
 
@@ -3368,4 +3494,14 @@ const App = () => {
 };
 
 export default App;
+
+// Helper function to convert a blob to a data URL
+const blobToDataURL = (blob) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+};
 
