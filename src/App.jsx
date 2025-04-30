@@ -299,6 +299,7 @@ const App = () => {
   // Camera devices
   const [cameraDevices, setCameraDevices] = useState([]);
   const [selectedCameraDeviceId, setSelectedCameraDeviceId] = useState(null);
+  const [isFrontCamera, setIsFrontCamera] = useState(true);
 
   // Determine the desired dimensions for Sogni (and camera constraints)
   const { width: desiredWidth, height: desiredHeight } = getCustomDimensions();
@@ -604,14 +605,14 @@ const App = () => {
           ? {
               video: {
                 deviceId,
-                facingMode: 'user',
+                facingMode: isFrontCamera ? 'user' : 'environment',
                 width: { ideal: isPortrait ? 896 : 1152 },
                 height: { ideal: isPortrait ? 1152 : 896 }
               }
             }
           : {
               video: {
-                facingMode: 'user',
+                facingMode: isFrontCamera ? 'user' : 'environment',
                 width: { ideal: isPortrait ? 896 : 1152 },
                 height: { ideal: isPortrait ? 1152 : 896 }
               }
@@ -621,7 +622,7 @@ const App = () => {
           ? {
               video: {
                 deviceId,
-                facingMode: 'user',
+                facingMode: isFrontCamera ? 'user' : 'environment',
                 width: { ideal: isPortrait ? 896 : 1152 },
                 height: { ideal: isPortrait ? 1152 : 896 },
                 aspectRatio: { ideal: aspectRatio }
@@ -629,7 +630,7 @@ const App = () => {
             }
           : {
               video: {
-                facingMode: 'user',
+                facingMode: isFrontCamera ? 'user' : 'environment',
                 width: { ideal: isPortrait ? 896 : 1152 },
                 height: { ideal: isPortrait ? 1152 : 896 },
                 aspectRatio: { ideal: aspectRatio }
@@ -729,7 +730,7 @@ const App = () => {
       setCameraEnabled(false);
       setIsStreamStarted(false);
     }
-  }, [desiredWidth, desiredHeight]);
+  }, [desiredWidth, desiredHeight, isFrontCamera]);
 
   /**
    * Enumerate devices and store them in state.
@@ -1539,8 +1540,8 @@ const App = () => {
     for (let index = 3; index > 0; index--) {
       setCountdown(index);
       
-      // Show slothicorn when countdown reaches 2
-      if (index === 2 && slothicornReference.current) {
+      // Show slothicorn when countdown reaches 2, but only for front-facing camera
+      if (index === 2 && slothicornReference.current && isFrontCamera) {
         // Force the slothicorn to be visible and animated
         slothicornReference.current.style.position = 'fixed'; // Ensure it's fixed positioning
         slothicornReference.current.style.zIndex = '999999'; // Very high z-index to appear above everything
@@ -1564,21 +1565,23 @@ const App = () => {
     setCountdown(0);
     triggerFlashAndCapture();
     
-    // Make slothicorn return more gradually
-    setTimeout(() => {
-      if (slothicornReference.current) {
-        slothicornReference.current.style.transition = 'bottom 1.5s cubic-bezier(0.25, 0.1, 0.25, 1)';
-        slothicornReference.current.style.setProperty('bottom', '-340px', 'important');
-        
-        // Wait for animation to complete, then clean up
-        setTimeout(() => {
-          slothicornReference.current.style.transition = 'none';
-          slothicornReference.current.classList.remove('animating');
-          // Reset z-index after animation completes
-          slothicornReference.current.style.zIndex = '10';
-        }, 1500);
-      }
-    }, 1200);
+    // Make slothicorn return more gradually, but only if front camera is active
+    if (isFrontCamera) {
+      setTimeout(() => {
+        if (slothicornReference.current) {
+          slothicornReference.current.style.transition = 'bottom 1.5s cubic-bezier(0.25, 0.1, 0.25, 1)';
+          slothicornReference.current.style.setProperty('bottom', '-340px', 'important');
+          
+          // Wait for animation to complete, then clean up
+          setTimeout(() => {
+            slothicornReference.current.style.transition = 'none';
+            slothicornReference.current.classList.remove('animating');
+            // Reset z-index after animation completes
+            slothicornReference.current.style.zIndex = '10';
+          }, 1500);
+        }
+      }, 1200);
+    }
   };
 
   const triggerFlashAndCapture = () => {
@@ -1730,9 +1733,8 @@ const App = () => {
    * Handle user selection of a different camera device.
    */
   const handleCameraSelection = async (e) => {
-    const deviceId = e.target.value;
+    const deviceId = typeof e === 'string' ? e : e.target.value;
     setSelectedCameraDeviceId(deviceId);
-    // Start new stream on that device
     await startCamera(deviceId);
   };
 
@@ -1777,6 +1779,8 @@ const App = () => {
             cameraDevices={cameraDevices}
             selectedCameraDeviceId={selectedCameraDeviceId}
             onCameraSelect={handleCameraSelection}
+            onToggleCamera={handleToggleCamera}
+            isFrontCamera={isFrontCamera}
             modelOptions={getModelOptions()}
             selectedModel={selectedModel}
             onModelSelect={(value) => updateSetting(setSelectedModel, 'selectedModel')(value)}
@@ -2643,6 +2647,15 @@ const App = () => {
     // Show an overlay or instructions for drag and drop
     setDragActive(true);
     // This will use the existing drag and drop handlers
+  };
+
+  // Handle toggling between front and rear camera
+  const handleToggleCamera = () => {
+    setIsFrontCamera(prev => !prev);
+    
+    // Need to restart the camera with the new facing mode
+    // No need to pass deviceId when toggling
+    startCamera();
   };
 
   // -------------------------

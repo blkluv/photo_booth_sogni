@@ -445,6 +445,16 @@
   .styleText {
     max-width: 120px;
   }
+
+  .cameraFlipButton {
+    width: 32px;
+    height: 32px;
+  }
+
+  .cameraFlipIcon {
+    width: 20px;
+    height: 20px;
+  }
 }
 
 /* iPhone-specific fixes for portrait mode */
@@ -496,6 +506,12 @@
     max-width: 60px !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
+  }
+
+  .cameraFlipButton {
+    width: 36px !important;
+    height: 36px !important;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.2) !important;
   }
 }
 
@@ -672,4 +688,32 @@
 :global(.slider-input::-moz-range-track) {
   height: 16px;
   border-radius: 8px;
+}
+
+.cameraFlipButton {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cameraFlipButton:hover, .cameraFlipButton:active {
+  background: white;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  transform: scale(1.05);
+}
+
+.cameraFlipIcon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 } 

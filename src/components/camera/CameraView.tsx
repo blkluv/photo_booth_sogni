@@ -38,6 +38,8 @@ interface CameraViewProps {
   selectedCameraDeviceId?: string;
   /** Handler for camera selection */
   onCameraSelect?: (deviceId: string) => void;
+  /** Handler for toggling between front and rear cameras */
+  onToggleCamera?: () => void;
   /** Model options */
   modelOptions?: Array<{ label: string; value: string; }>;
   /** Selected model */
@@ -70,6 +72,8 @@ interface CameraViewProps {
   onKeepOriginalPhotoChange?: (keep: boolean) => void;
   /** Handler for settings reset */
   onResetSettings?: () => void;
+  /** Is using front (selfie) camera */
+  isFrontCamera?: boolean;
 }
 
 export const CameraView: React.FC<CameraViewProps> = ({
@@ -91,6 +95,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
   cameraDevices = [],
   selectedCameraDeviceId = '',
   onCameraSelect,
+  onToggleCamera,
   modelOptions = [],
   selectedModel = '',
   onModelSelect,
@@ -107,11 +112,23 @@ export const CameraView: React.FC<CameraViewProps> = ({
   keepOriginalPhoto = false,
   onKeepOriginalPhotoChange,
   onResetSettings,
+  isFrontCamera = true,
 }) => {
   // State for style dropdown
   const [showStyleDropdown, setShowStyleDropdown] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState<'top' | 'bottom'>('bottom');
   const styleButtonRef = useRef<HTMLButtonElement>(null);
+  
+  // Check if device is mobile
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkIfMobile = () => {
+      const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+      return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+    };
+    setIsMobile(checkIfMobile());
+  }, []);
 
   // Effect to handle clicks outside dropdown
   useEffect(() => {
@@ -242,8 +259,24 @@ export const CameraView: React.FC<CameraViewProps> = ({
         <span className={styles.shutterLabel}>{buttonLabel}</span>
       </button>
 
-      {/* Empty div to maintain spacing and symmetry */}
-      <div className={styles.endSpacer} />
+      {/* Camera flip button for mobile devices */}
+      {isMobile ? (
+        <button
+          className={styles.cameraFlipButton}
+          onClick={onToggleCamera}
+          aria-label={isFrontCamera ? "Switch to back camera" : "Switch to front camera"}
+          data-testid="camera-flip-button"
+        >
+          <span className={styles.cameraFlipIcon} role="img" aria-label="Flip camera">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20 5H16.83L15 3H9L7.17 5H4C2.9 5 2 5.9 2 7V19C2 20.1 2.9 21 4 21H20C21.1 21 22 20.1 22 19V7C22 5.9 21.1 5 20 5ZM12 18C9.24 18 7 15.76 7 13C7 10.24 9.24 8 12 8C14.76 8 17 10.24 17 13C17 15.76 14.76 18 12 18Z" fill="#333333"/>
+              <path d="M15 13L13 10V12H9V14H13V16L15 13Z" fill="#333333"/>
+            </svg>
+          </span>
+        </button>
+      ) : (
+        <div className={styles.endSpacer} />
+      )}
     </div>
   );
 
