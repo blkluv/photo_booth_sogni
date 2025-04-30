@@ -29,10 +29,6 @@ export function useCamera(): CameraHookResult {
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        
-        if (isIOS()) {
-          videoRef.current.classList.add("ios-fix");
-        }
 
         await videoRef.current.play();
       }

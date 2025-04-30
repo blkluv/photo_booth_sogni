@@ -98,23 +98,6 @@ describe('CameraView', () => {
     expect(container).not.toHaveStyle({ display: 'none' });
   });
 
-  it('adds ios-fix class to video element on iOS devices', () => {
-    const originalUserAgent = window.navigator.userAgent;
-    Object.defineProperty(window.navigator, 'userAgent', {
-      value: 'iPhone',
-      configurable: true
-    });
-
-    render(<CameraView {...defaultProps} />);
-    expect(mockVideoRef.current?.classList.contains('ios-fix')).toBe(true);
-
-    // Restore original userAgent
-    Object.defineProperty(window.navigator, 'userAgent', {
-      value: originalUserAgent,
-      configurable: true
-    });
-  });
-
   it('applies custom testId to container', () => {
     render(<CameraView {...defaultProps} testId="custom-camera" />);
     expect(screen.getByTestId('custom-camera')).toBeInTheDocument();

@@ -113,14 +113,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
   const [dropdownPosition, setDropdownPosition] = useState<'top' | 'bottom'>('bottom');
   const styleButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Effect to handle iOS camera orientation
-  useEffect(() => {
-    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    if (isIOS && videoRef.current) {
-      videoRef.current.classList.add('ios-fix');
-    }
-  }, [videoRef]);
-
   // Effect to handle clicks outside dropdown
   useEffect(() => {
     if (showStyleDropdown) {

@@ -17,38 +17,6 @@
   display: block !important;
 }
 
-/* iOS Safari sometimes reports sideways feed in portrait.
-   We add .ios-fix class and rotate accordingly. */
-#webcam.ios-fix {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform-origin: center center;
-}
-
-@supports (-webkit-touch-callout: none) {
-  /* Portrait orientation: rotate 90° and swap dimensions */
-  @media screen and (orientation: portrait) {
-    #webcam.ios-fix {
-      transform: translate(-50%, -50%) rotate(90deg);
-      width: 100vh !important;
-      height: 100vw !important;
-      max-width: none !important;
-      max-height: none !important;
-      object-fit: cover !important;
-    }
-  }
-
-  /* Landscape orientation: reset rotation */
-  @media screen and (orientation: landscape) {
-    #webcam.ios-fix {
-      transform: translate(-50%, -50%) rotate(0deg);
-      width: 100vw;
-      height: 100vh;
-    }
-  }
-}
-
 /* -----------------------
    Photobooth Screen Frame
    ----------------------- */

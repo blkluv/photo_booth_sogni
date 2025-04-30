@@ -6,48 +6,17 @@
   @media only screen and (max-width: 768px) {
     body, html { overflow: hidden; height: 100%; }
 
-    /* Ensure webcam fills its parent */
-    #webcam, #webcam.ios-fix {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-      margin: 0 auto;
-    }
-
     .photobooth-screen { background: #000; overflow: hidden; }
 
     /* Portrait: constrain height */
     @media (orientation: portrait) {
       .photobooth-screen { max-height: calc(100vh - 220px); }
       
-      /* Ensure video rendering works correctly in portrait mode */
-      #webcam, #webcam.ios-fix {
-        width: 100% !important;
-        height: auto !important;
-        max-height: none !important;
-        transform: none !important;
-        position: relative !important;
-        top: auto !important;
-        left: auto !important;
-      }
     }
     
     /* Fix polaroid frames in photo grid to use portrait dimensions on mobile */
     .film-frame {
       aspect-ratio: calc(896 / 1152) !important; /* Portrait aspect ratio for iOS */
-    }
-    
-    /* Ensure selected photo in the grid displays correctly */
-    .film-frame.selected img {
-      border-bottom: 100px solid white !important; /* Increased bottom border */
-    }
-    
-    /* Fix for the enhance button on iOS */
-    .film-frame.selected::after {
-      bottom: 15px !important;
-      right: 15px !important;
-      z-index: 99999 !important;
     }
   }
 }

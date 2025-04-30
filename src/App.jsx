@@ -449,7 +449,6 @@ const App = () => {
     
     // On iOS, add a class to handle content safely with notches
     if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
-      document.body.classList.add('ios-device');
       
       // When showing the photo viewer, prevent background scrolling
       if (selectedPhotoIndex === null) {
@@ -588,11 +587,6 @@ const App = () => {
       if (videoReference.current) {
         videoReference.current.srcObject = stream;
         
-        // Add proper class for iOS
-        if (isIOS) {
-          videoReference.current.classList.add('ios-fix');
-        }
-        
         // Get actual stream dimensions for debugging
         const videoTrack = stream.getVideoTracks()[0];
         const capabilities = videoTrack.getCapabilities();
@@ -621,7 +615,6 @@ const App = () => {
           
           if (videoReference.current) {
             videoReference.current.srcObject = stream;
-            if (isIOS) videoReference.current.classList.add('ios-fix');
             
             setTimeout(() => {
               videoReference.current?.play().catch(error_ => console.warn("Backup video play error:", error_));
@@ -874,17 +867,6 @@ const App = () => {
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
-
-  // iOS orientation fix
-  useEffect(() => {
-    function isIOS() {
-      return /iphone|ipad|ipod/i.test(navigator.userAgent);
-    }
-    if (isIOS() && videoReference.current) {
-      // Add a special class so CSS can rotate it if in portrait
-      videoReference.current.classList.add('ios-fix');
-    }
   }, []);
 
   // Add an effect to properly initialize the slothicorn
