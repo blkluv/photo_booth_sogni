@@ -374,7 +374,7 @@
 }
 
 /* Responsive styles */
-@media (max-width: 600px) {
+@media (max-width: 600px), (orientation: portrait) and (max-device-width: 1024px) {
   .polaroidFrame {
     max-width: 99vw;
     border-radius: 12px;

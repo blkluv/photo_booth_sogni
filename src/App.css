@@ -304,7 +304,7 @@
 }
 
 /* Ensure help button stays in corner */
-@media (max-width: 768px) {
+@media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
   .tips-ribbon {
     top: 8px;
     right: 8px;
@@ -522,7 +522,7 @@ html body .photobooth-app .photobooth-frame .photobooth-header .tips-ribbon {
 }
 
 /* Mobile adjustments */
-@media (max-width: 768px) {
+@media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
   .help-button {
     width: 20px !important;
     height: 20px !important;

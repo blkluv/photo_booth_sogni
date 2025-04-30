@@ -78,7 +78,7 @@
 /* ------------------------------ */
 /* Mobile adjustments below 768px */
 /* ------------------------------ */
-@media (max-width: 768px) {
+@media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
   .photobooth-header {
     flex-direction: column;
     padding: 10px;

@@ -115,7 +115,7 @@
 }
 
 /* Apply portrait aspect ratio on mobile */
-@media (max-width: 768px) {
+@media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
   .film-frame {
     min-width: 120px !important;
     height: auto !important;
@@ -549,7 +549,7 @@
 }
 
 /* Add responsive styles for selected photo view on mobile/portrait */
-@media (max-width: 768px), (orientation: portrait) {
+@media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
   .film-frame.selected img {
     border-left: 18px solid white !important;
     border-right: 18px solid white !important;

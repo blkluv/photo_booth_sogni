@@ -29,7 +29,7 @@
 .studio-light.right { right: -2%; }
 
 /* Slightly adjust on mobile orientations for nicer framing */
-@media (max-width: 768px) {
+@media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
   body.portrait .studio-light {
     height: 140vh;
     bottom: -40vh;

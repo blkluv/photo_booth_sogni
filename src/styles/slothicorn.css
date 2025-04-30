@@ -95,8 +95,7 @@
   }
 }
 
-/* General mobile size adjustments */
-@media (max-width: 768px) {
+@media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
   .slothicorn-container {
     position: absolute;
     bottom: -280px !important; /* Show it better on mobile */

@@ -176,7 +176,7 @@
   color: #fff;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
   .custom-dropdown {
     max-width: 95vw;
     width: auto;
