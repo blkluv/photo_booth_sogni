@@ -185,7 +185,8 @@
   text-decoration: underline;
 }
 
-@media (max-width: 600px) {
+/* Updated media query to properly target mobile devices and iPhones in portrait mode */
+@media (max-width: 600px), (orientation: portrait) and (max-device-width: 1024px) {
   .start-menu-content {
     padding: 24px 20px;
     width: 95%;

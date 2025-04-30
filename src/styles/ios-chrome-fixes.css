@@ -3,15 +3,57 @@
    ---------------------------------- */
 
 @supports (-webkit-touch-callout: none) {
-  @media only screen and (max-width: 768px) {
-    body, html { overflow: hidden; height: 100%; }
+  /* Target all iOS devices, regardless of screen size */
+  body, html { overflow: hidden; height: 100%; }
 
-    .photobooth-screen { background: #000; overflow: hidden; }
+  /* Force media query to apply on iPhone devices in portrait mode */
+  @media (orientation: portrait) {
+    /* Add specific style for CameraStartMenu on iOS */
+    .camera-start-menu .start-menu-content {
+      padding: 24px 20px !important;
+      width: 95% !important;
+    }
 
-    /* Portrait: constrain height */
-    @media (orientation: portrait) {
-      .photobooth-screen { max-height: calc(100vh - 220px); }
-      
+    .camera-start-menu .start-menu-title {
+      font-size: 2rem !important;
+      margin-bottom: 8px !important;
+    }
+
+    .camera-start-menu .start-menu-description {
+      font-size: 1rem !important;
+      margin-bottom: 24px !important;
+    }
+    
+    .camera-start-menu .start-menu-options {
+      flex-direction: column !important;
+      align-items: center !important;
+      gap: 16px !important;
+    }
+    
+    .camera-start-menu .option-button {
+      width: 100% !important;
+      padding: 16px !important;
+    }
+
+    .camera-start-menu .option-button.take-photo,
+    .camera-start-menu .option-button.browse-photo {
+      padding: 20px !important;
+    }
+
+    .camera-start-menu .option-icon {
+      font-size: 2.2rem !important;
+    }
+
+    /* Hide drag & drop option in portrait mode */
+    .camera-start-menu .option-button.info-only {
+      display: none !important;
+    }
+    
+    /* Fix for the camera screen and controls */
+    .photobooth-screen { 
+      max-height: calc(100vh - 220px); 
+      width: 95% !important;
+      max-width: 95% !important;
     }
     
     /* Fix polaroid frames in photo grid to use portrait dimensions on mobile */
@@ -27,10 +69,9 @@
 :root { --vh: 1vh; }
 
 @supports (-webkit-touch-callout: none) {
-  @media only screen and (max-width: 768px) {
-    .photobooth-app {
-      height: calc(var(--vh, 1vh) * 100);
-      padding-bottom: env(safe-area-inset-bottom);
-    }
+  /* Target all iOS devices, not just small screens */
+  .photobooth-app {
+    height: calc(var(--vh, 1vh) * 100);
+    padding-bottom: env(safe-area-inset-bottom);
   }
 } 
