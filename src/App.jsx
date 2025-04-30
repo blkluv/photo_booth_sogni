@@ -1893,6 +1893,20 @@ const App = () => {
                 boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
                 transition: 'all 0.2s ease',
               }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 83, 83, 0.8)';
+                e.currentTarget.style.transform = 'scale(1.05)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = 'rgba(0, 0, 0, 0.6)';
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+              onMouseDown={(e) => {
+                e.currentTarget.style.transform = 'scale(0.95)';
+              }}
+              onMouseUp={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05)';
+              }}
             >
               ×
             </button>
@@ -1922,6 +1936,20 @@ const App = () => {
               zIndex: 99999,
               boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
               transition: 'all 0.2s ease',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 83, 83, 0.8)';
+              e.currentTarget.style.transform = 'scale(1.05)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = 'rgba(0, 0, 0, 0.6)';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+            onMouseDown={(e) => {
+              e.currentTarget.style.transform = 'scale(0.95)';
+            }}
+            onMouseUp={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
             }}
           >
             ×
