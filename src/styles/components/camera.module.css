@@ -93,6 +93,38 @@
   max-height: 100%;
 }
 
+/* Add portrait orientation-specific styling */
+@media (orientation: portrait) {
+  .webcam {
+    aspect-ratio: 7 / 9;
+  }
+}
+
+/* iOS-specific fixes for video orientation */
+@supports (-webkit-touch-callout: none) {
+  .webcam.ios-fix {
+    position: relative !important;
+    transform: none !important;
+    top: auto !important;
+    left: auto !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+}
+
+/* For iOS devices in portrait mode */
+@media (orientation: portrait) and (-webkit-touch-callout: none) {
+  .cameraView {
+    overflow: hidden;
+  }
+  
+  .webcam {
+    width: 100% !important;
+    height: auto !important;
+    object-fit: cover !important;
+  }
+}
+
 .bottomControls {
   position: absolute;
   bottom: 24px;

@@ -465,17 +465,6 @@ const App = () => {
     };
   }, [selectedPhotoIndex]);
 
-  // Add this useEffect at the beginning of the component
-  useEffect(() => {
-    // Simple mobile detection
-    const isMobile = /iphone|ipod|android|webos|blackberry|iemobile|opera mini/i.test(navigator.userAgent) 
-      || (window.innerWidth <= 768);
-    
-    if (isMobile) {
-      alert("This app is not yet optimized for mobile, please use a desktop! 🙆🏻‍♂️🙏");
-    }
-  }, []);
-
   // -------------------------
   //   Sogni initialization
   // -------------------------
@@ -660,14 +649,17 @@ const App = () => {
     }
   }, []);
 
-  // Modified useEffect to not start camera automatically
+  // Modified useEffect to start camera automatically
   useEffect(() => {
     (async () => {
       await listCameras();
-      // Only initialize Sogni, don't start camera yet
-      await initializeSogni();
+      // Initialize Sogni and start camera simultaneously
+      await Promise.all([
+        initializeSogni(),
+        startCamera(selectedCameraDeviceId)
+      ]);
     })();
-  }, [listCameras]);
+  }, [listCameras, startCamera, selectedCameraDeviceId]);
 
   // If we return to camera, ensure the video is playing
   useEffect(() => {
@@ -678,6 +670,11 @@ const App = () => {
         if (videoReference.current && videoReference.current.srcObject) {
           videoReference.current.play().catch(error => {
             console.warn("Video re-play error:", error);
+            // On iOS, sometimes we need to restart the camera completely
+            if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
+              console.log("iOS device detected, restarting camera completely");
+              startCamera(selectedCameraDeviceId);
+            }
           });
         } else {
           console.log("Video ref or srcObject not available, restarting camera");
@@ -1751,11 +1748,7 @@ const App = () => {
                     flexDirection: 'column'
                   }}
                 >
-                  <div style={{
-                    position: 'relative',
-                    width: '100%',
-                    height: '100%'
-                  }}>
+                  <div>
                     {placeholderUrl && (
                       <img
                         src={placeholderUrl}

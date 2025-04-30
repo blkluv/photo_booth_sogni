@@ -204,10 +204,7 @@
 @media (max-width: 768px) {
   .film-frame {
     min-width: 120px !important;
-    max-width: 120px !important;
     height: auto !important;
-    max-height: 150px !important;
-    padding: 8px 8px 30px 8px !important;
     aspect-ratio: calc(
       896 / 1152
     ) !important; /* Portrait aspect ratio for mobile */
@@ -215,6 +212,8 @@
 
   .film-frame img {
     height: 100px !important;
+    width: 100% !important;
+    object-fit: cover !important;
   }
 
   .film-frame .photo-label {
@@ -552,13 +551,14 @@
   bottom: 20px !important;
   left: 0 !important;
   right: 0 !important;
-  width: 100% !important;
+  width: 70% !important; /* Reduced width to avoid overlap with enhance button */
   text-align: center !important;
   font-size: 24px !important;
   color: #333 !important;
   font-family: "Permanent Marker", cursive !important;
   z-index: 2 !important;
   pointer-events: none !important;
+  margin: 0 auto !important;
 }
 
 /* Hide the enhance button when in loading state (initial image loading) */
@@ -668,16 +668,27 @@
   transition: none !important;
 }
 
-.film-frame.selected .photo-label {
-  position: absolute !important;
-  left: 0 !important;
-  right: 0 !important;
-  text-align: center !important;
-  font-size: 24px !important;
-  color: #333 !important;
-  font-family: "Permanent Marker", cursive !important;
-  z-index: 2 !important;
-  transition: none !important;
+/* Add responsive styles for selected photo view on mobile/portrait */
+@media (max-width: 768px), (orientation: portrait) {
+  .film-frame.selected img {
+    border-left: 18px solid white !important;
+    border-right: 18px solid white !important;
+    border-top: 18px solid white !important;
+    border-bottom: 100px solid white !important;
+  }
+  
+  .film-frame.selected::after {
+    bottom: 25px !important;
+    right: 15px !important;
+    font-size: 13px !important;
+    padding: 6px 12px !important;
+  }
+  
+  .film-frame.selected .photo-label {
+    width: 60% !important;
+    bottom: 25px !important;
+    font-size: 18px !important;
+  }
 }
 
 /* Dark overlay with smooth fade */
