@@ -1859,7 +1859,7 @@ const App = () => {
             transition: 'transform 0.2s, box-shadow 0.2s',
           }}
         >
-          ← Back to Camera
+          ← 📸
         </button>
 
         {/* Navigation buttons - only show when a photo is selected */}
@@ -1871,7 +1871,61 @@ const App = () => {
             <button className="photo-nav-btn next" onClick={goToNextPhoto}>
               &#8250;
             </button>
+            <button 
+              className="photo-close-btn" 
+              onClick={() => setSelectedPhotoIndex(null)}
+              style={{
+                position: 'fixed',
+                top: '20px',
+                right: '20px',
+                background: 'rgba(0, 0, 0, 0.6)',
+                color: 'white',
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                border: 'none',
+                fontSize: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                zIndex: 99999,
+                boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              ×
+            </button>
           </>
+        )}
+
+        {/* Also add a close button when there's only one photo */}
+        {selectedPhotoIndex !== null && photos.length <= 1 && (
+          <button 
+            className="photo-close-btn" 
+            onClick={() => setSelectedPhotoIndex(null)}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '20px',
+              background: 'rgba(0, 0, 0, 0.6)',
+              color: 'white',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              border: 'none',
+              fontSize: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              zIndex: 99999,
+              boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            ×
+          </button>
         )}
 
         <div className={`film-strip-content ${selectedPhotoIndex === null ? '' : 'has-selected'}`} style={{
