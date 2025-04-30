@@ -211,7 +211,7 @@
 }
 
 /* Responsive tweaks */
-@media (max-width: 768px) {
+@media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
   .control-option {
     flex-direction: column;
     align-items: flex-start;
