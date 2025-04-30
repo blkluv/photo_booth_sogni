@@ -85,7 +85,20 @@ export const isMobile = (): boolean => {
  * Get device orientation
  */
 export const getOrientation = (): 'portrait' | 'landscape' => {
-  return window.innerHeight > window.innerWidth ? 'portrait' : 'landscape';
+  // Check for iOS devices first
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  
+  // Use both window.matchMedia and dimension comparison to ensure reliability on iOS
+  const isPortraitByMedia = window.matchMedia("(orientation: portrait)").matches;
+  const isPortraitByDimension = window.innerHeight > window.innerWidth;
+  
+  // On iOS, we prioritize the media query result as it's more reliable
+  if (isIOS) {
+    return isPortraitByMedia ? 'portrait' : 'landscape';
+  }
+  
+  // For other devices, use dimension comparison as a fallback
+  return isPortraitByDimension ? 'portrait' : 'landscape';
 };
 
 /**
@@ -93,6 +106,7 @@ export const getOrientation = (): 'portrait' | 'landscape' => {
  */
 export const calculateAspectRatio = (): number => {
   const orientation = getOrientation();
+  // Use more extreme ratio for portrait to ensure proper display on iPhones
   return orientation === 'portrait' ? 7/9 : 9/7;
 };
 

@@ -533,7 +533,7 @@ const App = () => {
     // Check if we're on mobile and iOS
     const isMobile = /iphone|ipad|ipod|android/i.test(navigator.userAgent);
     const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    const isPortrait = window.innerHeight > window.innerWidth;
+    const isPortrait = window.matchMedia("(orientation: portrait)").matches || window.innerHeight > window.innerWidth;
     
     console.log(`Camera setup - isMobile: ${isMobile}, isIOS: ${isIOS}, isPortrait: ${isPortrait}`);
     
@@ -541,26 +541,47 @@ const App = () => {
     let constraints;
     
     if (isMobile) {
-      // For mobile devices, use 9:7 aspect ratio
+      // For mobile devices, use 9:7 aspect ratio or 7:9 for portrait
       const aspectRatio = isPortrait ? 7/9 : 9/7;
-      constraints = deviceId
-        ? {
-            video: {
-              deviceId,
-              facingMode: 'user',
-              width: { ideal: isPortrait ? 896 : 1152 },
-              height: { ideal: isPortrait ? 1152 : 896 },
-              aspectRatio: { ideal: aspectRatio }
+      
+      // On iOS, don't specify aspectRatio as it causes issues
+      if (isIOS) {
+        constraints = deviceId
+          ? {
+              video: {
+                deviceId,
+                facingMode: 'user',
+                width: { ideal: isPortrait ? 896 : 1152 },
+                height: { ideal: isPortrait ? 1152 : 896 }
+              }
             }
-          }
-        : {
-            video: {
-              facingMode: 'user',
-              width: { ideal: isPortrait ? 896 : 1152 },
-              height: { ideal: isPortrait ? 1152 : 896 },
-              aspectRatio: { ideal: aspectRatio }
+          : {
+              video: {
+                facingMode: 'user',
+                width: { ideal: isPortrait ? 896 : 1152 },
+                height: { ideal: isPortrait ? 1152 : 896 }
+              }
+            };
+      } else {
+        constraints = deviceId
+          ? {
+              video: {
+                deviceId,
+                facingMode: 'user',
+                width: { ideal: isPortrait ? 896 : 1152 },
+                height: { ideal: isPortrait ? 1152 : 896 },
+                aspectRatio: { ideal: aspectRatio }
+              }
             }
-          };
+          : {
+              video: {
+                facingMode: 'user',
+                width: { ideal: isPortrait ? 896 : 1152 },
+                height: { ideal: isPortrait ? 1152 : 896 },
+                aspectRatio: { ideal: aspectRatio }
+              }
+            };
+      }
     } else {
       // For desktop
       constraints = deviceId
@@ -579,53 +600,80 @@ const App = () => {
             }
           };
     }
-
+    
     try {
-      console.log('Getting user media with constraints:', JSON.stringify(constraints));
+      // Stop any existing stream first
+      if (videoReference.current && videoReference.current.srcObject) {
+        const stream = videoReference.current.srcObject;
+        const tracks = stream.getTracks();
+        tracks.forEach(track => track.stop());
+      }
+
+      // Request camera access with our constraints
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       
-      if (videoReference.current) {
-        videoReference.current.srcObject = stream;
+      // Add iOS-specific class if needed
+      if (isIOS) {
+        document.body.classList.add('ios-device');
         
-        // Get actual stream dimensions for debugging
-        const videoTrack = stream.getVideoTracks()[0];
-        const capabilities = videoTrack.getCapabilities();
-        const settings = videoTrack.getSettings();
-        console.log('Stream capabilities:', capabilities);
-        console.log('Stream settings:', settings);
-        
-        // Add a small delay before playing to prevent potential errors
+        // Add a slight delay to ensure video element is ready
         setTimeout(() => {
           if (videoReference.current) {
-            videoReference.current.play().catch(error => {
-              console.warn("Video play error:", error);
-            });
+            // Set proper classes for iOS orientation handling
+            if (isPortrait) {
+              videoReference.current.classList.add('ios-fix');
+            } else {
+              videoReference.current.classList.remove('ios-fix');
+            }
           }
         }, 100);
       }
-    } catch (error) {
-      console.error(`Error accessing webcam: ${error}`);
       
-      // If failed with ideal settings, try again with more flexible constraints
-      if (!deviceId && error.name === 'OverconstrainedError') {
-        console.log('Trying with more flexible constraints');
-        try {
-          const backupConstraints = { video: true };
-          const stream = await navigator.mediaDevices.getUserMedia(backupConstraints);
-          
-          if (videoReference.current) {
-            videoReference.current.srcObject = stream;
-            
+      // Set the stream and autoplay
+      if (videoReference.current) {
+        videoReference.current.srcObject = stream;
+        videoReference.current.muted = true;
+        
+        // Force play on video to ensure it starts on iOS
+        const playPromise = videoReference.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.error('Error playing video:', error);
+            // Try again after user interaction
             setTimeout(() => {
-              videoReference.current?.play().catch(error_ => console.warn("Backup video play error:", error_));
-            }, 100);
-          }
-        } catch (error_) {
-          alert(`Could not access camera: ${error_.message}`);
+              if (videoReference.current) {
+                videoReference.current.play().catch(e => console.error('Still cannot play video', e));
+              }
+            }, 1000);
+          });
         }
-      } else {
-        alert(`Error accessing webcam: ${error.message}`);
       }
+      
+      // Listen for orientation changes
+      const handleOrientationChange = () => {
+        const isPortrait = window.matchMedia("(orientation: portrait)").matches;
+        
+        if (videoReference.current) {
+          if (isIOS) {
+            if (isPortrait) {
+              videoReference.current.classList.add('ios-fix');
+            } else {
+              videoReference.current.classList.remove('ios-fix');
+            }
+          }
+        }
+      };
+      
+      window.addEventListener('orientationchange', handleOrientationChange);
+      // Store function for cleanup
+      setOrientationHandler(() => handleOrientationChange);
+      
+      setIsStreamStarted(true);
+      setCameraEnabled(true);
+    } catch (error) {
+      console.error('Failed to get camera access', error);
+      setCameraEnabled(false);
+      setIsStreamStarted(false);
     }
   }, [desiredWidth, desiredHeight]);
 
