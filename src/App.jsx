@@ -301,11 +301,26 @@ const App = () => {
   const [selectedCameraDeviceId, setSelectedCameraDeviceId] = useState(null);
   const [isFrontCamera, setIsFrontCamera] = useState(true);
 
+  // State for orientation handler cleanup
+  const [orientationHandler, setOrientationHandler] = useState(null);
+
   // Determine the desired dimensions for Sogni (and camera constraints)
   const { width: desiredWidth, height: desiredHeight } = getCustomDimensions();
 
   // Drag-and-drop state
   const [dragActive, setDragActive] = useState(false);
+
+  // Add state to store the last used photo blob and data URL for "More" button
+  const [lastPhotoData, setLastPhotoData] = useState({ blob: null, dataUrl: null });
+
+  // Add cleanup for orientation handler when component unmounts
+  useEffect(() => {
+    return () => {
+      if (orientationHandler) {
+        window.removeEventListener('orientationchange', orientationHandler);
+      }
+    };
+  }, [orientationHandler]);
 
   // Add effect to load prompts on component mount
   useEffect(() => {
@@ -1007,6 +1022,9 @@ const App = () => {
   // -------------------------
   const generateFromBlob = async (photoBlob, newPhotoIndex, dataUrl) => {
     try {
+      // Save the last used photo data for "More" button functionality
+      setLastPhotoData({ blob: photoBlob, dataUrl });
+      
       // Check if we're on iOS - we'll need special handling
       const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
       
@@ -1826,6 +1844,9 @@ const App = () => {
   const renderGallery = () => {    
     if (photos.length === 0 || !showPhotoGrid) return null;
     
+    // Track if any generation is in progress
+    const isGenerating = photos.some(photo => photo.generating);
+    
     return (
       <div className={`film-strip-container ${showPhotoGrid ? 'visible' : 'hiding'} ${selectedPhotoIndex === null ? '' : 'has-selected'}`}
         style={{
@@ -1861,6 +1882,95 @@ const App = () => {
         >
           ← 📸
         </button>
+
+        {/* Settings button - always show in photo grid */}
+        {selectedPhotoIndex === null && (
+          <button
+            className="header-settings-btn"
+            onClick={() => setShowControlOverlay(!showControlOverlay)}
+            style={{
+              position: 'fixed',
+              top: 24,
+              right: 24,
+              background: 'linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%)',
+              border: 'none',
+              color: '#fff',
+              fontSize: 20,
+              width: 38,
+              height: 38,
+              borderRadius: '50%',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+              cursor: 'pointer',
+              fontWeight: 900,
+              lineHeight: 1,
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s ease',
+              zIndex: 1000,
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
+            }}
+            title="Settings"
+          >
+            ⚙️
+          </button>
+        )}
+
+        {/* More button - positioned on the right side */}
+        {!isGenerating && selectedPhotoIndex === null && (
+          <button
+            className="more-photos-btn"
+            onClick={handleGenerateMorePhotos}
+            disabled={activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob}
+            style={{
+              position: 'fixed',
+              right: '20px',
+              bottom: '20px',
+              background: 'linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%)',
+              color: 'white',
+              border: 'none',
+              padding: '12px 24px',
+              borderRadius: '8px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              cursor: activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob ? 'not-allowed' : 'pointer',
+              fontWeight: 'bold',
+              fontSize: '12px',
+              zIndex: 9999,
+              transition: 'all 0.2s ease',
+              opacity: activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob ? 0.6 : 1,
+            }}
+            onMouseOver={(e) => {
+              if (!(activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob)) {
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+              }
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+            }}
+            onMouseDown={(e) => {
+              if (!(activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob)) {
+                e.currentTarget.style.transform = 'scale(0.95)';
+              }
+            }}
+            onMouseUp={(e) => {
+              if (!(activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob)) {
+                e.currentTarget.style.transform = 'scale(1.05)';
+              }
+            }}
+          >
+            More ✨
+          </button>
+        )}
 
         {/* Navigation buttons - only show when a photo is selected */}
         {selectedPhotoIndex !== null && photos.length > 1 && (
@@ -1955,6 +2065,86 @@ const App = () => {
             ×
           </button>
         )}
+
+        {/* Settings button when viewing a photo */}
+        {selectedPhotoIndex !== null && (
+          <button
+            className="header-settings-btn"
+            onClick={() => setShowControlOverlay(!showControlOverlay)}
+            style={{
+              position: 'fixed',
+              top: 24,
+              right: 72,
+              background: 'linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%)',
+              border: 'none',
+              color: '#fff',
+              fontSize: 20,
+              width: 38,
+              height: 38,
+              borderRadius: '50%',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+              cursor: 'pointer',
+              fontWeight: 900,
+              lineHeight: 1,
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s ease',
+              zIndex: 99999,
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
+            }}
+            title="Settings"
+          >
+            ⚙️
+          </button>
+        )}
+        
+        {/* Help button in photo grid view */}
+        <button
+          className="header-info-btn"
+          onClick={toggleNotesModal}
+          style={{
+            position: 'fixed',
+            top: 24,
+            right: selectedPhotoIndex !== null ? 120 : 72,
+            background: 'linear-gradient(135deg, #ffb6e6 0%, #ff5e8a 100%)',
+            border: 'none',
+            color: '#fff',
+            fontSize: 22,
+            width: 38,
+            height: 38,
+            borderRadius: '50%',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+            cursor: 'pointer',
+            fontWeight: 900,
+            lineHeight: 1,
+            padding: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s ease',
+            zIndex: 1000,
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.transform = 'scale(1.05)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
+          }}
+          title="Photobooth Tips"
+        >
+          ?
+        </button>
 
         <div className={`film-strip-content ${selectedPhotoIndex === null ? '' : 'has-selected'}`} style={{
           display: 'grid',
@@ -2738,6 +2928,90 @@ const App = () => {
     // Need to restart the camera with the new facing mode
     // No need to pass deviceId when toggling
     startCamera();
+  };
+
+  // -------------------------
+  //   Generate more photos with the same settings
+  // -------------------------
+  const handleGenerateMorePhotos = async () => {
+    // Don't proceed if already generating or no saved photo
+    if (activeProjectReference.current || !lastPhotoData.blob) {
+      return;
+    }
+
+    // Cancel any existing project first
+    if (activeProjectReference.current) {
+      console.log('Cancelling existing project:', activeProjectReference.current);
+      if (sogniClient) {
+        try {
+          await sogniClient.cancelProject(activeProjectReference.current);
+        } catch (error) {
+          console.warn('Error cancelling previous project:', error);
+        }
+      }
+      activeProjectReference.current = null;
+    }
+
+    console.log('Generating more photos with the same settings');
+    
+    // Calculate the index where new photos will be added
+    const newPhotoIndex = photos.length;
+    
+    // Create all placeholder photos in a single update while keeping existing photos
+    setPhotos(prev => {
+      const newPhotos = [...prev];
+      
+      // Add placeholders for all new photos
+      for (let i = 0; i < numberImages; i++) {
+        newPhotos.push({
+          id: Date.now() + i,
+          generating: true,
+          loading: true,
+          progress: 0,
+          images: [],
+          error: null,
+          originalDataUrl: lastPhotoData.dataUrl,
+          newlyArrived: false,
+          statusText: 'Finding Art Robot...'
+        });
+      }
+      
+      return newPhotos;
+    });
+    
+    // Generate new photos using the last photo data
+    try {
+      const { blob, dataUrl } = lastPhotoData;
+      
+      // Create a copy of the blob to avoid any reference issues
+      const blobCopy = blob.slice(0, blob.size, blob.type);
+      
+      // Small delay to ensure state updates before generation starts
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Generate new images with the existing blob
+      await generateFromBlob(blobCopy, newPhotoIndex, dataUrl);
+    } catch (error) {
+      console.error('Error generating more photos:', error);
+      
+      // Update the newly added placeholder photos with error state
+      setPhotos(prev => {
+        const newPhotos = [...prev];
+        for (let i = 0; i < numberImages; i++) {
+          const index = newPhotoIndex + i;
+          if (index < newPhotos.length) {
+            newPhotos[index] = {
+              ...newPhotos[index],
+              generating: false,
+              loading: false,
+              error: `Error: ${error.message || error}`,
+              permanentError: true
+            };
+          }
+        }
+        return newPhotos;
+      });
+    }
   };
 
   // -------------------------
