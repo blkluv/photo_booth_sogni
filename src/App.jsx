@@ -3129,7 +3129,7 @@ const App = () => {
               <label className="control-label">Prompt Guidance:</label>
               <input
                 type="range"
-                min={2}
+                min={1.8}
                 max={3}
                 step={0.1}
                 value={promptGuidance}
