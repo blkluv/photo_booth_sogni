@@ -301,6 +301,10 @@ const App = () => {
   const [selectedCameraDeviceId, setSelectedCameraDeviceId] = useState(null);
   const [isFrontCamera, setIsFrontCamera] = useState(true);
 
+  // Add missing state variables for camera stream
+  const [isStreamStarted, setIsStreamStarted] = useState(false);
+  const [cameraEnabled, setCameraEnabled] = useState(false);
+
   // State for orientation handler cleanup
   const [orientationHandler, setOrientationHandler] = useState(null);
 
