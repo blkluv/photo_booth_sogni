@@ -1545,6 +1545,76 @@ const App = () => {
           backgroundSize: '400% 400%, 20px 20px, 20px 20px',
           animation: 'psychedelic-shift 15s ease infinite',
         }}>
+        {/* Style Dropdown in top left corner */}
+        <div className="grid-style-selector" style={{
+          position: 'fixed',
+          top: '20px',
+          left: '20px',
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-start',
+        }}>
+          <div className="style-dropdown-label" style={{
+            fontSize: '14px',
+            fontWeight: 'bold',
+            color: 'white',
+            marginBottom: '5px',
+            textShadow: '0 1px 3px rgba(0,0,0,0.4)',
+          }}>
+          </div>
+          <button
+            className="header-style-select grid-style-btn"
+            onClick={toggleStyleDropdown}
+            ref={styleButtonReference}
+            style={{
+              all: 'unset',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontFamily: '"Permanent Marker", cursive',
+              fontSize: '12px',
+              color: '#333',
+              cursor: 'pointer',
+              padding: '8px 16px',
+              paddingRight: '24px',
+              borderRadius: '20px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+              transition: 'all 0.2s',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = 'white';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
+            }}
+          >
+            <span className="style-text" style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {`${selectedStyle === 'custom' ? 'Custom...' : styleIdToDisplay(selectedStyle)}`}
+            </span>
+          </button>
+          
+          {showStyleDropdown && (
+            <StyleDropdown
+              isOpen={showStyleDropdown}
+              onClose={() => setShowStyleDropdown(false)}
+              selectedStyle={selectedStyle}
+              updateStyle={(style) => updateSetting(setSelectedStyle, 'selectedStyle')(style)}
+              defaultStylePrompts={stylePrompts}
+              styleIdToDisplay={styleIdToDisplay}
+              showControlOverlay={showControlOverlay}
+              setShowControlOverlay={setShowControlOverlay}
+              dropdownPosition="bottom"
+              triggerButtonClass=".grid-style-btn"
+            />
+          )}
+        </div>
+
         {/* Back to Camera button */}
         <button
           className="back-to-camera-btn"
@@ -2123,7 +2193,7 @@ const App = () => {
       } else {
         setDropdownPosition('top');
       }
-      } else {
+    } else {
       // Default to above if we can't find the button
       setDropdownPosition('top');
     }

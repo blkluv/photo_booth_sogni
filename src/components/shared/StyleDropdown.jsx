@@ -11,37 +11,65 @@ const StyleDropdown = ({
   styleIdToDisplay, 
   showControlOverlay, 
   setShowControlOverlay, 
-  dropdownPosition = 'top' // Default value
+  dropdownPosition = 'top', // Default value
+  triggerButtonClass = '.bottom-style-select' // Default class for the main toolbar
 }) => {
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const [mounted, setMounted] = useState(false);
   const dropdownReference = useRef(null);
+  const [initialScrollDone, setInitialScrollDone] = useState(false);
   
   useEffect(() => {
     if (isOpen) {
       // Find the style button in the DOM to position the dropdown
-      const styleButton = document.querySelector('.bottom-style-select');
+      const styleButton = document.querySelector(triggerButtonClass) || document.querySelector('.grid-style-btn');
       if (styleButton) {
         const rect = styleButton.getBoundingClientRect();
-        // Position above the button for the bottom toolbar
-        setPosition({
-          bottom: window.innerHeight - rect.top + 10,
-          left: rect.left + rect.width / 2,
-          width: 280
-        });
+        const dropdownWidth = 240;
+        
+        // Calculate safe left position to prevent off-screen rendering
+        let leftPosition = rect.left + rect.width / 2;
+        
+        // Check if dropdown would go off left edge of screen
+        if (leftPosition - (dropdownWidth / 2) < 10) {
+          leftPosition = 10 + (dropdownWidth / 2);
+        }
+        
+        // Check if dropdown would go off right edge of screen
+        if (leftPosition + (dropdownWidth / 2) > window.innerWidth - 10) {
+          leftPosition = window.innerWidth - 10 - (dropdownWidth / 2);
+        }
+        
+        if (dropdownPosition === 'top') {
+          // Position above the button (for bottom toolbar)
+          setPosition({
+            bottom: window.innerHeight - rect.top + 10,
+            left: leftPosition,
+            width: dropdownWidth
+          });
+        } else {
+          // Position below the button (for grid view)
+          setPosition({
+            top: rect.bottom + 10,
+            left: leftPosition,
+            width: dropdownWidth
+          });
+        }
+        
         setMounted(true);
+        setInitialScrollDone(false); // Reset scroll state when dropdown opens
       }
     } else {
       setMounted(false);
     }
-  }, [isOpen]);
+  }, [isOpen, dropdownPosition, triggerButtonClass]);
 
   useEffect(() => {
     if (isOpen) {
       const handleClickOutside = (e) => {
         if (dropdownReference.current && !dropdownReference.current.contains(e.target)) {
-          // Check if the click was on the style button
-          const styleButton = document.querySelector('.bottom-style-select');
+          // Check if the click was on any style button
+          const styleButton = document.querySelector(triggerButtonClass) || document.querySelector('.grid-style-btn');
           if (!styleButton || !styleButton.contains(e.target)) {
             onClose();
           }
@@ -50,17 +78,38 @@ const StyleDropdown = ({
       
       document.addEventListener('click', handleClickOutside);
       
-      // Scroll selected option into view
-      setTimeout(() => {
-        const selectedOption = document.querySelector('.style-option.selected');
-        if (selectedOption && dropdownReference.current) {
-          selectedOption.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 100);
+      // Only scroll to the selected option when dropdown initially opens, not after user scrolling
+      if (!initialScrollDone) {
+        setTimeout(() => {
+          const selectedOption = document.querySelector('.style-option.selected');
+          if (selectedOption && dropdownReference.current) {
+            selectedOption.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setInitialScrollDone(true); // Mark initial scroll as done
+          }
+        }, 100);
+      }
       
       return () => document.removeEventListener('click', handleClickOutside);
     }
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, triggerButtonClass, initialScrollDone]);
+
+  // Add event listener to prevent auto-scrolling after user interaction
+  useEffect(() => {
+    if (isOpen && dropdownReference.current) {
+      const handleUserScroll = () => {
+        if (!initialScrollDone) {
+          setInitialScrollDone(true);
+        }
+      };
+      
+      const dropdown = dropdownReference.current;
+      dropdown.addEventListener('scroll', handleUserScroll, { passive: true });
+      
+      return () => {
+        dropdown.removeEventListener('scroll', handleUserScroll);
+      };
+    }
+  }, [isOpen, initialScrollDone]);
 
   // If not mounted or not open, don't render anything
   if (!mounted || !isOpen) return null;
@@ -74,37 +123,63 @@ const StyleDropdown = ({
         position: 'fixed',
         ...(dropdownPosition === 'top' 
           ? { bottom: position.bottom } 
-          : { top: position.bottom }),
+          : { top: position.top }),
         left: position.left,
         transform: 'translateX(-50%)',
-        maxHeight: 300,
+        maxHeight: 380,
         width: position.width,
         background: 'white',
-        borderRadius: 5,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        borderRadius: 8,
+        boxShadow: '0 6px 24px rgba(0,0,0,0.25)',
         overflow: 'auto',
         zIndex: 10_000,
         transformOrigin: dropdownPosition === 'top' ? 'center bottom' : 'center top',
-        animation: 'dropdownAppear 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards',
         border: '1px solid rgba(0,0,0,0.1)',
         fontFamily: '"Permanent Marker", cursive',
-        fontSize: 13,
+        fontSize: 14,
+        padding: 8,
       }}
     >
       <style>{`
-        @keyframes dropdownAppear {
+        @keyframes dropdownAppearTop {
           from {
             opacity: 0;
-            transform: translateX(-50%) translateY(${dropdownPosition === 'top' ? '10px' : '-10px'});
+            transform: translateX(-50%) translateY(10px);
           }
           to {
             opacity: 1; 
             transform: translateX(-50%) translateY(0);
           }
         }
+        
+        @keyframes dropdownAppearBottom {
+          from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+          }
+        }
+        
+        .style-dropdown.top-position {
+          animation: dropdownAppearTop 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards;
+        }
+        
+        .style-dropdown.bottom-position {
+          animation: dropdownAppearBottom 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards;
+        }
       `}</style>
 
-      <div className="style-section featured">
+      <div 
+        className="style-section featured"
+        style={{
+          borderBottom: '1px solid rgba(0, 0, 0, 0.1)',
+          paddingBottom: 8,
+          marginBottom: 8
+        }}
+      >
         {/* Featured options */}
         <div 
           className={`style-option ${selectedStyle === 'randomMix' ? 'selected' : ''}`} 
@@ -113,17 +188,21 @@ const StyleDropdown = ({
             onClose();
           }}
           style={{
-            padding: '8px 12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '10px 12px',
+            margin: '2px 0',
+            borderRadius: 4,
             cursor: 'pointer',
-            transition: 'background-color 0.2s',
             color: selectedStyle === 'randomMix' ? '#ff5e8a' : '#333',
             background: selectedStyle === 'randomMix' ? '#fff0f4' : 'transparent',
             fontFamily: '"Permanent Marker", cursive',
-            fontSize: 13,
-            textAlign: 'left'
+            fontSize: 14,
+            transition: 'background-color 0.2s'
           }}
         >
-          <span style={{ marginRight: 8 }}>🎲</span>
+          <span>🎲</span>
           <span>Random Mix</span>
         </div>
         
@@ -134,17 +213,21 @@ const StyleDropdown = ({
             onClose();
           }}
           style={{
-            padding: '8px 12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '10px 12px',
+            margin: '2px 0',
+            borderRadius: 4,
             cursor: 'pointer',
-            transition: 'background-color 0.2s',
             color: selectedStyle === 'random' ? '#ff5e8a' : '#333',
             background: selectedStyle === 'random' ? '#fff0f4' : 'transparent',
             fontFamily: '"Permanent Marker", cursive',
-            fontSize: 13,
-            textAlign: 'left'
+            fontSize: 14,
+            transition: 'background-color 0.2s'
           }}
         >
-          <span style={{ marginRight: 8 }}>🔀</span>
+          <span>🔀</span>
           <span>Random</span>
         </div>
         
@@ -156,17 +239,21 @@ const StyleDropdown = ({
             setShowControlOverlay(true);
           }}
           style={{
-            padding: '8px 12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '10px 12px',
+            margin: '2px 0',
+            borderRadius: 4,
             cursor: 'pointer',
-            transition: 'background-color 0.2s',
             color: selectedStyle === 'custom' ? '#ff5e8a' : '#333',
             background: selectedStyle === 'custom' ? '#fff0f4' : 'transparent',
             fontFamily: '"Permanent Marker", cursive',
-            fontSize: 13,
-            textAlign: 'left'
+            fontSize: 14,
+            transition: 'background-color 0.2s'
           }}
         >
-          <span style={{ marginRight: 8 }}>✏️</span>
+          <span>✏️</span>
           <span>Custom...</span>
         </div>
       </div>
@@ -184,14 +271,17 @@ const StyleDropdown = ({
                 onClose();
               }}
               style={{
-                padding: '8px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '10px 12px',
+                margin: '2px 0',
+                borderRadius: 4,
                 cursor: 'pointer',
-                transition: 'background-color 0.2s',
                 color: selectedStyle === styleKey ? '#ff5e8a' : '#333',
                 background: selectedStyle === styleKey ? '#fff0f4' : 'transparent',
                 fontFamily: '"Permanent Marker", cursive',
-                fontSize: 13,
-                textAlign: 'left'
+                fontSize: 14,
+                transition: 'background-color 0.2s'
               }}
             >
               <span>{styleIdToDisplay(styleKey)}</span>
