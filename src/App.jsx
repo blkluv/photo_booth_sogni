@@ -6,8 +6,10 @@ import { photoThoughts, randomThoughts } from './constants/thoughts';
 import { getSettingFromCookie, saveSettingsToCookies } from './utils/cookies';
 import { generateUUID } from './utils';
 import { getCustomDimensions, resizeDataUrl, describeImage, centerCropImage, blobToDataURL } from './utils/imageProcessing';
+import { getPreviousPhotoIndex, getNextPhotoIndex, goToPreviousPhoto, goToNextPhoto } from './utils/photoNavigation';
 import { loadPrompts, initializeStylePrompts, getRandomStyle, getRandomMixPrompts } from './services/prompts';
 import { initializeSogniClient } from './services/sogni';
+import { enhancePhoto, undoEnhancement } from './services/PhotoEnhancer';
 import clickSound from './click.mp3';
 import cameraWindSound from './camera-wind.mp3';
 import slothicornImage from './slothicorn-camera.png';
@@ -550,14 +552,16 @@ const App = () => {
 
   // Modified useEffect to start camera automatically
   useEffect(() => {
-    (async () => {
+    const initializeCamera = async () => {
       await listCameras();
       // Initialize Sogni and start camera simultaneously
       await Promise.all([
         initializeSogni(),
         startCamera(selectedCameraDeviceId)
       ]);
-    })();
+    };
+    
+    initializeCamera();
   }, [listCameras, startCamera, selectedCameraDeviceId]);
 
   // If we return to camera, ensure the video is playing
@@ -619,112 +623,22 @@ const App = () => {
     }, 300); // Match animation duration in CSS
   };
 
-  // Simplified function to navigate to previous photo with looping
-  const goToPreviousPhoto = () => {
-    // Check if there are any loaded photos to navigate to
-    if (photos.length <= 1) return;
-    
-    // Find the previous loaded photo
-    let previousIndex = selectedPhotoIndex;
-    let iterations = 0;
-    
-    // Only try once around the array to avoid infinite loop
-    while (iterations < photos.length) {
-      previousIndex = previousIndex === 0 ? photos.length - 1 : previousIndex - 1;
-      iterations++;
-      
-      // Skip photos that are still loading or have errors
-      const previousPhoto = photos[previousIndex];
-      if (previousPhoto && 
-          ((previousPhoto.images && previousPhoto.images.length > 0) || 
-           previousPhoto.isOriginal)) {
-        // We found a valid photo
-        break;
-      }
-    }
-    
-    // Only proceed if we found a valid previous photo
-    if (previousIndex !== selectedPhotoIndex && iterations < photos.length) {
-      setSelectedPhotoIndex(previousIndex);
+  // Updated to use the utility function
+  const handlePreviousPhoto = () => {
+    const newIndex = goToPreviousPhoto(photos, selectedPhotoIndex);
+    if (newIndex !== selectedPhotoIndex) {
+      setSelectedPhotoIndex(newIndex);
       setSelectedSubIndex(0);
     }
   };
 
-  // Simplified function to navigate to next photo with looping
-  const goToNextPhoto = () => {
-    // Check if there are any loaded photos to navigate to
-    if (photos.length <= 1) return;
-    
-    // Find the next loaded photo
-    let nextIndex = selectedPhotoIndex;
-    let iterations = 0;
-    
-    // Only try once around the array to avoid infinite loop
-    while (iterations < photos.length) {
-      nextIndex = nextIndex === photos.length - 1 ? 0 : nextIndex + 1;
-      iterations++;
-      
-      // Skip photos that are still loading or have errors
-      const nextPhoto = photos[nextIndex];
-      if (nextPhoto && 
-          ((nextPhoto.images && nextPhoto.images.length > 0) || 
-           nextPhoto.isOriginal)) {
-        // We found a valid photo
-        break;
-      }
-    }
-    
-    // Only proceed if we found a valid next photo
-    if (nextIndex !== selectedPhotoIndex && iterations < photos.length) {
-      setSelectedPhotoIndex(nextIndex);
+  // Updated to use the utility function
+  const handleNextPhoto = () => {
+    const newIndex = goToNextPhoto(photos, selectedPhotoIndex);
+    if (newIndex !== selectedPhotoIndex) {
+      setSelectedPhotoIndex(newIndex);
       setSelectedSubIndex(0);
     }
-  };
-
-  // Get previous photo index with looping
-  const getPreviousPhotoIndex = (currentIndex) => {
-    // Find previous valid photo
-    let previousIndex = currentIndex;
-    let iterations = 0;
-    
-    while (iterations < photos.length) {
-      previousIndex = previousIndex === 0 ? photos.length - 1 : previousIndex - 1;
-      iterations++;
-      
-      const previousPhoto = photos[previousIndex];
-      if (previousPhoto && 
-          ((previousPhoto.images && previousPhoto.images.length > 0) || 
-           previousPhoto.isOriginal)) {
-        // We found a valid photo
-        return previousIndex;
-      }
-    }
-    
-    // If we get here, there's no valid previous photo
-    return currentIndex;
-  };
-
-  // Get next photo index with looping
-  const getNextPhotoIndex = (currentIndex) => {
-    // Find next valid photo
-    let nextIndex = currentIndex;
-    let iterations = 0;
-    
-    while (iterations < photos.length) {
-      nextIndex = nextIndex === photos.length - 1 ? 0 : nextIndex + 1;
-      iterations++;
-      
-      const nextPhoto = photos[nextIndex];
-      if (nextPhoto && 
-          ((nextPhoto.images && nextPhoto.images.length > 0) || 
-           nextPhoto.isOriginal)) {
-        // We found a valid photo
-        return nextIndex;
-      }
-    }
-    
-    // If we get here, there's no valid next photo
-    return currentIndex;
   };
 
   // Now update the keyboard handler to use these functions
@@ -745,15 +659,13 @@ const App = () => {
 
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        const previousIndex = selectedPhotoIndex === 0 ? photos.length - 1 : selectedPhotoIndex - 1;
-        setSelectedPhotoIndex(previousIndex);
+        handlePreviousPhoto();
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
-        const nextIndex = selectedPhotoIndex === photos.length - 1 ? 0 : selectedPhotoIndex + 1;
-        setSelectedPhotoIndex(nextIndex);
+        handleNextPhoto();
       }
     }
-  }, [selectedPhotoIndex, photos.length, showControlOverlay]);
+  }, [selectedPhotoIndex, photos, showControlOverlay]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -1749,10 +1661,10 @@ const App = () => {
         {/* Navigation buttons - only show when a photo is selected */}
         {selectedPhotoIndex !== null && photos.length > 1 && (
           <>
-            <button className="photo-nav-btn prev" onClick={goToPreviousPhoto}>
+            <button className="photo-nav-btn prev" onClick={handlePreviousPhoto}>
               &#8249;
             </button>
-            <button className="photo-nav-btn next" onClick={goToNextPhoto}>
+            <button className="photo-nav-btn next" onClick={handleNextPhoto}>
               &#8250;
             </button>
             <button 
@@ -2299,225 +2211,29 @@ const App = () => {
         
         // Handle undo enhance if already enhanced
         if (currentPhoto.enhanced && !currentPhoto.loading && !currentPhoto.enhancing) {
-          // Implement the undo enhance function
-          const undoEnhance = () => {
-            console.log(`[ENHANCE] Undoing enhancement for photo #${selectedPhotoIndex}`);
-            setPhotos(prev => {
-              const updated = [...prev];
-              const photo = updated[selectedPhotoIndex];
-              
-              // Restore the original image if we have it
-              if (photo.originalEnhancedImage) {
-                const updatedImages = [...photo.images];
-                // Make sure we have a valid subIndex
-                const indexToRestore = selectedSubIndex < updatedImages.length 
-                  ? selectedSubIndex 
-                  : updatedImages.length - 1;
-                
-                if (indexToRestore >= 0) {
-                  updatedImages[indexToRestore] = photo.originalEnhancedImage;
-                }
-                
-                updated[selectedPhotoIndex] = {
-                  ...photo,
-                  enhanced: false,
-                  images: updatedImages
-                };
-              } else {
-                // If we don't have the original, just remove the enhanced flag
-                updated[selectedPhotoIndex] = {
-                  ...photo,
-                  enhanced: false
-                };
-              }
-              
-              return updated;
-            });
-          };
-          
-          undoEnhance();
+          undoEnhancement({
+            photoIndex: selectedPhotoIndex,
+            subIndex: selectedSubIndex,
+            setPhotos
+          });
           e.stopPropagation();
           return;
         }
         
         // Normal enhance flow
         if (!currentPhoto.loading && !currentPhoto.enhancing) {
-          // Implement the enhance function directly here
-          const enhanceCurrentPhoto = async () => {
-            try {
-              // Get image data
-              const imageUrl = currentPhoto.images[selectedSubIndex] || currentPhoto.originalDataUrl;
-              const response = await fetch(imageUrl);
-              const imageBlob = await response.blob();
-              
-              // Set loading state
-              setPhotos(prev => {
-                console.log(`[ENHANCE] Setting loading state for photo #${selectedPhotoIndex}`);
-                const updated = [...prev];
-                
-                // Store the original image if not already stored
-                let originalImage = null;
-                if (!updated[selectedPhotoIndex].originalEnhancedImage) {
-                  originalImage = updated[selectedPhotoIndex].images[selectedSubIndex] || updated[selectedPhotoIndex].originalDataUrl;
-                }
-                
-                updated[selectedPhotoIndex] = {
-                  ...updated[selectedPhotoIndex],
-                  loading: true,
-                  enhancing: true,
-                  progress: 0,
-                  error: null, // Clear any previous errors
-                  originalEnhancedImage: originalImage || updated[selectedPhotoIndex].originalEnhancedImage // Store original for undo
-                };
-                return updated;
-              });
-              
-              // Start enhancement
-              const arrayBuffer = await imageBlob.arrayBuffer();
-              console.log(`[ENHANCE] Creating enhancement project with Sogni API`, currentPhoto, desiredWidth, desiredHeight);
-              const project = await sogniClient.projects.create({
-                modelId: "flux1-schnell-fp8",
-                positivePrompt: 'Portrait masterpiece',//currentPhoto.prompt,
-                sizePreset: 'custom',
-                width: desiredWidth,
-                height: desiredHeight,
-                stylePrompt: '',
-                steps: 4,
-                guidance: 1,
-                numberOfImages: 1,
-                //scheduler: 'DPM Solver Multistep (DPM-Solver++)',
-                //timeStepSpacing: 'Karras',
-                startingImage: new Uint8Array(arrayBuffer),
-                startingImageStrength: 0.85,
-              });
-              
-              // Track progress
-              activeProjectReference.current = project.id;
-              console.log(`[ENHANCE] Project created with ID: ${project.id}`);
-              
-              project.on('progress', (progress) => {
-                console.log('Job progress full payload:', { jobId: project.id, ...progress });
-                const progressPercent = Math.floor(progress * 100);
-                console.log(`[ENHANCE] Progress: ${progressPercent}%`);
-                
-                setPhotos(prev => {
-                  const updated = [...prev];
-                  if (!updated[selectedPhotoIndex]) return prev;
-                  
-                  updated[selectedPhotoIndex] = {
-                    ...updated[selectedPhotoIndex],
-                    progress
-                  };
-                  return updated;
-                });
-              });
-              
-              // Handle completion
-              project.on('completed', (urls) => {
-                console.log('Project completed full payload:', { urls });
-                console.log(`[ENHANCE] Enhancement completed successfully`);
-                console.log(`[ENHANCE] Generated URLs:`, urls);
-                activeProjectReference.current = null;
-                
-                if (urls.length > 0) {
-                  console.log(`[ENHANCE] Replacing current image with enhanced version`);
-                  setPhotos(prev => {
-                    const updated = [...prev];
-                    if (!updated[selectedPhotoIndex]) return prev;
-                    
-                    // Replace the current image with the enhanced version
-                    const updatedImages = [...updated[selectedPhotoIndex].images];
-                    
-                    // Log the current state
-                    console.log(`[ENHANCE] Current images: ${updatedImages.length}, subIndex: ${selectedSubIndex}`);
-                    
-                    // Make sure we have a valid subIndex
-                    const indexToReplace = selectedSubIndex < updatedImages.length 
-                      ? selectedSubIndex 
-                      : updatedImages.length - 1;
-                    
-                    if (indexToReplace >= 0) {
-                      // Replace the image at the valid index
-                      updatedImages[indexToReplace] = urls[0];
-                      console.log(`[ENHANCE] Replaced image at index ${indexToReplace}`);
-                    } else {
-                      // If no valid index, just add the image
-                      updatedImages.push(urls[0]);
-                      console.log(`[ENHANCE] Added new image since no valid index found`);
-                    }
-                    
-                    updated[selectedPhotoIndex] = {
-                      ...updated[selectedPhotoIndex],
-                      loading: false,
-                      enhancing: false,
-                      images: updatedImages,
-                      newlyArrived: true,
-                      enhanced: true // Add a flag to indicate enhancement was successful
-                    };
-                    
-                    // Keep the same selected sub-index since we replaced the image
-                    
-                    return updated;
-                  });
-                } else {
-                  console.error(`[ENHANCE] No URLs returned from completed job`);
-                  setPhotos(prev => {
-                    const updated = [...prev];
-                    if (!updated[selectedPhotoIndex]) return prev;
-                    
-                    updated[selectedPhotoIndex] = {
-                      ...updated[selectedPhotoIndex],
-                      loading: false,
-                      enhancing: false,
-                      error: 'No enhanced image generated'
-                    };
-                    return updated;
-                  });
-                }
-              });
-              
-              project.on('failed', (error) => {
-                console.error('Project failed full payload:', error);
-                console.error(`[ENHANCE] Enhancement failed:`, error);
-                activeProjectReference.current = null;
-                
-                setPhotos(prev => {
-                  const updated = [...prev];
-                  if (!updated[selectedPhotoIndex]) return prev;
-                  
-                  updated[selectedPhotoIndex] = {
-                    ...updated[selectedPhotoIndex],
-                    loading: false,
-                    enhancing: false,
-                    error: 'Enhancement failed'
-                  };
-                  return updated;
-                });
-                
-                // Add visual indicator of failure
-                alert('Enhancement failed. Please try again.');
-              });
-            } catch (error) {
-              console.error(`[ENHANCE] Error enhancing image:`, error);
-              setPhotos(prev => {
-                const updated = [...prev];
-                if (!updated[selectedPhotoIndex]) return prev;
-                
-                updated[selectedPhotoIndex] = {
-                  ...updated[selectedPhotoIndex],
-                  loading: false,
-                  enhancing: false,
-                  error: error?.message || 'Enhancement failed'
-                };
-                return updated;
-              });
-              
-              // Add visual indicator of failure
-              alert(`Enhancement error: ${error?.message || 'Unknown error'}`);
+          enhancePhoto({
+            photo: currentPhoto,
+            photoIndex: selectedPhotoIndex,
+            subIndex: selectedSubIndex,
+            width: desiredWidth,
+            height: desiredHeight,
+            sogniClient,
+            setPhotos,
+            onSetActiveProject: (projectId) => {
+              activeProjectReference.current = projectId;
             }
-          };
-          
-          enhanceCurrentPhoto();
+          });
           e.stopPropagation();
           return;
         }

@@ -1,0 +1,246 @@
+/**
+ * Handles photo enhancement using Sogni API
+ */
+
+/**
+ * Enhances a photo using Sogni API
+ * 
+ * @param {Object} options
+ * @param {Object} options.photo - Current photo object
+ * @param {number} options.photoIndex - Index of the photo in the photos array
+ * @param {number} options.subIndex - Sub-index of the image within the photo
+ * @param {number} options.width - Target width for enhancement
+ * @param {number} options.height - Target height for enhancement
+ * @param {Object} options.sogniClient - Sogni client instance
+ * @param {Function} options.setPhotos - React setState function for photos
+ * @param {Function} options.onSetActiveProject - Callback to set active project reference
+ * @returns {Promise<void>}
+ */
+export const enhancePhoto = async (options) => {
+  const {
+    photo,
+    photoIndex,
+    subIndex,
+    width,
+    height,
+    sogniClient,
+    setPhotos,
+    onSetActiveProject
+  } = options;
+
+  try {
+    // Get image data
+    const imageUrl = photo.images[subIndex] || photo.originalDataUrl;
+    const response = await fetch(imageUrl);
+    const imageBlob = await response.blob();
+    
+    // Set loading state
+    setPhotos(prev => {
+      console.log(`[ENHANCE] Setting loading state for photo #${photoIndex}`);
+      const updated = [...prev];
+      
+      // Store the original image if not already stored
+      let originalImage = null;
+      if (!updated[photoIndex].originalEnhancedImage) {
+        originalImage = updated[photoIndex].images[subIndex] || updated[photoIndex].originalDataUrl;
+      }
+      
+      updated[photoIndex] = {
+        ...updated[photoIndex],
+        loading: true,
+        enhancing: true,
+        progress: 0,
+        error: null, // Clear any previous errors
+        originalEnhancedImage: originalImage || updated[photoIndex].originalEnhancedImage // Store original for undo
+      };
+      return updated;
+    });
+    
+    // Start enhancement
+    const arrayBuffer = await imageBlob.arrayBuffer();
+    console.log(`[ENHANCE] Creating enhancement project with Sogni API`, photo, width, height);
+    const project = await sogniClient.projects.create({
+      modelId: "flux1-schnell-fp8",
+      positivePrompt: 'Portrait masterpiece',//currentPhoto.prompt,
+      sizePreset: 'custom',
+      width,
+      height,
+      stylePrompt: '',
+      steps: 4,
+      guidance: 1,
+      numberOfImages: 1,
+      //scheduler: 'DPM Solver Multistep (DPM-Solver++)',
+      //timeStepSpacing: 'Karras',
+      startingImage: new Uint8Array(arrayBuffer),
+      startingImageStrength: 0.85,
+    });
+    
+    // Track progress
+    onSetActiveProject(project.id);
+    console.log(`[ENHANCE] Project created with ID: ${project.id}`);
+    
+    project.on('progress', (progress) => {
+      console.log('Job progress full payload:', { jobId: project.id, ...progress });
+      const progressPercent = Math.floor(progress * 100);
+      console.log(`[ENHANCE] Progress: ${progressPercent}%`);
+      
+      setPhotos(prev => {
+        const updated = [...prev];
+        if (!updated[photoIndex]) return prev;
+        
+        updated[photoIndex] = {
+          ...updated[photoIndex],
+          progress
+        };
+        return updated;
+      });
+    });
+    
+    // Handle completion
+    project.on('completed', (urls) => {
+      console.log('Project completed full payload:', { urls });
+      console.log(`[ENHANCE] Enhancement completed successfully`);
+      console.log(`[ENHANCE] Generated URLs:`, urls);
+      onSetActiveProject(null);
+      
+      if (urls.length > 0) {
+        console.log(`[ENHANCE] Replacing current image with enhanced version`);
+        setPhotos(prev => {
+          const updated = [...prev];
+          if (!updated[photoIndex]) return prev;
+          
+          // Replace the current image with the enhanced version
+          const updatedImages = [...updated[photoIndex].images];
+          
+          // Log the current state
+          console.log(`[ENHANCE] Current images: ${updatedImages.length}, subIndex: ${subIndex}`);
+          
+          // Make sure we have a valid subIndex
+          const indexToReplace = subIndex < updatedImages.length 
+            ? subIndex 
+            : updatedImages.length - 1;
+          
+          if (indexToReplace >= 0) {
+            // Replace the image at the valid index
+            updatedImages[indexToReplace] = urls[0];
+            console.log(`[ENHANCE] Replaced image at index ${indexToReplace}`);
+          } else {
+            // If no valid index, just add the image
+            updatedImages.push(urls[0]);
+            console.log(`[ENHANCE] Added new image since no valid index found`);
+          }
+          
+          updated[photoIndex] = {
+            ...updated[photoIndex],
+            loading: false,
+            enhancing: false,
+            images: updatedImages,
+            newlyArrived: true,
+            enhanced: true // Add a flag to indicate enhancement was successful
+          };
+          
+          // Keep the same selected sub-index since we replaced the image
+          
+          return updated;
+        });
+      } else {
+        console.error(`[ENHANCE] No URLs returned from completed job`);
+        setPhotos(prev => {
+          const updated = [...prev];
+          if (!updated[photoIndex]) return prev;
+          
+          updated[photoIndex] = {
+            ...updated[photoIndex],
+            loading: false,
+            enhancing: false,
+            error: 'No enhanced image generated'
+          };
+          return updated;
+        });
+      }
+    });
+    
+    project.on('failed', (error) => {
+      console.error('Project failed full payload:', error);
+      console.error(`[ENHANCE] Enhancement failed:`, error);
+      onSetActiveProject(null);
+      
+      setPhotos(prev => {
+        const updated = [...prev];
+        if (!updated[photoIndex]) return prev;
+        
+        updated[photoIndex] = {
+          ...updated[photoIndex],
+          loading: false,
+          enhancing: false,
+          error: 'Enhancement failed'
+        };
+        return updated;
+      });
+      
+      // Add visual indicator of failure
+      alert('Enhancement failed. Please try again.');
+    });
+  } catch (error) {
+    console.error(`[ENHANCE] Error enhancing image:`, error);
+    setPhotos(prev => {
+      const updated = [...prev];
+      if (!updated[photoIndex]) return prev;
+      
+      updated[photoIndex] = {
+        ...updated[photoIndex],
+        loading: false,
+        enhancing: false,
+        error: error?.message || 'Enhancement failed'
+      };
+      return updated;
+    });
+    
+    // Add visual indicator of failure
+    alert(`Enhancement error: ${error?.message || 'Unknown error'}`);
+  }
+};
+
+/**
+ * Undoes enhancement by restoring the original image
+ * 
+ * @param {Object} options
+ * @param {number} options.photoIndex - Index of the photo in the photos array
+ * @param {number} options.subIndex - Sub-index of the image within the photo
+ * @param {Function} options.setPhotos - React setState function for photos
+ * @returns {void}
+ */
+export const undoEnhancement = ({ photoIndex, subIndex, setPhotos }) => {
+  console.log(`[ENHANCE] Undoing enhancement for photo #${photoIndex}`);
+  setPhotos(prev => {
+    const updated = [...prev];
+    const photo = updated[photoIndex];
+    
+    // Restore the original image if we have it
+    if (photo.originalEnhancedImage) {
+      const updatedImages = [...photo.images];
+      // Make sure we have a valid subIndex
+      const indexToRestore = subIndex < updatedImages.length 
+        ? subIndex 
+        : updatedImages.length - 1;
+      
+      if (indexToRestore >= 0) {
+        updatedImages[indexToRestore] = photo.originalEnhancedImage;
+      }
+      
+      updated[photoIndex] = {
+        ...photo,
+        enhanced: false,
+        images: updatedImages
+      };
+    } else {
+      // If we don't have the original, just remove the enhanced flag
+      updated[photoIndex] = {
+        ...photo,
+        enhanced: false
+      };
+    }
+    
+    return updated;
+  });
+}; 
