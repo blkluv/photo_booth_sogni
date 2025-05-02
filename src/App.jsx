@@ -702,7 +702,7 @@ const App = () => {
   // -------------------------
   //   Shared logic for generating images from a Blob
   // -------------------------
-  const generateFromBlob = async (photoBlob, newPhotoIndex, dataUrl) => {
+  const generateFromBlob = async (photoBlob, newPhotoIndex, dataUrl, isMoreOperation = false) => {
     try {
       // Save the last used photo data for "More" button functionality
       setLastPhotoData({ blob: photoBlob, dataUrl });
@@ -755,67 +755,74 @@ const App = () => {
         jobMap: new Map() // Store jobMap in projectState
       };
 
-      // Set up photos state first
-      setPhotos(previous => {
-        // Check if there are any existing photos with progress we need to preserve
-        const existingProcessingPhotos = previous.filter(photo => 
-          photo.generating && photo.jobId && photo.progress
-        );
-        console.log('Existing processing photos to preserve:', existingProcessingPhotos);
-        
-        const newPhotos = [];
-        if (keepOriginalPhoto) {
-          newPhotos.push({
-            id: Date.now(),
-            generating: false,
-            loading: false,
-            images: [dataUrl],
-            originalDataUrl: dataUrl,
-            newlyArrived: false,
-            isOriginal: true
-          });
-        }
-        
-        for (let index = 0; index < numberImages; index++) {
-          // Check if we have an existing photo in process
-          const existingPhoto = existingProcessingPhotos[index];
+      // Skip setting up photos state if this is a "more" operation
+      // since we've already set up placeholders in handleGenerateMorePhotos
+      if (!isMoreOperation) {
+        // Set up photos state first
+        setPhotos(previous => {
+          // Check if there are any existing photos with progress we need to preserve
+          const existingProcessingPhotos = previous.filter(photo => 
+            photo.generating && photo.jobId && photo.progress
+          );
+          console.log('Existing processing photos to preserve:', existingProcessingPhotos);
           
-          if (existingPhoto && existingPhoto.jobId) {
-            console.log(`Preserving existing photo data for index ${index}:`, existingPhoto);
+          const newPhotos = [];
+          if (keepOriginalPhoto) {
             newPhotos.push({
-              ...existingPhoto,
-              originalDataUrl: existingPhoto.originalDataUrl || dataUrl
-            });
-          } else {
-            newPhotos.push({
-              id: Date.now() + index + 1,
-              generating: true,
-              loading: true,
-              progress: 0,
-              images: [],
-              error: null,
-              originalDataUrl: dataUrl, // Use reference photo as placeholder
+              id: Date.now(),
+              generating: false,
+              loading: false,
+              images: [dataUrl],
+              originalDataUrl: dataUrl,
               newlyArrived: false,
-              statusText: 'Finding Art Robot...'
+              isOriginal: true
             });
           }
-        }
-        return newPhotos;
-      });
+          
+          for (let index = 0; index < numberImages; index++) {
+            // Check if we have an existing photo in process
+            const existingPhoto = existingProcessingPhotos[index];
+            
+            if (existingPhoto && existingPhoto.jobId) {
+              console.log(`Preserving existing photo data for index ${index}:`, existingPhoto);
+              newPhotos.push({
+                ...existingPhoto,
+                originalDataUrl: existingPhoto.originalDataUrl || dataUrl
+              });
+            } else {
+              newPhotos.push({
+                id: Date.now() + index + 1,
+                generating: true,
+                loading: true,
+                progress: 0,
+                images: [],
+                error: null,
+                originalDataUrl: dataUrl, // Use reference photo as placeholder
+                newlyArrived: false,
+                statusText: 'Finding Art Robot...'
+              });
+            }
+          }
+          return newPhotos;
+        });
+      }
 
-      // Animate camera and studio lights out
-      setCameraAnimating(true);
-      setLightsAnimating(true);
-      
-      // Wait for animation to complete before showing grid and hiding lights
-      setTimeout(() => {
-        setShowPhotoGrid(true);
-        setCameraAnimating(false);
-        setStudioLightsHidden(true);
+      // Only animate if this is the first time (not a "more" operation)
+      if (!isMoreOperation) {
+        // Animate camera and studio lights out
+        setCameraAnimating(true);
+        setLightsAnimating(true);
+        
+        // Wait for animation to complete before showing grid and hiding lights
         setTimeout(() => {
-          setLightsAnimating(false);
-        }, 800); // Match animation duration
-      }, 700); // Match the duration of cameraFlyUp animation
+          setShowPhotoGrid(true);
+          setCameraAnimating(false);
+          setStudioLightsHidden(true);
+          setTimeout(() => {
+            setLightsAnimating(false);
+          }, 800); // Match animation duration
+        }, 700); // Match the duration of cameraFlyUp animation
+      }
 
       // For iOS, ensure the blob is fully ready before sending to API
       let processedBlob = photoBlob;
@@ -2476,15 +2483,20 @@ const App = () => {
 
     console.log('Generating more photos with the same settings');
     
-    // Calculate the index where new photos will be added
-    const newPhotoIndex = photos.length;
+    // Instead of appending to existing photos, we'll replace them
+    // First, store the number of photos to generate
+    const numToGenerate = numberImages;
+
+    // Get the original photo if it exists
+    const existingOriginalPhoto = keepOriginalPhoto ? photos.find(p => p.isOriginal) : null;
     
-    // Create all placeholder photos in a single update while keeping existing photos
+    // Create a new array with placeholders replacing the existing photos
     setPhotos(prev => {
-      const newPhotos = [...prev];
+      // Start with just the original photo if we're keeping it
+      const newPhotos = existingOriginalPhoto ? [existingOriginalPhoto] : [];
       
       // Add placeholders for all new photos
-      for (let i = 0; i < numberImages; i++) {
+      for (let i = 0; i < numToGenerate; i++) {
         newPhotos.push({
           id: Date.now() + i,
           generating: true,
@@ -2512,25 +2524,28 @@ const App = () => {
       await new Promise(resolve => setTimeout(resolve, 50));
       
       // Generate new images with the existing blob
-      await generateFromBlob(blobCopy, newPhotoIndex, dataUrl);
+      // Use index 0 if we're keeping the original, otherwise use 0 as the starting index
+      const newPhotoIndex = existingOriginalPhoto ? 1 : 0;
+      await generateFromBlob(blobCopy, newPhotoIndex, dataUrl, true); // Pass true to indicate this is a "more" operation
     } catch (error) {
       console.error('Error generating more photos:', error);
       
       // Update the newly added placeholder photos with error state
       setPhotos(prev => {
-        const newPhotos = [...prev];
-        for (let i = 0; i < numberImages; i++) {
-          const index = newPhotoIndex + i;
-          if (index < newPhotos.length) {
-            newPhotos[index] = {
-              ...newPhotos[index],
-              generating: false,
-              loading: false,
-              error: `Error: ${error.message || error}`,
-              permanentError: true
-            };
-          }
+        const startIndex = existingOriginalPhoto ? 1 : 0;
+        const newPhotos = existingOriginalPhoto ? [existingOriginalPhoto] : [];
+        
+        for (let i = 0; i < numToGenerate; i++) {
+          newPhotos.push({
+            id: Date.now() + i,
+            generating: false,
+            loading: false,
+            error: `Error: ${error.message || error}`,
+            originalDataUrl: lastPhotoData.dataUrl,
+            permanentError: true
+          });
         }
+        
         return newPhotos;
       });
     }
