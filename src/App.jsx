@@ -1,16 +1,19 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo, useReducer } from 'react';
 import { SogniClient } from "@sogni-ai/sogni-client";
 import { API_CONFIG } from './config/cors';
-import { SOGNI_URLS } from './config/sogni';
+import { SOGNI_URLS, DEFAULT_SETTINGS, modelOptions, getModelOptions, getValidModelValue, defaultStylePrompts as initialStylePrompts } from './constants/settings';
+import { photoThoughts, randomThoughts } from './constants/thoughts';
+import { getSettingFromCookie, saveSettingsToCookies } from './utils/cookies';
+import { generateUUID } from './utils';
+import { getCustomDimensions, resizeDataUrl, describeImage, centerCropImage, blobToDataURL } from './utils/imageProcessing';
+import { loadPrompts, initializeStylePrompts, getRandomStyle, getRandomMixPrompts } from './services/prompts';
+import { initializeSogniClient } from './services/sogni';
 import clickSound from './click.mp3';
 import cameraWindSound from './camera-wind.mp3';
 import slothicornImage from './slothicorn-camera.png';
 import light1Image from './light1.png';
 import light2Image from './light2.png';
 import './App.css';
-import { DEFAULT_SETTINGS, modelOptions, getModelOptions, getValidModelValue } from './constants/settings';
-import { photoThoughts, randomThoughts } from './constants/thoughts';
-// Modify the prompts import to use dynamic import for production compatibility
 import promptsData from './prompts.json';
 import ReactDOM from 'react-dom';
 import CameraView from './components/camera/CameraView';
@@ -19,232 +22,19 @@ import ControlPanel from './components/ControlPanel';
 import StyleDropdown from './components/shared/StyleDropdown';
 import { AppProvider, useApp } from './context/AppContext';
 
-// Cookie utility functions
-const saveSettingsToCookies = (settings) => {
-  const expiryDate = new Date();
-  expiryDate.setMonth(expiryDate.getMonth() + 6); // Expire in 6 months
-  const expires = `; expires=${expiryDate.toUTCString()}`;
-  
-  for (const [key, value] of Object.entries(settings)) {
-    document.cookie = `sogni_${key}=${value}${expires}; path=/`;
-  }
-};
+// Remove cookie utility functions (already imported)
 
-const getSettingFromCookie = (name, defaultValue) => {
-  const cookieName = `sogni_${name}=`;
-  const cookies = document.cookie.split(';');
-  
-  for (let cookie of cookies) {
-    cookie = cookie.trim();
-    if (cookie.indexOf(cookieName) === 0) {
-      const value = cookie.slice(cookieName.length);
-      
-      // Try to parse numbers and booleans
-      if (!isNaN(Number(value))) {
-        return Number(value);
-      } else if (value === 'true') {
-        return true;
-      } else if (value === 'false') {
-        return false;
-      }
-      
-      return value;
-    }
-  }
-  
-  return defaultValue;
-};
+// Remove loadPrompts function (already imported)
 
-/**
- * Default style prompts
- */
-// Handle the case where prompts might not be immediately available
-const loadPrompts = () => {
-  if (typeof promptsData !== 'undefined' && Object.keys(promptsData).length > 0) {
-    console.log('Prompts loaded from import');
-    return Promise.resolve(promptsData);
-  }
-  
-  console.warn('Prompts data not immediately available, attempting to fetch...');
-  
-  // Try multiple locations in order
-  const tryFetchFromPath = (path) => {
-    return fetch(path)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`Failed to fetch from ${path}: ${response.statusText}`);
-        }
-        return response.json();
-      })
-      .then(data => {
-        console.log(`Successfully loaded prompts from ${path}`);
-        return data;
-      });
-  };
-  
-  // Try multiple paths in sequence
-  return tryFetchFromPath('/photobooth/prompts.json')
-    .catch(error => {
-      console.warn(error.message);
-      return tryFetchFromPath('/prompts.json');
-    })
-    .catch(error => {
-      console.warn(error.message);
-      return tryFetchFromPath('./prompts.json');
-    })
-    .catch(error => {
-      console.error('All attempts to fetch prompts failed:', error);
-      return {}; // Return empty object as last resort
-    });
-};
+// Remove getCustomDimensions function (already imported)
 
-// Initialize defaultStylePrompts with a placeholder
-let defaultStylePrompts = { custom: '' };
+// Remove resizeDataUrl function (already imported)
 
-// Load prompts asynchronously
-loadPrompts().then(prompts => {
-  defaultStylePrompts = {
-    custom: '',
-  ...Object.fromEntries(
-    Object.entries(prompts)
-      .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
-  )
-};
+// Remove describeImage function (already imported)
 
-// Add random style that uses all prompts
-defaultStylePrompts.random = `{${Object.values(prompts).join('|')}}`;
-  console.log('Prompts loaded successfully:', Object.keys(defaultStylePrompts).length);
-}).catch(error => {
-  console.error('Error initializing prompts:', error);
-});
+// Remove generateUUID function (already imported)
 
-/**
- * Returns 1280×720 (landscape) or 720×1280 (portrait)
- * so that Sogni returns images that match the orientation.
- * These must be integers between 256 and 2048.
- */
-function getCustomDimensions() {
-  const isPortrait = window.innerHeight > window.innerWidth;
-  if (isPortrait) {
-    return { width: 896, height: 1152 }; // Portrait: 896:1152 (ratio ~0.778)
-  } else {
-    return { width: 1152, height: 896 }; // Landscape: 1152:896 (ratio ~1.286)
-  }
-}
-
-/** 
- * Helper: resize dataURL so original matches the Sogni dimension 
- * for easy side-by-side comparison (no skew).
- */
-async function resizeDataUrl(dataUrl, width, height) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.addEventListener('load', () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const context = canvas.getContext('2d');
-      // fill black to avoid any transparent edges
-      context.fillStyle = 'black';
-      context.fillRect(0, 0, width, height);
-      context.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/png'));
-    });
-    img.src = dataUrl;
-  });
-}
-
-/**
- * Calls the describe_image_upload API to get a textual description
- * of the given photo blob.
- */
-async function describeImage(photoBlob) {
-  const formData = new FormData();
-  formData.append("file", photoBlob, "photo.png");
-  
-  try {
-    const response = await fetch("https://prompt.sogni.ai/describe_image_upload", {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!response.ok) {
-      console.warn("API describe_image_upload returned non-OK", response.statusText);
-      return "";
-    }
-
-    const json = await response.json();
-    // the API returns { "description": "...some text..." }
-    return json.description || "";
-  } catch (error) {
-    console.error("Error describing image:", error);
-    return "";
-  }
-}
-
-const generateUUID = () => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replaceAll(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-};
-
-// Helper function to get a valid model option value
-
-/** 
- * Center crop an image to match portrait aspect ratio on mobile
- * This is specifically for photos selected from the camera roll
- */
-async function centerCropImage(imageBlob, targetWidth, targetHeight) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
-      const ctx = canvas.getContext('2d');
-      
-      // Fill with black background to avoid transparency
-      ctx.fillStyle = 'black';
-      ctx.fillRect(0, 0, targetWidth, targetHeight);
-      
-      // Calculate dimensions for center crop
-      const imageAspect = img.width / img.height;
-      const targetAspect = targetWidth / targetHeight;
-      
-      let sourceX = 0;
-      let sourceY = 0;
-      let sourceWidth = img.width;
-      let sourceHeight = img.height;
-      
-      // If image is wider than target, crop width
-      if (imageAspect > targetAspect) {
-        sourceWidth = img.height * targetAspect;
-        sourceX = (img.width - sourceWidth) / 2;
-      } 
-      // If image is taller than target, crop height
-      else if (imageAspect < targetAspect) {
-        sourceHeight = img.width / targetAspect;
-        sourceY = (img.height - sourceHeight) / 2;
-      }
-      
-      // Draw the cropped image onto the canvas
-      ctx.drawImage(
-        img, 
-        sourceX, sourceY, sourceWidth, sourceHeight,
-        0, 0, targetWidth, targetHeight
-      );
-      
-      // Convert to blob
-      canvas.toBlob((blob) => {
-        resolve(blob);
-      }, 'image/png', 1.0);
-    };
-    
-    img.src = URL.createObjectURL(imageBlob);
-  });
-}
+// Remove centerCropImage function (already imported)
 
 const App = () => {
   const videoReference = useRef(null);
@@ -257,6 +47,9 @@ const App = () => {
   const [selectedStyle, setSelectedStyle] = useState(getSettingFromCookie('selectedStyle', DEFAULT_SETTINGS.selectedStyle));
   const [customPrompt, setCustomPrompt] = useState(getSettingFromCookie('customPrompt', ''));
   const [loadedImages, setLoadedImages] = useState({});
+  
+  // Add state for style prompts instead of modifying the imported constant
+  const [stylePrompts, setStylePrompts] = useState(initialStylePrompts);
 
   // Info modal state - adding back the missing state
   const [showInfoModal, setShowInfoModal] = useState(false);
@@ -326,20 +119,28 @@ const App = () => {
     };
   }, [orientationHandler]);
 
-  // Add effect to load prompts on component mount
+  // Update the useEffect that loads prompts
   useEffect(() => {
     // Try to load prompts from both import and fetch
     loadPrompts().then(prompts => {
       if (Object.keys(prompts).length > 0) {
         console.log('Successfully loaded prompts on component mount, loaded styles:', Object.keys(prompts).length);
-        defaultStylePrompts = {
-          custom: '',
-          ...Object.fromEntries(
-            Object.entries(prompts)
-              .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
-          )
-        };
-        defaultStylePrompts.random = `{${Object.values(prompts).join('|')}}`;
+        
+        // Update the state variable instead of modifying the imported constant
+        setStylePrompts(prev => {
+          const newStylePrompts = {
+            custom: '',
+            ...Object.fromEntries(
+              Object.entries(prompts)
+                .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+            )
+          };
+          
+          // Add random style that uses all prompts
+          newStylePrompts.random = `{${Object.values(prompts).join('|')}}`;
+          
+          return newStylePrompts;
+        });
       } else {
         console.warn('Failed to load prompts from import or fetch');
       }
@@ -543,24 +344,7 @@ const App = () => {
   // -------------------------
   const initializeSogni = async () => {
     try {
-      let appId = import.meta.env.VITE_SOGNI_APP_ID + generateUUID();
-      console.log('appId', appId);
-      
-      // Pass only the required parameters that match the SDK's createInstance method
-      const client = await SogniClient.createInstance({
-        appId: appId,
-        testnet: true,
-        network: 'fast',
-        logLevel: 'debug',
-        restEndpoint: SOGNI_URLS.api,
-        socketEndpoint: SOGNI_URLS.socket
-      });
-
-      await client.account.login(
-        import.meta.env.VITE_SOGNI_USERNAME,
-        import.meta.env.VITE_SOGNI_PASSWORD
-      );
-
+      const client = await initializeSogniClient();
       setSogniClient(client);
       setIsSogniReady(true);
 
@@ -1003,24 +787,6 @@ const App = () => {
     }
   }, []);
 
-  // First, let's create a helper function to generate random prompts
-  const generateRandomPrompts = (count) => {
-    // Get all prompts except 'custom' and 'random'
-    const availablePrompts = Object.entries(defaultStylePrompts)
-      .filter(([key]) => key !== 'custom' && key !== 'random')
-      .map(([key, value]) => ({ key, value }));
-    
-    // Shuffle array using Fisher-Yates algorithm
-    for (let index = availablePrompts.length - 1; index > 0; index--) {
-      const index_ = Math.floor(Math.random() * (index + 1));
-      [availablePrompts[index], availablePrompts[index_]] = [availablePrompts[index_], availablePrompts[index]];
-    }
-    
-    // Take first 'count' items and join their prompts
-    const selectedPrompts = availablePrompts.slice(0, count);
-    return `{${selectedPrompts.map(p => p.value).join('|')}}`;
-  };
-
   // -------------------------
   //   Shared logic for generating images from a Blob
   // -------------------------
@@ -1039,31 +805,35 @@ const App = () => {
         stylePrompt = customPrompt || 'A custom style portrait';
       } else if (selectedStyle === 'random') {
         // Ensure we have prompts loaded
-        if (Object.keys(defaultStylePrompts).length <= 2) {
+        if (Object.keys(stylePrompts).length <= 2) {
           // Reload prompts if they're not available
           try {
             const prompts = await loadPrompts();
             if (Object.keys(prompts).length > 0) {
-              defaultStylePrompts = {
-                custom: '',
-                ...Object.fromEntries(
-                  Object.entries(prompts)
-                    .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
-                )
-              };
-              defaultStylePrompts.random = `{${Object.values(prompts).join('|')}}`;
+              // Update state with new prompts
+              setStylePrompts(prev => {
+                const newStylePrompts = {
+                  custom: '',
+                  ...Object.fromEntries(
+                    Object.entries(prompts)
+                      .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+                  )
+                };
+                newStylePrompts.random = `{${Object.values(prompts).join('|')}}`;
+                return newStylePrompts;
+              });
             }
           } catch (error) {
             console.error('Error loading prompts on demand:', error);
           }
         }
         
-        const randomStyle = getRandomStyle();
-        stylePrompt = defaultStylePrompts[randomStyle] || 'A creative portrait style';
+        const randomStyle = getRandomStyle(stylePrompts);
+        stylePrompt = stylePrompts[randomStyle] || 'A creative portrait style';
       } else if (selectedStyle === 'randomMix') {
-        stylePrompt = getRandomMixPrompts(numberImages);
+        stylePrompt = getRandomMixPrompts(numberImages, stylePrompts);
       } else {
-        stylePrompt = defaultStylePrompts[selectedStyle] || 'A creative portrait style';
+        stylePrompt = stylePrompts[selectedStyle] || 'A creative portrait style';
       }
       
       console.log('Style prompt:', stylePrompt);
@@ -1795,7 +1565,7 @@ const App = () => {
             showSettings={showControlOverlay}
             onToggleSettings={() => setShowControlOverlay(!showControlOverlay)}
             testId="camera-view"
-            stylePrompts={defaultStylePrompts}
+            stylePrompts={stylePrompts}
             customPrompt={customPrompt}
             onCustomPromptChange={(value) => updateSetting(setCustomPrompt, 'customPrompt')(value)}
             cameraDevices={cameraDevices}
@@ -2452,44 +2222,6 @@ const App = () => {
   // Add this helper function for style display
   const styleIdToDisplay = (styleId) => {
     return styleId.replaceAll(/([A-Z])/g, ' $1').replace(/^./, string_ => string_.toUpperCase()).trim();
-  };
-
-  // Add these helper functions for random styles
-  const getRandomStyle = () => {
-    const availableStyles = Object.keys(defaultStylePrompts)
-      .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix');
-    
-    if (availableStyles.length === 0) {
-      console.warn('No styles available for random selection');
-      return 'custom'; // Fallback to custom if no styles are available
-    }
-    
-    return availableStyles[Math.floor(Math.random() * availableStyles.length)];
-  };
-
-  const getRandomMixPrompts = (count) => {
-    const availableStyles = Object.keys(defaultStylePrompts)
-      .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix');
-    
-    if (availableStyles.length === 0) {
-      console.warn('No styles available for random mix');
-      return 'A creative portrait style'; // Fallback if no styles are available
-    }
-    
-    const selectedPrompts = [];
-    for (let index = 0; index < count; index++) {
-      const randomStyle = availableStyles[Math.floor(Math.random() * availableStyles.length)];
-      const prompt = defaultStylePrompts[randomStyle];
-      if (prompt) {
-        selectedPrompts.push(prompt);
-      }
-    }
-    
-    if (selectedPrompts.length === 0) {
-      return 'A creative portrait style'; // Fallback if no valid prompts
-    }
-    
-    return `{${selectedPrompts.join('|')}}`;
   };
 
   // Clean, polished transition from photogrid to camera
@@ -3867,14 +3599,4 @@ const App = () => {
 };
 
 export default App;
-
-// Helper function to convert a blob to a data URL
-const blobToDataURL = (blob) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-};
 
