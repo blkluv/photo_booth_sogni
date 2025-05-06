@@ -331,4 +331,13 @@ router.post('/generate', async (req, res) => {
   }
 });
 
+// Add a health check endpoint to verify server is running
+router.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
+  });
+});
+
 export default router; 

@@ -62,9 +62,10 @@ export const DEFAULT_SETTINGS = {
   selectedStyle: "randomMix",
 };
 
+// Backend now handles all Sogni API communication, so we don't need these URLs in the frontend
 export const SOGNI_URLS = {
-  api: import.meta.env.VITE_SOGNI_API_URL || "https://api.sogni.ai",
-  socket: import.meta.env.VITE_SOGNI_SOCKET_URL || "wss://socket.sogni.ai",
+  api: "/api/sogni",  // Local API endpoint that proxies to Sogni
+  socket: "", // We don't use WebSockets directly anymore
 };
 
 export const defaultStylePrompts: { [key: string]: string } = {

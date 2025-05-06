@@ -1,19 +1,8 @@
-const SOGNI_HOSTS = {
-  'local': { socket: 'wss://socket-local.sogni.ai', api: 'https://api-local.sogni.ai' },
-  'staging': { socket: 'wss://socket-staging.sogni.ai', api: 'https://api-staging.sogni.ai' },
-  'production': { socket: 'wss://socket.sogni.ai', api: 'https://api.sogni.ai' },
-} as const;
+// This file is now simplified since the backend handles Sogni API calls
+// We're keeping it for backward compatibility with other parts of the codebase
 
-type SogniEnvironment = keyof typeof SOGNI_HOSTS;
-
-const SOGNI_ENV = import.meta.env.VITE_SOGNI_ENV as SogniEnvironment || 'staging';
-
-console.log('Config - SOGNI_ENV:', SOGNI_ENV);
-console.log('Config - SOGNI_HOSTS[SOGNI_ENV]:', SOGNI_HOSTS[SOGNI_ENV]);
-
-if (!SOGNI_HOSTS[SOGNI_ENV]) {
-  throw new Error(`Invalid SOGNI_ENV: ${SOGNI_ENV}. Must be one of: ${Object.keys(SOGNI_HOSTS).join(', ')}`);
-}
-
-export const SOGNI_URLS = SOGNI_HOSTS[SOGNI_ENV];
-console.log('Config - Exported SOGNI_URLS:', SOGNI_URLS); 
+// Use production as the default since the backend will handle the actual environment
+export const SOGNI_URLS = {
+  socket: "wss://socket.sogni.ai", 
+  api: "https://api.sogni.ai"
+}; 
