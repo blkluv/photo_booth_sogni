@@ -93,8 +93,8 @@ SOGNI_APP_ID=${VITE_SOGNI_APP_ID}
 SOGNI_ENV=production
 
 # App settings
-APP_URL=http://superapps.sogni.ai/photobooth
-API_URL=http://superapps.sogni.ai/photobooth/api
+APP_URL=https://superapps.sogni.ai/photobooth
+API_URL=https://superapps.sogni.ai/photobooth/api
 ENVFILE
 
   # Ensure permissions are correct
