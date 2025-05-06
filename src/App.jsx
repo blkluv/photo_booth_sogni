@@ -1062,22 +1062,31 @@ const App = () => {
 
       project.on('jobFailed', (job) => {
         console.error('Job failed:', job.id, job.error);
+        
         const jobIndex = projectStateReference.current.jobMap.get(job.id);
-        if (jobIndex === undefined) return;
+        console.log('Looking up job index for failed job:', job.id, 'found:', jobIndex, 'in map:', projectStateReference.current.jobMap);
+        if (jobIndex === undefined) {
+          console.error('Unknown job failed:', job.id);
+          return;
+        }
         
         const offset = keepOriginalPhoto ? 1 : 0;
         const photoIndex = jobIndex + offset;
+        console.log(`Marking failed job ${job.id} for box ${photoIndex}`);
         
         setPhotos(previous => {
           const updated = [...previous];
-          if (!updated[photoIndex]) return previous;
+          if (!updated[photoIndex]) {
+            console.error(`No photo box found at index ${photoIndex}`);
+            return previous;
+          }
           
           updated[photoIndex] = {
             ...updated[photoIndex],
             generating: false,
             loading: false,
-            error: typeof job.error === 'object' ? 'Generation failed' : (job.error || 'Generation failed'),
-            permanentError: true, // Add flag to prevent overwriting by other successful jobs
+            error: 'Image generation failed',
+            permanentError: true, // Mark as permanent so it won't be overwritten
             statusText: 'Failed'
           };
           

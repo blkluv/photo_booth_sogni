@@ -331,6 +331,15 @@ export async function generateImage(params: any, progressCallback?: (progress: a
                   }
                   break;
                   
+                case 'jobFailed':
+                  // Handle job failure event
+                  console.log('Job failed via SSE:', data);
+                  if (progressCallback) {
+                    // Pass the full job failure data to the callback
+                    progressCallback(data);
+                  }
+                  break;
+                  
                 case 'complete':
                   // Handle overall project completion (all jobs finished)
                   console.log('Generation complete via SSE, closing EventSource');
