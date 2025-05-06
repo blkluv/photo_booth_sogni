@@ -15,8 +15,8 @@ const productionUrls: EnvironmentURLs = {
 
 // Staging URLs
 const stagingUrls: EnvironmentURLs = {
-  publicUrl: 'http://photobooth-staging.sogni.ai',
-  apiUrl: 'http://photobooth-staging.sogni.ai/api',
+  publicUrl: 'https://photobooth-staging.sogni.ai',
+  apiUrl: 'https://photobooth-staging.sogni.ai/api',
 };
 
 // Local development URLs

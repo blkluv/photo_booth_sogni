@@ -100,40 +100,29 @@ ENVFILE
   # Ensure permissions are correct
   chmod 600 .env
   
-  # Create or update systemd service for backend
-  echo "🔧 Setting up systemd service for backend..."
-  sudo tee /etc/systemd/system/sogni-photobooth.service > /dev/null << 'SYSTEMDFILE'
-[Unit]
-Description=Sogni Photobooth Backend
-After=network.target
-
-[Service]
-Type=simple
-User=www-data
-WorkingDirectory=/var/www/superapps.sogni.ai/photobooth-server
-ExecStart=/usr/bin/node index.js
-Restart=on-failure
-Environment=NODE_ENV=production
-# Load all environment variables from the .env file
-EnvironmentFile=/var/www/superapps.sogni.ai/photobooth-server/.env
-
-[Install]
-WantedBy=multi-user.target
-SYSTEMDFILE
-
-  # Reload systemd, enable and restart service
-  sudo systemctl daemon-reload
-  sudo systemctl enable sogni-photobooth.service
-  sudo systemctl restart sogni-photobooth.service
+  # Install PM2 if not already installed
+  if ! command -v pm2 &> /dev/null; then
+    echo "Installing PM2 process manager..."
+    npm install -g pm2
+  fi
   
-  # Check status of the service
+  # Start or restart the backend using PM2
+  echo "🔧 Starting backend service with PM2..."
+  pm2 delete sogni-photobooth-production 2>/dev/null || true
+  PORT=3001 pm2 start index.js --name sogni-photobooth-production
+  pm2 save
+  
+  # Setup PM2 to start on system boot
+  echo "🔧 Configuring PM2 to start on system boot..."
+  pm2 startup | tail -1 | bash || echo "PM2 startup command failed, may need manual configuration"
+  
+  # Check service status
   echo "📊 Backend service status:"
-  sudo systemctl status sogni-photobooth.service --no-pager
+  pm2 status sogni-photobooth-production
   
   # Check that nginx is properly configured
   echo "🔍 Verifying nginx configuration..."
-  sudo cp /tmp/sogni-photobooth-nginx.conf /etc/nginx/sites-available/sogni-photobooth
-  sudo ln -sf /etc/nginx/sites-available/sogni-photobooth /etc/nginx/sites-enabled/sogni-photobooth
+  sudo cp /tmp/sogni-photobooth-nginx.conf /etc/nginx/conf.d/superapps.sogni.ai.conf
   sudo nginx -t
   if [ $? -eq 0 ]; then
     sudo systemctl reload nginx
@@ -151,21 +140,30 @@ fi
 # Verify deployment
 show_step "Verifying deployment"
 echo "🔍 Checking backend health..."
-HEALTH_CHECK=$(curl -s -o /dev/null -w "%{http_code}" http://$REMOTE_HOST:3001/health || echo "failed")
+HEALTH_CHECK=$(curl -s -o /dev/null -w "%{http_code}" https://superapps.sogni.ai/photobooth/health || echo "failed")
 if [ "$HEALTH_CHECK" = "200" ]; then
   echo "✅ Backend health check successful"
 else
   echo "❌ Backend health check failed with status $HEALTH_CHECK"
-  echo "⚠️ Warning: The backend may not be running correctly. Please check logs on the server."
+  echo "⚠️ Warning: The backend may not be running correctly. Please check logs with: ssh $REMOTE_HOST 'pm2 logs sogni-photobooth-production'"
 fi
 
-echo "🔍 Checking nginx configuration..."
-NGINX_CHECK=$(curl -s -o /dev/null -w "%{http_code}" -I http://$REMOTE_HOST/photobooth/ || echo "failed")
-if [ "$NGINX_CHECK" = "200" ] || [ "$NGINX_CHECK" = "301" ] || [ "$NGINX_CHECK" = "302" ]; then
-  echo "✅ Nginx configuration check successful"
+echo "🔍 Checking frontend..."
+FRONTEND_CHECK=$(curl -s -o /dev/null -w "%{http_code}" -I https://superapps.sogni.ai/photobooth/ || echo "failed")
+if [ "$FRONTEND_CHECK" = "200" ] || [ "$FRONTEND_CHECK" = "301" ] || [ "$FRONTEND_CHECK" = "302" ]; then
+  echo "✅ Frontend check successful"
 else
-  echo "❌ Nginx check failed with status $NGINX_CHECK"
-  echo "⚠️ Warning: The nginx configuration may not be correct. Please check /etc/nginx/sites-enabled/"
+  echo "❌ Frontend check failed with status $FRONTEND_CHECK"
+  echo "⚠️ Warning: The frontend may not be accessible. Please check nginx configuration."
+fi
+
+echo "🔍 Checking API access..."
+API_CHECK=$(curl -s -o /dev/null -w "%{http_code}" https://superapps.sogni.ai/photobooth/api/sogni/status || echo "failed")
+if [ "$API_CHECK" = "200" ]; then
+  echo "✅ API access check successful"
+else
+  echo "❌ API access check failed with status $API_CHECK"
+  echo "⚠️ Warning: The API may not be accessible. Please check nginx configuration and backend logs."
 fi
 
 echo ""

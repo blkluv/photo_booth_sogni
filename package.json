@@ -1,6 +1,6 @@
 {
-  "name": "sogni-react-app",
-  "version": "1.0.0",
+  "name": "sogni-photobooth-app",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "scripts": {
