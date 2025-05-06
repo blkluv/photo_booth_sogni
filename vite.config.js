@@ -53,7 +53,6 @@ export default defineConfig(({ mode }) => {
     // Exclude credentials like username, password, API keys
     if (!key.includes('VITE_SOGNI_USERNAME') && 
         !key.includes('VITE_SOGNI_PASSWORD') && 
-        !key.includes('VITE_RPC_ENDPOINT') && 
         !key.includes('VITE_SOGNI_APP_ID')) {
       secureEnv[key] = env[key];
     }
@@ -100,7 +99,6 @@ export default defineConfig(({ mode }) => {
       // Replace sensitive env variables with safe placeholders
       'import.meta.env.VITE_SOGNI_USERNAME': JSON.stringify('***REMOVED***'),
       'import.meta.env.VITE_SOGNI_PASSWORD': JSON.stringify('***REMOVED***'),
-      'import.meta.env.VITE_RPC_ENDPOINT': JSON.stringify('***REMOVED***'),
       'import.meta.env.VITE_SOGNI_APP_ID': JSON.stringify('***REMOVED***'),
     },
   };

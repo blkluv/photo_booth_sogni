@@ -67,8 +67,8 @@ async function testAuth() {
     
     const appId = `test-auth-${Date.now()}`;
     const sogniEnv = process.env.SOGNI_ENV || 'production';
-    const username = process.env.SOGNI_USERNAME || 'TheArtist';
-    const password = process.env.SOGNI_PASSWORD || 'TAm1x*Gm6o!TLZ';
+    const username = process.env.SOGNI_USERNAME;
+    const password = process.env.SOGNI_PASSWORD;
     
     console.log(`Using app ID: ${appId}`);
     console.log(`Using username: ${username}`);

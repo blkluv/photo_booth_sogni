@@ -10,15 +10,6 @@ dotenv.config();
 // Helper function to generate a UUID
 const generateUUID = () => uuidv4();
 
-// Default credentials - these should match what was in the .env file example
-const defaultCredentials = {
-  SOGNI_APP_ID: 'photobooth-test-mark',
-  SOGNI_USERNAME: 'TheArtist',
-  SOGNI_PASSWORD: 'TAm1x*Gm6o!TLZ',
-  RPC_ENDPOINT: 'https://base-sepolia.g.alchemy.com/v2/F9JKGLSddG0LmbSAx1Gq1JBrbtWvPpY9',
-  SOGNI_ENV: 'production'
-};
-
 // Get Sogni URLs based on environment
 const getSogniUrls = (env) => {
   const SOGNI_HOSTS = {
@@ -39,10 +30,10 @@ const getSogniUrls = (env) => {
 // Initialize the Sogni client
 export async function initializeSogniClient() {
   // Use environment variables or fall back to defaults
-  const appId = `${process.env.SOGNI_APP_ID || defaultCredentials.SOGNI_APP_ID}-${generateUUID()}`;
-  const sogniEnv = process.env.SOGNI_ENV || defaultCredentials.SOGNI_ENV;
-  const username = process.env.SOGNI_USERNAME || defaultCredentials.SOGNI_USERNAME;
-  const password = process.env.SOGNI_PASSWORD || defaultCredentials.SOGNI_PASSWORD;
+  const appId = `${process.env.SOGNI_APP_ID}-${generateUUID()}`;
+  const sogniEnv = process.env.SOGNI_ENV || 'production';
+  const username = process.env.SOGNI_USERNAME;
+  const password = process.env.SOGNI_PASSWORD;
   
   // Enhanced debugging
   console.log(`DEBUG - Environment variables loaded`);
