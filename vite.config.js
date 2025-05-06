@@ -77,6 +77,12 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
       https: false,            // disable HTTPS entirely as its handled by nginx
       allowedHosts: ["photobooth-local.sogni.ai", "photobooth.sogni.ai", "superapps.sogni.ai"],
+      cors: {
+        origin: ["https://photobooth-local.sogni.ai", "http://localhost:5175"],
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        credentials: true,
+        allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
+      },
       proxy: {
         '/api': {
           target: 'http://localhost:3001',

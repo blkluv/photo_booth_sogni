@@ -73,7 +73,7 @@ interface CameraViewProps {
   onKeepOriginalPhotoChange?: (keep: boolean) => void;
   /** Handler for settings reset */
   onResetSettings?: () => void;
-  /** Is using front (selfie) camera */
+  /** Whether the front camera is active */
   isFrontCamera?: boolean;
 }
 
@@ -172,38 +172,24 @@ export const CameraView: React.FC<CameraViewProps> = ({
       .trim();
   };
 
-  // Render the bottom controls including style selector and shutter button
   const renderBottomControls = () => (
     <div className={styles.bottomControls}>
-      {/* Style selector */}
       <div className={styles.styleSelector}>
-        <button
-          ref={styleButtonRef}
-          className={`${styles.styleButton} bottom-style-select`}
+        <button 
+          className={styles.styleButton}
           onClick={toggleStyleDropdown}
-          data-testid="style-button"
+          ref={styleButtonRef}
+          data-testid="style-select-button"
         >
-          <span className={styles.styleText}>
-            {`Prompt: ${selectedStyle === 'custom' ? 'Custom...' : styleIdToDisplay(selectedStyle)}`}
-          </span>
+          {styleIdToDisplay(selectedStyle) || 'Select Style'}
         </button>
-
-        {/* Style dropdown */}
+        
         {showStyleDropdown && (
-          <div className={`${styles.styleDropdown} ${styles[`${dropdownPosition}Position`]}`}>
+          <div 
+            className={`${styles.styleDropdown} ${dropdownPosition === 'top' ? styles.topPosition : ''}`}
+            data-testid="style-dropdown"
+          >
             <div className={styles.styleSectionFeatured}>
-              {/* Featured options */}
-              <div 
-                className={`${styles.styleOption} ${selectedStyle === 'randomMix' ? styles.selected : ''}`}
-                onClick={() => {
-                  onStyleSelect('randomMix');
-                  setShowStyleDropdown(false);
-                }}
-              >
-                <span>🎲</span>
-                <span>Random Mix</span>
-              </div>
-              
               <div 
                 className={`${styles.styleOption} ${selectedStyle === 'random' ? styles.selected : ''}`}
                 onClick={() => {
@@ -211,8 +197,19 @@ export const CameraView: React.FC<CameraViewProps> = ({
                   setShowStyleDropdown(false);
                 }}
               >
-                <span>🔀</span>
-                <span>Random</span>
+                <span>🎲</span>
+                <span>Random style</span>
+              </div>
+              
+              <div 
+                className={`${styles.styleOption} ${selectedStyle === 'randomMix' ? styles.selected : ''}`}
+                onClick={() => {
+                  onStyleSelect('randomMix');
+                  setShowStyleDropdown(false);
+                }}
+              >
+                <span>🎨</span>
+                <span>Random mix</span>
               </div>
               
               <div 
@@ -283,14 +280,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
 
   return (
     <div 
-      className={`${styles.cameraContainer}`}
-      style={{
-        display: showPhotoGrid ? 'none' : 'flex',
-        visibility: showPhotoGrid ? 'hidden' : 'visible',
-        opacity: showPhotoGrid ? 0 : 1,
-        position: showPhotoGrid ? 'absolute' : 'relative',
-        zIndex: showPhotoGrid ? -999 : 'auto',
-      }}
+      className={`${styles.cameraContainer} ${showPhotoGrid ? styles.slideOut : styles.slideIn}`}
       data-testid={testId || 'camera-container'}
     >
       <div className={styles.polaroidFrame}>

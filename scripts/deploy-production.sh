@@ -14,14 +14,30 @@ REMOTE_FRONTEND_PATH="/var/www/superapps.sogni.ai/photobooth"
 REMOTE_BACKEND_PATH="/var/www/superapps.sogni.ai/photobooth-server"
 LOG_FILE="deployment.log"
 
-# Load environment variables from .env
-if [ -f .env ]; then
-  echo "📄 Loading environment variables from .env"
-  export $(grep -v '^#' .env | xargs)
+# Check for server/.env file for credentials
+if [ -f server/.env ]; then
+  echo "📄 Using credentials from server/.env file"
+  # Extract credentials from server/.env file
+  SOGNI_USERNAME=$(grep SOGNI_USERNAME server/.env | cut -d= -f2)
+  SOGNI_PASSWORD=$(grep SOGNI_PASSWORD server/.env | cut -d= -f2)
+  SOGNI_APP_ID=$(grep SOGNI_APP_ID server/.env | cut -d= -f2)
+  
+  if [ -z "$SOGNI_USERNAME" ] || [ -z "$SOGNI_PASSWORD" ] || [ -z "$SOGNI_APP_ID" ]; then
+    echo "⚠️ Warning: Some credentials are missing from server/.env"
+  else
+    echo "✅ Credentials found in server/.env"
+  fi
 else
-  echo "❌ .env file not found! Deployment may fail due to missing credentials."
-  echo "Please create a .env file with the necessary credentials."
-  exit 1
+  echo "❌ server/.env file not found! Deployment may fail due to missing credentials."
+  
+  # Try root .env as fallback
+  if [ -f .env ]; then
+    echo "📄 Using credentials from root .env file as fallback"
+    export $(grep -v '^#' .env | xargs)
+  else
+    echo "❌ No .env files found! Deployment will likely fail."
+    exit 1
+  fi
 fi
 
 # Start logging
@@ -71,33 +87,76 @@ if [ $? -ne 0 ]; then
 fi
 echo "✅ Nginx configuration deployed to temp location"
 
-# Setup and start services on remote server
-show_step "Setting up and starting services on remote server"
-ssh $REMOTE_HOST << EOF
-  # Install backend dependencies
-  cd /var/www/superapps.sogni.ai/photobooth-server
-  echo "📦 Installing backend dependencies..."
-  npm install --production
-  
-  # Setup environment variables
-  echo "🔧 Setting up environment variables..."
-  cat > .env << 'ENVFILE'
+# Create a temporary production .env file locally with proper variable substitution
+show_step "Creating production environment file"
+TEMP_ENV_FILE=$(mktemp)
+cat > $TEMP_ENV_FILE << EOF
 # Production environment variables
 NODE_ENV=production
 PORT=3001
 
 # Sogni API credentials
-SOGNI_USERNAME=
-SOGNI_PASSWORD=
-SOGNI_APP_ID=
+SOGNI_USERNAME=$SOGNI_USERNAME
+SOGNI_PASSWORD=$SOGNI_PASSWORD
+SOGNI_APP_ID=$SOGNI_APP_ID
 SOGNI_ENV=production
 
 # App settings
 APP_URL=https://superapps.sogni.ai/photobooth
 API_URL=https://superapps.sogni.ai/photobooth/api
-ENVFILE
+CLIENT_ORIGIN=https://superapps.sogni.ai
+EOF
 
-  # Ensure permissions are correct
+# Deploy the environment file
+show_step "Deploying environment file"
+echo "Debug: Credentials being deployed (username partly redacted):"
+echo "SOGNI_USERNAME=${SOGNI_USERNAME:0:3}****"
+echo "SOGNI_APP_ID=$SOGNI_APP_ID"
+echo "SOGNI_ENV=production"
+
+rsync -ar --progress $TEMP_ENV_FILE $REMOTE_HOST:$REMOTE_BACKEND_PATH/.env
+if [ $? -ne 0 ]; then
+  echo "❌ Environment file deployment failed! Exiting."
+  rm -f $TEMP_ENV_FILE
+  exit 1
+fi
+rm -f $TEMP_ENV_FILE
+echo "✅ Environment file deployed successfully"
+
+# Setup and start services on remote server
+show_step "Setting up and starting services on remote server"
+ssh $REMOTE_HOST << EOF
+  # Fix any shell issues by setting up a proper BASH environment
+  export BASH_ENV=/dev/null
+  export ENV=/dev/null
+  
+  # Ensure shell works properly with extglob patterns
+  shopt -s extglob 2>/dev/null || true
+  
+  # Bypass problematic .functions file if it exists and contains the error
+  if grep -q "rm -i -v !(*.gz)" ~/.functions 2>/dev/null; then
+    echo "🔧 Detected problematic shell function, bypassing..."
+    BASH_ENV=/dev/null bash -l || true
+  fi
+
+  # Check if port 3001 is already in use and kill the process if needed
+  if lsof -i:3001 > /dev/null 2>&1; then
+    echo "🔧 Port 3001 is already in use. Stopping existing process..."
+    # Get the PID of the process using port 3001
+    PID=$(lsof -i:3001 -t)
+    if [ ! -z "$PID" ]; then
+      echo "Stopping process with PID $PID"
+      kill -9 $PID 2>/dev/null || true
+      sleep 1
+    fi
+  fi
+
+  # Install backend dependencies
+  cd /var/www/superapps.sogni.ai/photobooth-server
+  echo "📦 Installing backend dependencies..."
+  npm install --omit=dev
+  
+  # Ensure correct permissions for environment file
   chmod 600 .env
   
   # Install PM2 if not already installed
@@ -158,12 +217,23 @@ else
 fi
 
 echo "🔍 Checking API access..."
-API_CHECK=$(curl -s -o /dev/null -w "%{http_code}" https://superapps.sogni.ai/photobooth/api/sogni/status || echo "failed")
+# Try both API endpoints for thoroughness
+API_CHECK=$(curl -s -o /dev/null -w "%{http_code}" https://superapps.sogni.ai/photobooth/health || echo "failed")
 if [ "$API_CHECK" = "200" ]; then
-  echo "✅ API access check successful"
+  echo "✅ API health check successful"
 else
-  echo "❌ API access check failed with status $API_CHECK"
-  echo "⚠️ Warning: The API may not be accessible. Please check nginx configuration and backend logs."
+  echo "❌ API health check failed with status $API_CHECK"
+  echo "⚠️ Warning: The API health endpoint may not be accessible."
+fi
+
+API_STATUS_CHECK=$(curl -s -o /dev/null -w "%{http_code}" https://superapps.sogni.ai/photobooth/api/sogni/status || echo "failed")
+echo "API status check returned code: $API_STATUS_CHECK"
+if [ "$API_STATUS_CHECK" = "200" ] || [ "$API_STATUS_CHECK" = "401" ]; then
+  # 401 is acceptable as it means auth is required but endpoint is accessible
+  echo "✅ API sogni/status endpoint accessible"
+else
+  echo "❌ API sogni/status check failed with status $API_STATUS_CHECK"
+  echo "⚠️ Warning: The API endpoints may not be correctly configured."
 fi
 
 echo ""

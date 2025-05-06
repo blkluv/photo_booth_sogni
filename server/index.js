@@ -16,7 +16,7 @@ const app = express();
 const port = process.env.PORT || 3001;
 
 // Get allowed origins from environment variables or use defaults
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5174';
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5174,https://photobooth-local.sogni.ai';
 console.log('DEBUG - CLIENT_ORIGIN from .env:', CLIENT_ORIGIN);
 
 // CORS configuration with options handling

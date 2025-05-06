@@ -1,9 +1,10 @@
 /**
  * API service for communicating with the backend
  */
+import urls from '../config/urls';
 
-// Use a relative path instead of absolute URL for flexibility across environments
-const API_BASE_URL = '/api';
+// Use the configured API URL from the urls config
+const API_BASE_URL = urls.apiUrl;
 
 /**
  * Check Sogni connection status
@@ -179,6 +180,8 @@ export async function cancelProject(projectId: string): Promise<any> {
  */
 export async function generateImage(params: any, progressCallback?: (progress: any) => void): Promise<any> {
   try {
+    console.log(`Making request to: ${API_BASE_URL}/sogni/generate`);
+    
     // Start the generation process
     const response = await fetch(`${API_BASE_URL}/sogni/generate`, {
       method: 'POST',
@@ -245,11 +248,12 @@ export async function generateImage(params: any, progressCallback?: (progress: a
         clearAllTimers();
         safelyCloseEventSource();
         
-        console.log(`Connecting to progress stream for project ${projectId}... (attempt ${retryCount + 1})`);
+        const progressUrl = `${API_BASE_URL}/sogni/progress/${projectId}`;
+        console.log(`Connecting to progress stream: ${progressUrl} (attempt ${retryCount + 1})`);
         
         // Create the EventSource with the with-credentials flag for CORS
         try {
-          eventSource = new EventSource(`${API_BASE_URL}/sogni/progress/${projectId}`, { 
+          eventSource = new EventSource(progressUrl, { 
             withCredentials: true 
           });
           

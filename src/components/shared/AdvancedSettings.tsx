@@ -128,7 +128,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
         {/* Model selector */}
         {modelOptions.length > 0 && (
           <div className="control-option">
-            <label className="control-label">Model:</label>
+            <label className="control-label">Image Model:</label>
             <select
               className="model-select"
               onChange={(e) => onModelSelect?.(e.target.value)}
@@ -149,7 +149,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
           <input
             type="range"
             min={1}
-            max={16}
+            max={64}
             step={1}
             value={numImages}
             onChange={(e) => onNumImagesChange?.(Number(e.target.value))}
@@ -160,12 +160,12 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
 
         {/* Prompt Guidance slider */}
         <div className="control-option">
-          <label className="control-label">Style Strength:</label>
+          <label className="control-label">Prompt Guidance:</label>
           <input
             type="range"
-            min={1}
-            max={10}
-            step={0.5}
+            min={1.8}
+            max={3}
+            step={0.1}
             value={promptGuidance}
             onChange={(e) => onPromptGuidanceChange?.(Number(e.target.value))}
             className="slider-input"
