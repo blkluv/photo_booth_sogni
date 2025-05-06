@@ -1,5 +1,4 @@
 import { BackendSogniClient, initializeSogniClient as initBackendClient } from './sogniBackend';
-import { generateUUID } from '../utils';
 
 /**
  * Initialize the Sogni client through the backend

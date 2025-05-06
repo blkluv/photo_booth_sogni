@@ -5,9 +5,7 @@
  * instead of directly using the Sogni SDK in the frontend.
  */
 
-import { generateImage as apiGenerateImage, createProject as apiCreateProject, checkSogniStatus, cancelProject } from './api';
-import { getCustomDimensions } from '../utils/imageProcessing';
-import { getRandomStyle, getRandomMixPrompts } from './prompts';
+import { createProject as apiCreateProject, checkSogniStatus, cancelProject } from './api';
 
 // Shared interface for events
 interface SogniEventEmitter {
@@ -169,7 +167,6 @@ export class BackendProject implements SogniEventEmitter {
  * Mock Sogni client that calls our backend API
  */
 export class BackendSogniClient {
-  private isLoggedIn = false;
   public appId: string;
   public network: string;
   public account: any; // Use any type to allow flexibility
@@ -199,7 +196,7 @@ export class BackendSogniClient {
     // Mock projects methods
     this.projects = {
       create: this.createProject.bind(this),
-      on: (event: string, callback: Function) => {
+      on: () => {
         // This would handle global project events if needed
       }
     };
@@ -271,7 +268,7 @@ export class BackendSogniClient {
         
         // Handle numeric progress (simple case) - distribute to all jobs
         if (typeof progressEvent === 'number') {
-          project.jobs.forEach((job, idx) => {
+          project.jobs.forEach((job) => {
             project.updateJobProgress(job.id, progressEvent);
           });
         } 
@@ -396,7 +393,7 @@ export class BackendSogniClient {
 export async function initializeSogniClient(): Promise<BackendSogniClient> {
   try {
     // Check if the backend is available
-    const status = await checkSogniStatus().catch(error => {
+    await checkSogniStatus().catch(error => {
       console.error('Backend status check failed:', error);
       
       // Handle credential errors
@@ -430,9 +427,7 @@ export async function initializeSogniClient(): Promise<BackendSogniClient> {
 /**
  * Generate image using the backend
  */
-export async function generateImage(params: any): Promise<string[]> {
-  const client = await initializeSogniClient();
-  
+export async function generateImage(): Promise<string[]> {
   // Implementation will be moved from App.jsx
   // This is just the interface for now
   return [];

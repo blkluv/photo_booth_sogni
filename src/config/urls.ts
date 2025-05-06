@@ -2,25 +2,45 @@
  * URL configurations for different environments
  */
 
-// Get the base URL from environment variables if available
-const BASE_URL = import.meta.env.VITE_PUBLIC_URL || 
-  (import.meta.env.MODE === 'production' 
-    ? 'https://superapps.sogni.ai/photobooth'
-    : import.meta.env.MODE === 'staging'
-      ? 'http://photobooth-staging.sogni.ai'
-      : 'http://localhost:5175');
+interface EnvironmentURLs {
+  publicUrl: string;
+  apiUrl: string;
+}
 
-// API URL can be explicitly set or derived from the base URL  
-const API_URL = import.meta.env.VITE_API_URL || 
-  (import.meta.env.MODE === 'production'
-    ? 'https://superapps.sogni.ai/photobooth/api'
-    : import.meta.env.MODE === 'staging'
-      ? 'http://photobooth-staging.sogni.ai/api'
-      : '/api'); // In development, use relative path for the API
-
-export const URLS = {
-  base: BASE_URL,
-  api: API_URL,
+// Production URLs
+const productionUrls: EnvironmentURLs = {
+  publicUrl: 'https://superapps.sogni.ai/photobooth',
+  apiUrl: 'https://superapps.sogni.ai/photobooth/api',
 };
 
-export default URLS; 
+// Staging URLs
+const stagingUrls: EnvironmentURLs = {
+  publicUrl: 'http://photobooth-staging.sogni.ai',
+  apiUrl: 'http://photobooth-staging.sogni.ai/api',
+};
+
+// Local development URLs
+const developmentUrls: EnvironmentURLs = {
+  publicUrl: 'http://localhost:5175',
+  apiUrl: 'http://localhost:5175/api',
+};
+
+// Get URLs based on environment
+export const getURLs = (): EnvironmentURLs => {
+  const environment = import.meta.env.MODE || 'development';
+  
+  console.log(`Loading URLs for environment: ${environment}`);
+  
+  switch (environment) {
+    case 'production':
+      return productionUrls;
+    case 'staging':
+      return stagingUrls;
+    case 'development':
+    default:
+      return developmentUrls;
+  }
+};
+
+// Export default URLs
+export default getURLs(); 
