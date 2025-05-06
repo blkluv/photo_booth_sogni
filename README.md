@@ -1,6 +1,6 @@
 # Sogni Photobooth
 
-This project is a demo Sogni Node Client SDK application that leverages the Sogni Supernet to power a Photobooth application using Sogni's Instant ID Controlnet for accurate facial likeness transfer. It captures a webcam image or allows the user to upoad a photo, calls the **Sogni** AI generation API, and displays generated images on the screen with support for a thumbnail gallery. It supports desktop and mobile browser. Use of the Sogni API is secured by a back-end service that secures the Sogni account credentials.
+This project is a demo Sogni Node Client SDK application that leverages the Sogni Supernet to power a Photobooth application using Sogni's Instant ID Controlnet for accurate facial likeness transfer. It captures a webcam image or allows the user to upload a photo, calls the **Sogni** AI generation API, and displays generated images on the screen with support for a thumbnail gallery. It supports desktop and mobile browsers. Use of the Sogni API is secured by a back-end service that secures the Sogni account credentials.
 
 ## Features
 1. **Realtime Camera Preview**
@@ -9,10 +9,10 @@ This project is a demo Sogni Node Client SDK application that leverages the Sogn
 2. **Style Prompts**
    - Choose from predefined style prompts (anime, Gorillaz, Disney, pixel art, steampunk, vaporwave) or create your own.
 
-3. **Worker Assignement and Progress Events**
+3. **Worker Assignment and Progress Events**
    - Up to 64 prompt variations can be submitted at one time and as jobs are assigned to workers their worker node names are incorporated into the progress update events displayed in each loading polaroid. 
 
-7. **Secure Backend**
+4. **Secure Backend**
    - Uses a Node.js backend to handle sensitive API credentials
    - Prevents credentials from being exposed in the frontend code
 
@@ -251,7 +251,6 @@ SOGNI_ENV=production # or staging/local
 PORT=3001
 CLIENT_ORIGIN=https://photobooth-local.sogni.ai
 ```
-*Note: Frontend environment variables (prefixed with `VITE_`) are generally not needed for this setup as sensitive configuration is handled by the backend.* 
 
 ## Building for Production
 
@@ -261,41 +260,9 @@ npm run build
 
 The build output will be in the `dist` directory.
 
-## Deploying with Backend Server
-
-For production deployment with the secure backend:
-
-1. Build the frontend:
-```bash
-npm run build
-```
-
-2. Set up the backend server:
-```bash
-# Install server dependencies
-npm run server:install
-
-# Create server/.env file with production credentials
-cp server/.env.example server/.env
-# Edit the .env file with your actual credentials
-```
-
-3. Deploy both components:
-   - Deploy the `/dist` directory to your static file hosting (e.g., Nginx, S3)
-   - Deploy the `/server` directory to your Node.js hosting (e.g., VM, container)
-   - Ensure your frontend can reach the backend API endpoints
-
-4. For a simple combined deployment:
-```bash
-# Start the backend server and serve the frontend files
-npm run start:prod
-```
-
-This approach ensures your Sogni credentials remain secure on the server and are not exposed in the frontend code.
-
 ## Development Workflow & Testing
 
-#### Visual Testing
+### Visual Testing
 
 The project uses Playwright for visual regression testing. Here are the key testing commands:
 
@@ -310,7 +277,7 @@ npm run test:visual:ci
 npm run test:visual:update
 ```
 
-##### Visual Test Structure
+#### Visual Test Structure
 - `/tests/visual/`: Main test directory
   - `camera-view.spec.ts`: Camera UI component tests
   - `components.spec.ts`: Shared component tests
@@ -318,12 +285,12 @@ npm run test:visual:update
   - `reference.spec.ts`: Captures reference states
   - `verify.spec.ts`: Verifies component states against references
 
-##### Test Utilities
+#### Test Utilities
 - `/tests/helpers/`:
   - `test-utils.ts`: Common test helpers (camera mocking, waiting functions)
   - `component-test-utils.ts`: Component-specific test utilities
 
-##### Best Practices
+#### Best Practices
 1. **Running Tests**
    - Use `test:visual:ci` for automation/CI to avoid hanging on HTML report server
    - Use `test:visual` for local development when you need the HTML report
@@ -376,3 +343,137 @@ When extracting components from `App.jsx`:
    ```bash
    npm run test:visual:baseline
    ```
+
+## Deployment
+
+### Production Deployment
+
+The production deployment currently has a security issue that should be addressed:
+
+#### Current Production Deployment (With Security Issue)
+
+To deploy to production using the current script:
+
+1. Create a `.env` file in the project root with frontend environment configurations AND backend credentials:
+```
+# Production Environment Configuration
+VITE_APP_TITLE="Sogni Photobooth"
+VITE_PUBLIC_URL="https://superapps.sogni.ai/photobooth"
+VITE_API_URL="https://superapps.sogni.ai/photobooth/api"
+
+# SECURITY ISSUE: Credentials should not be in the frontend .env
+# These are used to generate the server's .env file on deployment
+VITE_SOGNI_APP_ID=your_app_id
+VITE_SOGNI_USERNAME=your_username
+VITE_SOGNI_PASSWORD=your_password
+```
+
+2. Run the production deployment command:
+```bash
+npm run deploy:production
+```
+
+#### Recommended Secure Production Deployment
+
+The production deployment should be modified to follow the same secure approach used for staging:
+
+1. Create a `.env` file in the project root with ONLY frontend configurations:
+```
+# Production Environment Configuration
+VITE_APP_TITLE="Sogni Photobooth"
+VITE_PUBLIC_URL="https://superapps.sogni.ai/photobooth"
+VITE_API_URL="https://superapps.sogni.ai/photobooth/api"
+```
+
+2. Create a `server/.env` file with your backend credentials:
+```
+# Backend Environment
+SOGNI_APP_ID=your_app_id
+SOGNI_USERNAME=your_username
+SOGNI_PASSWORD=your_password
+SOGNI_ENV=production
+PORT=3001
+CLIENT_ORIGIN=https://superapps.sogni.ai
+```
+
+3. Modify the `deploy-production.sh` script to copy the `server/.env` file to the remote server, similar to how the staging deployment works.
+
+4. Run the modified production deployment command:
+```bash
+npm run deploy:production
+```
+
+This improved approach would ensure sensitive credentials are only stored in the backend's `.env` file, consistent with the application's security architecture.
+
+### Staging Deployment
+
+To deploy to the staging environment:
+
+1. Create a `.env.staging` file in the project root with your frontend staging configurations:
+```
+# Staging Environment Configuration
+VITE_APP_TITLE="Sogni Photobooth (Staging)"
+VITE_PUBLIC_URL="http://photobooth-staging.sogni.ai"
+VITE_API_URL="http://photobooth-staging.sogni.ai/api"
+```
+
+2. Create a `server/.env.staging` file with your backend staging credentials:
+
+```bash
+# Copy the example file as a starting point
+cp server/.env.example server/.env.staging
+# Then edit server/.env.staging with your staging credentials
+```
+
+The file should contain:
+```
+# Staging Backend Environment
+SOGNI_APP_ID=photobooth-staging
+SOGNI_USERNAME=your_staging_username
+SOGNI_PASSWORD=your_staging_password
+SOGNI_ENV=staging
+PORT=3002
+CLIENT_ORIGIN=http://photobooth-staging.sogni.ai
+```
+
+3. Run the staging deployment command:
+```bash
+npm run deploy:staging
+```
+
+This will:
+1. Build the frontend application with staging configurations
+2. Deploy frontend files to the staging server at `photobooth-staging.sogni.ai`
+3. Deploy backend files to the staging server 
+4. Copy `server/.env.staging` to the server as the backend `.env` file
+5. Set up environment variables and systemd service with a different port (3002)
+6. Restart the staging backend service and configure nginx
+
+**Important**: The security architecture ensures sensitive credentials are only stored in the backend's `.env` files and never exposed in the frontend.
+
+### Manual Deployment (Alternative)
+
+If you prefer to manually deploy the application components:
+
+1. Build the frontend:
+```bash
+npm run build
+```
+
+2. Set up the backend server:
+```bash
+# Install server dependencies
+cd server
+npm install --production
+
+# Create .env file with your credentials
+cp .env.example .env
+# Edit the .env file with your actual credentials
+```
+
+3. Deploy both components:
+   - Deploy the `/dist` directory to your static file hosting (e.g., Nginx, S3)
+   - Deploy the `/server` directory to your Node.js hosting (e.g., VM, container)
+   - Ensure your frontend can reach the backend API endpoints
+
+This approach gives you more control over where and how the application is deployed.
