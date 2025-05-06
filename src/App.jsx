@@ -19,23 +19,9 @@ import promptsData from './prompts.json';
 import ReactDOM from 'react-dom';
 import CameraView from './components/camera/CameraView';
 import CameraStartMenu from './components/camera/CameraStartMenu';
-import ControlPanel from './components/ControlPanel';
 import StyleDropdown from './components/shared/StyleDropdown';
 import { AppProvider, useApp } from './context/AppContext';
-
-// Remove cookie utility functions (already imported)
-
-// Remove loadPrompts function (already imported)
-
-// Remove getCustomDimensions function (already imported)
-
-// Remove resizeDataUrl function (already imported)
-
-// Remove describeImage function (already imported)
-
-// Remove generateUUID function (already imported)
-
-// Remove centerCropImage function (already imported)
+import AdvancedSettings from './components/shared/AdvancedSettings';
 
 const App = () => {
   const videoReference = useRef(null);
@@ -623,20 +609,6 @@ const App = () => {
       }
     }
   }, [selectedPhotoIndex, photos]);
-
-  // Add debugging for photos state changes
-  /*
-  useEffect(() => {
-    console.log('Photos state updated:', photos.map(p => ({
-      id: p.id,
-      loading: p.loading,
-      generating: p.generating,
-      progress: p.progress || 0,
-      images: p.images.length,
-      error: p.error
-    })));
-  }, [photos]);
-  */
 
   // Update the close photo handler to simplify it
   const handleClosePhoto = () => {
@@ -2646,159 +2618,35 @@ const App = () => {
         style={{ position: 'relative', zIndex: 1 }}
       >
         {/* Control overlay panel */}
-        <div className={`control-overlay ${showControlOverlay ? 'visible' : ''}`}>
-          <div className="control-overlay-content">
-            <h2 className="settings-title">Advanced Settings</h2>
-            
-            <button 
-              className="dismiss-overlay-btn"
-              onClick={() => setShowControlOverlay(false)}
-            >
-              ×
-            </button>
-            
-            {/* Camera selector - moved to top */}
-            {cameraDevices.length > 0 && (
-              <div className="control-option">
-                <label className="control-label">Camera:</label>
-                <select
-                  className="camera-select"
-                  onChange={handleCameraSelection}
-                  value={selectedCameraDeviceId || ''}
-                >
-                  <option value="">Default (user-facing)</option>
-                  {cameraDevices.map((development) => (
-                    <option key={development.deviceId} value={development.deviceId}>
-                      {development.label || `Camera ${development.deviceId}`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {selectedStyle === 'custom' && (
-              <div className="control-option">
-                <label className="control-label">Custom Style Prompt:</label>
-                <textarea
-                  className="custom-style-input"
-                  placeholder="Enter your custom style prompt here..."
-                  value={customPrompt}
-                  onChange={(e) => {
-                    setCustomPrompt(e.target.value);
-                    saveSettingsToCookies({ customPrompt: e.target.value });
-                  }}
-                  rows={4}
-                />
-              </div>
-            )}
-
-            {/* Model selector */}
-            <div className="control-option">
-              <label className="control-label">Pick an Image Model:</label>
-              <select
-                className="model-select"
-                value={selectedModel}
-                onChange={(e) => updateSetting(setSelectedModel, 'selectedModel')(e.target.value)}
-              >
-                {modelOptions.map((model) => (
-                  <option key={model.value} value={model.value}>
-                    {model.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Number of Images slider */}
-            <div className="control-option">
-              <label className="control-label">Number of Images:</label>
-              <input
-                type="range"
-                min={1}
-                max={64}
-                step={1}
-                value={numberImages}
-                onChange={(e) => updateSetting(setNumberImages, 'numImages')(Number.parseInt(e.target.value))}
-                className="slider-input"
-              />
-              <span className="slider-value">{numberImages}</span>
-            </div>
-
-            {/* Prompt Guidance slider */}
-            <div className="control-option">
-              <label className="control-label">Prompt Guidance:</label>
-              <input
-                type="range"
-                min={1.8}
-                max={3}
-                step={0.1}
-                value={promptGuidance}
-                onChange={(e) => updateSetting(setPromptGuidance, 'promptGuidance')(Number.parseFloat(e.target.value))}
-                className="slider-input"
-              />
-              <span className="slider-value">{promptGuidance.toFixed(1)}</span>
-            </div>
-
-            {/* Instant ID Strength slider */}
-            <div className="control-option">
-              <label className="control-label">Instant ID Strength:</label>
-              <input
-                type="range"
-                min={0.4}
-                max={1}
-                step={0.1}
-                value={controlNetStrength}
-                onChange={(e) => updateSetting(setControlNetStrength, 'controlNetStrength')(Number.parseFloat(e.target.value))}
-                className="slider-input"
-              />
-              <span className="slider-value">{controlNetStrength.toFixed(1)}</span>
-            </div>
-
-            {/* Instant ID Impact Stop slider */}
-            <div className="control-option">
-              <label className="control-label">Instant ID Impact Stop:</label>
-              <input
-                type="range"
-                min={0.2}
-                max={0.8}
-                step={0.1}
-                value={controlNetGuidanceEnd}
-                onChange={(e) => updateSetting(setControlNetGuidanceEnd, 'controlNetGuidanceEnd')(Number.parseFloat(e.target.value))}
-                className="slider-input"
-              />
-              <span className="slider-value">{controlNetGuidanceEnd.toFixed(1)}</span>
-            </div>
-
-            <div className="control-option checkbox">
-              <input
-                type="checkbox"
-                id="flash-toggle"
-                checked={flashEnabled}
-                onChange={(e) => updateSetting(setFlashEnabled, 'flashEnabled')(e.target.checked)}
-              />
-              <label htmlFor="flash-toggle" className="control-label">Flash</label>
-            </div>
-
-            <div className="control-option checkbox">
-              <input
-                type="checkbox"
-                id="keep-original-toggle"
-                checked={keepOriginalPhoto}
-                onChange={(e) => updateSetting(setKeepOriginalPhoto, 'keepOriginalPhoto')(e.target.checked)}
-              />
-              <label htmlFor="keep-original-toggle" className="control-label">Show Original Image</label>
-            </div>
-            
-            {/* Reset settings button */}
-            <div className="control-option reset-option">
-              <button 
-                className="reset-settings-btn"
-                onClick={resetAllSettings}
-              >
-                Reset to Defaults
-              </button>
-            </div>
-          </div>
-        </div>
+        <AdvancedSettings 
+          visible={showControlOverlay}
+          onClose={() => setShowControlOverlay(false)}
+          selectedStyle={selectedStyle}
+          customPrompt={customPrompt}
+          onCustomPromptChange={(value) => {
+            setCustomPrompt(value);
+            saveSettingsToCookies({ customPrompt: value });
+          }}
+          cameraDevices={cameraDevices}
+          selectedCameraDeviceId={selectedCameraDeviceId}
+          onCameraSelect={handleCameraSelection}
+          modelOptions={getModelOptions()}
+          selectedModel={selectedModel}
+          onModelSelect={(value) => updateSetting(setSelectedModel, 'selectedModel')(value)}
+          numImages={numberImages}
+          onNumImagesChange={(value) => updateSetting(setNumberImages, 'numImages')(value)}
+          promptGuidance={promptGuidance}
+          onPromptGuidanceChange={(value) => updateSetting(setPromptGuidance, 'promptGuidance')(value)}
+          controlNetStrength={controlNetStrength}
+          onControlNetStrengthChange={(value) => updateSetting(setControlNetStrength, 'controlNetStrength')(value)}
+          controlNetGuidanceEnd={controlNetGuidanceEnd}
+          onControlNetGuidanceEndChange={(value) => updateSetting(setControlNetGuidanceEnd, 'controlNetGuidanceEnd')(value)}
+          flashEnabled={flashEnabled}
+          onFlashEnabledChange={(value) => updateSetting(setFlashEnabled, 'flashEnabled')(value)}
+          keepOriginalPhoto={keepOriginalPhoto}
+          onKeepOriginalPhotoChange={(value) => updateSetting(setKeepOriginalPhoto, 'keepOriginalPhoto')(value)}
+          onResetSettings={resetAllSettings}
+        />
 
         {/* Help button - only show in camera view */}
         {!showPhotoGrid && !selectedPhotoIndex && (
