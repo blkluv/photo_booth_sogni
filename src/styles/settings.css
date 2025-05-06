@@ -358,6 +358,12 @@
     border-radius: 12px;
   }
   
+  .version-info {
+    font-size: 10px;
+    margin-top: 10px;
+    padding: 3px;
+  }
+  
   .custom-style-input {
     padding: 14px;
     font-size: 16px;
@@ -429,4 +435,15 @@
 
 .reset-settings-btn:active {
   transform: scale(0.98);
+}
+
+/* Add styles for the version information */
+.version-info {
+  margin-top: 15px;
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: monospace;
+  padding: 5px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
 } 

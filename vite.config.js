@@ -46,6 +46,11 @@ export default defineConfig(({ mode }) => {
   const base = mode === "production" ? "/photobooth/" : "/";
   console.log(`Using base path: ${base} for mode: ${mode}`);
 
+  // Get version from package.json
+  const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf-8'));
+  const appVersion = packageJson.version;
+  console.log(`App version: ${appVersion}`);
+
   // Filter out sensitive environment variables
   const secureEnv = {};
   for (const key in env) {
@@ -96,6 +101,7 @@ export default defineConfig(({ mode }) => {
     define: {
       // Replace sensitive env variables with safe placeholders
       'import.meta.env.VITE_SOGNI_APP_ID': JSON.stringify('***REMOVED***'),
+      'import.meta.env.APP_VERSION': JSON.stringify(appVersion),
     },
   };
 });

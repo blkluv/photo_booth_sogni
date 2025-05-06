@@ -364,8 +364,6 @@ VITE_API_URL="https://superapps.sogni.ai/photobooth/api"
 # SECURITY ISSUE: Credentials should not be in the frontend .env
 # These are used to generate the server's .env file on deployment
 VITE_SOGNI_APP_ID=your_app_id
-VITE_SOGNI_USERNAME=your_username
-VITE_SOGNI_PASSWORD=your_password
 ```
 
 2. Run the production deployment command:

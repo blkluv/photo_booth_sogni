@@ -93,10 +93,16 @@ app.use(bodyParser.json({ limit: '50mb' })); // Increased limit for larger image
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 
 // API routes
-app.use('/sogni', sogniRoutes);  // Changed from '/api/sogni' to '/sogni' to work with nginx proxy_pass
+app.use('/sogni', sogniRoutes);  // Original route
+app.use('/api/sogni', sogniRoutes);  // Add this new route for direct API access
 
 // Health check endpoint
 app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'Server is running', environment: process.env.NODE_ENV || 'development' });
+});
+
+// Also add the health check at /api/health
+app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Server is running', environment: process.env.NODE_ENV || 'development' });
 });
 

@@ -477,6 +477,11 @@ export const CameraView: React.FC<CameraViewProps> = ({
               Reset to Defaults
             </button>
           </div>
+          
+          {/* Version information */}
+          <div className="version-info">
+            Sogni Photobooth v{import.meta.env.APP_VERSION || '1.0.1'}
+          </div>
         </div>
       </div>
     </div>
