@@ -93,8 +93,8 @@ SOGNI_APP_ID=${VITE_SOGNI_APP_ID}
 SOGNI_ENV=production
 
 # App settings
-APP_URL=https://superapps.sogni.ai/photobooth
-API_URL=https://superapps.sogni.ai/photobooth/api
+APP_URL=http://superapps.sogni.ai/photobooth
+API_URL=http://superapps.sogni.ai/photobooth/api
 ENVFILE
 
   # Ensure permissions are correct
@@ -151,14 +151,27 @@ fi
 # Verify deployment
 show_step "Verifying deployment"
 echo "🔍 Checking backend health..."
-curl -s https://superapps.sogni.ai/photobooth/api/health || echo "❌ Backend health check failed"
+HEALTH_CHECK=$(curl -s -o /dev/null -w "%{http_code}" http://$REMOTE_HOST:3001/health || echo "failed")
+if [ "$HEALTH_CHECK" = "200" ]; then
+  echo "✅ Backend health check successful"
+else
+  echo "❌ Backend health check failed with status $HEALTH_CHECK"
+  echo "⚠️ Warning: The backend may not be running correctly. Please check logs on the server."
+fi
 
-echo "🔍 Checking frontend access..."
-curl -s -I https://superapps.sogni.ai/photobooth/ | head -n 1 || echo "❌ Frontend access check failed"
+echo "🔍 Checking nginx configuration..."
+NGINX_CHECK=$(curl -s -o /dev/null -w "%{http_code}" -I http://$REMOTE_HOST/photobooth/ || echo "failed")
+if [ "$NGINX_CHECK" = "200" ] || [ "$NGINX_CHECK" = "301" ] || [ "$NGINX_CHECK" = "302" ]; then
+  echo "✅ Nginx configuration check successful"
+else
+  echo "❌ Nginx check failed with status $NGINX_CHECK"
+  echo "⚠️ Warning: The nginx configuration may not be correct. Please check /etc/nginx/sites-enabled/"
+fi
 
 echo ""
 echo "✅ Deployment completed at $(date)"
 echo "=================================================="
+echo "Your application should be available at:"
 echo "Frontend: https://superapps.sogni.ai/photobooth/"
 echo "Backend API: https://superapps.sogni.ai/photobooth/api/"
 echo "Logs saved to: $LOG_FILE" 
