@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:test": "vite --port 5176",
+    "dev": "vite --host 0.0.0.0 --port 5175 --strictPort",
+    "dev:test": "vite --port 5176 --strictPort",
     "build": "tsc && vite build",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "deploy-prod": "npm run build && rsync -ar --progress dist/ sogni-api:/var/www/superapps.sogni.ai/photobooth/",
@@ -18,11 +18,17 @@
     "test:visual:update": "playwright test tests/visual/ -u",
     "test:visual:baseline": "playwright test tests/visual/baseline.spec.ts --reporter=list",
     "test:visual:compare": "node scripts/compare-snapshots.js",
-    "test:visual:refactor": "npm run test:visual:baseline && npm run test:visual:update && npm run test:visual:compare"
+    "test:visual:refactor": "npm run test:visual:baseline && npm run test:visual:update && npm run test:visual:compare",
+    "server:install": "cd server && npm install",
+    "server:dev": "cd server && npm run dev",
+    "server:start": "cd server && npm start",
+    "prepare": "npm run server:install",
+    "start:prod": "node server/index.js & vite preview"
   },
   "dependencies": {
     "@sogni-ai/sogni-client": "3.0.0-alpha.11",
     "canvas": "^2.11.2",
+    "concurrently": "^8.2.2",
     "framer-motion": "^12.9.2",
     "prop-types": "^15.8.1",
     "react": "^18.2.0",

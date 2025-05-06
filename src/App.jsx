@@ -1,5 +1,4 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo, useReducer } from 'react';
-import { SogniClient } from "@sogni-ai/sogni-client";
 import { API_CONFIG } from './config/cors';
 import { SOGNI_URLS, DEFAULT_SETTINGS, modelOptions, getModelOptions, getValidModelValue, defaultStylePrompts as initialStylePrompts } from './constants/settings';
 import { photoThoughts, randomThoughts } from './constants/thoughts';
@@ -341,11 +340,29 @@ const App = () => {
     };
   }, [selectedPhotoIndex]);
 
+  // Initialize the slothicorn
+  useEffect(() => {
+    // Ensure slothicorn is properly initialized
+    if (slothicornReference.current) {
+      // Just initialize the transition property to prevent abrupt changes
+      slothicornReference.current.style.transition = 'none';
+      
+      // Force a reflow to ensure style is applied
+      void slothicornReference.current.offsetHeight;
+    }
+  }, []);
+
+  // Add state for backend connection errors
+  const [backendError, setBackendError] = useState(null);
+
   // -------------------------
   //   Sogni initialization
   // -------------------------
   const initializeSogni = async () => {
     try {
+      // Reset any previous errors
+      setBackendError(null);
+      
       const client = await initializeSogniClient();
       setSogniClient(client);
       setIsSogniReady(true);
@@ -382,6 +399,15 @@ const App = () => {
       });
     } catch (error) {
       console.error('Failed initializing Sogni client:', error);
+      
+      // Set a user-friendly error message
+      if (error.message && error.message.includes('Failed to fetch')) {
+        setBackendError('The backend server is not running. Please start it using "npm run server:dev" in a separate terminal.');
+      } else if (error.message && error.message.includes('401')) {
+        setBackendError('Authentication failed: Invalid Sogni credentials. Please update the server/.env file with valid credentials.');
+      } else {
+        setBackendError(`Error connecting to the Sogni service: ${error.message}`);
+      }
     }
   };
 
@@ -687,18 +713,6 @@ const App = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Add an effect to properly initialize the slothicorn
-  useEffect(() => {
-    // Ensure slothicorn is properly initialized
-    if (slothicornReference.current) {
-      // Just initialize the transition property to prevent abrupt changes
-      slothicornReference.current.style.transition = 'none';
-      
-      // Force a reflow to ensure style is applied
-      void slothicornReference.current.offsetHeight;
-    }
-  }, []);
-
   // -------------------------
   //   Shared logic for generating images from a Blob
   // -------------------------
@@ -764,7 +778,6 @@ const App = () => {
           const existingProcessingPhotos = previous.filter(photo => 
             photo.generating && photo.jobId && photo.progress
           );
-          console.log('Existing processing photos to preserve:', existingProcessingPhotos);
           
           const newPhotos = [];
           if (keepOriginalPhoto) {
@@ -784,7 +797,6 @@ const App = () => {
             const existingPhoto = existingProcessingPhotos[index];
             
             if (existingPhoto && existingPhoto.jobId) {
-              console.log(`Preserving existing photo data for index ${index}:`, existingPhoto);
               newPhotos.push({
                 ...existingPhoto,
                 originalDataUrl: existingPhoto.originalDataUrl || dataUrl
@@ -841,49 +853,61 @@ const App = () => {
 
       // Helper to set up job progress handler
       const setupJobProgress = (job) => {
-        console.log('Setting up job progress handler for job:', job.id);
         // Only set up if we haven't already handled this job
         if (!handledJobs.current.has(job.id)) {
-          const jobIndex = projectStateReference.current.jobMap.size;
-          projectStateReference.current.jobMap.set(job.id, jobIndex);
+          // Ensure we have a photo index that corresponds to a valid photo
+          // This should match the order we've requested images
+          let jobIndex;
+
+          // First try to get it from an existing mapping
+          if (projectStateReference.current.jobMap.has(job.id)) {
+            jobIndex = projectStateReference.current.jobMap.get(job.id);
+          } else {
+            // Otherwise create a new mapping
+            jobIndex = projectStateReference.current.jobMap.size;
+            projectStateReference.current.jobMap.set(job.id, jobIndex);
+          }
+
+          // Mark this job as handled to prevent duplicate handlers
           handledJobs.current.add(job.id);
-          console.log('Job mapping created:', job.id, 'to index', jobIndex);
           
           job.on('progress', (progress) => {
-            console.log('Job progress event received:', job.id, progress);
+            // Apply offset correctly depending on whether we're keeping the original photo
             const offset = keepOriginalPhoto ? 1 : 0;
             const photoIndex = jobIndex + offset;
-            console.log('Updating photo at index:', photoIndex);
             
+            // Safety check - ensure a valid photo index
             setPhotos(previous => {
               const updated = [...previous];
-              if (!updated[photoIndex]) {
-                console.warn('No photo at index', photoIndex);
+              
+              // Safety check - make sure the photo index is valid
+              if (photoIndex >= updated.length) {
+                // Skip updates for invalid indices
                 return previous;
               }
               
-              console.log('Current photo state:', updated[photoIndex]);
+              // Progress should be coming in as a 0-1 decimal, need to convert to percentage
+              const displayProgress = Math.round(progress * 100);
+              
               updated[photoIndex] = {
                 ...updated[photoIndex],
                 generating: true,
                 loading: true,
-                progress,
-                statusText: `${job.workerName} processing... ${Math.floor(progress)}%`,
+                progress: displayProgress,
+                statusText: `${job.workerName} processing... ${displayProgress}%`,
                 jobId: job.id
               };
-              console.log('Updated photo state:', updated[photoIndex]);
               return updated;
             });
           });
-        } else {
-          console.log('Job already handled:', job.id);
         }
       };
       
       // Process the array buffer for iOS as a special precaution
       const blobArrayBuffer = await processedBlob.arrayBuffer();
       
-      // Create the project
+      // Create the project using our backend client interface
+      // The API is the same but will use our secure backend instead of direct SDK calls
       const project = await sogniClient.projects.create({
         modelId: selectedModel,
         positivePrompt: stylePrompt,
@@ -1454,6 +1478,40 @@ const App = () => {
   // -------------------------
   const renderMainArea = () => (
     <div className="main-content-area">
+      {/* Display backend error if present */}
+      {backendError && (
+        <div className="backend-error-message" style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          padding: '20px',
+          background: 'rgba(255, 0, 0, 0.1)',
+          border: '1px solid #ff0000',
+          borderRadius: '8px',
+          maxWidth: '90%',
+          width: '600px',
+          zIndex: 99999,
+          backdropFilter: 'blur(8px)',
+          textAlign: 'center',
+          fontWeight: 'bold',
+          color: '#d32f2f',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+        }}>
+          <h3 style={{ margin: '0 0 10px 0' }}>Backend Connection Error</h3>
+          <p style={{ margin: '0 0 15px 0' }}>{backendError}</p>
+          <button onClick={() => window.location.reload()} style={{
+            padding: '8px 16px',
+            background: '#d32f2f',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontWeight: 'bold'
+          }}>Reload Page</button>
+        </div>
+      )}
+
       {showStartMenu ? (
         <CameraStartMenu
           onTakePhoto={handleTakePhotoOption}
@@ -1940,7 +1998,6 @@ const App = () => {
 
             // Loading or error state
             if ((photo.loading && photo.images.length === 0) || (photo.error && photo.images.length === 0)) {
-              console.log(`Rendering loading photo at index ${index}:`, photo);
               return (
                 <div
                   key={photo.id}

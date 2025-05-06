@@ -59,128 +59,136 @@ export const enhancePhoto = async (options) => {
     // Start enhancement
     const arrayBuffer = await imageBlob.arrayBuffer();
     console.log(`[ENHANCE] Creating enhancement project with Sogni API`, photo, width, height);
-    const project = await sogniClient.projects.create({
-      modelId: "flux1-schnell-fp8",
-      positivePrompt: 'Portrait masterpiece',//currentPhoto.prompt,
-      sizePreset: 'custom',
-      width,
-      height,
-      stylePrompt: '',
-      steps: 4,
-      guidance: 1,
-      numberOfImages: 1,
-      //scheduler: 'DPM Solver Multistep (DPM-Solver++)',
-      //timeStepSpacing: 'Karras',
-      startingImage: new Uint8Array(arrayBuffer),
-      startingImageStrength: 0.85,
-    });
     
-    // Track progress
-    onSetActiveProject(project.id);
-    console.log(`[ENHANCE] Project created with ID: ${project.id}`);
-    
-    project.on('progress', (progress) => {
-      console.log('Job progress full payload:', { jobId: project.id, ...progress });
-      const progressPercent = Math.floor(progress * 100);
-      console.log(`[ENHANCE] Progress: ${progressPercent}%`);
-      
-      setPhotos(prev => {
-        const updated = [...prev];
-        if (!updated[photoIndex]) return prev;
-        
-        updated[photoIndex] = {
-          ...updated[photoIndex],
-          progress
-        };
-        return updated;
+    // Check if we have the new backend proxy client or old direct SDK
+    if (sogniClient.projects && typeof sogniClient.projects.create === 'function') {
+      // Use the backend proxy client
+      const project = await sogniClient.projects.create({
+        modelId: "flux1-schnell-fp8",
+        positivePrompt: 'Portrait masterpiece',
+        sizePreset: 'custom',
+        width,
+        height,
+        steps: 4,
+        guidance: 1,
+        numberOfImages: 1,
+        startingImage: Array.from(new Uint8Array(arrayBuffer)),
+        startingImageStrength: 0.85,
       });
-    });
-    
-    // Handle completion
-    project.on('completed', (urls) => {
-      console.log('Project completed full payload:', { urls });
-      console.log(`[ENHANCE] Enhancement completed successfully`);
-      console.log(`[ENHANCE] Generated URLs:`, urls);
-      onSetActiveProject(null);
       
-      if (urls.length > 0) {
-        console.log(`[ENHANCE] Replacing current image with enhanced version`);
-        setPhotos(prev => {
-          const updated = [...prev];
-          if (!updated[photoIndex]) return prev;
-          
-          // Replace the current image with the enhanced version
-          const updatedImages = [...updated[photoIndex].images];
-          
-          // Log the current state
-          console.log(`[ENHANCE] Current images: ${updatedImages.length}, subIndex: ${subIndex}`);
-          
-          // Make sure we have a valid subIndex
-          const indexToReplace = subIndex < updatedImages.length 
-            ? subIndex 
-            : updatedImages.length - 1;
-          
-          if (indexToReplace >= 0) {
-            // Replace the image at the valid index
-            updatedImages[indexToReplace] = urls[0];
-            console.log(`[ENHANCE] Replaced image at index ${indexToReplace}`);
-          } else {
-            // If no valid index, just add the image
-            updatedImages.push(urls[0]);
-            console.log(`[ENHANCE] Added new image since no valid index found`);
-          }
-          
-          updated[photoIndex] = {
-            ...updated[photoIndex],
-            loading: false,
-            enhancing: false,
-            images: updatedImages,
-            newlyArrived: true,
-            enhanced: true // Add a flag to indicate enhancement was successful
-          };
-          
-          // Keep the same selected sub-index since we replaced the image
-          
-          return updated;
-        });
-      } else {
-        console.error(`[ENHANCE] No URLs returned from completed job`);
+      // Track progress
+      onSetActiveProject(project.id);
+      console.log(`[ENHANCE] Project created with ID: ${project.id}`);
+      
+      // Set up listeners for the backend proxy client
+      project.on('progress', (progress) => {
+        // Ensure progress is a number between 0-1
+        const progressValue = typeof progress === 'number' ? progress : 
+          (typeof progress === 'object' && progress.progress !== undefined) ? progress.progress : 0;
+        
+        console.log('Job progress full payload:', { jobId: project.id, progress: progressValue });
+        const progressPercent = Math.floor(progressValue * 100);
+        console.log(`[ENHANCE] Progress: ${progressPercent}%`);
+        
         setPhotos(prev => {
           const updated = [...prev];
           if (!updated[photoIndex]) return prev;
           
           updated[photoIndex] = {
             ...updated[photoIndex],
-            loading: false,
-            enhancing: false,
-            error: 'No enhanced image generated'
+            progress: progressValue
           };
           return updated;
         });
-      }
-    });
-    
-    project.on('failed', (error) => {
-      console.error('Project failed full payload:', error);
-      console.error(`[ENHANCE] Enhancement failed:`, error);
-      onSetActiveProject(null);
-      
-      setPhotos(prev => {
-        const updated = [...prev];
-        if (!updated[photoIndex]) return prev;
-        
-        updated[photoIndex] = {
-          ...updated[photoIndex],
-          loading: false,
-          enhancing: false,
-          error: 'Enhancement failed'
-        };
-        return updated;
       });
       
-      // Add visual indicator of failure
-      alert('Enhancement failed. Please try again.');
-    });
+      project.on('completed', (urls) => {
+        console.log('Project completed full payload:', { urls });
+        console.log(`[ENHANCE] Enhancement completed successfully`);
+        console.log(`[ENHANCE] Generated URLs:`, urls);
+        onSetActiveProject(null);
+        
+        // URLs could be either an array or an object with imageUrls property
+        const imageUrls = Array.isArray(urls) ? urls : 
+                         (urls && urls.imageUrls) ? urls.imageUrls :
+                         (urls && urls.status === 'success' && urls.imageUrls) ? urls.imageUrls : [];
+        
+        if (imageUrls.length > 0) {
+          console.log(`[ENHANCE] Replacing current image with enhanced version`);
+          setPhotos(prev => {
+            const updated = [...prev];
+            if (!updated[photoIndex]) return prev;
+            
+            // Replace the current image with the enhanced version
+            const updatedImages = [...updated[photoIndex].images];
+            
+            // Log the current state
+            console.log(`[ENHANCE] Current images: ${updatedImages.length}, subIndex: ${subIndex}`);
+            
+            // Make sure we have a valid subIndex
+            const indexToReplace = subIndex < updatedImages.length 
+              ? subIndex 
+              : updatedImages.length - 1;
+            
+            if (indexToReplace >= 0) {
+              // Replace the image at the valid index
+              updatedImages[indexToReplace] = imageUrls[0];
+              console.log(`[ENHANCE] Replaced image at index ${indexToReplace}`);
+            } else {
+              // If no valid index, just add the image
+              updatedImages.push(imageUrls[0]);
+              console.log(`[ENHANCE] Added new image since no valid index found`);
+            }
+            
+            updated[photoIndex] = {
+              ...updated[photoIndex],
+              loading: false,
+              enhancing: false,
+              images: updatedImages,
+              newlyArrived: true,
+              enhanced: true // Add a flag to indicate enhancement was successful
+            };
+            
+            return updated;
+          });
+        } else {
+          console.error(`[ENHANCE] No URLs returned from completed job`);
+          setPhotos(prev => {
+            const updated = [...prev];
+            if (!updated[photoIndex]) return prev;
+            
+            updated[photoIndex] = {
+              ...updated[photoIndex],
+              loading: false,
+              enhancing: false,
+              error: 'No enhanced image generated'
+            };
+            return updated;
+          });
+        }
+      });
+      
+      project.on('failed', (error) => {
+        console.error('Project failed full payload:', error);
+        console.error(`[ENHANCE] Enhancement failed`);
+        onSetActiveProject(null);
+        
+        setPhotos(prev => {
+          const updated = [...prev];
+          if (!updated[photoIndex]) return prev;
+          
+          updated[photoIndex] = {
+            ...updated[photoIndex],
+            loading: false,
+            enhancing: false,
+            error: 'Enhancement failed'
+          };
+          return updated;
+        });
+      });
+    } else {
+      throw new Error("Sogni client is not initialized correctly");
+    }
   } catch (error) {
     console.error(`[ENHANCE] Error enhancing image:`, error);
     setPhotos(prev => {

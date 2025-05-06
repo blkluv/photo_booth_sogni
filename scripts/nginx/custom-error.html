@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sogni Photobooth - Temporary Error</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            text-align: center; 
+            padding: 40px; 
+            background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        h1 { color: #E91E63; margin-top: 0; }
+        p { line-height: 1.6; color: #555; }
+        .btn {
+            display: inline-block;
+            background: #E91E63;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            text-decoration: none;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        .services {
+            text-align: left;
+            border: 1px solid #eee;
+            padding: 15px;
+            border-radius: 4px;
+            background: #f9f9f9;
+            margin: 20px auto;
+            max-width: 450px;
+        }
+        .services h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .service {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        .status-ok { color: #4CAF50; }
+        .status-error { color: #F44336; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Connection Error</h1>
+        <p>The Sogni Photobooth server is currently unavailable. This could be because:</p>
+        <ul style="text-align: left; max-width: 400px; margin: 0 auto;">
+            <li>The backend server is not running</li>
+            <li>The server is still starting up</li>
+            <li>There is a configuration issue</li>
+        </ul>
+        
+        <div class="services">
+            <h3>Service Status</h3>
+            <div id="services-status">Loading status...</div>
+        </div>
+        
+        <p style="margin-top: 20px;">Please check that all Sogni ecosystem services are running:</p>
+        <p>Run <code>./scripts/run.sh fix</code> to resolve these issues automatically</p>
+        
+        <a href="/" class="btn">Try Again</a>
+    </div>
+    
+    <script>
+        // Function to check services status
+        async function checkServices() {
+            const services = [
+                { name: "Photobooth Frontend", url: "https://photobooth-local.sogni.ai/" },
+                { name: "Photobooth API", url: "https://photobooth-local.sogni.ai/api/health" }
+            ];
+            
+            const statusDiv = document.getElementById("services-status");
+            statusDiv.innerHTML = "";
+            
+            for (const service of services) {
+                try {
+                    const startTime = Date.now();
+                    const response = await fetch(service.url, { 
+                        method: "HEAD",
+                        mode: "no-cors"
+                    }).catch(() => null);
+                    const endTime = Date.now();
+                    const elapsed = endTime - startTime;
+                    
+                    const status = response ? "OK" : "Error";
+                    const statusClass = response ? "status-ok" : "status-error";
+                    
+                    statusDiv.innerHTML += `
+                        <div class="service">
+                            <span>${service.name}</span>
+                            <span class="${statusClass}">${status}</span>
+                        </div>
+                    `;
+                } catch (e) {
+                    statusDiv.innerHTML += `
+                        <div class="service">
+                            <span>${service.name}</span>
+                            <span class="status-error">Error</span>
+                        </div>
+                    `;
+                }
+            }
+        }
+        
+        // Check services on page load
+        window.addEventListener("load", checkServices);
+    </script>
+</body>
+</html> 

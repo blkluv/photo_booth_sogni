@@ -3,8 +3,9 @@ import { Page, expect } from '@playwright/test';
 /**
  * Base URL for the test server - ALWAYS use this URL for tests
  * The main dev server runs on port 5175 and should not be affected by tests
+ * Uses standard HTTPS port through Nginx proxy
  */
-export const TEST_SERVER_URL = 'http://photobooth-local.sogni.ai:5176';
+export const TEST_SERVER_URL = 'https://photobooth-local.sogni.ai';
 
 /**
  * Wait for camera to be ready

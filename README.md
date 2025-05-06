@@ -1,65 +1,139 @@
 # Sogni Photobooth
 
-This project captures a webcam image, calls the **Sogni** AI generation API, and displays generated images on the screen with support for a thumbnail gallery.
+This project is a demo Sogni Node Client SDK application that leverages the Sogni Supernet to power a Photobooth application using Sogni's Instant ID Controlnet for accurate facial likeness transfer. It captures a webcam image or allows the user to upoad a photo, calls the **Sogni** AI generation API, and displays generated images on the screen with support for a thumbnail gallery. It supports desktop and mobile browser. Use of the Sogni API is secured by a back-end service that secures the Sogni account credentials.
 
 ## Features
 1. **Realtime Camera Preview**
-   - Displays your webcam feed in the background.
+   - Displays your webcam feed in a polaroid style frame.
 
 2. **Style Prompts**
    - Choose from predefined style prompts (anime, Gorillaz, Disney, pixel art, steampunk, vaporwave) or create your own.
 
-3. **Generation Countdown**
-   - When a new thumbnail is generating, it displays a 10-second countdown. If the generation completes sooner, the final image appears right away.
+3. **Worker Assignement and Progress Events**
+   - Up to 64 prompt variations can be submitted at one time and as jobs are assigned to workers their worker node names are incorporated into the progress update events displayed in each loading polaroid. 
 
-4. **Camera Switching**
-   - If multiple cameras are found, you can select which camera to use in the "Settings" panel.
+7. **Secure Backend**
+   - Uses a Node.js backend to handle sensitive API credentials
+   - Prevents credentials from being exposed in the frontend code
 
-5. **Original Photo Retention**
-   - Optionally keep the original photo as a fifth image in the generated stack.
+## Security Setup
 
-6. **Keyboard Shortcuts**
-   - **Escape**: Return to the live camera (if you are viewing a selected photo).
-   - **Arrow Left / Right**: Browse to the previous/next photo.
-   - **Arrow Up / Down**: Within a selected photo, view different generated images.
-   - **Spacebar**: Quickly toggle between the generated image and the original (if original is included).
+The application uses a secure architecture:
+
+1. **Frontend-Backend Separation**:
+   - The frontend (React) never directly accesses Sogni credentials
+   - All sensitive API calls are proxied through the backend server
+
+2. **HTTPS Support**:
+   - Secure HTTPS connection for local development using SSL certificates
+   - CORS is properly configured to allow only trusted domains
+   - Works with custom domains like `photobooth-local.sogni.ai`
 
 ## Usage
 
-1. **Install & Set Up**
-   - Run `npm install` (or `yarn`) to install dependencies.
-   - Set up your Sogni credentials in `.env` or environment variables:
-     ```bash
-     VITE_SOGNI_APP_ID=YourSogniAppID
-     VITE_SOGNI_USERNAME=YourUsername
-     VITE_SOGNI_PASSWORD=YourPassword
-     ```
-   - Ensure you have a local dev server environment (e.g., Vite).
+### 1. Install & Set Up
 
-2. **Run the App**
-   - `npm run dev` (or `yarn dev`) to start the local development server.
-   - Open your browser to the indicated URL (commonly `https://photobooth-local.sogni.ai`).
+- Run `npm install` in the root directory to install dependencies for both frontend and backend.
+- Set up your Sogni credentials by copying `server/.env.example` to `server/.env` and editing the values:
+  ```bash
+  # server/.env
+  SOGNI_APP_ID=YourSogniAppID
+  SOGNI_USERNAME=YourUsername
+  SOGNI_PASSWORD=YourPassword
+  SOGNI_ENV=production # or staging/local
+  PORT=3001 # Port for the backend server
+  CLIENT_ORIGIN=https://photobooth-local.sogni.ai # Allowed frontend origin
+  ```
+- **Local Domain (Optional but Recommended):** Ensure Nginx and local SSL are set up (see "Local Development Setup" below) to use the clean URL `https://photobooth-local.sogni.ai`. Otherwise, you may need to access the frontend directly via `http://localhost:5175` (if Nginx isn't running/configured).
 
-3. **Camera Permissions**
+### 2. Run the App (Development Mode)
+
+For local development, you need **two separate terminal windows/tabs** running simultaneously: one for the backend server and one for the frontend development server. This allows you to see live logs from both independently.
+
+**Terminal 1: Start the Backend Server (Node.js/Express)**
+
+```bash
+# Navigate to the server directory
+cd server
+
+# Start the backend development server (uses nodemon for auto-restarts)
+npm run dev
+
+# Keep this terminal open. Logs will appear here.
+# Press CTRL+C to stop the server.
+```
+*This server listens on port 3001 (or the `PORT` in `server/.env`).*
+
+**Terminal 2: Start the Frontend Server (Vite)**
+
+```bash
+# Make sure you are in the project root directory (sogni-photobooth)
+
+# Start the frontend development server (provides Hot Module Replacement)
+npm run dev
+# OR if you use yarn:
+# yarn dev
+
+# Keep this terminal open. Logs will appear here.
+# Press CTRL+C to stop the server.
+```
+*This server listens on port 5175.*
+
+**Accessing the App:**
+
+*   **With Nginx Setup (Recommended):** Open `https://photobooth-local.sogni.ai` in your browser.
+*   **Without Nginx:** Open `http://localhost:5175`. Note that API calls might fail due to CORS unless you update `CLIENT_ORIGIN` in `server/.env` to `http://localhost:5175`.
+
+**Alternative (Using Script Runner - Background Processes):**
+
+If you prefer not to keep terminals open, you can use the script runner. This will start the services in the background and log to files in the `logs/` directory.
+
+```bash
+# Ensure ports are free and start both services in the background
+./scripts/run.sh start 
+
+# Check status
+./scripts/run.sh status
+
+# View logs
+tail -f logs/frontend.log
+tail -f logs/backend.log
+```
+*(See `scripts/README.md` for more script runner commands)*.
+
+### 3. Utility Scripts
+
+The project includes several utility scripts managed by `./scripts/run.sh`. See `scripts/README.md` for details on all commands (`status`, `ports`, `fix`, `nginx`, `restart`, etc.).
+
+### 4. Camera Permissions
    - The browser will ask for permission to use your webcam.
    - In the "Settings" panel, you can switch to another camera device if multiple are available.
 
-4. **Generate**
+### 5. Generate
    - Click **Take Photo**.
    - A quick 3-second countdown occurs (with an optional flash overlay).
-   - A 10-second generation countdown will show on the thumbnail until the result is ready.
-
-5. **Deleting Photos**
-   - When viewing a generated photo in the gallery (thumbnail selected), a small **X** button appears at its top-left corner. Clicking it deletes that photo from the list.
+   - Generation progress will show on the thumbnail placeholders.
 
 ## Project Structure
 
-- **/src**
-  - **App.jsx**: Core logic handling the webcam, capturing photos, and calling the Sogni API.
-  - **index.jsx**: Entry point to mount `App` in React.
-  - **index.css**: Tailwind + custom styling.
+- **/src**: Frontend React application code.
+  - **App.jsx**: Core UI logic.
+  - **/components**: Reusable UI components.
+  - **/services**: Frontend services (API communication, Sogni mock client).
+  - **/utils**: Frontend utility functions.
+- **/server**: Backend Express server code.
+  - **index.js**: Server entry point.
+  - **/routes**: API route definitions.
+  - **/services**: Server-side logic (Sogni client interaction).
+- **/scripts**: Utility scripts for development and management.
+  - **run.sh**: Main script runner.
+  - **/server, /nginx, /util, /integration**: Subdirectories for specific script types.
+- **/configs**: Configuration files (e.g., Nginx local config).
+- **/logs**: Log files generated by backend and frontend servers.
 
 ## Local Development Setup
+
+This setup uses Nginx as a reverse proxy for a cleaner development experience with HTTPS and a custom local domain (`photobooth-local.sogni.ai`).
 
 ### Install Nginx
 
@@ -77,9 +151,9 @@ brew install nginx
 ::1 photobooth-local.sogni.ai
 ```
 
-3. Copy Nginx config to your local Nginx folder:
+3. Update Nginx configuration:
 ```bash
-cp ./configs/local/photobooth-local.sogni.ai.conf /opt/homebrew/etc/nginx/servers/
+./scripts/run.sh nginx
 ```
 
 4. Start Nginx:
@@ -164,31 +238,22 @@ Note: After adding the certificate to your keychain, you might need to:
 npm install
 ```
 
-### Development
-
-Start the development server:
-```bash
-npm run dev
-```
-
-Access the app at: https://photobooth-local.sogni.ai:5174
-
-Note: The app requires HTTPS for camera access. Make sure you have:
-1. Set up the SSL certificates as described in the "Setup SSL for Local Development" section
-2. Added the certificate to your system's trusted certificates
-3. Restarted your browser after adding the certificate
-
 ### Environment Variables
 
-Create a `.env` file in the root directory with the following variables:
-```
-VITE_SOGNI_APP_ID=your_app_id
-VITE_SOGNI_USERNAME=your_username
-VITE_SOGNI_PASSWORD=your_password
-VITE_RPC_ENDPOINT=your_rpc_endpoint
-```
+Create a `.env` file in the **`server/`** directory (copy from `server/.env.example`) with your Sogni credentials and configuration:
 
-### Building for Production
+```dotenv
+# server/.env
+SOGNI_APP_ID=YourSogniAppID
+SOGNI_USERNAME=YourUsername
+SOGNI_PASSWORD=YourPassword
+SOGNI_ENV=production # or staging/local
+PORT=3001
+CLIENT_ORIGIN=https://photobooth-local.sogni.ai
+```
+*Note: Frontend environment variables (prefixed with `VITE_`) are generally not needed for this setup as sensitive configuration is handled by the backend.* 
+
+## Building for Production
 
 ```bash
 npm run build
@@ -196,7 +261,39 @@ npm run build
 
 The build output will be in the `dist` directory.
 
-### Development Workflow & Testing
+## Deploying with Backend Server
+
+For production deployment with the secure backend:
+
+1. Build the frontend:
+```bash
+npm run build
+```
+
+2. Set up the backend server:
+```bash
+# Install server dependencies
+npm run server:install
+
+# Create server/.env file with production credentials
+cp server/.env.example server/.env
+# Edit the .env file with your actual credentials
+```
+
+3. Deploy both components:
+   - Deploy the `/dist` directory to your static file hosting (e.g., Nginx, S3)
+   - Deploy the `/server` directory to your Node.js hosting (e.g., VM, container)
+   - Ensure your frontend can reach the backend API endpoints
+
+4. For a simple combined deployment:
+```bash
+# Start the backend server and serve the frontend files
+npm run start:prod
+```
+
+This approach ensures your Sogni credentials remain secure on the server and are not exposed in the frontend code.
+
+## Development Workflow & Testing
 
 #### Visual Testing
 
@@ -279,45 +376,3 @@ When extracting components from `App.jsx`:
    ```bash
    npm run test:visual:baseline
    ```
-
-2. **Create New Component**
-   - Create component file in appropriate directory
-   - Move relevant code from App.jsx
-   - Update imports and props
-
-3. **Verify Visual Match**
-   ```bash
-   npm run test:visual:refactor
-   ```
-
-4. **Handle Differences**
-   - If differences detected, check the comparison report
-   - Fix any styling issues
-   - Re-run verification until passing
-
-5. **Update Tests**
-   - Add component-specific tests
-   - Update existing tests if needed
-
-#### Best Practices
-
-1. **Component Organization**
-   - Place components in appropriate directories under `/src/components`
-   - Use feature-based organization (e.g., `/camera`, `/photo-grid`)
-   - Keep shared components in `/shared`
-
-2. **Style Management**
-   - Maintain CSS modules in `/src/styles/components`
-   - Use consistent class naming
-   - Preserve existing style classes when refactoring
-
-3. **Testing**
-   - Add unit tests for new components
-   - Maintain visual regression tests
-   - Test responsive behavior
-
-4. **Documentation**
-   - Update component props documentation
-   - Document any new features or changes
-   - Keep README up to date
-

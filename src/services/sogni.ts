@@ -1,29 +1,20 @@
-import { SogniClient } from '@sogni-ai/sogni-client';
+import { BackendSogniClient, initializeSogniClient as initBackendClient } from './sogniBackend';
 import { generateUUID } from '../utils';
-import { SOGNI_URLS } from '../constants/settings';
 
-export async function initializeSogniClient(): Promise<SogniClient> {
-  const appId = import.meta.env.VITE_SOGNI_APP_ID + generateUUID();
-  
-  const client = await SogniClient.createInstance({
-    appId,
-    testnet: true,
-    network: "fast",
-    logLevel: "debug",
-    restEndpoint: SOGNI_URLS.api,
-    socketEndpoint: SOGNI_URLS.socket,
-  });
-
-  await client.account.login(
-    import.meta.env.VITE_SOGNI_USERNAME,
-    import.meta.env.VITE_SOGNI_PASSWORD,
-  );
-
-  return client;
+/**
+ * Initialize the Sogni client through the backend
+ * This provides the same interface as the original function but uses the backend
+ */
+export async function initializeSogniClient(): Promise<BackendSogniClient> {
+  return initBackendClient();
 }
 
+/**
+ * Generate image using the backend
+ * This is a placeholder matching the original interface
+ */
 export async function generateImage(): Promise<string[]> {
-  // Implementation will be moved from App.jsx
-  // This is just the interface for now
+  // This function is maintained for API compatibility
+  // The actual implementation now occurs in App.jsx with the backend client
   return [];
 } 
