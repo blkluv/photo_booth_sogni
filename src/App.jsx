@@ -983,7 +983,7 @@ const App = () => {
                 loading: false,
                 images: [url],
                 newlyArrived: true,
-                statusText: `#${photoIndex-keepOriginalPhoto+1}`
+                statusText: `#${index+1}`
               };
             }
             return updated;
@@ -1043,7 +1043,7 @@ const App = () => {
               progress: 100,
               images: [job.resultUrl],
               newlyArrived: true,
-              statusText: `#${photoIndex-keepOriginalPhoto+1}`
+              statusText: `#${jobIndex+1}`
             };
             
             // Check if all photos are done generating
