@@ -27,110 +27,108 @@ const getSogniUrls = (env) => {
   return SOGNI_HOSTS[sogniEnv];
 };
 
-// Initialize the Sogni client
-export async function initializeSogniClient() {
-  const appId = `${process.env.SOGNI_APP_ID}-${generateUUID()}`;
-  const sogniEnv = process.env.SOGNI_ENV || 'production';
-  const username = process.env.SOGNI_USERNAME;
+// Cache tokens for login efficiency
+let sogniTokens = null; // { token, refreshToken }
+let sogniUsername = null;
+let sogniAppId = null;
+let sogniEnv = null;
+let sogniUrls = null;
+
+// Helper to create a new SogniClient for each project
+async function createSogniClient() {
+  sogniAppId = `${process.env.SOGNI_APP_ID}-${generateUUID()}`;
+  sogniEnv = process.env.SOGNI_ENV || 'production';
+  sogniUsername = process.env.SOGNI_USERNAME;
   const password = process.env.SOGNI_PASSWORD;
-  
-  console.log(`Initializing Sogni client with app ID: ${appId} and environment: ${sogniEnv}`);
-  const sogniUrls = getSogniUrls(sogniEnv);
-  
+  sogniUrls = getSogniUrls(sogniEnv);
+
   const client = await SogniClient.createInstance({
-    appId,
-    testnet: true, // Adjust based on environment if needed
+    appId: sogniAppId,
+    testnet: true,
     network: "fast",
-    logLevel: "debug", // Use debug for more logs
+    logLevel: "debug",
     restEndpoint: sogniUrls.api,
     socketEndpoint: sogniUrls.socket,
   });
 
+  // Try to restore session with tokens if available
   try {
-    console.log(`Logging in with username: ${username}`);
-    await client.account.login(username, password);
-    console.log('Login successful');
-  } catch (error) {
-    console.error('Login failed:', error);
-    throw error; // Re-throw to be handled by the caller
+    if (sogniTokens && sogniTokens.token && sogniTokens.refreshToken) {
+      await client.account.setToken(sogniUsername, sogniTokens);
+      if (!client.account.isLoggedIn) {
+        await client.account.login(sogniUsername, password);
+      }
+    } else {
+      await client.account.login(sogniUsername, password);
+    }
+  } catch (e) {
+    await client.account.login(sogniUsername, password);
+  }
+  // Save tokens for reuse
+  if (client.account.currentAccount && client.account.currentAccount.token && client.account.currentAccount.refreshToken) {
+    sogniTokens = {
+      token: client.account.currentAccount.token,
+      refreshToken: client.account.currentAccount.refreshToken,
+    };
   }
   return client;
 }
 
-// Get client info (for testing connection)
 export async function getClientInfo() {
-  const client = await initializeSogniClient();
-  return {
+  const client = await createSogniClient();
+  const info = {
     connected: true,
     appId: client.appId,
     network: client.network,
-    authenticated: client.account.isLoggedIn // Access as property
+    authenticated: client.account.isLoggedIn
   };
+  // Clean up after info check
+  if (client.disconnect) {
+    try { await client.disconnect(); } catch {}
+  }
+  return info;
 }
 
-// Generate image using Sogni client - Refactored to match original event handling
 export async function generateImage(params, progressCallback) {
-  const client = await initializeSogniClient();
-  
-  // Determine if this is an enhancement request or generation request
-  const isEnhancement = params.startingImage !== undefined;
-  console.log(`Generating image with ${isEnhancement ? 'enhancement' : 'controlNet'} mode`);
-  
-  // Create project options based on request type
-  const projectOptions = {
-    modelId: params.selectedModel,
-    positivePrompt: params.stylePrompt,
-    sizePreset: 'custom',
-    width: params.width,
-    height: params.height,
-    steps: isEnhancement ? 4 : 7,
-    guidance: params.promptGuidance || (isEnhancement ? 1 : 7), // Default guidance depends on mode
-    numberOfImages: params.numberImages || 1,
-    scheduler: 'DPM Solver Multistep (DPM-Solver++)',
-    timeStepSpacing: 'Karras'
-  };
-
-  if (isEnhancement) {
-    projectOptions.startingImage = params.startingImage instanceof Uint8Array 
-      ? params.startingImage 
-      : new Uint8Array(params.startingImage);
-    projectOptions.startingImageStrength = params.startingImageStrength || 0.85;
-  } else if (params.imageData) { // Check for imageData for controlNet
-    projectOptions.controlNet = {
-      name: 'instantid',
-      image: params.imageData instanceof Uint8Array 
-        ? params.imageData 
-        : new Uint8Array(params.imageData),
-      strength: params.controlNetStrength || 0.8,
-      mode: 'balanced',
-      guidanceStart: 0,
-      guidanceEnd: params.controlNetGuidanceEnd || 0.3,
-    };
-  } else {
-    console.warn("No starting image or controlNet image data provided.");
-  }
-
-  console.log('Creating Sogni project with options:', JSON.stringify({
-    ...projectOptions,
-    startingImage: projectOptions.startingImage ? '[Binary data]' : undefined,
-    controlNet: projectOptions.controlNet ? { ...projectOptions.controlNet, image: '[Binary data]' } : undefined
-  }));
-
+  const client = await createSogniClient();
   try {
+    const isEnhancement = params.startingImage !== undefined;
+    const projectOptions = {
+      modelId: params.selectedModel,
+      positivePrompt: params.stylePrompt,
+      sizePreset: 'custom',
+      width: params.width,
+      height: params.height,
+      steps: isEnhancement ? 4 : 7,
+      guidance: params.promptGuidance || (isEnhancement ? 1 : 7),
+      numberOfImages: params.numberImages || 1,
+      scheduler: 'DPM Solver Multistep (DPM-Solver++)',
+      timeStepSpacing: 'Karras'
+    };
+    if (isEnhancement) {
+      projectOptions.startingImage = params.startingImage instanceof Uint8Array 
+        ? params.startingImage 
+        : new Uint8Array(params.startingImage);
+      projectOptions.startingImageStrength = params.startingImageStrength || 0.85;
+    } else if (params.imageData) {
+      projectOptions.controlNet = {
+        name: 'instantid',
+        image: params.imageData instanceof Uint8Array 
+          ? params.imageData 
+          : new Uint8Array(params.imageData),
+        strength: params.controlNetStrength || 0.8,
+        mode: 'balanced',
+        guidanceStart: 0,
+        guidanceEnd: params.controlNetGuidanceEnd || 0.3,
+      };
+    } else {
+      console.warn("No starting image or controlNet image data provided.");
+    }
     const project = await client.projects.create(projectOptions);
-    console.log('Project created:', project.id, 'Initial Jobs:', project.jobs.map(j => j.id));
-
-    // Use a map to track jobs we've attached progress listeners to
     const handledJobProgress = new Set();
-
-    // Function to setup progress listener for a job
     const setupProgressListener = (sdkJob) => {
-      if (!sdkJob || handledJobProgress.has(sdkJob.id)) {
-        return; // Already handled or invalid job
-      }
+      if (!sdkJob || handledJobProgress.has(sdkJob.id)) return;
       handledJobProgress.add(sdkJob.id);
-      console.log(`Attaching progress listener to SDK Job ID: ${sdkJob.id}`);
-      
       sdkJob.on('progress', (progressValue) => {
         if (progressCallback) {
           const normalizedProgress = typeof progressValue === 'number' && progressValue > 1 
@@ -138,46 +136,35 @@ export async function generateImage(params, progressCallback) {
                                      : (progressValue || 0);
           const progressEvent = {
             type: 'progress',
-            jobId: sdkJob.id, // Use SDK job.id
+            jobId: sdkJob.id,
             imgId: sdkJob.imgID,
-            progress: normalizedProgress, // Send raw 0-1 value
+            progress: normalizedProgress,
             projectId: project.id,
             workerName: sdkJob.workerName || 'unknown'
           };
-          console.log(`Forwarding job progress:`, JSON.stringify(progressEvent));
           progressCallback(progressEvent);
         }
       });
     };
-
-    // Setup listeners for initial jobs
     if (project.jobs && project.jobs.length > 0) {
       project.jobs.forEach(setupProgressListener);
     }
-    // Setup listeners for jobs added later
     project.on('updated', (keys) => {
       if (keys.includes('jobs')) {
-        console.log('Project updated with new/updated jobs:', project.jobs.map(j => ({id: j.id, worker: j.workerName}) ));
         project.jobs.forEach(setupProgressListener);
       }
     });
-
-    // --- Specific SDK Event Handlers --- 
-    
     project.on('jobStarted', (sdkJob) => {
-      console.log(`SDK: Job started - ID: ${sdkJob.id}, Worker: ${sdkJob.workerName || 'unknown'}`);
-      setupProgressListener(sdkJob); // Ensure progress listener is attached
+      setupProgressListener(sdkJob);
       if (progressCallback) {
         const startedEvent = {
           type: 'started',
-          jobId: sdkJob.id, // Use SDK job.id
+          jobId: sdkJob.id,
           imgId: sdkJob.imgID,
           projectId: project.id,
           workerName: sdkJob.workerName || 'unknown'
         };
-        console.log(`Forwarding job started:`, JSON.stringify(startedEvent));
         progressCallback(startedEvent);
-        // Send initial 0% progress
         progressCallback({
           type: 'progress',
           jobId: sdkJob.id,
@@ -188,11 +175,8 @@ export async function generateImage(params, progressCallback) {
         });
       }
     });
-    
     project.on('jobCompleted', (sdkJob) => {
-      console.log(`SDK: Job completed - ID: ${sdkJob.id}, Worker: ${sdkJob.workerName || 'unknown'}, Result: ${sdkJob.resultUrl}`);
       if (progressCallback) {
-        // Send final 100% progress
         progressCallback({
           type: 'progress',
           jobId: sdkJob.id,
@@ -201,7 +185,6 @@ export async function generateImage(params, progressCallback) {
           projectId: project.id,
           workerName: sdkJob.workerName || 'unknown'
         });
-        // Send jobCompleted event
         progressCallback({
           type: 'jobCompleted',
           jobId: sdkJob.id,
@@ -212,9 +195,7 @@ export async function generateImage(params, progressCallback) {
         });
       }
     });
-
     project.on('jobFailed', (sdkJob) => {
-      console.error(`SDK: Job failed - ID: ${sdkJob.id}, Error: ${sdkJob.error}`);
       if (progressCallback) {
         progressCallback({
           type: 'jobFailed',
@@ -226,26 +207,21 @@ export async function generateImage(params, progressCallback) {
         });
       }
     });
-    
-    // --- Project Completion/Failure --- 
-    return new Promise((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
       project.on('completed', () => {
-        console.log('Project completed with URLs:', project.resultUrls);
         resolve({
           projectId: project.id,
-          result: { imageUrls: project.resultUrls } // Match structure expected by frontend
+          result: { imageUrls: project.resultUrls }
         });
         if (progressCallback) {
           progressCallback({
             type: 'complete',
             projectId: project.id,
-            result: { imageUrls: project.resultUrls } 
+            result: { imageUrls: project.resultUrls }
           });
         }
       });
-
       project.on('failed', (error) => {
-        console.error('Project failed:', error);
         reject(error);
         if (progressCallback) {
           progressCallback({
@@ -256,9 +232,49 @@ export async function generateImage(params, progressCallback) {
         }
       });
     });
-
-  } catch (error) {
-    console.error('Error creating Sogni project:', error);
-    throw error;
+  } finally {
+    // Always disconnect this client after use
+    if (client.disconnect) {
+      try { await client.disconnect(); } catch {}
+    }
   }
+}
+
+// Global error handler for unhandled WebSocket errors
+process.on('uncaughtException', (err) => {
+  if (
+    err &&
+    typeof err.message === 'string' &&
+    err.message.includes('WebSocket was closed before the connection was established')
+  ) {
+    console.warn('Ignored WebSocket connection race error:', err.message);
+    return;
+  }
+  throw err;
+});
+
+process.on('unhandledRejection', (reason) => {
+  if (
+    reason &&
+    typeof reason.message === 'string' &&
+    reason.message.includes('WebSocket was closed before the connection was established')
+  ) {
+    console.warn('Ignored WebSocket connection race error (promise):', reason.message);
+    return;
+  }
+  throw reason;
+});
+
+// Replace initializeSogniClient with getSogniClient
+export async function initializeSogniClient() {
+  return createSogniClient();
+}
+
+// Add cleanupSogniClient function
+export async function cleanupSogniClient({ logout = false } = {}) {
+  // This is a no-op now since we're using per-request clients that 
+  // automatically disconnect after each use, but we keep the function 
+  // for compatibility with existing code that imports it
+  console.log('cleanupSogniClient called - connections now managed per-request');
+  return true;
 } 

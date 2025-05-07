@@ -1,10 +1,14 @@
 import express from 'express';
-import { getClientInfo, generateImage, initializeSogniClient } from '../services/sogni.js';
+import { getClientInfo, generateImage, initializeSogniClient, cleanupSogniClient } from '../services/sogni.js';
 
 const router = express.Router();
 
 // Map to store active project SSE connections
 const activeProjects = new Map();
+
+// Timer for delayed Sogni cleanup
+let sogniCleanupTimer = null;
+const SOGNI_CLEANUP_DELAY_MS = 30 * 1000; // 30 seconds
 
 // Helper function to send SSE messages
 const sendSSEMessage = (client, data) => {
@@ -136,6 +140,12 @@ router.get('/progress/:projectId', (req, res) => {
   }
   activeProjects.get(projectId).add(res);
   
+  // Cancel any pending cleanup since a user is now connected
+  if (sogniCleanupTimer) {
+    clearTimeout(sogniCleanupTimer);
+    sogniCleanupTimer = null;
+  }
+  
   // Handle client disconnect
   req.on('close', () => {
     console.log(`SSE connection closed for project: ${projectId}`);
@@ -146,6 +156,13 @@ router.get('/progress/:projectId', (req, res) => {
       if (activeProjects.get(projectId).size === 0) {
         activeProjects.delete(projectId);
       }
+    }
+    // If no active projects remain, schedule Sogni cleanup
+    if (activeProjects.size === 0) {
+      if (sogniCleanupTimer) clearTimeout(sogniCleanupTimer);
+      sogniCleanupTimer = setTimeout(() => {
+        cleanupSogniClient({ logout: false }); // Use logout: true if you want to fully log out
+      }, SOGNI_CLEANUP_DELAY_MS);
     }
   });
   
