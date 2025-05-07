@@ -1,6 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import styles from '../../styles/components/camera.module.css';
 import AdvancedSettings from '../shared/AdvancedSettings';
+import StyleDropdown from '../shared/StyleDropdown';
+import { styleIdToDisplay } from '../../utils';
 
 interface CameraViewProps {
   /** Video ref for the webcam stream */
@@ -131,20 +133,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
     setIsMobile(checkIfMobile());
   }, []);
 
-  // Effect to handle clicks outside dropdown
-  useEffect(() => {
-    if (showStyleDropdown) {
-      const handleClickOutside = (e: MouseEvent) => {
-        if (styleButtonRef.current && !styleButtonRef.current.contains(e.target as Node)) {
-          setShowStyleDropdown(false);
-        }
-      };
-      
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
-  }, [showStyleDropdown]);
-
   // Toggle style dropdown with position calculation
   const toggleStyleDropdown = () => {
     if (showStyleDropdown) {
@@ -163,87 +151,34 @@ export const CameraView: React.FC<CameraViewProps> = ({
     setShowStyleDropdown(true);
   };
 
-  // Helper function for style display with null check
-  const styleIdToDisplay = (styleId: string | undefined | null) => {
-    if (!styleId) return '';
-    return styleId
-      .replace(/([A-Z])/g, ' $1')
-      .replace(/^./, str => str.toUpperCase())
-      .trim();
-  };
-
   const renderBottomControls = () => (
     <div className={styles.bottomControls}>
       <div className={styles.styleSelector}>
         <button 
-          className={styles.styleButton}
+          className={`${styles.styleButton} bottom-style-select`}
           onClick={toggleStyleDropdown}
           ref={styleButtonRef}
           data-testid="style-select-button"
         >
-          {styleIdToDisplay(selectedStyle) || 'Select Style'}
+          {selectedStyle ? styleIdToDisplay(selectedStyle) : 'Select Style'}
         </button>
         
-        {showStyleDropdown && (
-          <div 
-            className={`${styles.styleDropdown} ${dropdownPosition === 'top' ? styles.topPosition : ''}`}
-            data-testid="style-dropdown"
-          >
-            <div className={styles.styleSectionFeatured}>
-              <div 
-                className={`${styles.styleOption} ${selectedStyle === 'random' ? styles.selected : ''}`}
-                onClick={() => {
-                  onStyleSelect('random');
-                  setShowStyleDropdown(false);
-                }}
-              >
-                <span>🎲</span>
-                <span>Random style</span>
-              </div>
-              
-              <div 
-                className={`${styles.styleOption} ${selectedStyle === 'randomMix' ? styles.selected : ''}`}
-                onClick={() => {
-                  onStyleSelect('randomMix');
-                  setShowStyleDropdown(false);
-                }}
-              >
-                <span>🎨</span>
-                <span>Random mix</span>
-              </div>
-              
-              <div 
-                className={`${styles.styleOption} ${selectedStyle === 'custom' ? styles.selected : ''}`}
-                onClick={() => {
-                  onStyleSelect('custom');
-                  setShowStyleDropdown(false);
-                  onToggleSettings();
-                }}
-              >
-                <span>✏️</span>
-                <span>Custom...</span>
-              </div>
-            </div>
-            
-            <div className={styles.styleSectionRegular}>
-              {Object.keys(stylePrompts)
-                .filter(key => !['random', 'custom', 'randomMix'].includes(key))
-                .sort()
-                .map(styleKey => (
-                  <div 
-                    key={styleKey}
-                    className={`${styles.styleOption} ${selectedStyle === styleKey ? styles.selected : ''}`}
-                    onClick={() => {
-                      onStyleSelect(styleKey);
-                      setShowStyleDropdown(false);
-                    }}
-                  >
-                    <span>{styleIdToDisplay(styleKey)}</span>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
+        <StyleDropdown 
+          isOpen={showStyleDropdown}
+          onClose={() => setShowStyleDropdown(false)}
+          selectedStyle={selectedStyle || ''}
+          updateStyle={(style: string) => {
+            onStyleSelect(style);
+            if (style === 'custom') {
+              onToggleSettings();
+            }
+          }}
+          defaultStylePrompts={stylePrompts}
+          showControlOverlay={showSettings}
+          setShowControlOverlay={onToggleSettings}
+          dropdownPosition={dropdownPosition}
+          triggerButtonClass=".bottom-style-select"
+        />
       </div>
 
       {/* Shutter button */}

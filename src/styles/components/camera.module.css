@@ -199,84 +199,6 @@
   white-space: nowrap;
 }
 
-/* Style Dropdown */
-.styleDropdown {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 6px 24px rgba(0,0,0,0.25);
-  border: 1px solid rgba(0,0,0,0.1);
-  width: 240px;
-  max-height: 380px;
-  overflow-y: auto;
-  z-index: 1003;
-  padding: 8px;
-}
-
-.styleDropdown.topPosition {
-  bottom: calc(100% + 10px);
-  animation: dropdownAppearTop 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards;
-}
-
-.styleDropdown.bottomPosition {
-  top: calc(100% + 10px);
-  animation: dropdownAppearBottom 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards;
-}
-
-@keyframes dropdownAppearTop {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-}
-
-@keyframes dropdownAppearBottom {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-}
-
-.styleSectionFeatured {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-  padding-bottom: 8px;
-  margin-bottom: 8px;
-}
-
-.styleOption {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  margin: 2px 0;
-  border-radius: 4px;
-  cursor: pointer;
-  color: #333;
-  transition: background-color 0.2s;
-  font-family: "Permanent Marker", cursive;
-  font-size: 14px;
-}
-
-.styleOption:hover {
-  background-color: #f5f5f5;
-}
-
-.styleOption.selected {
-  background-color: #fff0f4;
-  color: #ff5e8a;
-  font-weight: 500;
-}
-
 .shutterButton {
   background: white;
   color: #222;
@@ -441,16 +363,6 @@
   .styleButton {
     font-size: 13px;
     padding: 6px 12px;
-  }
-
-  .styleDropdown {
-    width: 200px;
-    max-height: 300px;
-  }
-
-  .styleOption {
-    font-size: 13px;
-    padding: 8px 10px;
   }
 
   .shutterButton {

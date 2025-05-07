@@ -41,7 +41,7 @@ async function createSogniClient() {
   sogniUsername = process.env.SOGNI_USERNAME;
   const password = process.env.SOGNI_PASSWORD;
   sogniUrls = getSogniUrls(sogniEnv);
-
+  
   const client = await SogniClient.createInstance({
     appId: sogniAppId,
     testnet: true,
@@ -92,38 +92,38 @@ export async function getClientInfo() {
 export async function generateImage(params, progressCallback) {
   const client = await createSogniClient();
   try {
-    const isEnhancement = params.startingImage !== undefined;
-    const projectOptions = {
-      modelId: params.selectedModel,
-      positivePrompt: params.stylePrompt,
-      sizePreset: 'custom',
-      width: params.width,
-      height: params.height,
-      steps: isEnhancement ? 4 : 7,
+  const isEnhancement = params.startingImage !== undefined;
+  const projectOptions = {
+    modelId: params.selectedModel,
+    positivePrompt: params.stylePrompt,
+    sizePreset: 'custom',
+    width: params.width,
+    height: params.height,
+    steps: isEnhancement ? 4 : 7,
       guidance: params.promptGuidance || (isEnhancement ? 1 : 7),
-      numberOfImages: params.numberImages || 1,
-      scheduler: 'DPM Solver Multistep (DPM-Solver++)',
-      timeStepSpacing: 'Karras'
-    };
-    if (isEnhancement) {
-      projectOptions.startingImage = params.startingImage instanceof Uint8Array 
-        ? params.startingImage 
-        : new Uint8Array(params.startingImage);
-      projectOptions.startingImageStrength = params.startingImageStrength || 0.85;
+    numberOfImages: params.numberImages || 1,
+    scheduler: 'DPM Solver Multistep (DPM-Solver++)',
+    timeStepSpacing: 'Karras'
+  };
+  if (isEnhancement) {
+    projectOptions.startingImage = params.startingImage instanceof Uint8Array 
+      ? params.startingImage 
+      : new Uint8Array(params.startingImage);
+    projectOptions.startingImageStrength = params.startingImageStrength || 0.85;
     } else if (params.imageData) {
-      projectOptions.controlNet = {
-        name: 'instantid',
-        image: params.imageData instanceof Uint8Array 
-          ? params.imageData 
-          : new Uint8Array(params.imageData),
-        strength: params.controlNetStrength || 0.8,
-        mode: 'balanced',
-        guidanceStart: 0,
-        guidanceEnd: params.controlNetGuidanceEnd || 0.3,
-      };
-    } else {
-      console.warn("No starting image or controlNet image data provided.");
-    }
+    projectOptions.controlNet = {
+      name: 'instantid',
+      image: params.imageData instanceof Uint8Array 
+        ? params.imageData 
+        : new Uint8Array(params.imageData),
+      strength: params.controlNetStrength || 0.8,
+      mode: 'balanced',
+      guidanceStart: 0,
+      guidanceEnd: params.controlNetGuidanceEnd || 0.3,
+    };
+  } else {
+    console.warn("No starting image or controlNet image data provided.");
+  }
     const project = await client.projects.create(projectOptions);
     const handledJobProgress = new Set();
     const setupProgressListener = (sdkJob) => {
@@ -217,7 +217,7 @@ export async function generateImage(params, progressCallback) {
           progressCallback({
             type: 'complete',
             projectId: project.id,
-            result: { imageUrls: project.resultUrls }
+            result: { imageUrls: project.resultUrls } 
           });
         }
       });

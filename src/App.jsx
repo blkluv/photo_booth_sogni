@@ -3,7 +3,7 @@ import { API_CONFIG } from './config/cors';
 import { SOGNI_URLS, DEFAULT_SETTINGS, modelOptions, getModelOptions, getValidModelValue, defaultStylePrompts as initialStylePrompts } from './constants/settings';
 import { photoThoughts, randomThoughts } from './constants/thoughts';
 import { getSettingFromCookie, saveSettingsToCookies } from './utils/cookies';
-import { generateUUID } from './utils';
+import { generateUUID, styleIdToDisplay } from './utils';
 import { getCustomDimensions, resizeDataUrl, describeImage, centerCropImage, blobToDataURL } from './utils/imageProcessing';
 import { getPreviousPhotoIndex, getNextPhotoIndex, goToPreviousPhoto, goToNextPhoto } from './utils/photoNavigation';
 import { loadPrompts, initializeStylePrompts, getRandomStyle, getRandomMixPrompts } from './services/prompts';
@@ -15,6 +15,7 @@ import slothicornImage from './slothicorn-camera.png';
 import light1Image from './light1.png';
 import light2Image from './light2.png';
 import './App.css';
+import './styles/style-dropdown.css';
 import promptsData from './prompts.json';
 import ReactDOM from 'react-dom';
 import CameraView from './components/camera/CameraView';
@@ -1674,20 +1675,17 @@ const App = () => {
             </span>
           </button>
           
-          {showStyleDropdown && (
-            <StyleDropdown
-              isOpen={showStyleDropdown}
-              onClose={() => setShowStyleDropdown(false)}
-              selectedStyle={selectedStyle}
-              updateStyle={(style) => updateSetting(setSelectedStyle, 'selectedStyle')(style)}
-              defaultStylePrompts={stylePrompts}
-              styleIdToDisplay={styleIdToDisplay}
-              showControlOverlay={showControlOverlay}
-              setShowControlOverlay={setShowControlOverlay}
-              dropdownPosition="bottom"
-              triggerButtonClass=".grid-style-btn"
-            />
-          )}
+          <StyleDropdown
+            isOpen={showStyleDropdown}
+            onClose={() => setShowStyleDropdown(false)}
+            selectedStyle={selectedStyle}
+            updateStyle={(style) => updateSetting(setSelectedStyle, 'selectedStyle')(style)}
+            defaultStylePrompts={stylePrompts}
+            showControlOverlay={showControlOverlay}
+            setShowControlOverlay={setShowControlOverlay}
+            dropdownPosition={dropdownPosition}
+            triggerButtonClass=".grid-style-btn"
+          />
         </div>
 
         {/* Back to Camera button */}
@@ -2285,11 +2283,6 @@ const App = () => {
     }
     
     setShowStyleDropdown(true);
-  };
-
-  // Add this helper function for style display
-  const styleIdToDisplay = (styleId) => {
-    return styleId.replaceAll(/([A-Z])/g, ' $1').replace(/^./, string_ => string_.toUpperCase()).trim();
   };
 
   // Clean, polished transition from photogrid to camera
