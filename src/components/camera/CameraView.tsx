@@ -1,8 +1,6 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styles from '../../styles/components/camera.module.css';
 import AdvancedSettings from '../shared/AdvancedSettings';
-import StyleDropdown from '../shared/StyleDropdown';
-import { styleIdToDisplay } from '../../utils';
 
 interface CameraViewProps {
   /** Video ref for the webcam stream */
@@ -88,11 +86,9 @@ export const CameraView: React.FC<CameraViewProps> = ({
   onTakePhoto,
   showPhotoGrid = false,
   selectedStyle = '',
-  onStyleSelect = () => {},
   showSettings = false,
   onToggleSettings = () => {},
   testId,
-  stylePrompts = {},
   customPrompt = '',
   onCustomPromptChange,
   cameraDevices = [],
@@ -117,11 +113,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
   onResetSettings,
   isFrontCamera = true,
 }) => {
-  // State for style dropdown
-  const [showStyleDropdown, setShowStyleDropdown] = useState(false);
-  const [dropdownPosition, setDropdownPosition] = useState<'top' | 'bottom'>('bottom');
-  const styleButtonRef = useRef<HTMLButtonElement>(null);
-  
   // Check if device is mobile
   const [isMobile, setIsMobile] = useState(false);
   
@@ -133,82 +124,55 @@ export const CameraView: React.FC<CameraViewProps> = ({
     setIsMobile(checkIfMobile());
   }, []);
 
-  // Toggle style dropdown with position calculation
-  const toggleStyleDropdown = () => {
-    if (showStyleDropdown) {
-      setShowStyleDropdown(false);
-      return;
-    }
-
-    if (styleButtonRef.current) {
-      const buttonRect = styleButtonRef.current.getBoundingClientRect();
-      const spaceAbove = buttonRect.top;
-      const spaceBelow = window.innerHeight - buttonRect.bottom;
-      
-      setDropdownPosition(spaceBelow > spaceAbove || spaceAbove < 350 ? 'bottom' : 'top');
-    }
-    
-    setShowStyleDropdown(true);
-  };
-
   const renderBottomControls = () => (
     <div className={styles.bottomControls}>
-      <div className={styles.styleSelector}>
-        <button 
-          className={`${styles.styleButton} bottom-style-select`}
-          onClick={toggleStyleDropdown}
-          ref={styleButtonRef}
-          data-testid="style-select-button"
-        >
-          {selectedStyle ? styleIdToDisplay(selectedStyle) : 'Select Style'}
-        </button>
-        
-        <StyleDropdown 
-          isOpen={showStyleDropdown}
-          onClose={() => setShowStyleDropdown(false)}
-          selectedStyle={selectedStyle || ''}
-          updateStyle={(style: string) => {
-            onStyleSelect(style);
-            if (style === 'custom') {
-              onToggleSettings();
-            }
-          }}
-          defaultStylePrompts={stylePrompts}
-          showControlOverlay={showSettings}
-          setShowControlOverlay={onToggleSettings}
-          dropdownPosition={dropdownPosition}
-          triggerButtonClass=".bottom-style-select"
-        />
-      </div>
-
-      {/* Shutter button */}
-      <button
-        className={`${styles.shutterButton} ${isDisabled ? styles.cooldown : ''}`}
-        onClick={onTakePhoto}
-        disabled={!isReady || isDisabled}
-        data-testid="shutter-button"
-      >
-        <span className={styles.shutterDot} />
-        <span className={styles.shutterLabel}>{buttonLabel}</span>
-      </button>
-
-      {/* Camera flip button for mobile devices */}
       {isMobile ? (
-        <button
-          className={styles.cameraFlipButton}
-          onClick={onToggleCamera}
-          aria-label={isFrontCamera ? "Switch to back camera" : "Switch to front camera"}
-          data-testid="camera-flip-button"
-        >
-          <span className={styles.cameraFlipIcon} role="img" aria-label="Flip camera">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M20 5H16.83L15 3H9L7.17 5H4C2.9 5 2 5.9 2 7V19C2 20.1 2.9 21 4 21H20C21.1 21 22 20.1 22 19V7C22 5.9 21.1 5 20 5ZM12 18C9.24 18 7 15.76 7 13C7 10.24 9.24 8 12 8C14.76 8 17 10.24 17 13C17 15.76 14.76 18 12 18Z" fill="#333333"/>
-              <path d="M15 13L13 10V12H9V14H13V16L15 13Z" fill="#333333"/>
-            </svg>
-          </span>
-        </button>
+        <>
+          {/* Camera flip button for mobile devices */}
+          <button
+            className={styles.cameraFlipButton}
+            onClick={onToggleCamera}
+            aria-label={isFrontCamera ? "Switch to back camera" : "Switch to front camera"}
+            data-testid="camera-flip-button"
+          >
+            <span className={styles.cameraFlipIcon} role="img" aria-label="Flip camera">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20 5H16.83L15 3H9L7.17 5H4C2.9 5 2 5.9 2 7V19C2 20.1 2.9 21 4 21H20C21.1 21 22 20.1 22 19V7C22 5.9 21.1 5 20 5ZM12 18C9.24 18 7 15.76 7 13C7 10.24 9.24 8 12 8C14.76 8 17 10.24 17 13C17 15.76 14.76 18 12 18Z" fill="#333333"/>
+                <path d="M15 13L13 10V12H9V14H13V16L15 13Z" fill="#333333"/>
+              </svg>
+            </span>
+          </button>
+          
+          {/* Shutter button - no label on mobile */}
+          <button
+            className={`${styles.shutterButton} ${isDisabled ? styles.cooldown : ''}`}
+            onClick={onTakePhoto}
+            disabled={!isReady || isDisabled}
+            data-testid="shutter-button"
+          >
+            <span className={styles.shutterDot} />
+          </button>
+          
+          {/* Empty space to balance the layout */}
+          <div style={{ width: '24px' }} />
+        </>
       ) : (
-        <div className={styles.endSpacer} />
+        <>
+          <div className={styles.endSpacer} />
+
+          {/* Shutter button */}
+          <button
+            className={`${styles.shutterButton} ${isDisabled ? styles.cooldown : ''}`}
+            onClick={onTakePhoto}
+            disabled={!isReady || isDisabled}
+            data-testid="shutter-button"
+          >
+            <span className={styles.shutterDot} />
+            <span className={styles.shutterLabel}>{buttonLabel}</span>
+          </button>
+
+          <div className={styles.endSpacer} />
+        </>
       )}
     </div>
   );
@@ -243,8 +207,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
               {countdown}
             </div>
           )}
-          
-          {/* Local flash effect removed - using global overlay instead */}
         </div>
 
         {/* Bottom controls */}

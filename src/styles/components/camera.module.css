@@ -48,6 +48,48 @@
   pointer-events: auto;
 }
 
+/* Top left style selector */
+.topLeftStyleSelector {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.topLeftStyleButton {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "Permanent Marker", cursive;
+  font-size: 14px;
+  color: #333;
+  cursor: pointer;
+  padding: 8px 16px;
+  padding-right: 24px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  transition: all 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topLeftStyleButton:hover {
+  background: white;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  transform: scale(1.05);
+}
+
+.topLeftStyleButton:active {
+  transform: scale(0.95);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
 .polaroidFrame {
   background: white;
   border-radius: 12px;
@@ -138,7 +180,7 @@
     overflow: hidden;
     border-left: 32px solid white !important;
     border-right: 32px solid white !important;
-    border-top: 56px solid white !important;
+    border-top: 32px solid white !important;
     border-bottom: 120px solid white !important;
   }
   
@@ -335,29 +377,30 @@
 @media (max-width: 600px), (orientation: portrait) and (max-device-width: 1024px) {
   .polaroidFrame {
     max-width: 99vw;
-    border-radius: 12px;
+    border-radius: 6px;
   }
 
   .polaroidHeader {
-    top: 8px;
-    left: 12px;
-    right: 12px;
+    top: 0px;
   }
 
   .title {
-    font-size: 14px;
+    font-size: 18px;
+    text-align: center;
+    width: 100%;
   }
 
   .cameraView {
-    border-left-width: 12px;
-    border-right-width: 12px;
-    border-top-width: 40px;
-    border-bottom-width: 40px;
+    border-left-width: 22px;
+    border-right-width: 22px;
+    border-top-width: 24px;
+    border-bottom-width: 80px;
   }
 
   .bottomControls {
     bottom: 12px;
     padding: 0 16px;
+    justify-content: center;
   }
 
   .styleButton {
@@ -399,6 +442,17 @@
     width: 20px;
     height: 20px;
   }
+
+  .topLeftStyleSelector {
+    top: 8px;
+    left: 12px;
+  }
+
+  .topLeftStyleButton {
+    font-size: 12px;
+    padding: 6px 12px;
+    padding-right: 16px;
+  }
 }
 
 /* iPhone-specific fixes for portrait mode */
@@ -412,7 +466,7 @@
   .cameraView {
     border-left-width: 24px !important;
     border-right-width: 24px !important;
-    border-top-width: 50px !important;
+    border-top-width: 24px !important;
     border-bottom-width: 70px !important;
     border-radius: 6px !important;
   }
@@ -420,25 +474,19 @@
   .bottomControls {
     bottom: 15px !important;
     padding: 0 28px !important;
+    justify-content: center !important;
   }
   
   .shutterButton {
     width: 48px !important;
     height: 48px !important;
     box-shadow: 0 3px 10px rgba(0,0,0,0.2) !important;
+    margin: 0 auto !important;
   }
   
   .shutterDot {
     width: 22px !important;
     height: 22px !important;
-  }
-  
-  .shutterLabel {
-    font-size: 10px !important;
-    bottom: -20px !important;
-    width: 100px !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
   }
   
   .styleButton {
@@ -457,6 +505,17 @@
     height: 36px !important;
     box-shadow: 0 3px 10px rgba(0,0,0,0.2) !important;
   }
+
+  .topLeftStyleSelector {
+    top: 12px !important;
+    left: 12px !important;
+  }
+
+  .topLeftStyleButton {
+    font-size: 11px !important;
+    padding: 5px 10px !important;
+    padding-right: 14px !important;
+  }
 }
 
 /* iOS-specific polaroid styling to ensure consistent appearance */
@@ -470,7 +529,7 @@
     .cameraView {
       border-left-width: 24px !important;
       border-right-width: 24px !important;
-      border-top-width: 50px !important;
+      border-top-width: 24px !important;
       border-bottom-width: 70px !important;
       border-radius: 6px !important;
     }

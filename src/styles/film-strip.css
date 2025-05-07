@@ -148,7 +148,6 @@
 .film-frame img {
   width: calc(100% - 0px) !important;
   height: calc(100% - 0px) !important;
-  aspect-ratio: inherit !important; /* Inherit from parent */
   object-fit: cover !important; /* Cover instead of contain to fill the frame */
   object-position: center !important;
   background: #000000 !important; /* Black background before loading */
@@ -697,6 +696,44 @@
 
 .view-photos-icon {
   font-size: 20px;
+}
+
+/* Responsive styling for View Photos button on mobile */
+@media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
+  .view-photos-btn {
+    padding: 10px 16px;
+    font-size: 14px;
+    right: 10px;
+    bottom: 10px;
+    border-radius: 20px;
+  }
+  
+  .view-photos-icon {
+    font-size: 16px;
+  }
+}
+
+/* Specific adjustments for small screens in portrait mode like iPhone */
+@media (max-width: 420px) and (orientation: portrait) {
+  .view-photos-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+    right: 10px;
+    bottom: 10px;
+    border-radius: 16px;
+    max-width: 120px;
+  }
+  
+  .view-photos-icon {
+    font-size: 14px;
+  }
+  
+  .view-photos-label {
+    max-width: 80px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 
 /* Restore the placeholder animation, making sure it works */

@@ -16,6 +16,8 @@ import light1Image from './light1.png';
 import light2Image from './light2.png';
 import './App.css';
 import './styles/style-dropdown.css';
+import './styles/ios-chrome-fixes.css';
+import './styles/mobile-portrait-fixes.css'; // New critical mobile portrait fixes
 import promptsData from './prompts.json';
 import ReactDOM from 'react-dom';
 import CameraView from './components/camera/CameraView';
@@ -1488,7 +1490,75 @@ const App = () => {
   //   Main area (video)
   // -------------------------
   const renderMainArea = () => (
-    <div className="main-content-area">
+    <div className="main-content-area" style={{
+      position: 'relative',
+      width: '100vw',
+      height: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    }}>
+      {/* Style selector in top left - shown in all views */}
+      <div className="top-left-style-selector" style={{
+        position: 'fixed',
+        top: '24px',
+        left: '20px',
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+      }}>
+        <button
+          className="header-style-select global-style-btn"
+          onClick={toggleStyleDropdown}
+          ref={styleButtonReference}
+          style={{
+            all: 'unset',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontFamily: '"Permanent Marker", cursive',
+            fontSize: '14px',
+            color: '#333',
+            cursor: 'pointer',
+            padding: '8px 16px',
+            paddingRight: '24px',
+            borderRadius: '20px',
+            background: 'rgba(255, 255, 255, 0.9)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+            transition: 'all 0.2s',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.background = 'white';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)';
+            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
+          }}
+        >
+          <span className="style-text" style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {`${selectedStyle === 'custom' ? 'Custom...' : styleIdToDisplay(selectedStyle)}`}
+          </span>
+        </button>
+          
+        <StyleDropdown
+          isOpen={showStyleDropdown}
+          onClose={() => setShowStyleDropdown(false)}
+          selectedStyle={selectedStyle}
+          updateStyle={(style) => updateSetting(setSelectedStyle, 'selectedStyle')(style)}
+          defaultStylePrompts={stylePrompts}
+          showControlOverlay={showControlOverlay}
+          setShowControlOverlay={setShowControlOverlay}
+          dropdownPosition={dropdownPosition}
+          triggerButtonClass=".global-style-btn"
+        />
+      </div>
+
       {/* Display backend error if present */}
       {backendError && (
         <div className="backend-error-message" style={{
@@ -1621,72 +1691,7 @@ const App = () => {
           backgroundSize: '400% 400%, 20px 20px, 20px 20px',
           animation: 'psychedelic-shift 15s ease infinite',
         }}>
-        {/* Style Dropdown in top left corner */}
-        <div className="grid-style-selector" style={{
-          position: 'fixed',
-          top: '20px',
-          left: '20px',
-          zIndex: 9999,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-start',
-        }}>
-          <div className="style-dropdown-label" style={{
-            fontSize: '14px',
-            fontWeight: 'bold',
-            color: 'white',
-            marginBottom: '5px',
-            textShadow: '0 1px 3px rgba(0,0,0,0.4)',
-          }}>
-          </div>
-          <button
-            className="header-style-select grid-style-btn"
-            onClick={toggleStyleDropdown}
-            ref={styleButtonReference}
-            style={{
-              all: 'unset',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontFamily: '"Permanent Marker", cursive',
-              fontSize: '12px',
-              color: '#333',
-              cursor: 'pointer',
-              padding: '8px 16px',
-              paddingRight: '24px',
-              borderRadius: '20px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-              transition: 'all 0.2s',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.background = 'white';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
-            }}
-          >
-            <span className="style-text" style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {`${selectedStyle === 'custom' ? 'Custom...' : styleIdToDisplay(selectedStyle)}`}
-            </span>
-          </button>
-          
-          <StyleDropdown
-            isOpen={showStyleDropdown}
-            onClose={() => setShowStyleDropdown(false)}
-            selectedStyle={selectedStyle}
-            updateStyle={(style) => updateSetting(setSelectedStyle, 'selectedStyle')(style)}
-            defaultStylePrompts={stylePrompts}
-            showControlOverlay={showControlOverlay}
-            setShowControlOverlay={setShowControlOverlay}
-            dropdownPosition={dropdownPosition}
-            triggerButtonClass=".grid-style-btn"
-          />
-        </div>
+        {/* Style Dropdown Removed - now available globally */}
 
         {/* Back to Camera button */}
         <button
@@ -2403,7 +2408,7 @@ const App = () => {
     if (showStyleDropdown) {
       const handleClickOutside = (e) => {
         const dropdown = document.querySelector('.style-dropdown');
-        const button = document.querySelector('.header-style-select');
+        const button = document.querySelector('.global-style-btn');
         
         // If click is outside dropdown and button, close dropdown
         if (dropdown && 

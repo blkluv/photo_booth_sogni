@@ -45,7 +45,6 @@
     width: 100% !important;
     height: auto !important;
     object-fit: cover !important;
-    aspect-ratio: 3/4; /* Portrait ratio */
     display: block !important;
   }
   

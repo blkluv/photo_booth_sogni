@@ -7,7 +7,6 @@
   background: linear-gradient(135deg, #ff61d5 0%, #7132e8 100%);
   font-family: 'Arial', sans-serif;
   overflow: hidden;
-  padding: 5px !important; /* reduced padding */
 }
 
 /* Outer frame surrounding video feed, thumbnails, header etc. */
