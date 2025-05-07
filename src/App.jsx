@@ -2073,6 +2073,9 @@ const App = () => {
                 const first = element.getBoundingClientRect();
                 setSelectedPhotoIndex(null);
                 
+                // Add animating class only to this element
+                element.classList.add('animating-selection');
+                
                 // Animate back to grid position
                 requestAnimationFrame(() => {
                   const last = element.getBoundingClientRect();
@@ -2094,6 +2097,7 @@ const App = () => {
                   setTimeout(() => {
                     element.style.transition = '';
                     element.style.transform = '';
+                    element.classList.remove('animating-selection');
                   }, 500);
                 });
                 return;
@@ -2105,6 +2109,9 @@ const App = () => {
               
               // Capture starting position
               const first = element.getBoundingClientRect();
+              
+              // Add animating class only to this element
+              element.classList.add('animating-selection');
               
               // Update state to mark as selected
               setSelectedPhotoIndex(index);
@@ -2126,6 +2133,11 @@ const App = () => {
                 // Animate to final position
                 element.style.transition = 'transform 0.5s cubic-bezier(0.2, 0, 0.2, 1)';
                 element.style.transform = 'rotate(0deg)';
+                
+                // Clean up after animation
+                setTimeout(() => {
+                  element.classList.remove('animating-selection');
+                }, 500);
               });
             };
 
@@ -3232,6 +3244,50 @@ const App = () => {
             to { opacity: 1; }
           }
 
+          /* ------- UPDATED: Improve Film Frame Hover Effects ------- */
+          .film-frame {
+            transform-origin: center center !important;
+            transform: scale(1) translateZ(0) !important;
+            will-change: transform, box-shadow !important;
+            /* Remove the default transition to prevent background animations */
+          }
+          
+          /* Only apply transitions on hover/active for deliberate interaction */
+          .film-frame:hover {
+            transform: scale(1.05) translateZ(0) !important;
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25) !important;
+            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), 
+                        box-shadow 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+          }
+          
+          .film-frame:active {
+            transform: scale(0.98) translateZ(0) !important;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2) !important;
+            transition: all 0.1s ease-out !important;
+          }
+          
+          /* Ensure only the deliberately selected photo animates */
+          .film-frame.selected {
+            transform: scale(1) !important;
+          }
+          
+          /* Add transition only for the specific photo being selected/deselected */
+          .film-frame.animating-selection {
+            transition: transform 0.5s cubic-bezier(0.2, 0, 0.2, 1) !important;
+          }
+          
+          /* Improve photo label appearance */
+          .photo-label {
+            padding: 8px 0;
+            text-align: center;
+            font-size: 14px;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+          }
+
           /* ------- Responsive Polaroid Frame for Mobile ------- */
           @media (max-width: 600px) {
             .polaroid-frame {
@@ -3297,18 +3353,6 @@ const App = () => {
             100% {
               background-position: 0% 0%, 0 0, 0 0;
             }
-          }
-          
-          /* Improve the photo label */
-          .photo-label {
-            padding: 8px 0;
-            text-align: center;
-            font-size: 14px;
-            color: #333;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 100%;
           }
           
           /* Add animation for progress value changes */
