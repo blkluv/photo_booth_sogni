@@ -1337,7 +1337,8 @@ const App = () => {
     const video = videoReference.current;
     const isPortrait = window.innerHeight > window.innerWidth;
     
-    // Set canvas dimensions to 1152x896 for landscape (or 896x1152 for portrait)
+    // Set canvas dimensions to match the desired aspect ratio exactly
+    // Portrait: 896x1152 (7:9 ratio), Landscape: 1152x896 (9:7 ratio)
     if (isPortrait) {
       canvas.width = 896;
       canvas.height = 1152;
@@ -1428,6 +1429,7 @@ const App = () => {
       }
     }
 
+    // Generate initial data URL and blob
     const dataUrl = canvas.toDataURL('image/png', 1.0);
     
     // Use a quality of 1.0 and explicitly use the PNG MIME type for iOS
@@ -1440,17 +1442,43 @@ const App = () => {
       return;
     }
 
-    // For iOS Chrome, ensure the blob is fully ready by creating a new copy
-    if (isIOS) {
-      const reader = new FileReader();
-      reader.onload = async function() {
-        const arrayBuffer = this.result;
-        const newBlob = new Blob([arrayBuffer], {type: 'image/png'});
-        generateFromBlob(newBlob, photos.length, dataUrl);
-      };
-      reader.readAsArrayBuffer(blob);
-    } else {
-      generateFromBlob(blob, photos.length, dataUrl);
+    // For all devices, ensure the final image has the exact desired aspect ratio
+    // This prevents any issues with aspect ratio in the photo grid
+    const { width: targetWidth, height: targetHeight } = getCustomDimensions();
+    console.log(`Enforcing aspect ratio ${targetWidth}:${targetHeight} for captured photo`);
+    
+    try {
+      // Use centerCropImage to ensure the final image has the correct aspect ratio
+      // This is important for consistency in the photo grid view
+      const croppedBlob = await centerCropImage(blob, targetWidth, targetHeight);
+      const croppedDataUrl = await blobToDataURL(croppedBlob);
+      
+      // For iOS Chrome, ensure the blob is fully ready by creating a new copy
+      if (isIOS) {
+        const reader = new FileReader();
+        reader.onload = async function() {
+          const arrayBuffer = this.result;
+          const newBlob = new Blob([arrayBuffer], {type: 'image/png'});
+          generateFromBlob(newBlob, photos.length, croppedDataUrl);
+        };
+        reader.readAsArrayBuffer(croppedBlob);
+      } else {
+        generateFromBlob(croppedBlob, photos.length, croppedDataUrl);
+      }
+    } catch (error) {
+      console.error('Error during image cropping, using original capture:', error);
+      // Fallback to original if cropping fails
+      if (isIOS) {
+        const reader = new FileReader();
+        reader.onload = async function() {
+          const arrayBuffer = this.result;
+          const newBlob = new Blob([arrayBuffer], {type: 'image/png'});
+          generateFromBlob(newBlob, photos.length, dataUrl);
+        };
+        reader.readAsArrayBuffer(blob);
+      } else {
+        generateFromBlob(blob, photos.length, dataUrl);
+      }
     }
   };
 
