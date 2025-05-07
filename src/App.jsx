@@ -269,6 +269,9 @@ const App = () => {
             `${videoWidth}/${videoHeight}`
           );
           console.log(`Camera aspect ratio set to ${videoWidth}/${videoHeight}`);
+          
+          // Apply mirror effect for front camera
+          videoReference.current.style.transform = isFrontCamera ? 'scaleX(-1)' : 'scaleX(1)';
         }
       }
     };
@@ -281,6 +284,9 @@ const App = () => {
       if (videoElement.videoWidth) {
         handleVideoLoaded();
       }
+      
+      // Update mirror effect when front/back camera changes
+      videoElement.style.transform = isFrontCamera ? 'scaleX(-1)' : 'scaleX(1)';
     }
 
     // Cleanup
@@ -289,7 +295,7 @@ const App = () => {
         videoElement.removeEventListener('loadedmetadata', handleVideoLoaded);
       }
     };
-  }, [videoReference.current]);
+  }, [videoReference.current, isFrontCamera]);
 
   // Fix for iOS viewport height issues
   useEffect(() => {
@@ -1354,6 +1360,13 @@ const App = () => {
     let destinationWidth = canvas.width;
     let destinationHeight = canvas.height;
     
+    // Apply the mirror effect for front camera
+    if (isFrontCamera) {
+      context.save();
+      context.scale(-1, 1);
+      context.translate(-canvas.width, 0);
+    }
+    
     // If video aspect is wider than desired, crop width
     if (videoAspect > canvasAspect) {
       sourceWidth = video.videoHeight * canvasAspect;
@@ -1372,12 +1385,24 @@ const App = () => {
         destinationX, destinationY, destinationWidth, destinationHeight
       );
     }
+    
+    // Restore canvas state if we applied mirroring
+    if (isFrontCamera) {
+      context.restore();
+    }
 
     // For iOS, ensure we capture a good frame by drawing again after a small delay
     const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
     if (isIOS) {
       // Small delay to ensure the frame is fully captured before processing
       await new Promise(resolve => setTimeout(resolve, 100));
+      // Redraw the frame with mirroring if needed
+      if (isFrontCamera) {
+        context.save();
+        context.scale(-1, 1);
+        context.translate(-canvas.width, 0);
+      }
+      
       // Redraw the frame
       if (videoAspect > canvasAspect) {
         sourceWidth = video.videoHeight * canvasAspect;
@@ -1393,6 +1418,10 @@ const App = () => {
           0, sourceY, sourceWidth, sourceHeight,
           destinationX, destinationY, destinationWidth, destinationHeight
         );
+      }
+      
+      if (isFrontCamera) {
+        context.restore();
       }
     }
 
@@ -2495,6 +2524,11 @@ const App = () => {
     // Need to restart the camera with the new facing mode
     // No need to pass deviceId when toggling
     startCamera();
+    
+    // Also update the mirror effect immediately
+    if (videoReference.current) {
+      videoReference.current.style.transform = !isFrontCamera ? 'scaleX(-1)' : 'scaleX(1)';
+    }
   };
 
   // -------------------------
