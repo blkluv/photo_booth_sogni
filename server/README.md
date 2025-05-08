@@ -49,11 +49,32 @@ GET /api/sogni/status
 ```
 Tests the connection to Sogni services and returns status information.
 
+**Request Headers:**
+```
+X-Client-App-ID: your-client-app-id (optional, for reusing connections)
+```
+
+**Response:**
+```json
+{
+  "connected": true,
+  "appId": "sogni-client-appid",
+  "network": "fast",
+  "authenticated": true
+}
+```
+
 ### Generate Image
 ```
 POST /api/sogni/generate
 ```
 Initiates image generation with the Sogni API.
+
+**Request Headers:**
+```
+X-Client-App-ID: your-client-app-id (optional, for reusing connections)
+Content-Type: application/json
+```
 
 **Request Body:**
 ```json
@@ -66,7 +87,8 @@ Initiates image generation with the Sogni API.
   "numberImages": 4,
   "controlNetStrength": 0.7,
   "controlNetGuidanceEnd": 0.6,
-  "imageData": [0, 0, 0, ...] // Array of image bytes
+  "imageData": [0, 0, 0, ...], // Array of image bytes
+  "clientAppId": "your-client-app-id" // Optional, same as header
 }
 ```
 
@@ -84,6 +106,80 @@ Initiates image generation with the Sogni API.
 GET /api/sogni/progress/:projectId
 ```
 Server-Sent Events (SSE) endpoint for real-time progress updates.
+
+**Query Parameters:**
+```
+clientAppId=your-client-app-id (optional, for reusing connections)
+```
+
+**Event Types:**
+- `connected`: Initial connection confirmation
+- `progress`: Job progress update (0.0 to 1.0)
+- `jobCompleted`: Individual image generation completed
+- `jobFailed`: Individual image generation failed
+- `complete`: All images in the project completed
+- `error`: Project-level error
+
+### Cancel Project
+```
+POST /api/sogni/cancel/:projectId
+```
+Cancels an ongoing generation project.
+
+**Request Headers:**
+```
+X-Client-App-ID: your-client-app-id (optional, for reusing connections)
+Content-Type: application/json
+```
+
+**Response:**
+```json
+{
+  "status": "cancelled",
+  "projectId": "project-123456789"
+}
+```
+
+### Disconnect Session
+```
+POST /api/sogni/disconnect
+```
+Explicitly disconnects a client session to clean up WebSocket connections.
+
+**Request Headers:**
+```
+X-Client-App-ID: your-client-app-id (optional, for reusing connections)
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "clientAppId": "your-client-app-id" // Optional, same as header
+}
+```
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
+
+## Session Handling
+
+The server implements automatic session management to track client connections:
+
+1. **Session Cookies**: A secure cookie (`sogni_session_id`) is created for each client
+2. **Client Tracking**: Each session is associated with a Sogni client instance
+3. **Connection Reuse**: The same WebSocket connection is reused across requests from the same session
+4. **Automatic Cleanup**: Idle sessions are automatically cleaned up after a timeout period
+
+Benefits:
+- Reduces redundant connections to the Sogni API
+- Maintains WebSocket connection state between requests
+- Properly handles client cleanup when sessions end
+- Improves performance by reusing authentication
 
 ## Troubleshooting
 
@@ -150,10 +246,17 @@ This means users can access the application at `https://photobooth-local.sogni.a
 
 If you're getting CORS errors when the frontend tries to communicate with the backend:
 
-1. Make sure the server is running on the correct port
-2. Check that the CORS configuration in `server/index.js` includes your frontend domain
-3. Ensure your frontend is configured to send CORS credentials (`credentials: 'include'`)
-4. Check the server logs for CORS debugging information
+1. **Check Origin Configuration**: Ensure `CLIENT_ORIGIN` in your `.env` file matches your frontend origin
+2. **Request Headers**: Make sure frontend requests include `credentials: 'include'` to send cookies
+3. **CORS Headers**: The server adds these headers for cross-origin requests:
+   ```
+   Access-Control-Allow-Origin: [matching the request origin]
+   Access-Control-Allow-Credentials: true
+   Access-Control-Allow-Methods: GET, POST, OPTIONS
+   Access-Control-Allow-Headers: Content-Type, X-Client-App-ID, Accept
+   ```
+4. **Preflight Requests**: For OPTIONS requests, the server returns 204 No Content with appropriate CORS headers
+5. **Cookie Issues**: For cross-domain HTTPS, ensure cookies use `SameSite=None; Secure=true`
 
 ## Testing and Diagnostics
 
@@ -173,6 +276,86 @@ cd server
 
 The frontend should use the API service to communicate with these endpoints instead of directly using the Sogni SDK. This ensures sensitive credentials are kept secure on the server.
 
+### Integration Steps:
+
+1. **API Service**: Create a frontend service that handles API communication:
+   ```javascript
+   // Example of API service in frontend (api.ts)
+   const API_URL = '/api';
+   
+   // Get client app ID from cookie or generate one
+   const getClientAppId = () => {
+     // Check for existing cookie or generate UUID
+     return clientAppId;
+   };
+   
+   // Status Check
+   export async function checkStatus() {
+     const response = await fetch(`${API_URL}/sogni/status`, {
+       credentials: 'include',
+       headers: {
+         'X-Client-App-ID': getClientAppId()
+       }
+     });
+     return response.json();
+   }
+   
+   // Generate Images
+   export async function generateImages(params) {
+     const response = await fetch(`${API_URL}/sogni/generate`, {
+       method: 'POST',
+       credentials: 'include',
+       headers: {
+         'Content-Type': 'application/json',
+         'X-Client-App-ID': getClientAppId()
+       },
+       body: JSON.stringify({
+         ...params,
+         clientAppId: getClientAppId()
+       })
+     });
+     return response.json();
+   }
+   ```
+
+2. **Progress Tracking**: Use EventSource for real-time updates:
+   ```javascript
+   function trackProgress(projectId, callbacks) {
+     const eventSource = new EventSource(
+       `${API_URL}/sogni/progress/${projectId}?clientAppId=${getClientAppId()}`,
+       { withCredentials: true }
+     );
+     
+     eventSource.onmessage = (event) => {
+       const data = JSON.parse(event.data);
+       // Handle different event types
+       if (data.type === 'progress') callbacks.onProgress(data);
+       else if (data.type === 'complete') {
+         callbacks.onComplete(data);
+         eventSource.close();
+       }
+       // ...handle other event types
+     };
+     
+     return {
+       cancel: () => eventSource.close()
+     };
+   }
+   ```
+
+3. **Client Cleanup**: Implement disconnect on page unload:
+   ```javascript
+   window.addEventListener('beforeunload', () => {
+     // Use navigator.sendBeacon for reliable unload requests
+     if (navigator.sendBeacon) {
+       navigator.sendBeacon(
+         `${API_URL}/sogni/disconnect`,
+         JSON.stringify({ clientAppId: getClientAppId() })
+       );
+     }
+   });
+   ```
+
 ## Deployment
 
 For production deployment, build the frontend with:
@@ -182,3 +365,9 @@ npm run build
 ```
 
 Then deploy both the frontend static files and this backend server to your hosting environment. 
+
+When deploying:
+1. Set up appropriate environment variables on the server
+2. Configure your web server (Nginx, Apache) to proxy API requests to the Node.js server
+3. Ensure WebSocket connections are properly supported in your hosting environment
+4. Configure appropriate CORS settings for your production domains 
