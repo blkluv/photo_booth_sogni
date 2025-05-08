@@ -1,5 +1,6 @@
 import express from 'express';
-import { getClientInfo, generateImage, initializeSogniClient, cleanupSogniClient } from '../services/sogni.js';
+import { getClientInfo, generateImage, initializeSogniClient, cleanupSogniClient, getSessionClient, disconnectSessionClient } from '../services/sogni.js';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
 
@@ -9,6 +10,28 @@ const activeProjects = new Map();
 // Timer for delayed Sogni cleanup
 let sogniCleanupTimer = null;
 const SOGNI_CLEANUP_DELAY_MS = 30 * 1000; // 30 seconds
+
+// Middleware to ensure session ID cookie exists
+const ensureSessionId = (req, res, next) => {
+  const sessionCookieName = 'sogni_session_id';
+  let sessionId = req.cookies?.[sessionCookieName];
+  
+  // If no session ID exists, create one
+  if (!sessionId) {
+    sessionId = `sid-${uuidv4()}`;
+    // Set cookie with long expiry (30 days) and httpOnly for security
+    res.cookie(sessionCookieName, sessionId, {
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // Only secure in production
+      sameSite: 'lax' // Helps with CSRF protection
+    });
+  }
+  
+  // Attach session ID to request for use in route handlers
+  req.sessionId = sessionId;
+  next();
+};
 
 // Helper function to send SSE messages
 const sendSSEMessage = (client, data) => {
@@ -26,9 +49,19 @@ const sendSSEMessage = (client, data) => {
 };
 
 // Test connection to Sogni
-router.get('/status', async (req, res) => {
+router.get('/status', ensureSessionId, async (req, res) => {
   try {
-    const status = await getClientInfo();
+    // Get or create client for this session
+    const client = await getSessionClient(req.sessionId);
+    
+    const status = {
+      connected: true,
+      sessionId: req.sessionId,
+      appId: client.appId,
+      network: client.network,
+      authenticated: client.account.isLoggedIn
+    };
+    
     res.json(status);
   } catch (error) {
     console.error('Error getting Sogni client status:', error);
@@ -80,7 +113,7 @@ router.get('/status', async (req, res) => {
 });
 
 // SSE endpoint for getting real-time progress updates
-router.get('/progress/:projectId', (req, res) => {
+router.get('/progress/:projectId', ensureSessionId, (req, res) => {
   const projectId = req.params.projectId;
   
   // Log request info for debugging
@@ -168,7 +201,14 @@ router.get('/progress/:projectId', (req, res) => {
   
   // If the connection fails to establish properly, clean up
   req.on('error', (err) => {
-    console.error(`SSE connection error for project ${projectId}:`, err);
+    // ECONNRESET errors are common when browsers close connections
+    // so we'll log them at a lower level
+    if (err && err.code === 'ECONNRESET') {
+      console.log(`SSE connection for project ${projectId} was reset by the client`);
+    } else {
+      console.error(`SSE connection error for project ${projectId}:`, err);
+    }
+    
     clearInterval(heartbeatInterval);
     
     if (activeProjects.has(projectId)) {
@@ -209,14 +249,17 @@ router.get('/progress/:projectId', (req, res) => {
 });
 
 // Add project cancellation endpoint
-router.post('/cancel/:projectId', async (req, res) => {
+router.post('/cancel/:projectId', ensureSessionId, async (req, res) => {
   const projectId = req.params.projectId;
   
   try {
-    // Implement project cancellation logic
-    console.log(`Request to cancel project ${projectId}`);
-    const client = await initializeSogniClient();
-    await client.cancelProject(projectId);
+    // Get the existing client for this session
+    const client = await getSessionClient(req.sessionId);
+    
+    console.log(`Request to cancel project ${projectId} for session ${req.sessionId}`);
+    
+    // Cancel the project using the session's client
+    await client.projects.cancel(projectId);
     
     // Notify any connected clients
     if (activeProjects.has(projectId)) {
@@ -236,10 +279,10 @@ router.post('/cancel/:projectId', async (req, res) => {
 });
 
 // Generate image with project tracking
-router.post('/generate', async (req, res) => {
+router.post('/generate', ensureSessionId, async (req, res) => {
   // Create a unique project ID for tracking this specific /generate request
   const localProjectId = `project-${Date.now()}`;
-  console.log(`[${localProjectId}] Starting image generation request...`);
+  console.log(`[${localProjectId}] Starting image generation request for session ${req.sessionId}...`);
   
   try {
     // Track progress and send updates
@@ -293,12 +336,41 @@ router.post('/generate', async (req, res) => {
       }
     };
     
-    // Start the generation process
-    // generateImage returns a promise that resolves with Sogni's actual project ID and result URLs
-    generateImage(req.body, progressHandler)
+    // Get or create a client for this session
+    const client = await getSessionClient(req.sessionId);
+    
+    // Start the generation process using the session's client
+    const params = req.body;
+    
+    // Instead of directly creating a project, use the generateImage function 
+    // which already has all the proper event listeners set up
+    generateImage(params, progressHandler)
       .then(sogniResult => {
-        console.log(`[${localProjectId}] Sogni generation process finished. Sogni Project ID: ${sogniResult.projectId}, Result URLs:`, JSON.stringify(sogniResult.result));
-        // When complete, notify any connected SSE clients for this localProjectId
+        console.log(`[${localProjectId}] Sogni generation process finished. Sogni Project ID: ${sogniResult.projectId}, Result URLs:`, JSON.stringify(sogniResult.result?.imageUrls || []));
+        
+        // Check if results are empty
+        if (!sogniResult.result?.imageUrls || sogniResult.result.imageUrls.length === 0) {
+          console.warn(`[${localProjectId}] Received empty result URLs from Sogni project ${sogniResult.projectId}`);
+          
+          // Send error event instead of complete for empty results
+          if (activeProjects.has(localProjectId)) {
+            const clients = activeProjects.get(localProjectId);
+            const errorEvent = { 
+              type: 'error', 
+              projectId: localProjectId,
+              sogniProjectId: sogniResult.projectId,
+              message: 'Generation completed but no images were produced',
+              details: 'The server received empty result URLs from Sogni'
+            };
+            console.log(`[${localProjectId}] Sending 'error' event for empty results to ${clients.size} SSE client(s)`);
+            clients.forEach((client) => {
+              sendSSEMessage(client, errorEvent);
+            });
+          }
+          return;
+        }
+        
+        // When complete with valid results, notify connected SSE clients
         if (activeProjects.has(localProjectId)) {
           const clients = activeProjects.get(localProjectId);
           const completionEvent = {
@@ -310,8 +382,6 @@ router.post('/generate', async (req, res) => {
           console.log(`[${localProjectId}] Sending 'complete' event to ${clients.size} SSE client(s):`, JSON.stringify(completionEvent));
           clients.forEach((client) => {
             sendSSEMessage(client, completionEvent);
-            // Optionally close the connection from the server side after completion
-            // client.end(); 
           });
         }
       })
@@ -352,9 +422,20 @@ router.post('/generate', async (req, res) => {
 router.get('/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
-    uptime: process.uptime(),
     timestamp: new Date().toISOString()
   });
+});
+
+// Add an endpoint to explicitly disconnect a session when the user leaves
+router.post('/disconnect', ensureSessionId, async (req, res) => {
+  try {
+    console.log(`Explicit disconnect request for session ${req.sessionId}`);
+    await disconnectSessionClient(req.sessionId);
+    res.json({ status: 'disconnected', sessionId: req.sessionId });
+  } catch (error) {
+    console.error(`Error disconnecting session ${req.sessionId}:`, error);
+    res.status(500).json({ error: 'Failed to disconnect session', message: error.message });
+  }
 });
 
 export default router; 

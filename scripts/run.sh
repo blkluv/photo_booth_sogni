@@ -24,12 +24,16 @@ function show_help {
   echo "  frontend    - Start only the frontend development server (ensures port, kills existing)"
   echo "  status      - Show status of all services"
   echo "  ports       - Check and ensure required ports are available"
+  echo "  test        - Run test scripts with environment variables loaded from .env"
   echo ""
   echo "Examples:"
   echo "  ./scripts/run.sh restart"
   echo "  ./scripts/run.sh nginx"
   echo "  ./scripts/run.sh start"
   echo "  ./scripts/run.sh ports --force"
+  echo "  ./scripts/run.sh test connection   # Run the connection test"
+  echo "  ./scripts/run.sh test cleanup      # Run the cleanup test"
+  echo "  ./scripts/run.sh test idle         # Run the idle timeout test"
   echo ""
 }
 
@@ -126,6 +130,39 @@ function start_all {
   start_frontend
 }
 
+# Run test scripts
+function run_test {
+  if [ -z "$1" ]; then
+    echo "Available tests:"
+    echo "  connection - Test Sogni connection with credentials from .env"
+    echo "  cleanup    - Test socket cleanup functionality"
+    echo "  idle       - Test idle timeout functionality"
+    echo ""
+    echo "Usage: ./scripts/run.sh test <test-name>"
+    exit 1
+  fi
+  
+  case "$1" in
+    connection)
+      echo "Running Sogni connection test..."
+      bash "$SCRIPT_DIR/scripts/util/run-env-test.sh" "$SCRIPT_DIR/scripts/util/test-sogni-connection.js" "${@:2}"
+      ;;
+    cleanup)
+      echo "Running socket cleanup test..."
+      bash "$SCRIPT_DIR/scripts/util/run-env-test.sh" "$SCRIPT_DIR/scripts/util/test-socket-cleanup.js" "${@:2}"
+      ;;
+    idle)
+      echo "Running idle timeout test..."
+      bash "$SCRIPT_DIR/scripts/util/run-env-test.sh" "$SCRIPT_DIR/scripts/util/test-idle-timeout.js" "${@:2}"
+      ;;
+    *)
+      echo "Unknown test: $1"
+      echo "Available tests: connection, cleanup, idle"
+      exit 1
+      ;;
+  esac
+}
+
 # Check if command was provided
 if [ -z "$1" ]; then
   show_help
@@ -169,6 +206,9 @@ case "$1" in
     ;;
   status)
     check_server_status
+    ;;
+  test)
+    run_test "${@:2}"
     ;;
   *)
     echo "Unknown command: $1"

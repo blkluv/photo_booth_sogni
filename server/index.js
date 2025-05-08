@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -8,6 +9,12 @@ import sogniRoutes from './routes/sogni.js';
 
 // Load environment variables
 dotenv.config();
+
+// Automatically allow self-signed certificates when in local environment
+if (process.env.SOGNI_ENV === 'local') {
+  console.log('⚠️ Local environment detected: Self-signed certificates allowed');
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -87,6 +94,9 @@ app.use((req, res, next) => {
   console.log(`DEBUG - Headers:`, JSON.stringify(req.headers));
   next();
 });
+
+// Cookie parser middleware
+app.use(cookieParser());
 
 // Body parser middleware
 app.use(bodyParser.json({ limit: '50mb' })); // Increased limit for larger images
