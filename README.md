@@ -1,49 +1,57 @@
 # Sogni Photobooth
 
-This project is a demo Sogni Node Client SDK application that leverages the Sogni Supernet to power a Photobooth application using Sogni's Instant ID Controlnet for accurate facial likeness transfer. It captures a webcam image or allows the user to upload a photo, calls the **Sogni** AI generation API, and displays generated images on the screen with support for a thumbnail gallery. It supports desktop and mobile browsers. Use of the Sogni API is secured by a back-end service that secures the Sogni account credentials.
+This is the React front-end and Node Express back-end codebase that powers Sogni's Photobooth application. This application simulates a real-world Photobooth except with much more diverse and fun outputs. It is currently live at https://photobooth.sogni.ai. It's a showcase application built using the Sogni Node Client SDK. It has been "vibe coded" in Cursor.ai to show what is possible with our white label API.
+
+It supports desktop and mobile browsers. Use of the Sogni API is secured by a back-end service that secures the Sogni account credentials.
 
 ## Features
-1. **Realtime Camera Preview**
-   - Displays your webcam feed in a polaroid style frame.
-
-2. **Style Prompts**
-   - Choose from predefined style prompts (anime, Gorillaz, Disney, pixel art, steampunk, vaporwave) or create your own.
-
-3. **Worker Assignment and Progress Events**
-   - Up to 64 prompt variations can be submitted at one time and as jobs are assigned to workers their worker node names are incorporated into the progress update events displayed in each loading polaroid. 
-
+1. **State-of-the-art Character Transfer / Identity-Preserving Stylized Synthesis**
+   - Leverages Sogni's Instant ID Controlnet for accurate facial likeness transfer. This allows the user to significantly transform themselves with AI-powered style transfer while keeping facial features super perserved.
+2. **Desktop and Mobile Support**
+   - Displays your webcam feed in a polaroid style frame or choose to upload an existing image via File Upload or Drag-n-Drop. Mobile users may use the front or rear camera on their phone or pick from their camera roll.
+3. **Sogni Supernet Parallel Processing**
+   - Each image job is sent in parallel to separate worker nodes on the DePIN Sogni Supernet AI inference network showing off the concurrency benefits of the decentralized network. Up to 64 prompt variations can be submitted at one time. As jobs are assigned to workers their worker node names are incorporated into the progress update events displayed in each loading polaroid. 
 4. **Secure Backend**
-   - Uses a Node.js backend to handle sensitive API credentials
-   - Prevents credentials from being exposed in the frontend code
+   - Uses a Node.js backend to handle sensitive Sogni Account credentials, preventing credentials from being exposed in the frontend code.
 
-## Security Setup
-
-The application uses a secure architecture:
-
-1. **Frontend-Backend Separation**:
-   - The frontend (React) never directly accesses Sogni credentials
-   - All sensitive API calls are proxied through the backend server
-
-2. **HTTPS Support**:
-   - Secure HTTPS connection for local development using SSL certificates
-   - CORS is properly configured to allow only trusted domains
-   - Works with custom domains like `photobooth-local.sogni.ai`
 
 ## Usage
 
 ### 1. Install & Set Up
 
-- Run `npm install` in the root directory to install dependencies for both frontend and backend.
+- Install dependencies:
+  ```bash
+  # Install frontend dependencies and automatically install backend dependencies
+  # (uses the npm prepare hook which runs server:install)
+  npm install
+  ```
+  
+  This will:
+  1. Install all frontend dependencies in the root directory
+  2. Automatically trigger the prepare script which installs backend dependencies
+  
+  If you prefer to install them separately:
+  ```bash
+  # Install frontend dependencies
+  npm install
+  
+  # Install backend dependencies manually
+  cd server
+  npm install
+  cd ..
+  ```
+
 - Set up your Sogni credentials by copying `server/.env.example` to `server/.env` and editing the values:
   ```bash
   # server/.env
-  SOGNI_APP_ID=YourSogniAppID
+  SOGNI_APP_ID=YourSogniAppID (you may customize this or leave it blank)
   SOGNI_USERNAME=YourUsername
   SOGNI_PASSWORD=YourPassword
   SOGNI_ENV=production # or staging/local
   PORT=3001 # Port for the backend server
   CLIENT_ORIGIN=https://photobooth-local.sogni.ai # Allowed frontend origin
   ```
+
 - **Local Domain (Optional but Recommended):** Ensure Nginx and local SSL are set up (see "Local Development Setup" below) to use the clean URL `https://photobooth-local.sogni.ai`. Otherwise, you may need to access the frontend directly via `http://localhost:5175` (if Nginx isn't running/configured).
 
 ### 2. Run the App (Development Mode)
@@ -105,15 +113,6 @@ tail -f logs/backend.log
 
 The project includes several utility scripts managed by `./scripts/run.sh`. See `scripts/README.md` for details on all commands (`status`, `ports`, `fix`, `nginx`, `restart`, etc.).
 
-### 4. Camera Permissions
-   - The browser will ask for permission to use your webcam.
-   - In the "Settings" panel, you can switch to another camera device if multiple are available.
-
-### 5. Generate
-   - Click **Take Photo**.
-   - A quick 3-second countdown occurs (with an optional flash overlay).
-   - Generation progress will show on the thumbnail placeholders.
-
 ## Project Structure
 
 - **/src**: Frontend React application code.
@@ -167,7 +166,7 @@ tail -f /opt/homebrew/var/log/nginx/error.log
 tail -f /opt/homebrew/var/log/nginx/access.log
 ```
 
-### Setup SSL for Local Development
+### Setup SSL for Local Development (Note many of these test domains are only relevant for local Sogni devs running more services locally)
 
 1. Create a directory for your SSL certificates:
 ```bash
@@ -236,20 +235,6 @@ Note: After adding the certificate to your keychain, you might need to:
 
 ```bash
 npm install
-```
-
-### Environment Variables
-
-Create a `.env` file in the **`server/`** directory (copy from `server/.env.example`) with your Sogni credentials and configuration:
-
-```dotenv
-# server/.env
-SOGNI_APP_ID=YourSogniAppID
-SOGNI_USERNAME=YourUsername
-SOGNI_PASSWORD=YourPassword
-SOGNI_ENV=production # or staging/local
-PORT=3001
-CLIENT_ORIGIN=https://photobooth-local.sogni.ai
 ```
 
 ## Building for Production
