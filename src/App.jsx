@@ -395,7 +395,24 @@ const App = () => {
     } catch (error) {
       console.error('Failed initializing Sogni client:', error);
       
-      // Set a user-friendly error message
+      // Don't show an error for throttling, it's expected during initialization
+      if (error.message === 'Status check throttled') {
+        console.log('Status check throttled, will use cached status');
+        // If we have a previous client, keep using it
+        if (sogniClient) {
+          console.log('Using existing Sogni client');
+          setIsSogniReady(true);
+          return;
+        }
+        // Otherwise retry after a short delay
+        setTimeout(() => {
+          console.log('Retrying Sogni initialization after throttle');
+          initializeSogni();
+        }, 1000);
+        return;
+      }
+      
+      // Set a user-friendly error message for real issues
       if (error.message && error.message.includes('Failed to fetch')) {
         setBackendError('The backend server is not running. Please start it using "npm run server:dev" in a separate terminal.');
       } else if (error.message && error.message.includes('401')) {
@@ -583,7 +600,52 @@ const App = () => {
     };
     
     initializeCamera();
+    
+    // Return cleanup function to disconnect Sogni client when component unmounts
+    return () => {
+      if (sogniClient) {
+        console.log('App component unmounting, disconnecting Sogni client');
+        
+        // Use the client's disconnect method directly
+        sogniClient.disconnect().catch(error => {
+          console.warn('Error during cleanup disconnect:', error);
+        });
+        
+        // Also attempt to disconnect all instances as a fallback
+        if (sogniClient.constructor && typeof sogniClient.constructor.disconnectAll === 'function') {
+          console.log('Calling disconnectAll for cleanup');
+          sogniClient.constructor.disconnectAll().catch(error => {
+            console.warn('Error during disconnectAll cleanup:', error);
+          });
+        }
+      }
+    };
   }, [listCameras, startCamera, selectedCameraDeviceId]);
+  
+  // Add an effect specifically for page unload/refresh cleanup
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (sogniClient) {
+        console.log('Page unloading, triggering final cleanup');
+        
+        if (sogniClient.constructor && typeof sogniClient.constructor.disconnectAll === 'function') {
+          // Call disconnectAll synchronously to ensure it runs before page unload
+          try {
+            sogniClient.constructor.disconnectAll();
+          } catch (error) {
+            console.warn('Error during page unload cleanup:', error);
+          }
+        }
+      }
+    };
+    
+    // Use the capture phase to ensure our handler runs first
+    window.addEventListener('beforeunload', handleBeforeUnload, { capture: true });
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload, { capture: true });
+    };
+  }, [sogniClient]);
 
   // If we return to camera, ensure the video is playing
   useEffect(() => {

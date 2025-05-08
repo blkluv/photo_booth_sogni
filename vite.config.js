@@ -81,14 +81,26 @@ export default defineConfig(({ mode }) => {
         origin: ["https://photobooth-local.sogni.ai", "http://localhost:5175"],
         methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         credentials: true,
-        allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
+        allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "X-Client-App-ID"]
       },
       proxy: {
         '/api': {
           target: 'http://localhost:3001',
           changeOrigin: true,
           secure: false,
-          rewrite: path => path.replace(/^\/api/, ''), 
+          rewrite: path => path.replace(/^\/api/, ''),
+          configure: (proxy, options) => {
+            // Ensure proxy headers are properly passed for CORS
+            proxy.on('proxyReq', (proxyReq, req, res) => {
+              // Copy all headers from the original request
+              if (req.headers.origin) {
+                proxyReq.setHeader('Origin', req.headers.origin);
+              }
+              if (req.headers['x-client-app-id']) {
+                proxyReq.setHeader('X-Client-App-ID', req.headers['x-client-app-id']);
+              }
+            });
+          }
         }
       }
     },

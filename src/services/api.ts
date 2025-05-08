@@ -2,48 +2,327 @@
  * API service for communicating with the backend
  */
 import urls from '../config/urls';
+import { v4 as uuidv4 } from 'uuid';
 
 // Use the configured API URL from the urls config
 const API_BASE_URL = urls.apiUrl;
+
+// App ID management
+const APP_ID_COOKIE_NAME = 'sogni_app_id';
+
+// Function to get or generate an app ID and store it in a cookie
+const getOrCreateAppId = (): string => {
+  if (typeof document === 'undefined') return '';
+
+  // Try to get existing app ID from cookie
+  const cookies = document.cookie.split(';');
+  const appIdCookie = cookies.find(cookie => cookie.trim().startsWith(`${APP_ID_COOKIE_NAME}=`));
+  
+  if (appIdCookie) {
+    const appId = appIdCookie.split('=')[1].trim();
+    console.log(`Using existing app ID from cookie: ${appId}`);
+    return appId;
+  }
+  
+  // Generate a new app ID if none exists
+  const appPrefix = 'photobooth';
+  const newAppId = `${appPrefix}-${uuidv4()}`;
+  
+  // Store in cookie with long expiration (30 days)
+  const expiryDate = new Date();
+  expiryDate.setDate(expiryDate.getDate() + 30);
+  
+  // Set the cookie with secure attributes
+  const isSecure = window.location.protocol === 'https:';
+  document.cookie = `${APP_ID_COOKIE_NAME}=${newAppId};path=/;max-age=${30*24*60*60};${isSecure ? 'secure;' : ''}samesite=lax`;
+  
+  console.log(`Generated new app ID and stored in cookie: ${newAppId}`);
+  return newAppId;
+};
+
+// Get the app ID on module load
+export const clientAppId = typeof window !== 'undefined' ? getOrCreateAppId() : '';
+
+// Simple debounce implementation to prevent rapid duplicate calls
+const debounce = <F extends (...args: any[]) => any>(
+  func: F,
+  wait: number
+): ((...args: Parameters<F>) => void) => {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  
+  return function debouncedFunction(...args: Parameters<F>) {
+    if (timeout !== null) {
+      clearTimeout(timeout);
+    }
+    
+    timeout = setTimeout(() => {
+      func(...args);
+      timeout = null;
+    }, wait);
+  };
+};
+
+// Keep track of last status check to avoid duplicate calls
+let lastStatusCheckTime = 0;
+const STATUS_CHECK_THROTTLE_MS = 2000; // 2 seconds
+
+// Track if we've connected to Sogni at least once in this session
+let hasConnectedToSogni = false;
+
+// Use a pending promise mechanism to avoid duplicate status checks
+let pendingStatusCheck: Promise<any> | null = null;
+
+// Track if we've already sent a disconnect signal
+let hasDisconnectedBeforeUnload = false;
+
+// Track recent disconnect attempts by client ID to prevent duplicates
+const recentDisconnects = new Set<string>();
+const DISCONNECT_CACHE_TTL = 3000; // 3 seconds
+
+// Setup disconnect on page unload to prevent lingering WebSocket connections
+const setupDisconnectHandlers = () => {
+  if (typeof window !== 'undefined') {
+    // Handle both beforeunload (user closing page) and unload (actual unload)
+    const handleUnload = () => {
+      // Avoid sending multiple disconnect requests
+      if (hasDisconnectedBeforeUnload) {
+        console.log('Already sent disconnect request, skipping additional request');
+        return;
+      }
+      hasDisconnectedBeforeUnload = true;
+      
+      // Only try to disconnect if we've connected at least once
+      if (!hasConnectedToSogni) {
+        console.log('No Sogni connection established, skipping disconnect');
+        return;
+      }
+      
+      // Add to recent disconnects to prevent duplicate calls
+      if (clientAppId) {
+        recentDisconnects.add(clientAppId);
+      }
+      
+      // Strategy 1: Use GET with query params to ensure app ID is included
+      const url = `${API_BASE_URL}/sogni/disconnect?clientAppId=${encodeURIComponent(clientAppId)}&_t=${Date.now()}`;
+      
+      // Use the GET endpoint for more reliable unload handling
+      // The browser will more reliably send GET requests during unload
+      const img = new Image();
+      img.src = url;
+      
+      // Strategy 2: For modern browsers that support Beacon API 
+      if (navigator.sendBeacon) {
+        // Create a blob with the client app ID
+        const blob = new Blob([JSON.stringify({ clientAppId })], { type: 'application/json' });
+        navigator.sendBeacon(`${API_BASE_URL}/sogni/disconnect`, blob);
+      }
+      
+      // Strategy 3: As a last resort, try a synchronous XHR (might not work in modern browsers)
+      try {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', url, false); // Synchronous request
+        xhr.withCredentials = true; // Include cookies
+        xhr.send();
+      } catch (e) {
+        // Ignore errors - this is a best-effort attempt
+      }
+      
+      console.log('Sent disconnect request before page unload');
+    };
+    
+    // Throttled version of the unload handler
+    const throttledUnload = (event: BeforeUnloadEvent | Event) => {
+      handleUnload();
+      
+      // In case of beforeunload, allow the page to exit normally
+      if (event.type === 'beforeunload') {
+        delete event.returnValue;
+      }
+    };
+    
+    window.addEventListener('beforeunload', throttledUnload);
+    window.addEventListener('unload', throttledUnload);
+    
+    console.log('Disconnect handlers installed for window unload events');
+    
+    // Call checkSogniStatus once on page load to establish a session
+    setTimeout(() => {
+      checkSogniStatus()
+        .then(() => {
+          hasConnectedToSogni = true;
+          console.log('Initial Sogni connection established');
+        })
+        .catch(err => {
+          console.warn('Failed to establish initial Sogni connection:', err);
+        });
+    }, 1000); // Delay status check slightly to allow page to render first
+  }
+};
+
+// Initialize disconnect handlers immediately
+setupDisconnectHandlers();
+
+/**
+ * Explicitly disconnect the current session from the server
+ * Useful when manually cleaning up resources
+ */
+export async function disconnectSession(): Promise<boolean> {
+  try {
+    // Skip if we never connected
+    if (!hasConnectedToSogni) {
+      console.log('No active Sogni connection to disconnect');
+      return true;
+    }
+    
+    // Avoid redundant disconnects for the same client ID
+    if (clientAppId && recentDisconnects.has(clientAppId)) {
+      console.log(`Skipping redundant disconnect for client ${clientAppId} (recently disconnected)`);
+      return true;
+    }
+    
+    console.log('Explicitly disconnecting from Sogni...');
+    
+    // Set the flag to avoid duplicate disconnects on unload
+    hasDisconnectedBeforeUnload = true;
+    
+    // Add to recent disconnects to prevent duplicate calls
+    if (clientAppId) {
+      recentDisconnects.add(clientAppId);
+      
+      // Clear after timeout
+      setTimeout(() => {
+        recentDisconnects.delete(clientAppId);
+      }, DISCONNECT_CACHE_TTL);
+    }
+    
+    // Multiple strategies for reliable disconnection
+    const results = await Promise.allSettled([
+      // Strategy 1: POST with JSON body and headers
+      fetch(`${API_BASE_URL}/sogni/disconnect`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'X-Client-App-ID': clientAppId
+        },
+        body: JSON.stringify({ clientAppId })
+      }),
+      
+      // Strategy 2: GET with query params as backup
+      fetch(`${API_BASE_URL}/sogni/disconnect?clientAppId=${encodeURIComponent(clientAppId)}&_t=${Date.now()}`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'X-Client-App-ID': clientAppId
+        }
+      })
+    ]);
+    
+    // Check if at least one method succeeded
+    const anySuccess = results.some(result => 
+      result.status === 'fulfilled' && 
+      (result.value as Response).ok
+    );
+    
+    if (anySuccess) {
+      console.log('Successfully disconnected from Sogni');
+      return true;
+    } else {
+      // Check for auth errors and log them, but don't treat as failures
+      const authErrors = results.filter(result => 
+        result.status === 'fulfilled' && 
+        (result.value as Response).status === 401
+      );
+      
+      if (authErrors.length > 0) {
+        console.log('Disconnect received 401 authentication error, but this is common during cleanup');
+        // Return true since the server will clean up the session regardless
+        return true;
+      }
+      
+      console.warn('Disconnect failed with errors on all methods');
+      return false;
+    }
+  } catch (error) {
+    console.error('Error during explicit disconnect:', error);
+    return false;
+  }
+}
 
 /**
  * Check Sogni connection status
  */
 export async function checkSogniStatus() {
-  try {
-    console.log('Checking Sogni status...');
-    const response = await fetch(`${API_BASE_URL}/sogni/status`, {
-      credentials: 'include', // Include credentials for cross-origin requests
-      headers: {
-        'Accept': 'application/json',
-      }
-    });
-    
-    // Handle error responses
-    if (!response.ok) {
-      // Try to get the error details from the response
-      let errorDetails = '';
-      try {
-        const errorData = await response.json();
-        errorDetails = errorData.message || errorData.error || 'Unknown error';
-        console.error('Status check failed:', errorData);
-      } catch (e) {
-        // If we can't parse the JSON, just use the status text
-        errorDetails = response.statusText;
-        console.error('Error parsing response:', e);
+  const now = Date.now();
+  
+  // If there's already a pending check, return that promise
+  if (pendingStatusCheck) {
+    console.log('Using existing pending status check');
+    return pendingStatusCheck;
+  }
+  
+  // Throttle frequent calls - use cached result if within threshold
+  if (now - lastStatusCheckTime < STATUS_CHECK_THROTTLE_MS) {
+    console.log(`Status check throttled - last check was ${Math.floor((now - lastStatusCheckTime)/1000)}s ago`);
+    // Instead of throwing, return a rejected promise with a specific error
+    return Promise.reject(new Error('Status check throttled'));
+  }
+  
+  // Mark the time of this check attempt
+  lastStatusCheckTime = now;
+  
+  // Create a new promise for this check
+  pendingStatusCheck = (async () => {
+    try {
+      console.log('Checking Sogni status...');
+      const response = await fetch(`${API_BASE_URL}/sogni/status`, {
+        credentials: 'include', // Include credentials for cross-origin requests
+        headers: {
+          'Accept': 'application/json',
+          'X-Client-App-ID': clientAppId, // Add client app ID as header
+        }
+      });
+      
+      // Handle error responses
+      if (!response.ok) {
+        // Try to get the error details from the response
+        let errorDetails = '';
+        try {
+          const errorData = await response.json();
+          errorDetails = errorData.message || errorData.error || 'Unknown error';
+          console.error('Status check failed:', errorData);
+        } catch (e) {
+          // If we can't parse the JSON, just use the status text
+          errorDetails = response.statusText;
+          console.error('Error parsing response:', e);
+        }
+        
+        // Throw an error with status code and message
+        throw new Error(`${response.status} ${errorDetails}`);
       }
       
-      // Throw an error with status code and message
-      throw new Error(`${response.status} ${errorDetails}`);
+      const data = await response.json();
+      console.log('Sogni status check successful:', data);
+      
+      // Mark that we have successfully connected at least once
+      hasConnectedToSogni = true;
+      
+      return data;
+    } catch (error) {
+      console.error('Error checking Sogni status:', error);
+      throw error;
+    } finally {
+      // Clear the pending promise after a short delay
+      // This prevents immediate retries but allows future checks
+      setTimeout(() => {
+        pendingStatusCheck = null;
+      }, 500);
     }
-    
-    const data = await response.json();
-    console.log('Sogni status check successful:', data);
-    return data;
-  } catch (error) {
-    console.error('Error checking Sogni status:', error);
-    throw error;
-  }
+  })();
+  
+  return pendingStatusCheck;
 }
 
 /**
@@ -182,15 +461,22 @@ export async function generateImage(params: any, progressCallback?: (progress: a
   try {
     console.log(`Making request to: ${API_BASE_URL}/sogni/generate`);
     
+    // Include client app ID in the params
+    const requestParams = {
+      ...params,
+      clientAppId // Add the client app ID
+    };
+    
     // Start the generation process
     const response = await fetch(`${API_BASE_URL}/sogni/generate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        'X-Client-App-ID': clientAppId, // Also add as header
       },
       credentials: 'include', // Include credentials for cross-origin requests
-      body: JSON.stringify(params),
+      body: JSON.stringify(requestParams),
     });
     
     if (!response.ok) {
@@ -198,6 +484,9 @@ export async function generateImage(params: any, progressCallback?: (progress: a
     }
     
     const { projectId, status } = await response.json();
+    
+    // Mark that we have successfully connected
+    hasConnectedToSogni = true;
     
     if (status !== 'processing' || !projectId) {
       throw new Error('Failed to start image generation');
@@ -248,7 +537,9 @@ export async function generateImage(params: any, progressCallback?: (progress: a
         clearAllTimers();
         safelyCloseEventSource();
         
-        const progressUrl = `${API_BASE_URL}/sogni/progress/${projectId}`;
+        // Add client app ID to the URL as a query parameter for more reliable passing 
+        // through proxies and better debugging
+        const progressUrl = `${API_BASE_URL}/sogni/progress/${projectId}?clientAppId=${encodeURIComponent(clientAppId)}`;
         console.log(`Connecting to progress stream: ${progressUrl} (attempt ${retryCount + 1})`);
         
         // Create the EventSource with the with-credentials flag for CORS

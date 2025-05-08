@@ -5,7 +5,7 @@
  * instead of directly using the Sogni SDK in the frontend.
  */
 
-import { createProject as apiCreateProject, checkSogniStatus, cancelProject } from './api';
+import { createProject as apiCreateProject, checkSogniStatus, cancelProject, clientAppId, disconnectSession } from './api';
 
 // Shared interface for events
 interface SogniEventEmitter {
@@ -175,6 +175,12 @@ export class BackendSogniClient {
     on: (event: string, callback: Function) => void;
   };
   private activeProjects: Map<string, BackendProject> = new Map();
+  private isDisconnecting: boolean = false;
+  
+  // Track all client instances for proper cleanup
+  private static instances: Map<string, BackendSogniClient> = new Map();
+  private static isGlobalCleanup: boolean = false;
+  private static disconnectTimeout: NodeJS.Timeout | null = null;
   
   constructor(appId: string) {
     this.appId = appId;
@@ -190,6 +196,10 @@ export class BackendSogniClient {
       login: async () => {
         this.account.isLoggedInValue = true;
         return true;
+      },
+      logout: async () => {
+        this.account.isLoggedInValue = false;
+        return this.disconnect();
       }
     };
     
@@ -200,6 +210,156 @@ export class BackendSogniClient {
         // This would handle global project events if needed
       }
     };
+    
+    // Add window unload handler to properly disconnect
+    if (typeof window !== 'undefined') {
+      const disconnectHandler = () => {
+        // Only disconnect once
+        if (!this.isDisconnecting) {
+          this.disconnect();
+        }
+      };
+      
+      // Use capture: true to ensure our handler runs before other handlers
+      window.addEventListener('beforeunload', disconnectHandler, { capture: true });
+      window.addEventListener('unload', disconnectHandler, { capture: true });
+      
+      // Track this instance
+      if (this.appId) {
+        BackendSogniClient.instances.set(this.appId, this);
+        console.log(`Registered BackendSogniClient instance with appId: ${this.appId}`);
+      }
+    }
+  }
+  
+  /**
+   * Disconnect the client and clean up resources
+   * Should be called when the component unmounts or the page is about to unload
+   */
+  async disconnect(): Promise<boolean> {
+    // Prevent double disconnection
+    if (this.isDisconnecting) {
+      console.log(`BackendSogniClient ${this.appId} already disconnecting, skipping redundant call`);
+      return true;
+    }
+    
+    // Mark as disconnecting immediately to prevent multiple calls
+    this.isDisconnecting = true;
+    
+    try {
+      console.log(`Disconnecting BackendSogniClient for appId: ${this.appId || 'unknown'}`);
+      
+      // First cancel any active projects
+      const activeProjectIds = Array.from(this.activeProjects.keys());
+      if (activeProjectIds.length > 0) {
+        console.log(`Cancelling ${activeProjectIds.length} active projects before disconnecting`);
+        
+        // Cancel projects in parallel
+        await Promise.allSettled(
+          activeProjectIds.map(projectId => this.cancelProject(projectId))
+        );
+        
+        // Clear the active projects map
+        this.activeProjects.clear();
+      }
+      
+      // Call the backend API to disconnect the session only if not during global cleanup
+      if (!BackendSogniClient.isGlobalCleanup) {
+        const disconnectResult = await disconnectSession();
+        console.log(`Disconnect result for client ${this.appId}: ${disconnectResult}`);
+      }
+      
+      // Mark account as logged out
+      this.account.isLoggedInValue = false;
+      
+      // Remove from instance tracking
+      if (this.appId) {
+        BackendSogniClient.instances.delete(this.appId);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error(`Error during BackendSogniClient disconnect for ${this.appId}:`, error);
+      
+      // Still remove from tracking on error
+      if (this.appId) {
+        BackendSogniClient.instances.delete(this.appId);
+      }
+      
+      return false;
+    }
+  }
+
+  /**
+   * Factory method to create a client instance
+   */
+  static async createInstance(config: any): Promise<BackendSogniClient> {
+    // Check if we already have a client with this app ID
+    if (config.appId && BackendSogniClient.instances.has(config.appId)) {
+      console.log(`Reusing existing Sogni client with appId: ${config.appId}`);
+      return BackendSogniClient.instances.get(config.appId)!;
+    }
+    
+    // Create a new client and track it
+    const client = new BackendSogniClient(config.appId);
+    
+    if (config.appId) {
+      BackendSogniClient.instances.set(config.appId, client);
+      console.log(`Created new Sogni client with appId: ${config.appId}`);
+    }
+    
+    return client;
+  }
+  
+  /**
+   * Static method to disconnect all client instances
+   * Useful for application shutdown or tab close
+   */
+  static async disconnectAll(): Promise<void> {
+    // Debounce multiple calls - only run once within 500ms
+    if (BackendSogniClient.disconnectTimeout) {
+      console.log('BackendSogniClient.disconnectAll already pending, skipping');
+      return;
+    }
+    
+    // Set a timeout to prevent multiple calls
+    BackendSogniClient.disconnectTimeout = setTimeout(() => {
+      BackendSogniClient.disconnectTimeout = null;
+    }, 500);
+    
+    // Set global cleanup flag to avoid multiple API calls
+    BackendSogniClient.isGlobalCleanup = true;
+    
+    console.log(`Disconnecting all ${BackendSogniClient.instances.size} BackendSogniClient instances`);
+    
+    // Send a single disconnect request for all clients
+    try {
+      await disconnectSession();
+    } catch (error) {
+      console.warn('Error in global disconnect request:', error);
+    }
+    
+    // Then disconnect each client object
+    const disconnectPromises = Array.from(BackendSogniClient.instances.values())
+      .map(client => {
+        try {
+          return client.disconnect().catch(err => {
+            console.warn(`Error disconnecting client ${client.appId}:`, err);
+            return false;
+          });
+        } catch (err) {
+          console.warn(`Error in disconnect call for client ${client.appId}:`, err);
+          return Promise.resolve(false);
+        }
+      });
+    
+    await Promise.allSettled(disconnectPromises);
+    
+    // Clear all instances
+    BackendSogniClient.instances.clear();
+    BackendSogniClient.isGlobalCleanup = false;
+    
+    console.log('All BackendSogniClient instances disconnected');
   }
   
   /**
@@ -377,14 +537,6 @@ export class BackendSogniClient {
     
     return project;
   }
-  
-  /**
-   * Factory method to create a client instance
-   */
-  static async createInstance(config: any): Promise<BackendSogniClient> {
-    const client = new BackendSogniClient(config.appId);
-    return client;
-  }
 }
 
 /**
@@ -396,6 +548,12 @@ export async function initializeSogniClient(): Promise<BackendSogniClient> {
     await checkSogniStatus().catch(error => {
       console.error('Backend status check failed:', error);
       
+      // Don't treat throttling as a critical error
+      if (error.message === 'Status check throttled') {
+        console.log('Status check throttled, using cached connection status');
+        return; // Continue with client creation even if throttled
+      }
+      
       // Handle credential errors
       if (error.message && error.message.includes('401')) {
         // Show a more user-friendly error message
@@ -406,9 +564,9 @@ export async function initializeSogniClient(): Promise<BackendSogniClient> {
       throw error;
     });
     
-    // Create a new client instance
+    // Create a new client instance with a fixed app ID to prevent duplicates
     const client = await BackendSogniClient.createInstance({
-      appId: `photobooth-frontend-${Date.now()}`,
+      appId: clientAppId || `photobooth-frontend-${Date.now()}`,
       testnet: true,
       network: "fast",
       logLevel: "debug"
