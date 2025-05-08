@@ -316,7 +316,6 @@ export class BackendSogniClient {
    * Useful for application shutdown or tab close
    */
   static async disconnectAll(): Promise<void> {
-    // Debounce multiple calls - only run once within 500ms
     if (BackendSogniClient.disconnectTimeout) {
       console.log('BackendSogniClient.disconnectAll already pending, skipping');
       return;
