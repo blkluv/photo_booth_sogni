@@ -43,25 +43,6 @@ const getOrCreateAppId = (): string => {
 // Get the app ID on module load
 export const clientAppId = typeof window !== 'undefined' ? getOrCreateAppId() : '';
 
-// Simple debounce implementation to prevent rapid duplicate calls
-const debounce = <F extends (...args: any[]) => any>(
-  func: F,
-  wait: number
-): ((...args: Parameters<F>) => void) => {
-  let timeout: ReturnType<typeof setTimeout> | null = null;
-  
-  return function debouncedFunction(...args: Parameters<F>) {
-    if (timeout !== null) {
-      clearTimeout(timeout);
-    }
-    
-    timeout = setTimeout(() => {
-      func(...args);
-      timeout = null;
-    }, wait);
-  };
-};
-
 // Keep track of last status check to avoid duplicate calls
 let lastStatusCheckTime = 0;
 const STATUS_CHECK_THROTTLE_MS = 2000; // 2 seconds
