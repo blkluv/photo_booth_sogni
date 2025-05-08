@@ -9,32 +9,32 @@ import { createProject as apiCreateProject, checkSogniStatus, cancelProject, cli
 
 // Shared interface for events
 interface SogniEventEmitter {
-  on: (event: string, callback: Function) => void;
-  off: (event: string, callback: Function) => void;
-  emit: (event: string, ...args: any[]) => void;
+  on: (event: string, callback: (...args: unknown[]) => void) => void;
+  off: (event: string, callback: (...args: unknown[]) => void) => void;
+  emit: (event: string, ...args: unknown[]) => void;
 }
 
 /**
  * Create a simple event emitter to simulate the Sogni client events
  */
 function createEventEmitter(): SogniEventEmitter {
-  const listeners: Record<string, Function[]> = {};
+  const listeners: Record<string, ((...args: unknown[]) => void)[]> = {};
   
   return {
-    on(event: string, callback: Function) {
+    on(event: string, callback: (...args: unknown[]) => void) {
       if (!listeners[event]) {
         listeners[event] = [];
       }
       listeners[event].push(callback);
     },
     
-    off(event: string, callback: Function) {
+    off(event: string, callback: (...args: unknown[]) => void) {
       if (listeners[event]) {
         listeners[event] = listeners[event].filter(cb => cb !== callback);
       }
     },
     
-    emit(event: string, ...args: any[]) {
+    emit(event: string, ...args: unknown[]) {
       if (listeners[event]) {
         listeners[event].forEach(callback => callback(...args));
       }
@@ -48,13 +48,15 @@ function createEventEmitter(): SogniEventEmitter {
 export class BackendProject implements SogniEventEmitter {
   private eventEmitter: SogniEventEmitter;
   public id: string;
-  public jobs: { 
-    id: string; 
-    on: Function; 
-    resultUrl?: string; 
-    workerName?: string; 
+  public jobs: {
+    id: string;
+    on: (event: string, callback: (progress: number) => void) => void;
+    resultUrl?: string;
+    workerName?: string;
     realJobId?: string;
     index?: number;
+    progressCallback?: (progress: number) => void;
+    error?: string;
   }[] = [];
   
   constructor(id: string) {
@@ -63,17 +65,17 @@ export class BackendProject implements SogniEventEmitter {
   }
   
   // Event methods
-  on(event: string, callback: Function) {
+  on(event: string, callback: (...args: unknown[]) => void) {
     this.eventEmitter.on(event, callback);
     return this;
   }
   
-  off(event: string, callback: Function) {
+  off(event: string, callback: (...args: unknown[]) => void) {
     this.eventEmitter.off(event, callback);
     return this;
   }
   
-  emit(event: string, ...args: any[]) {
+  emit(event: string, ...args: unknown[]) {
     this.eventEmitter.emit(event, ...args);
     return this;
   }
@@ -81,19 +83,28 @@ export class BackendProject implements SogniEventEmitter {
   // Add a job to the project
   addJob(jobId: string, resultUrl?: string, index?: number, workerName?: string) {
     console.log(`Adding job ${jobId} with workerName "${workerName || 'unknown'}"`);
-    const job = {
+    const job: {
+      id: string;
+      resultUrl?: string;
+      workerName?: string;
+      realJobId?: string;
+      index?: number;
+      on: (event: string, callback: (progress: number) => void) => void;
+      progressCallback?: (progress: number) => void;
+      error?: string;
+    } = {
       id: jobId,
       resultUrl,
-      workerName: workerName || '', // Don't use hardcoded default
+      workerName: workerName || '',
       index,
-      realJobId: undefined, // Will be set later when we receive the real job ID
-      on: (event: string, callback: Function) => {
-        // Simple event handler for the job
+      realJobId: undefined,
+      on: (event: string, callback: (progress: number) => void) => {
         if (event === 'progress') {
-          // Store the callback to call later
-          (job as any).progressCallback = callback;
+          job.progressCallback = callback;
         }
-      }
+      },
+      progressCallback: undefined,
+      error: undefined,
     };
     
     this.jobs.push(job);
@@ -123,11 +134,11 @@ export class BackendProject implements SogniEventEmitter {
     // Ensure we have a normalized progress value (0-1)
     const normalizedProgress = typeof progress === 'number' && progress > 1 ? progress / 100 : progress;
     
-    if (job && (job as any).progressCallback) {
+    if (job && job.progressCallback) {
       console.log(`BackendProject: Calling progress callback for job ${jobId} with normalized progress ${normalizedProgress}`);
       
       // Always pass the normalized value (0-1 range) to match the SDK
-      (job as any).progressCallback(normalizedProgress);
+      job.progressCallback(normalizedProgress);
     } else {
       console.log(`BackendProject: No progress callback found for job ${jobId}`);
     }
@@ -157,10 +168,17 @@ export class BackendProject implements SogniEventEmitter {
   failJob(jobId: string, error: string) {
     const job = this.jobs.find(j => j.id === jobId);
     if (job) {
-      (job as any).error = error;
+      job.error = error;
       this.emit('jobFailed', { ...job, error });
     }
   }
+}
+
+export interface BackendAccount {
+  isLoggedInValue: boolean;
+  readonly isLoggedIn: boolean;
+  login: () => Promise<boolean>;
+  logout: () => Promise<boolean>;
 }
 
 /**
@@ -169,10 +187,10 @@ export class BackendProject implements SogniEventEmitter {
 export class BackendSogniClient {
   public appId: string;
   public network: string;
-  public account: any; // Use any type to allow flexibility
+  public account: BackendAccount;
   public projects: {
-    create: (params: any) => Promise<BackendProject>;
-    on: (event: string, callback: Function) => void;
+    create: (params: Record<string, unknown>) => Promise<BackendProject>;
+    on: (event: string, callback: (...args: unknown[]) => void) => void;
   };
   private activeProjects: Map<string, BackendProject> = new Map();
   private isDisconnecting: boolean = false;
@@ -188,18 +206,18 @@ export class BackendSogniClient {
     
     // Mock account methods
     this.account = {
-      // Instead of a method, make it a value getter for compatibility
-      get isLoggedIn() { 
-        return this.isLoggedInValue; 
+      get isLoggedIn() {
+        return this.isLoggedInValue;
       },
       isLoggedInValue: false,
-      login: async () => {
+      login: () => {
         this.account.isLoggedInValue = true;
-        return true;
+        return Promise.resolve(true);
       },
-      logout: async () => {
+      logout: () => {
         this.account.isLoggedInValue = false;
-        return this.disconnect();
+        void this.disconnect();
+        return Promise.resolve(true);
       }
     };
     
@@ -216,7 +234,7 @@ export class BackendSogniClient {
       const disconnectHandler = () => {
         // Only disconnect once
         if (!this.isDisconnecting) {
-          this.disconnect();
+          void this.disconnect();
         }
       };
       
@@ -293,19 +311,20 @@ export class BackendSogniClient {
   /**
    * Factory method to create a client instance
    */
-  static async createInstance(config: any): Promise<BackendSogniClient> {
+  static createInstance(config: Record<string, unknown>): BackendSogniClient {
     // Check if we already have a client with this app ID
-    if (config.appId && BackendSogniClient.instances.has(config.appId)) {
-      console.log(`Reusing existing Sogni client with appId: ${config.appId}`);
-      return BackendSogniClient.instances.get(config.appId)!;
+    const appId = typeof config.appId === 'string' ? config.appId : undefined;
+    if (appId && BackendSogniClient.instances.has(appId)) {
+      console.log(`Reusing existing Sogni client with appId: ${appId}`);
+      return BackendSogniClient.instances.get(appId)!;
     }
     
     // Create a new client and track it
-    const client = new BackendSogniClient(config.appId);
+    const client = new BackendSogniClient(appId ?? '');
     
-    if (config.appId) {
-      BackendSogniClient.instances.set(config.appId, client);
-      console.log(`Created new Sogni client with appId: ${config.appId}`);
+    if (appId) {
+      BackendSogniClient.instances.set(appId, client);
+      console.log(`Created new Sogni client with appId: ${appId}`);
     }
     
     return client;
@@ -346,7 +365,7 @@ export class BackendSogniClient {
             console.warn(`Error disconnecting client ${client.appId}:`, err);
             return false;
           });
-        } catch (err) {
+        } catch (err: unknown) {
           console.warn(`Error in disconnect call for client ${client.appId}:`, err);
           return Promise.resolve(false);
         }
@@ -388,10 +407,13 @@ export class BackendSogniClient {
         
         // Remove from active projects
         this.activeProjects.delete(projectId);
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error(`Error cancelling project ${projectId}:`, error);
         // Still attempt cleanup even if the API call fails
-        project.emit('failed', new Error(`Project cancellation failed: ${error?.message || String(error)}`));
+        const errorMsg = error && typeof error === 'object' && 'message' in error && typeof (error as { message: unknown }).message === 'string'
+          ? (error as { message: string }).message
+          : String(error);
+        project.emit('failed', new Error(`Project cancellation failed: ${errorMsg}`));
         this.activeProjects.delete(projectId);
       }
     }
@@ -400,7 +422,7 @@ export class BackendSogniClient {
   /**
    * Create a new project using the backend API
    */
-  private async createProject(params: any): Promise<BackendProject> {
+  private createProject(params: Record<string, unknown>): Promise<BackendProject> {
     // Create a new project object to return to the caller
     const projectId = `backend-project-${Date.now()}`;
     const project = new BackendProject(projectId);
@@ -410,8 +432,9 @@ export class BackendSogniClient {
     
     // Create placeholder jobs initially - but these will be replaced by real job IDs from the server
     // This matches the SDK behavior where jobs are created dynamically as they are initialized
+    const numImages = typeof params.numberOfImages === 'number' ? params.numberOfImages : 0;
     const placeholderJobs = new Map<number, string>();
-    for (let i = 0; i < params.numberOfImages; i++) {
+    for (let i = 0; i < numImages; i++) {
       // Create a temporary placeholder - these will be updated with real jobIds 
       // when we receive 'initiating' or 'started' events from the server
       const placeholderId = `placeholder-${projectId}-${i}`;
@@ -421,7 +444,7 @@ export class BackendSogniClient {
     
     // Start the backend generation process
     try {
-      apiCreateProject(params, (progressEvent) => {
+      apiCreateProject(params, (progressEvent: unknown) => {
         // Handle different event types from the server
         console.log('ApiCreateProject progress callback received:', JSON.stringify(progressEvent));
         
@@ -433,12 +456,17 @@ export class BackendSogniClient {
         } 
         // Handle structured events (most cases)
         else if (progressEvent && typeof progressEvent === 'object') {
-          const eventType = progressEvent.type;
-          const jobId = progressEvent.jobId; // This should be the SDK job.id (imgID)
+          const event = progressEvent as Record<string, unknown>;
+          const eventType = event.type as string;
+          const jobId = event.jobId as string;
           
           // Extract worker name from any event if available
-          const workerName = progressEvent.workerName || 
-                             (progressEvent.progress && progressEvent.progress.workerName);
+          let workerName: string | undefined = undefined;
+          if (typeof event.workerName === 'string') {
+            workerName = event.workerName;
+          } else if (event.progress && typeof event.progress === 'object' && event.progress !== null && 'workerName' in event.progress && typeof (event.progress as Record<string, unknown>).workerName === 'string') {
+            workerName = (event.progress as Record<string, unknown>).workerName as string;
+          }
           
           console.log(`Event ${eventType} with jobId: ${jobId}, worker name: ${workerName || 'unknown'}`);
           
@@ -481,15 +509,15 @@ export class BackendSogniClient {
               break;
 
             case 'progress':
-              if (targetJob && progressEvent.progress !== undefined) {
-                project.updateJobProgress(targetJob.id, progressEvent.progress, targetJob.workerName);
+              if (targetJob && event.progress !== undefined) {
+                project.updateJobProgress(targetJob.id, event.progress as number, targetJob.workerName);
               }
               break;
               
             case 'jobCompleted':
-              if (targetJob && progressEvent.resultUrl) {
+              if (targetJob && event.resultUrl) {
                 console.log(`Processing jobCompleted for placeholder ${targetJob.id} (real ID ${jobId})`);
-                project.completeJob(targetJob.id, progressEvent.resultUrl);
+                project.completeJob(targetJob.id, event.resultUrl as string);
               } else {
                 console.warn(`jobCompleted event received for ${jobId}, but couldn't find target job or resultUrl.`);
               }
@@ -497,7 +525,7 @@ export class BackendSogniClient {
               
             case 'jobFailed':
               if (targetJob) {
-                const error = progressEvent.error || 'Generation failed';
+                const error = event.error as string || 'Generation failed';
                 console.log(`Processing jobFailed for placeholder ${targetJob.id} (real ID ${jobId}) with error: ${error}`);
                 project.failJob(targetJob.id, error);
               } else {
@@ -506,7 +534,7 @@ export class BackendSogniClient {
               break;
               
             case 'failed': // Project level failure
-              project.emit('failed', new Error(progressEvent.error || 'Project failed'));
+              project.emit('failed', new Error(event.error as string || 'Project failed'));
               break;
               
             // Ignore project-progress and connected types here, handled elsewhere or implicitly
@@ -518,53 +546,51 @@ export class BackendSogniClient {
               console.warn(`Unhandled event type in apiCreateProject callback: ${eventType}`);
           }
         }
-      }).then((result) => {
+      }).then((result: unknown) => {
         // Handle overall project completion
-        if (result && result.imageUrls) {
-          project.emit('completed', result.imageUrls);
+        if (result && typeof result === 'object' && 'imageUrls' in result) {
+          const imageUrls = (result as Record<string, unknown>).imageUrls as string[];
+          project.emit('completed', imageUrls);
         }
-      }).catch((error) => {
+      }).catch((error: unknown) => {
         console.error('Backend generation process failed:', error);
-        project.emit('failed', error);
+        const errorMsg = error && typeof error === 'object' && 'message' in error && typeof (error as { message: unknown }).message === 'string'
+          ? (error as { message: string }).message
+          : String(error);
+        project.emit('failed', new Error(errorMsg));
+        // Remove from active projects
+        this.activeProjects.delete(projectId);
       });
     } catch (error) {
       console.error('Error starting generation:', error);
-      project.emit('failed', error);
+      const errorMsg = error && typeof error === 'object' && 'message' in error && typeof (error as { message: unknown }).message === 'string'
+        ? (error as { message: string }).message
+        : String(error);
+      project.emit('failed', new Error(errorMsg));
       // Remove from active projects
       this.activeProjects.delete(projectId);
     }
     
-    return project;
+    return Promise.resolve(project);
   }
 }
 
 /**
  * Initialize the Sogni client through the backend
  */
-export async function initializeSogniClient(): Promise<BackendSogniClient> {
+export function initializeSogniClient(): Promise<BackendSogniClient> {
   try {
     // Check if the backend is available
-    await checkSogniStatus().catch(error => {
-      console.error('Backend status check failed:', error);
-      
-      // Don't treat throttling as a critical error
-      if (error.message === 'Status check throttled') {
-        console.log('Status check throttled, using cached connection status');
-        return; // Continue with client creation even if throttled
-      }
-      
-      // Handle credential errors
-      if (error.message && error.message.includes('401')) {
-        // Show a more user-friendly error message
-        const message = 'The Sogni API credentials are invalid. This is a server configuration issue and needs to be fixed by updating the server/.env file.';
-        console.error(message);
-      }
-      
-      throw error;
-    });
+    void checkSogniStatus()
+      .then(() => {
+        console.log('Initial Sogni connection established');
+      })
+      .catch(err => {
+        console.warn('Failed to establish initial Sogni connection:', err);
+      });
     
     // Create a new client instance with a fixed app ID to prevent duplicates
-    const client = await BackendSogniClient.createInstance({
+    const client = BackendSogniClient.createInstance({
       appId: clientAppId || `photobooth-frontend-${Date.now()}`,
       testnet: true,
       network: "fast",
@@ -572,20 +598,23 @@ export async function initializeSogniClient(): Promise<BackendSogniClient> {
     });
     
     // Mock login
-    await client.account.login();
+    void client.account.login();
     
-    return client;
+    return Promise.resolve(client);
   } catch (error) {
-    console.error('Error initializing Sogni client:', error);
-    throw error;
+    const errorMsg = error && typeof error === 'object' && 'message' in error && typeof (error as { message: unknown }).message === 'string'
+      ? (error as { message: string }).message
+      : String(error);
+    console.error('Error initializing Sogni client:', errorMsg);
+    throw new Error(errorMsg);
   }
 }
 
 /**
  * Generate image using the backend
  */
-export async function generateImage(): Promise<string[]> {
+export function generateImage(): Promise<string[]> {
   // Implementation will be moved from App.jsx
   // This is just the interface for now
-  return [];
+  return Promise.resolve([]);
 }

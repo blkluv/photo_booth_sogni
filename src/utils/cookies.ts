@@ -3,7 +3,7 @@ import { Settings } from '../types';
 export function getSettingFromCookie<T>(name: string, defaultValue: T): T {
   try {
     const value = localStorage.getItem(`sogni_${name}`);
-    return value ? JSON.parse(value) : defaultValue;
+    return value ? (JSON.parse(value) as T) : defaultValue;
   } catch (e) {
     console.warn(`Error reading cookie ${name}:`, e);
     return defaultValue;

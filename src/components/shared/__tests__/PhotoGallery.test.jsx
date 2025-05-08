@@ -1,3 +1,4 @@
+/* global jest, describe, it, expect, beforeEach, afterEach, global */
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
@@ -159,7 +160,7 @@ describe('PhotoGallery Component', () => {
 
   it('deselects a photo when clicking on the selected photo', () => {
     // Setup with already selected photo
-    const { rerender } = render(
+    render(
       <PhotoGallery {...defaultProps} selectedPhotoIndex={1} />
     );
     
@@ -183,14 +184,14 @@ describe('PhotoGallery Component', () => {
   });
 
   it('applies correct CSS classes and styling during selection state', () => {
-    const { rerender } = render(<PhotoGallery {...defaultProps} />);
+    render(<PhotoGallery {...defaultProps} />);
     
     // Initially no selected class on container
     const container = screen.getByRole('button', { name: /back to camera/i }).parentElement;
     expect(container).not.toHaveClass('has-selected');
     
     // Rerender with selection
-    rerender(<PhotoGallery {...defaultProps} selectedPhotoIndex={1} />);
+    render(<PhotoGallery {...defaultProps} selectedPhotoIndex={1} />);
     
     // Check has-selected class added
     expect(container).toHaveClass('has-selected');
@@ -251,13 +252,13 @@ describe('PhotoGallery Component', () => {
 
   it('adjusts number label based on keepOriginalPhoto setting', () => {
     // First with keepOriginalPhoto = true (default)
-    const { rerender } = render(<PhotoGallery {...defaultProps} />);
+    render(<PhotoGallery {...defaultProps} />);
     
     // First non-reference photo should be #1
     expect(screen.getByText('#1')).toBeInTheDocument();
     
     // Now with keepOriginalPhoto = false
-    rerender(<PhotoGallery {...defaultProps} keepOriginalPhoto={false} />);
+    render(<PhotoGallery {...defaultProps} keepOriginalPhoto={false} />);
     
     // First photo should now be #2 (original is 0, non-reference starts at 0 but +1 for display)
     expect(screen.getByText('#2')).toBeInTheDocument();

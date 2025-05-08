@@ -16,14 +16,16 @@ export interface ProjectState {
   currentPhotoIndex: number;
   jobs: Map<string, JobState>;
   startedJobs: Set<string>;
-  completedJobs: Map<string, any>;
-  pendingCompletions: Map<string, any>;
+  completedJobs: Map<string, unknown>;
+  pendingCompletions: Map<string, unknown>;
 }
 
 export interface JobState {
   index: number;
   status: string;
   resultUrl?: string;
+  progress?: number;
+  error?: string;
 }
 
 export interface StylePrompt {

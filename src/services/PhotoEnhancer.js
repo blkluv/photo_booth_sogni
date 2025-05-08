@@ -12,8 +12,8 @@
  * @param {number} options.width - Target width for enhancement
  * @param {number} options.height - Target height for enhancement
  * @param {Object} options.sogniClient - Sogni client instance
- * @param {Function} options.setPhotos - React setState function for photos
- * @param {Function} options.onSetActiveProject - Callback to set active project reference
+ * @param {(updater: (prev: any[]) => any[]) => void} options.setPhotos - React setState function for photos
+ * @param {(projectId: string | null) => void} options.onSetActiveProject - Callback to set active project reference
  * @returns {Promise<void>}
  */
 export const enhancePhoto = async (options) => {
@@ -215,7 +215,7 @@ export const enhancePhoto = async (options) => {
  * @param {Object} options
  * @param {number} options.photoIndex - Index of the photo in the photos array
  * @param {number} options.subIndex - Sub-index of the image within the photo
- * @param {Function} options.setPhotos - React setState function for photos
+ * @param {(updater: (prev: any[]) => any[]) => void} options.setPhotos - React setState function for photos
  * @returns {void}
  */
 export const undoEnhancement = ({ photoIndex, subIndex, setPhotos }) => {

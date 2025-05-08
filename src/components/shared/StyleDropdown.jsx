@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { styleIdToDisplay } from '../../utils';
 import '../../styles/style-dropdown.css';
+import PropTypes from 'prop-types';
 
 // StyleDropdown component that uses portals to render outside the DOM hierarchy
 const StyleDropdown = ({ 
@@ -10,7 +11,6 @@ const StyleDropdown = ({
   selectedStyle, 
   updateStyle, 
   defaultStylePrompts, 
-  showControlOverlay, 
   setShowControlOverlay, 
   dropdownPosition = 'top', // Default value
   triggerButtonClass = '.bottom-style-select' // Default class for the main toolbar
@@ -184,6 +184,17 @@ const StyleDropdown = ({
     </div>,
     document.body
   );
+};
+
+StyleDropdown.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  selectedStyle: PropTypes.string.isRequired,
+  updateStyle: PropTypes.func.isRequired,
+  defaultStylePrompts: PropTypes.object.isRequired,
+  setShowControlOverlay: PropTypes.func,
+  dropdownPosition: PropTypes.string,
+  triggerButtonClass: PropTypes.string,
 };
 
 export default StyleDropdown; 

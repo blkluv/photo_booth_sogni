@@ -40,11 +40,26 @@ export default [
       ...pluginTs.configs.recommended.rules,
       ...pluginTs.configs["recommended-type-checked"].rules,
     },
+    settings: {
+      react: {
+        version: 'detect',
+      },
+    },
   },
   // React (JSX/TSX)
   {
     files: ["**/*.{jsx,tsx}"],
-    plugins: { react: pluginReact },
+    plugins: {
+      '@typescript-eslint': pluginTs,
+      'react': pluginReact,
+      'react-hooks': pluginReact.configs.reactHooks,
+      'jsx-a11y': pluginReact.configs.jsxA11y,
+    },
     ...pluginReact.configs.flat.recommended,
+    settings: {
+      react: {
+        version: 'detect',
+      },
+    },
   },
 ];

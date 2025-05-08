@@ -118,8 +118,8 @@ export const CameraView: React.FC<CameraViewProps> = ({
   
   useEffect(() => {
     const checkIfMobile = () => {
-      const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
-      return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+      const userAgent = navigator.userAgent || navigator.vendor || (window as { opera?: string }).opera || '';
+      return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(String(userAgent).toLowerCase());
     };
     setIsMobile(checkIfMobile());
   }, []);

@@ -52,7 +52,7 @@ export function useCamera(): CameraHookResult {
         
         // If no device is selected, select the first one
         if (!selectedDeviceId && videoDevices.length > 0) {
-          handleCameraSelection(videoDevices[0].deviceId);
+          void handleCameraSelection(videoDevices[0].deviceId);
         }
       })
       .catch(error => {

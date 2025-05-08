@@ -51,7 +51,7 @@ const STATUS_CHECK_THROTTLE_MS = 2000; // 2 seconds
 let hasConnectedToSogni = false;
 
 // Use a pending promise mechanism to avoid duplicate status checks
-let pendingStatusCheck: Promise<any> | null = null;
+let pendingStatusCheck: Promise<unknown> | null = null;
 
 // Track if we've already sent a disconnect signal
 let hasDisconnectedBeforeUnload = false;
@@ -104,7 +104,7 @@ const setupDisconnectHandlers = () => {
         xhr.open('GET', url, false); // Synchronous request
         xhr.withCredentials = true; // Include cookies
         xhr.send();
-      } catch (e) {
+      } catch {
         // Ignore errors - this is a best-effort attempt
       }
       
@@ -142,6 +142,19 @@ const setupDisconnectHandlers = () => {
 
 // Initialize disconnect handlers immediately
 setupDisconnectHandlers();
+
+// Utility type guard for Record<string, unknown>
+function isObjectRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === 'object' && val !== null && !Array.isArray(val);
+}
+
+function isStringArray(val: unknown): val is string[] {
+  return Array.isArray(val) && val.every(item => typeof item === 'string');
+}
+
+function getResult(val: Record<string, unknown>): unknown {
+  return Object.prototype.hasOwnProperty.call(val, 'result') ? val.result : null;
+}
 
 /**
  * Explicitly disconnect the current session from the server
@@ -204,7 +217,7 @@ export async function disconnectSession(): Promise<boolean> {
     // Check if at least one method succeeded
     const anySuccess = results.some(result => 
       result.status === 'fulfilled' && 
-      (result.value as Response).ok
+      (result.value).ok
     );
     
     if (anySuccess) {
@@ -214,7 +227,7 @@ export async function disconnectSession(): Promise<boolean> {
       // Check for auth errors and log them, but don't treat as failures
       const authErrors = results.filter(result => 
         result.status === 'fulfilled' && 
-        (result.value as Response).status === 401
+        (result.value).status === 401
       );
       
       if (authErrors.length > 0) {
@@ -271,20 +284,24 @@ export async function checkSogniStatus() {
         // Try to get the error details from the response
         let errorDetails = '';
         try {
-          const errorData = await response.json();
-          errorDetails = errorData.message || errorData.error || 'Unknown error';
+          const errorData: unknown = await response.json();
+          if (isObjectRecord(errorData)) {
+            errorDetails = (errorData as { message?: string }).message || (errorData as { error?: string }).error || 'Unknown error';
+          } else {
+            errorDetails = response.statusText;
+          }
           console.error('Status check failed:', errorData);
-        } catch (e) {
-          // If we can't parse the JSON, just use the status text
+        } catch (err: unknown) {
           errorDetails = response.statusText;
-          console.error('Error parsing response:', e);
+          console.error('Error parsing response:', err);
         }
         
         // Throw an error with status code and message
-        throw new Error(`${response.status} ${errorDetails}`);
+        throw new Error(`${response.status} ${String(errorDetails)}`);
       }
       
-      const data = await response.json();
+      const dataRaw: unknown = await response.json();
+      const data: Record<string, unknown> = isObjectRecord(dataRaw) ? dataRaw : {};
       console.log('Sogni status check successful:', data);
       
       // Mark that we have successfully connected at least once
@@ -313,10 +330,10 @@ export async function checkSogniStatus() {
  * @param progressCallback Optional callback for progress updates
  * @returns Promise that resolves with the complete project data
  */
-export async function createProject(params: any, progressCallback?: (data: any) => void): Promise<any> {
+export async function createProject(params: Record<string, unknown>, progressCallback?: (data: unknown) => void): Promise<unknown> {
   try {
     // Process the image data based on the request type (enhancement or generation)
-    let imageData;
+    let imageData: unknown;
     let isEnhancement = false;
     
     // Check if this is an enhancement request (has startingImage) or generation (has controlNet)
@@ -334,29 +351,34 @@ export async function createProject(params: any, progressCallback?: (data: any) 
       }
     } 
     // Process controlNet image for normal generation
-    else if (params.controlNet && params.controlNet.image) {
-      if (params.controlNet.image instanceof Uint8Array) {
+    else if (
+      typeof params.controlNet === 'object' && params.controlNet !== null &&
+      'image' in params.controlNet &&
+      (Array.isArray((params.controlNet as { image: unknown }).image) || (params.controlNet as { image: unknown }).image instanceof Uint8Array)
+    ) {
+      const controlNet = params.controlNet as { image: unknown };
+      if (controlNet.image instanceof Uint8Array) {
         // Check image size and compress if needed
-        const originalSize = params.controlNet.image.length;
+        const originalSize = controlNet.image.length;
         console.log(`Original image size: ${originalSize / 1024 / 1024} MB`);
         
         // For large images, send chunks or downsize
         if (originalSize > 10 * 1024 * 1024) { // If over 10MB
           console.log('Image is large, optimizing size...');
-          
           // Option 1: Just use the array directly without Array.from
           // This is more memory efficient
-          imageData = [...params.controlNet.image]; 
-          
+          imageData = [...controlNet.image]; 
           // Log the compressed size
-          console.log(`Optimized image size: ${imageData.length / 1024 / 1024} MB`);
+          if (Array.isArray(imageData)) {
+            console.log(`Optimized image size: ${imageData.length / 1024 / 1024} MB`);
+          }
         } else {
           // For smaller images, use standard approach
-          imageData = Array.from(params.controlNet.image);
+          imageData = Array.from(controlNet.image);
         }
-      } else if (Array.isArray(params.controlNet.image)) {
+      } else if (Array.isArray(controlNet.image)) {
         // Already in array form
-        imageData = params.controlNet.image;
+        imageData = controlNet.image;
       } else {
         throw new Error('ControlNet requires image as Array or Uint8Array');
       }
@@ -365,7 +387,7 @@ export async function createProject(params: any, progressCallback?: (data: any) 
     }
     
     // Format the parameters for the backend based on request type
-    let projectParams;
+    let projectParams: Record<string, unknown>;
     
     if (isEnhancement) {
       // Enhancement parameters
@@ -376,11 +398,17 @@ export async function createProject(params: any, progressCallback?: (data: any) 
         height: params.height,
         promptGuidance: params.guidance,
         numberImages: params.numberOfImages,
-        startingImage: imageData,
+        startingImage: Array.isArray(imageData) || imageData instanceof Uint8Array ? imageData : [],
         startingImageStrength: params.startingImageStrength || 0.85
       };
     } else {
       // Generation parameters with controlNet
+      let controlNetStrength = undefined;
+      let controlNetGuidanceEnd = undefined;
+      if (typeof params.controlNet === 'object' && params.controlNet !== null) {
+        controlNetStrength = (params.controlNet as { strength?: number }).strength;
+        controlNetGuidanceEnd = (params.controlNet as { guidanceEnd?: number }).guidanceEnd;
+      }
       projectParams = {
         selectedModel: params.modelId,
         stylePrompt: params.positivePrompt,
@@ -388,14 +416,14 @@ export async function createProject(params: any, progressCallback?: (data: any) 
         height: params.height,
         promptGuidance: params.guidance,
         numberImages: params.numberOfImages,
-        controlNetStrength: params.controlNet.strength,
-        controlNetGuidanceEnd: params.controlNet.guidanceEnd,
-        imageData
+        controlNetStrength,
+        controlNetGuidanceEnd,
+        imageData: Array.isArray(imageData) || imageData instanceof Uint8Array ? imageData : [],
       };
     }
     
     return generateImage(projectParams, progressCallback);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error creating project:', error);
     throw error;
   }
@@ -407,7 +435,7 @@ export async function createProject(params: any, progressCallback?: (data: any) 
  * @param projectId The ID of the project to cancel
  * @returns Promise that resolves to the cancellation status
  */
-export async function cancelProject(projectId: string): Promise<any> {
+export async function cancelProject(projectId: string): Promise<unknown> {
   try {
     const response = await fetch(`${API_BASE_URL}/sogni/cancel/${projectId}`, {
       method: 'POST',
@@ -422,10 +450,11 @@ export async function cancelProject(projectId: string): Promise<any> {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     
-    const result = await response.json();
+    const resultRaw: unknown = await response.json();
+    const result: Record<string, unknown> = isObjectRecord(resultRaw) ? resultRaw : {};
     console.log('Project cancellation result:', result);
     return result;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error cancelling project:', error);
     throw error;
   }
@@ -438,7 +467,7 @@ export async function cancelProject(projectId: string): Promise<any> {
  * @param progressCallback Callback function for progress updates
  * @returns Promise that resolves with the generated image URLs
  */
-export async function generateImage(params: any, progressCallback?: (progress: any) => void): Promise<any> {
+export async function generateImage(params: Record<string, unknown>, progressCallback?: (progress: unknown) => void): Promise<unknown> {
   try {
     console.log(`Making request to: ${API_BASE_URL}/sogni/generate`);
     
@@ -464,7 +493,10 @@ export async function generateImage(params: any, progressCallback?: (progress: a
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     
-    const { projectId, status } = await response.json();
+    const jsonRaw: unknown = await response.json();
+    const json: Record<string, unknown> = isObjectRecord(jsonRaw) ? jsonRaw : {};
+    const projectId = json.projectId as string | undefined;
+    const status = json.status as string | undefined;
     
     // Mark that we have successfully connected
     hasConnectedToSogni = true;
@@ -555,9 +587,11 @@ export async function generateImage(params: any, progressCallback?: (progress: a
           
           eventSource.onmessage = (event) => {
             try {
-              const data = JSON.parse(event.data);
+              const parsed: unknown = typeof event.data === 'string' ? JSON.parse(event.data) : {};
+              const data: Record<string, unknown> = isObjectRecord(parsed) ? parsed : {};
               // Add more detailed logging for message types
-              console.log(`SSE message received: Type=${data.type}, ProjectID=${data.projectId || 'N/A'}`);
+              const projectIdStr = typeof data.projectId === 'string' ? data.projectId : 'N/A';
+              console.log(`SSE message received: Type=${String(data.type)}, ProjectID=${projectIdStr}`);
               
               // For any message type, extend the connection timeout as we're getting data
               if (connectionTimeout !== undefined) {
@@ -626,7 +660,16 @@ export async function generateImage(params: any, progressCallback?: (progress: a
                   if (eventSource) {
                     eventSource.close();
                   }
-                  resolve(data.result);
+                  const resultValue = getResult(data);
+                  let safeResult: unknown = null;
+                  if (isStringArray(resultValue)) {
+                    safeResult = resultValue;
+                  } else if (typeof resultValue === 'string') {
+                    safeResult = resultValue;
+                  } else if (typeof resultValue === 'object' && resultValue !== null) {
+                    safeResult = resultValue;
+                  }
+                  resolve(safeResult);
                   break;
                   
                 case 'error':
@@ -639,7 +682,7 @@ export async function generateImage(params: any, progressCallback?: (progress: a
                   if (eventSource) {
                     eventSource.close();
                   }
-                  reject(new Error(data.error || 'Unknown server error'));
+                  reject(new Error(typeof data.error === 'string' ? data.error : 'Unknown server error'));
                   break;
                   
                 default:
@@ -666,7 +709,7 @@ export async function generateImage(params: any, progressCallback?: (progress: a
               
               // For ECONNRESET errors, we want to retry more quickly
               const isNetworkError = err instanceof Event && 
-                (err.target as any)?.readyState === EventSource.CLOSED;
+                (err.target && typeof ((err.target as unknown) as { readyState?: unknown }).readyState === 'number' && ((err.target as unknown) as { readyState: number }).readyState === EventSource.CLOSED);
               
               console.log(`EventSource connection error. Retrying (${retryCount}/${maxRetries})...`);
               
@@ -699,7 +742,7 @@ export async function generateImage(params: any, progressCallback?: (progress: a
       // Start connection process
       connectSSE();
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error generating image:', error);
     throw error;
   }

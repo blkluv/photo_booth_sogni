@@ -38,18 +38,10 @@ export const isProduction = (): boolean => isEnvironment(Environment.PRODUCTION)
  * Get app title with environment indicator
  */
 export const getAppTitle = (): string => {
-  const baseTitle = import.meta.env.VITE_APP_TITLE || 'Sogni Photobooth';
-  
+  const env = import.meta.env as Record<string, unknown>;
+  const rawTitle = env['VITE_APP_TITLE'];
+  const baseTitle = typeof rawTitle === 'string' ? rawTitle : 'Sogni Photobooth';
   if (isDevelopment()) return `${baseTitle} (Dev)`;
   if (isStaging()) return `${baseTitle} (Staging)`;
   return baseTitle;
-};
-
-export default {
-  getCurrentEnvironment,
-  isEnvironment,
-  isDevelopment,
-  isStaging,
-  isProduction,
-  getAppTitle
 }; 

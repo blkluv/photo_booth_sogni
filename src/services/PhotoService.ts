@@ -1,23 +1,18 @@
 import { SogniClient } from "@sogni-ai/sogni-client";
-import { Photo } from "../types";
+import { Photo, ProjectState, JobState } from "../types";
 import { generateUUID } from "../utils";
+import type React from 'react';
 
 export class PhotoService {
   private sogniClient: SogniClient;
-  private projectStateRef: React.MutableRefObject<{
-    currentPhotoIndex: number;
-    jobs: Map<string, any>;
-    startedJobs: Set<string>;
-    completedJobs: Map<string, any>;
-    pendingCompletions: Map<string, any>;
-  }>;
+  private projectStateRef: React.MutableRefObject<ProjectState>;
 
-  constructor(sogniClient: SogniClient, projectStateRef: any) {
+  constructor(sogniClient: SogniClient, projectStateRef: React.MutableRefObject<ProjectState>) {
     this.sogniClient = sogniClient;
     this.projectStateRef = projectStateRef;
   }
 
-  setupJobProgress(job: any, photoIndex: number) {
+  setupJobProgress(job: { id: string; onProgress: (cb: (progress: number) => void) => void; onComplete: (cb: (result: { url: string }) => void) => void; onError: (cb: (error: Error) => void) => void; }, photoIndex: number) {
     const jobId = job.id;
     this.projectStateRef.current.jobs.set(jobId, {
       index: photoIndex,
@@ -25,18 +20,18 @@ export class PhotoService {
     });
 
     job.onProgress((progress: number) => {
-      this.projectStateRef.current.jobs.get(jobId).status = "generating";
-      this.projectStateRef.current.jobs.get(jobId).progress = progress;
+      this.projectStateRef.current.jobs.get(jobId)!.status = "generating";
+      (this.projectStateRef.current.jobs.get(jobId) as JobState).progress = progress;
     });
 
-    job.onComplete((result: any) => {
-      this.projectStateRef.current.jobs.get(jobId).status = "complete";
-      this.projectStateRef.current.jobs.get(jobId).resultUrl = result.url;
+    job.onComplete((result: { url: string }) => {
+      this.projectStateRef.current.jobs.get(jobId)!.status = "complete";
+      (this.projectStateRef.current.jobs.get(jobId) as JobState).resultUrl = result.url;
     });
 
     job.onError((error: Error) => {
-      this.projectStateRef.current.jobs.get(jobId).status = "error";
-      this.projectStateRef.current.jobs.get(jobId).error = error.message;
+      this.projectStateRef.current.jobs.get(jobId)!.status = "error";
+      (this.projectStateRef.current.jobs.get(jobId) as JobState).error = error.message;
     });
 
     return job;
@@ -74,9 +69,8 @@ export class PhotoService {
           promptGuidance: number;
           controlNetStrength: number;
           controlNetGuidanceEnd: number;
-        }) => Promise<any>;
+        }) => Promise<{ id: string; onProgress: (cb: (progress: number) => void) => void; onComplete: (cb: (result: { url: string }) => void) => void; onError: (cb: (error: Error) => void) => void; }>;
       }
-      
       const job = await (this.sogniClient as SogniClientWithGenerate).generateFromImage({
         image: photoBlob,
         model: settings.selectedModel,
@@ -86,7 +80,7 @@ export class PhotoService {
         controlNetGuidanceEnd: settings.controlNetGuidanceEnd,
       });
 
-      this.setupJobProgress(job, newPhotoIndex);
+      void this.setupJobProgress(job, newPhotoIndex);
       return photo;
     } catch (error: unknown) {
       photo.error = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -106,10 +100,10 @@ export class PhotoService {
         setShowFlash(true);
         setTimeout(() => {
           setShowFlash(false);
-          this.captureFrame(videoRef).then(resolve);
+          void this.captureFrame(videoRef).then(resolve);
         }, 150);
       } else {
-        this.captureFrame(videoRef).then(resolve);
+        void this.captureFrame(videoRef).then(resolve);
       }
     });
   }

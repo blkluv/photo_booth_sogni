@@ -12,8 +12,8 @@ export async function initializeSogniClient(): Promise<BackendSogniClient> {
  * Generate image using the backend
  * This is a placeholder matching the original interface
  */
-export async function generateImage(): Promise<string[]> {
+export function generateImage(): Promise<string[]> {
   // This function is maintained for API compatibility
   // The actual implementation now occurs in App.jsx with the backend client
-  return [];
+  return Promise.resolve([]);
 } 

@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { PhotoService } from '../services/PhotoService';
+import type { Photo } from '../types';
 
 interface UseDragAndDropProps {
   photoService: PhotoService;
@@ -11,7 +12,7 @@ interface UseDragAndDropProps {
     selectedStyle: string;
     customPrompt?: string;
   };
-  setPhotos: React.Dispatch<React.SetStateAction<any[]>>;
+  setPhotos: React.Dispatch<React.SetStateAction<Photo[]>>;
   isSogniReady: boolean;
 }
 
@@ -35,7 +36,7 @@ export const useDragAndDrop = ({ photoService, settings, setPhotos, isSogniReady
     setDragActive(false);
   }, []);
 
-  const handleDrop = useCallback(async (e: DragEvent) => {
+  const handleDrop = useCallback((e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
@@ -55,27 +56,23 @@ export const useDragAndDrop = ({ photoService, settings, setPhotos, isSogniReady
     // Process each dropped image
     for (const file of imageFiles) {
       const reader = new FileReader();
-      reader.onload = async (event) => {
+      reader.onload = (event) => {
         const dataUrl = event.target?.result as string;
         if (!dataUrl) return;
 
         setPhotos(prevPhotos => {
           const newPhotoIndex = prevPhotos.length;
-          
           // Create blob from data URL
           const byteString = atob(dataUrl.split(',')[1]);
           const mimeString = dataUrl.split(',')[0].split(':')[1].split(';')[0];
           const ab = new ArrayBuffer(byteString.length);
           const ia = new Uint8Array(ab);
-          
           for (let i = 0; i < byteString.length; i++) {
             ia[i] = byteString.charCodeAt(i);
           }
-          
           const blob = new Blob([ab], { type: mimeString });
-          
           // Generate the photo
-          photoService.generateFromBlob(blob, newPhotoIndex, dataUrl, settings)
+          void photoService.generateFromBlob(blob, newPhotoIndex, dataUrl, settings)
             .then(photo => {
               setPhotos(photos => {
                 const updatedPhotos = [...photos];
@@ -83,7 +80,6 @@ export const useDragAndDrop = ({ photoService, settings, setPhotos, isSogniReady
                 return updatedPhotos;
               });
             });
-          
           // Add placeholder while generating
           return [...prevPhotos, {
             id: 'placeholder',
