@@ -1,12 +1,11 @@
-import React, { useRef, useEffect, useState, useCallback, useMemo, useReducer } from 'react';
-import { API_CONFIG } from './config/cors';
-import { SOGNI_URLS, DEFAULT_SETTINGS, modelOptions, getModelOptions, getValidModelValue, defaultStylePrompts as initialStylePrompts } from './constants/settings';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { DEFAULT_SETTINGS, getModelOptions, getValidModelValue, defaultStylePrompts as initialStylePrompts } from './constants/settings';
 import { photoThoughts, randomThoughts } from './constants/thoughts';
 import { getSettingFromCookie, saveSettingsToCookies } from './utils/cookies';
-import { generateUUID, styleIdToDisplay } from './utils';
-import { getCustomDimensions, resizeDataUrl, describeImage, centerCropImage, blobToDataURL } from './utils/imageProcessing';
-import { getPreviousPhotoIndex, getNextPhotoIndex, goToPreviousPhoto, goToNextPhoto } from './utils/photoNavigation';
-import { loadPrompts, initializeStylePrompts, getRandomStyle, getRandomMixPrompts } from './services/prompts';
+import { styleIdToDisplay } from './utils';
+import { getCustomDimensions, centerCropImage, blobToDataURL } from './utils/imageProcessing';
+import { goToPreviousPhoto, goToNextPhoto } from './utils/photoNavigation';
+import { loadPrompts, getRandomStyle, getRandomMixPrompts } from './services/prompts';
 import { initializeSogniClient } from './services/sogni';
 import { enhancePhoto, undoEnhancement } from './services/PhotoEnhancer';
 import clickSound from './click.mp3';
@@ -18,12 +17,9 @@ import './App.css';
 import './styles/style-dropdown.css';
 import './styles/ios-chrome-fixes.css';
 import './styles/mobile-portrait-fixes.css'; // New critical mobile portrait fixes
-import promptsData from './prompts.json';
-import ReactDOM from 'react-dom';
 import CameraView from './components/camera/CameraView';
 import CameraStartMenu from './components/camera/CameraStartMenu';
 import StyleDropdown from './components/shared/StyleDropdown';
-import { AppProvider, useApp } from './context/AppContext';
 import AdvancedSettings from './components/shared/AdvancedSettings';
 
 const App = () => {
@@ -36,22 +32,13 @@ const App = () => {
   // Style selection -- default to what's in cookies
   const [selectedStyle, setSelectedStyle] = useState(getSettingFromCookie('selectedStyle', DEFAULT_SETTINGS.selectedStyle));
   const [customPrompt, setCustomPrompt] = useState(getSettingFromCookie('customPrompt', ''));
-  const [loadedImages, setLoadedImages] = useState({});
   
   // Add state for style prompts instead of modifying the imported constant
   const [stylePrompts, setStylePrompts] = useState(initialStylePrompts);
 
   // Info modal state - adding back the missing state
   const [showInfoModal, setShowInfoModal] = useState(false);
-  const [showRetakeModal, setShowRetakeModal] = useState(false);
-  const [showUrlModal, setShowUrlModal] = useState(false);
-  const [showCamera, setShowCamera] = useState(true);
   const [showPhotoGrid, setShowPhotoGrid] = useState(false);
-  const [showLoading, setShowLoading] = useState(false);
-  const [showCameraError, setShowCameraError] = useState(false);
-  const [showImageError, setShowImageError] = useState(false);
-  const [showScrollIndicator, setShowScrollIndicator] = useState(false);
-  const [isFullScreen, setIsFullScreen] = useState(false);
 
   // Photos array
   // Each => { id, generating, images: string[], error, originalDataUrl?, newlyArrived?: boolean, generationCountdown?: number }
@@ -61,16 +48,12 @@ const App = () => {
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(null);
   // Which sub-image are we showing from that photo?
   const [selectedSubIndex, setSelectedSubIndex] = useState(0);
-  // Remember last rendered index for toggling with spacebar
-  const [lastViewedIndex, setLastViewedIndex] = useState(0);
 
   // Countdown 3..2..1 for shutter
   const [countdown, setCountdown] = useState(0);
   // Show flash overlay
   const [showFlash, setShowFlash] = useState(false);
 
-  // advanced settings
-  const [showSettings, setShowSettings] = useState(false);
   const [flashEnabled, setFlashEnabled] = useState(getSettingFromCookie('flashEnabled', DEFAULT_SETTINGS.flashEnabled));
   // Removed the single `realism` state in favor of styleRealism
   const [keepOriginalPhoto, setKeepOriginalPhoto] = useState(getSettingFromCookie('keepOriginalPhoto', DEFAULT_SETTINGS.keepOriginalPhoto));
@@ -83,10 +66,6 @@ const App = () => {
   const [cameraDevices, setCameraDevices] = useState([]);
   const [selectedCameraDeviceId, setSelectedCameraDeviceId] = useState(null);
   const [isFrontCamera, setIsFrontCamera] = useState(true);
-
-  // Add missing state variables for camera stream
-  const [isStreamStarted, setIsStreamStarted] = useState(false);
-  const [cameraEnabled, setCameraEnabled] = useState(false);
 
   // State for orientation handler cleanup
   const [orientationHandler, setOrientationHandler] = useState(null);
@@ -117,7 +96,7 @@ const App = () => {
         console.log('Successfully loaded prompts on component mount, loaded styles:', Object.keys(prompts).length);
         
         // Update the state variable instead of modifying the imported constant
-        setStylePrompts(prev => {
+        setStylePrompts(() => {
           const newStylePrompts = {
             custom: '',
             ...Object.fromEntries(
@@ -139,12 +118,6 @@ const App = () => {
     });
   }, []);
 
-  // First, let's create a proper job tracking map at the top of the App component:
-  const jobMapReference = useRef(new Map());
-
-  // First, let's track project setup progress properly
-  const [projectSetupProgress, setProjectSetupProgress] = useState(0);
-
   // At the top of App component, add a new ref for tracking project state
   const projectStateReference = useRef({
     currentPhotoIndex: 0,
@@ -156,30 +129,6 @@ const App = () => {
   
   // Add a ref for handled jobs
   const handledJobsReference = useRef(new Set());
-
-  // Calculate aspect ratio for loading boxes
-  const isPortrait = desiredHeight > desiredWidth;
-  const thumbnailWidth = 220; // Wider for landscape
-  const thumbnailHeight = 130; // Shorter for landscape
-
-  // Add useEffect for checking scrollability at top level
-  useEffect(() => {
-    const checkScrollable = () => {
-      const filmStrip = document.querySelector('.film-strip-container');
-      if (filmStrip) {
-        // Only show if scrollHeight is greater than clientHeight (scrollable)
-        const isScrollable = filmStrip.scrollHeight > filmStrip.clientHeight;
-        setShowScrollIndicator(isScrollable && photos.length > 8);
-      }
-    };
-    
-    // Check after content has rendered
-    setTimeout(checkScrollable, 100);
-    
-    // Also check on window resize
-    window.addEventListener('resize', checkScrollable);
-    return () => window.removeEventListener('resize', checkScrollable);
-  }, [photos.length, showPhotoGrid]);
 
   // At the top of App component, add new state variables - now loaded from cookies
   const [selectedModel, setSelectedModel] = useState(
@@ -195,16 +144,6 @@ const App = () => {
   // Add a state to control the custom dropdown visibility
   const [showStyleDropdown, setShowStyleDropdown] = useState(false);
 
-  // Add state for controlling the animation
-  const [photoViewerClosing, setPhotoViewerClosing] = useState(false);
-
-  // Remove unneeded slothicorn state variables
-  // Keep only what we need for other parts of the code
-  const [showSlothicorn, setShowSlothicorn] = useState(true); // Just keep this for possible toggling
-
-  // Add state for film strip visibility
-  const [showFilmStrip, setShowFilmStrip] = useState(true);
-
   // Add new state for button cooldown
   const [isPhotoButtonCooldown, setIsPhotoButtonCooldown] = useState(false);
   // Ref to track current project
@@ -213,8 +152,6 @@ const App = () => {
   // Add state for current thought
   const [currentThought, setCurrentThought] = useState(null);
 
-  // Add debug state
-  const [debugInfo, setDebugInfo] = useState('');
 
   // Update showThought function
   let thoughtInProgress = false;
@@ -372,7 +309,7 @@ const App = () => {
 
       client.projects.on('job', (event) => {
         console.log('Job event full payload:', event);
-        const { type, projectId, jobId, workerName } = event;
+        const { type, jobId, workerName } = event;
         if ((type === 'initiating' || type === 'started') && !handledJobsReference.current.has(jobId)) {
           handledJobsReference.current.add(jobId);
           setPhotos((prevPhotos) => {
@@ -566,12 +503,8 @@ const App = () => {
       // Store function for cleanup
       setOrientationHandler(() => handleOrientationChange);
       
-      setIsStreamStarted(true);
-      setCameraEnabled(true);
     } catch (error) {
       console.error('Failed to get camera access', error);
-      setCameraEnabled(false);
-      setIsStreamStarted(false);
     }
   }, [desiredWidth, desiredHeight, isFrontCamera]);
 
@@ -681,17 +614,6 @@ const App = () => {
     }
   }, [selectedPhotoIndex, photos]);
 
-  // Update the close photo handler to simplify it
-  const handleClosePhoto = () => {
-    setPhotoViewerClosing(true);
-    // Wait for animation to complete before actually changing view
-    setTimeout(() => {
-      setPhotoViewerClosing(false);
-      setSelectedPhotoIndex(null);
-      setSelectedSubIndex(0);
-    }, 300); // Match animation duration in CSS
-  };
-
   // Updated to use the utility function
   const handlePreviousPhoto = () => {
     const newIndex = goToPreviousPhoto(photos, selectedPhotoIndex);
@@ -780,7 +702,7 @@ const App = () => {
             const prompts = await loadPrompts();
             if (Object.keys(prompts).length > 0) {
               // Update state with new prompts
-              setStylePrompts(prev => {
+              setStylePrompts(() => {
                 const newStylePrompts = {
                   custom: '',
                   ...Object.fromEntries(
@@ -865,13 +787,11 @@ const App = () => {
       // Only animate if this is the first time (not a "more" operation)
       if (!isMoreOperation) {
         // Animate camera and studio lights out
-        setCameraAnimating(true);
         setLightsAnimating(true);
         
         // Wait for animation to complete before showing grid and hiding lights
         setTimeout(() => {
           setShowPhotoGrid(true);
-          setCameraAnimating(false);
           setStudioLightsHidden(true);
           setTimeout(() => {
             setLightsAnimating(false);
@@ -1178,12 +1098,10 @@ const App = () => {
       });
       
       // Still show photo grid on error
-      setCameraAnimating(true);
       setLightsAnimating(true);
       
       setTimeout(() => {
         setShowPhotoGrid(true);
-        setCameraAnimating(false);
         setStudioLightsHidden(true);
         setTimeout(() => {
           setLightsAnimating(false);
@@ -1544,29 +1462,6 @@ const App = () => {
     }
   };
 
-  // -------------------------
-  //   Delete photo
-  // -------------------------
-  const handleDeletePhoto = (photoIndex) => {
-    setPhotos((previous) => {
-      const newPhotos = [...previous];
-      newPhotos.splice(photoIndex, 1);
-      return newPhotos;
-    });
-
-    setSelectedPhotoIndex((current) => {
-      if (current === null) return null;
-      if (current === photoIndex) {
-        const newIndex = current - 1;
-        return newIndex < 0 ? null : newIndex;
-      } else if (photoIndex < current) {
-        return current - 1;
-      }
-      return current;
-    });
-    setSelectedSubIndex(0);
-  };
-
   /**
    * Handle user selection of a different camera device.
    */
@@ -1746,19 +1641,6 @@ const App = () => {
       )}
     </div>
   );
-
-  // Determine if we're in portrait or landscape orientation
-  const isPortraitOrientation = () => {
-    // Check current orientation of device
-    return window.matchMedia("(orientation: portrait)").matches;
-  };
-
-  // -------------------------
-  //   Control Panel
-  // -------------------------
-  const renderControlPanel = () => {
-    return null;
-  };
 
   // -------------------------
   //   Thumbnails at bottom
@@ -2335,15 +2217,9 @@ const App = () => {
     });
   };
 
-  // Add state for photo grid view
-  const [cameraAnimating, setCameraAnimating] = useState(false);
-
   // Update state for studio lights
   const [studioLightsHidden, setStudioLightsHidden] = useState(false);
   const [lightsAnimating, setLightsAnimating] = useState(false);
-
-  // Add state to track if user returned from photo grid
-  const [returnedFromPhotos, setReturnedFromPhotos] = useState(false);
 
   // Add state to track dropdown position
   const [dropdownPosition, setDropdownPosition] = useState('bottom');
@@ -2397,7 +2273,6 @@ const App = () => {
       // Hide photo grid and reset states
       setShowPhotoGrid(false);
       setSelectedPhotoIndex(null);
-      setReturnedFromPhotos(true);
       
       // Hide slothicorn to prevent double appearance
       if (slothicornReference.current) {
@@ -2408,9 +2283,6 @@ const App = () => {
       
       // Show the start menu again instead of the camera
       setShowStartMenu(true);
-      
-      // Clean reveal for the camera - no flying animations, just appear
-      setCameraAnimating(false);
       
       setTimeout(() => {
         setStudioLightsHidden(false);
@@ -2663,7 +2535,7 @@ const App = () => {
     const existingOriginalPhoto = keepOriginalPhoto ? photos.find(p => p.isOriginal) : null;
     
     // Create a new array with placeholders replacing the existing photos
-    setPhotos(prev => {
+    setPhotos(() => {
       // Start with just the original photo if we're keeping it
       const newPhotos = existingOriginalPhoto ? [existingOriginalPhoto] : [];
       
@@ -2703,8 +2575,7 @@ const App = () => {
       console.error('Error generating more photos:', error);
       
       // Update the newly added placeholder photos with error state
-      setPhotos(prev => {
-        const startIndex = existingOriginalPhoto ? 1 : 0;
+      setPhotos(() => {
         const newPhotos = existingOriginalPhoto ? [existingOriginalPhoto] : [];
         
         for (let i = 0; i < numToGenerate; i++) {
@@ -2958,7 +2829,6 @@ const App = () => {
               // Pre-scroll to top for smooth transition
               window.scrollTo(0, 0);
               // Clean transition - explicitly ensure camera is hidden first
-              setCameraAnimating(false);
               setShowPhotoGrid(true);
             }}
             className="view-photos-btn"

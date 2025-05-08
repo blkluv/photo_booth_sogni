@@ -8,7 +8,7 @@
     "dev:test": "vite --port 5176 --strictPort",
     "build": "tsc && vite build",
     "build:staging": "tsc && vite build --mode staging",
-    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint": "eslint \"src/**/*.{ts,tsx,js,jsx}\" --report-unused-disable-directives --max-warnings 0",
     "deploy:production": "bash scripts/deploy-production.sh",
     "deploy:staging": "bash scripts/deploy-staging.sh",
     "preview": "vite preview",
