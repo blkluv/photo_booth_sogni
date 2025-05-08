@@ -1,27 +1,40 @@
 # Sogni Photobooth
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
 A full-stack, open-source "AI photobooth" that lets anyone snap a selfie or upload a photo, then generate stylised images powered by the **Sogni Supernet**.  
 Live demo → **https://photobooth.sogni.ai**
 
-<p align="center">
-  <img src="screenshots/photobooth-demo-1.png" width="32%"/>
-  <img src="screenshots/photobooth-demo-2.png" width="32%"/>
-  <img src="screenshots/photobooth-demo-3.png" width="32%"/>
-</p>
+<div align="center">
+  <img alt="Photobooth screenshot – webcam mode" src="docs/assets/photobooth-demo-1.png" width="100%"/>
+  <img alt="Photobooth screenshot – style selection"  src="docs/assets/photobooth-demo-2.png" width="100%"/>
+  <img alt="Photobooth screenshot – generated gallery"  src="docs/assets/photobooth-demo-3.png" width="100%"/>
+</div>
 
 ---
 
 ## ✨ Features
+- **State-of-the-art Character Transfer / Identity-Preserving Stylized Synthesis** – keeps your face while transforming the style.
+- **Mobile & Desktop** – webcam support, camera-roll upload, drag-and-drop.
+- **One-Click Local Dev** – Vite + Nodemon + script runner.
+- **DePIN Powered** – no model downloads or local GPU needed; up to 64 concurrent jobs on the Sogni Supernet.
+- **Secure Backend** – credentials live only in the Node server; the browser never sees them.
+- **Live Progress** – real-time SSE and per-image progress bars.
 
-• **State-of-the-art Character Transfer / Identity-Preserving Stylized Synthesis** — keeps your face while transforming the style via Instant ID.  
-• **Parallel Generation** — up to 64 images rendered concurrently via the DePIN Sogni Supernet AI inference networ(via Sogni Client SDK).  
-• **Mobile & Desktop** — webcam support, camera-roll upload, drag-and-drop.  
-• **Secure Backend** — credentials live only in the Node server; the browser never sees them.  
-• **Live Progress** — real-time SSE and per-image progress bars.  
-• **One-Click Local Dev** — Vite + Nodemon + scripts runner.  
-• **DePIN Powered** - No AI model downloads or local GPU needed. Each image job is sent in parallel to separate worker nodes on the DePIN Sogni Supernet AI inference network, up to 64 concurrent image jobs at a time. 
+> You'll need a free [Sogni account](https://www.sogni.ai) + tokens for inference jobs.
 
-This application requires a free Sogni Account to leverage the Sogni Client SDK. Sogni tokens are required for inference jobs on the network.
+---
+
+## 📑 Table of Contents
+1. [Quick Start](#-quick-start)
+2. [Project Layout](#-project-layout)
+3. [Configuration](#️-configuration)
+4. [Testing](#-testing)
+5. [Production Build & Deploy](#-production-build--deploy)
+6. [Contributing](#-contributing)
+7. [License](#-license)
+8. [Acknowledgements](#-acknowledgements)
 
 ---
 
@@ -151,11 +164,10 @@ Licensed under the **MIT License**.  See [`LICENSE`](LICENSE) for the full text.
 ---
 
 ## 🙏 Acknowledgements
-* **Sogni AI** – for the SDK & Supernet that powers this application. Check out more "Superapp" examples: https://www.sogni.ai/super-apps
-* **Stable Diffusion SDXL** – https://huggingface.co/docs/diffusers/en/using-diffusers/sdxl
-* **Controlnets** - https://github.com/lllyasviel/ControlNet
-* **Instant ID** - https://github.com/instantX-research/InstantID
-* **Cursor AI** – the AI pair-programmer that was used to "vibe code" this sample repo leveraging the Sogni Client SDK. 
-* **
+- **Sogni AI** – for the SDK & Supernet that powers this application. [More "Superapps"](https://www.sogni.ai/super-apps)
+- **Stable Diffusion SDXL** – <https://huggingface.co/docs/diffusers/en/using-diffusers/sdxl>
+- **ControlNet** – <https://github.com/lllyasviel/ControlNet>
+- **Instant ID** – <https://github.com/instantX-research/InstantID>
+- **Cursor AI** – the AI pair-programmer used to vibe-code this sample repo.
 
-For any questions, comments, feedback, or support feel free to reach out to dream@sogni.ai 
+For questions, feedback, or support feel free to reach us at **dream@sogni.ai** 
