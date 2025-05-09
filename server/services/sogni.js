@@ -41,7 +41,7 @@ function recordClientActivity(clientId, env) {
   if (clientId) {
     connectionLastActivity.set(clientId, Date.now());
     // Uncomment for debugging
-    console.log(`[ACTIVITY] Recorded activity for client: ${clientId} in env: ${env}`);
+    // console.log(`[ACTIVITY] Recorded activity for client: ${clientId} in env: ${env}`);
   }
 }
 
@@ -548,6 +548,26 @@ export async function generateImage(params, progressCallback) {
           progressCallback(progressEvent);
         }
       });
+      sdkJob.on('completed', (resultUrl) => {
+        if (progressCallback) {
+          progressCallback({
+            type: 'progress',
+            jobId: sdkJob.id,
+            imgId: sdkJob.imgID,
+            progress: 1.0, 
+            projectId: project.id,
+            workerName: sdkJob.workerName || 'unknown'
+          });
+          progressCallback({
+            type: 'jobCompleted',
+            jobId: sdkJob.id,
+            imgId: sdkJob.imgID,
+            resultUrl: resultUrl, 
+            projectId: project.id,
+            workerName: sdkJob.workerName || 'unknown'
+          });
+        }
+      });
     };
     if (project.jobs && project.jobs.length > 0) {
       project.jobs.forEach(setupProgressListener);
@@ -573,26 +593,6 @@ export async function generateImage(params, progressCallback) {
           jobId: sdkJob.id,
           imgId: sdkJob.imgID,
           progress: 0.0,
-          projectId: project.id,
-          workerName: sdkJob.workerName || 'unknown'
-        });
-      }
-    });
-    project.on('jobCompleted', (sdkJob) => {
-      if (progressCallback) {
-        progressCallback({
-          type: 'progress',
-          jobId: sdkJob.id,
-          imgId: sdkJob.imgID,
-          progress: 1.0, 
-          projectId: project.id,
-          workerName: sdkJob.workerName || 'unknown'
-        });
-        progressCallback({
-          type: 'jobCompleted',
-          jobId: sdkJob.id,
-          imgId: sdkJob.imgID,
-          resultUrl: sdkJob.resultUrl, 
           projectId: project.id,
           workerName: sdkJob.workerName || 'unknown'
         });

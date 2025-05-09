@@ -921,10 +921,11 @@ const App = () => {
       });
 
       project.on('completed', (urls) => {
-        console.log('Project completed:', urls);
+        console.log('Project completed');
         activeProjectReference.current = null; // Clear active project reference when complete
         if (urls.length === 0) return;
-        
+        // don't update photos here, we do that in the jobCompleted event for each job
+        /*
         for (const [index, url] of urls.entries()) {
           const offset = keepOriginalPhoto ? 1 : 0;
           const photoIndex = index + offset;
@@ -952,6 +953,7 @@ const App = () => {
             return updated;
           });
         }
+        */
       });
 
       project.on('failed', (error) => {

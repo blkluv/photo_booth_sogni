@@ -400,7 +400,7 @@ router.post('/generate', ensureSessionId, async (req, res) => {
       
       if (activeProjects.has(localProjectId)) {
         const clients = activeProjects.get(localProjectId);
-        console.log(`[${localProjectId}] Forwarding event to ${clients.size} SSE client(s):`, JSON.stringify(sseEvent));
+        // console.log(`[${localProjectId}] Forwarding event to ${clients.size} SSE client(s):`, JSON.stringify(sseEvent));
         clients.forEach(client => {
           sendSSEMessage(client, sseEvent);
         });
@@ -452,7 +452,7 @@ router.post('/generate', ensureSessionId, async (req, res) => {
             sogniProjectId: sogniResult.projectId, // Include actual Sogni project ID
             result: sogniResult.result // Result URLs from Sogni
           };
-          console.log(`[${localProjectId}] Sending 'complete' event to ${clients.size} SSE client(s):`, JSON.stringify(completionEvent));
+          console.log(`[${localProjectId}] Sending 'complete' event to ${clients.size} SSE client(s):`);//, JSON.stringify(completionEvent));
           clients.forEach((client) => {
             sendSSEMessage(client, completionEvent);
           });
