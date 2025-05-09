@@ -3177,6 +3177,7 @@ const App = () => {
             object-fit: cover;
             width: 100%;
             height: auto;
+            border-radius: 0 !important;
           }
           
           /* Update film frame images */
@@ -3250,7 +3251,7 @@ const App = () => {
           @media (max-width: 600px) {
             .polaroid-frame {
               max-width: 99vw !important;
-              border-radius: 12px !important;
+              border-radius: 4px !important;
             }
             .polaroid-frame > div:first-child {
               height: 40px !important;

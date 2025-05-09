@@ -12,7 +12,7 @@
 /* Outer frame surrounding video feed, thumbnails, header etc. */
 .photobooth-frame {
   background-color: #ff3366;
-  border-radius: 12px !important;
+  border-radius: 4px !important;
   box-shadow: 0 10px 25px rgba(0,0,0,0.2) !important;
   max-width: 1000px !important;
   margin: 0 auto !important;

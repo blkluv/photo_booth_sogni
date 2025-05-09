@@ -92,9 +92,8 @@
 
 .polaroidFrame {
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.18), 0 1.5px 0 #e5e5e5;
-  border: 1.5px solid #ececec;
+  border-radius: 4px;
+  box-shadow: 0 2px 0 #e5e5e5, 0 8px 30px rgba(0,0,0,0.18);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -144,10 +143,10 @@
   background: white;
   border-left: 32px solid white;
   border-right: 32px solid white;
-  border-top: 56px solid white;
+  border-top: 46px solid white;
   border-bottom: 120px solid white;
   border-radius: 8px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+  box-shadow: 0 2px 0 #e5e5e5, 0 8px 30px rgba(0,0,0,0.18);
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -193,7 +192,7 @@
 
 .bottomControls {
   position: absolute;
-  bottom: 24px;
+  bottom: 32px;
   left: 0;
   right: 0;
   display: flex;
@@ -459,7 +458,7 @@
 @media (max-width: 420px) and (orientation: portrait) {
   .polaroidFrame {
     min-width: 0;
-    border-radius: 12px;
+    border-radius: 4px;
     overflow: hidden;
   }
   
@@ -522,7 +521,7 @@
 @supports (-webkit-touch-callout: none) {
   @media (orientation: portrait) {
     .polaroidFrame {
-      border-radius: 12px;
+      border-radius: 4px;
       overflow: hidden;
     }
     
@@ -822,4 +821,13 @@
       calc(50% + 80px) calc(50% + 150px);
     opacity: 0;
   }
+}
+
+.polaroidFrame .imageWrapper > img,
+.polaroidFrame .imageWrapper > video,
+.cameraView > video,
+:global(.film-frame img),
+:global(.film-frame.selected img) {
+  box-shadow: 0 2px 16px 0 rgba(0,0,0,0.22) inset, 0 1.5px 0 #e5e5e5 inset, 0 0.5px 2px #fff inset !important;
+  border-radius: 4px !important;
 } 
