@@ -3,7 +3,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-A full-stack, open-source "AI photobooth" that lets anyone snap a selfie or upload a photo, then generate stylised images powered by the **Sogni Supernet**.  
+An "AI photobooth" web app that allows users to snap a selfie or upload a photo via desktop or mobile, then quickly generate a series of stylised portraits without having to download AI models or have a powerful GPU. This is a demo application powered by the whitelabel Sogni Client SDK and open-sourced to give developers a solid example to fork or reference for their own Sogni Supernet powered applications.
+
+If you build something cool with the Sogni Client SDK let us know and we'll add it to the growing list of "Sogni Superapps": https://www.sogni.ai/super-apps
+
 Live demo → **https://photobooth.sogni.ai**
 
 <div align="center">
@@ -18,6 +21,7 @@ Live demo → **https://photobooth.sogni.ai**
 - **State-of-the-art Character Transfer / Identity-Preserving Stylized Synthesis** – keeps your face while transforming the style.
 - **Mobile & Desktop** – webcam support, camera-roll upload, drag-and-drop.
 - **One-Click Local Dev** – Vite + Nodemon + script runner.
+- **Style Presets & Customization** - Pick between 150+ style prompts or write your own. Pick different models and customize model guidance settings.
 - **DePIN Powered** – no model downloads or local GPU needed; up to 64 concurrent jobs on the Sogni Supernet.
 - **Secure Backend** – credentials live only in the Node server; the browser never sees them.
 - **Live Progress** – real-time SSE and per-image progress bars.
