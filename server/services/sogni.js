@@ -1,5 +1,4 @@
 import { SogniClient } from '@sogni-ai/sogni-client';
-import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
@@ -33,6 +32,12 @@ export function getActiveConnectionsCount() {
 export function logConnectionStatus(operation, clientId) {
   console.log(`[CONNECTION TRACKER] ${operation} - Client: ${clientId}`);
   console.log(`[CONNECTION TRACKER] Active connections: ${activeConnections.size}`);
+  if (activeConnections.size > 0) {
+    console.log('[CONNECTION TRACKER] All active app-ids:');
+    for (const appId of activeConnections.keys()) {
+      console.log(`  - ${appId}`);
+    }
+  }
   return activeConnections.size;
 }
 
@@ -145,9 +150,6 @@ process.on('SIGTERM', () => {
     });
 });
 
-// Helper function to generate a UUID
-const generateUUID = () => uuidv4();
-
 // Get Sogni URLs based on environment
 const getSogniUrls = (env) => {
   const SOGNI_HOSTS = {
@@ -225,8 +227,11 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Helper to create a new SogniClient for each project
 async function createSogniClient(appIdPrefix, clientProvidedAppId) {
-  // Use client-provided app ID if available, otherwise generate a consistent but unique app ID
-  const generatedAppId = clientProvidedAppId || `${appIdPrefix || process.env.SOGNI_APP_ID}-${generateUUID()}`;
+  // Only allow creation if clientProvidedAppId is present
+  if (!clientProvidedAppId) {
+    throw new Error('clientProvidedAppId is required to create a SogniClient');
+  }
+  const generatedAppId = clientProvidedAppId;
   sogniAppId = generatedAppId;
   sogniEnv = process.env.SOGNI_ENV || 'production';
   sogniUsername = process.env.SOGNI_USERNAME;
@@ -488,8 +493,10 @@ export async function getClientInfo(sessionId, clientAppId) {
   }
 }
 
-export async function generateImage(params, progressCallback) {
-  const client = await createSogniClient();
+export async function generateImage(client, params, progressCallback) {
+  if (!client) {
+    throw new Error('A valid Sogni client must be provided to generateImage');
+  }
   
   try {
     // Record activity for this client

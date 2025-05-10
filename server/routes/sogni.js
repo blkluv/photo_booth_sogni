@@ -388,10 +388,12 @@ router.post('/generate', ensureSessionId, async (req, res) => {
       };
 
       // Critical: Ensure a valid jobId exists before sending, otherwise frontend can't track
+      /* some are project events
       if (!sseEvent.jobId) {
         console.error(`[${localProjectId}] Event is missing critical jobId, cannot send to client event ${eventData.type}`);//, JSON.stringify(sseEvent));
         return; // Do not send event without a jobId
       }
+      */
       
       if (activeProjects.has(localProjectId)) {
         const clients = activeProjects.get(localProjectId);
@@ -406,13 +408,10 @@ router.post('/generate', ensureSessionId, async (req, res) => {
     
     // Get or create a client for this session, using the client-provided app ID
     const client = await getSessionClient(req.sessionId, clientAppId);
-    
     // Start the generation process using the session's client
     const params = req.body;
-    
-    // Instead of directly creating a project, use the generateImage function 
-    // which already has all the proper event listeners set up
-    generateImage(params, progressHandler)
+    // Pass the client to generateImage
+    generateImage(client, params, progressHandler)
       .then(sogniResult => {
         console.log(`[${localProjectId}] Sogni generation process finished. Sogni Project ID: ${sogniResult.projectId}, Result URLs:`, JSON.stringify(sogniResult.result?.imageUrls || []));
         

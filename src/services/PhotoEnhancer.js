@@ -65,15 +65,15 @@ export const enhancePhoto = async (options) => {
       // Use the backend proxy client
       const project = await sogniClient.projects.create({
         modelId: "flux1-schnell-fp8",
-        positivePrompt: photo.positivePrompt || 'Portrait masterpiece',
+        positivePrompt: `Detailed portrait, ${photo.positivePrompt || 'Portrait masterpiece'}`,
         sizePreset: 'custom',
         width,
         height,
-        steps: 4,
+        steps: 5,
         guidance: 1,
         numberOfImages: 1,
         startingImage: Array.from(new Uint8Array(arrayBuffer)),
-        startingImageStrength: 0.60,
+        startingImageStrength: 0.75,
       });
       
       // Track progress
