@@ -385,7 +385,9 @@ export async function createProject(params: Record<string, unknown>, progressCal
       // Enhancement parameters
       projectParams = {
         selectedModel: params.modelId,
-        stylePrompt: params.positivePrompt,
+        positivePrompt: params.positivePrompt || '',
+        negativePrompt: params.negativePrompt || '',
+        stylePrompt: params.stylePrompt || '',
         width: params.width,
         height: params.height,
         promptGuidance: params.guidance,
@@ -403,7 +405,9 @@ export async function createProject(params: Record<string, unknown>, progressCal
       }
       projectParams = {
         selectedModel: params.modelId,
-        stylePrompt: params.positivePrompt,
+        positivePrompt: params.positivePrompt || '',
+        negativePrompt: params.negativePrompt || '',
+        stylePrompt: params.stylePrompt || '',
         width: params.width,
         height: params.height,
         promptGuidance: params.guidance,

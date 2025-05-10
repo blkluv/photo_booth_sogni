@@ -498,7 +498,9 @@ export async function generateImage(params, progressCallback) {
     const isEnhancement = params.startingImage !== undefined;
     const projectOptions = {
       modelId: params.selectedModel,
-      positivePrompt: params.stylePrompt,
+      positivePrompt: params.positivePrompt || '',
+      negativePrompt: params.negativePrompt || '',
+      stylePrompt: params.stylePrompt || '',
       sizePreset: 'custom',
       width: params.width,
       height: params.height,
@@ -611,8 +613,7 @@ export async function generateImage(params, progressCallback) {
             type: event.type,
             workerName: event.workerName || 'unknown',
             positivePrompt: event.positivePrompt,
-            jobIndex: event.jobIndex,
-            payload: event
+            jobIndex: event.jobIndex
           }
           break;
         case 'progress':
@@ -625,6 +626,8 @@ export async function generateImage(params, progressCallback) {
           progressEvent = {
             type: 'jobCompleted',
             resultUrl: event.resultUrl,
+            positivePrompt: event.positivePrompt,
+            jobIndex: event.jobIndex
           };
           break;
         case 'failed':

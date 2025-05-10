@@ -21,6 +21,7 @@ import CameraView from './components/camera/CameraView';
 import CameraStartMenu from './components/camera/CameraStartMenu';
 import StyleDropdown from './components/shared/StyleDropdown';
 import AdvancedSettings from './components/shared/AdvancedSettings';
+import promptsData from './prompts.json';
 
 const App = () => {
   const videoReference = useRef(null);
@@ -789,42 +790,36 @@ const App = () => {
         // Give iOS a moment to fully process the image
         await new Promise(resolve => setTimeout(resolve, 200));
       }
-      
-      // Create job tracking map and set of handled jobs
-      const handledJobs = {current: new Set()};
 
       // Helper to set up job progress handler
       const setupJobProgress = (job) => {
-        if (!handledJobs.current.has(job.id)) {
-          let jobIndex;
-          if (projectStateReference.current.jobMap.has(job.id)) {
-            jobIndex = projectStateReference.current.jobMap.get(job.id);
-          } else {
-            jobIndex = projectStateReference.current.jobMap.size;
-            projectStateReference.current.jobMap.set(job.id, jobIndex);
-          }
-          handledJobs.current.add(job.id);
-          job.on('progress', (progress) => {
-            // Only update progress, not workerName or label
-            const offset = keepOriginalPhoto ? 1 : 0;
-            const photoIndex = jobIndex + offset;
-            setPhotos(previous => {
-              const updated = [...previous];
-              if (photoIndex >= updated.length) return previous;
-              const cachedWorkerName = updated[photoIndex].workerName || 'unknown';
-              const displayProgress = Math.round(progress * 100);
-              updated[photoIndex] = {
-                ...updated[photoIndex],
-                generating: true,
-                loading: true,
-                progress: displayProgress,
-                statusText: `${cachedWorkerName} processing... ${displayProgress}%`,
-                jobId: job.id
-              };
-              return updated;
-            });
-          });
+        let jobIndex;
+        if (projectStateReference.current.jobMap.has(job.id)) {
+          jobIndex = projectStateReference.current.jobMap.get(job.id);
+        } else {
+          jobIndex = projectStateReference.current.jobMap.size;
+          projectStateReference.current.jobMap.set(job.id, jobIndex);
         }
+        job.on('progress', (progress) => {
+          // Only update progress, not workerName or label
+          const offset = keepOriginalPhoto ? 1 : 0;
+          const photoIndex = jobIndex + offset;
+          setPhotos(previous => {
+            const updated = [...previous];
+            if (photoIndex >= updated.length) return previous;
+            const cachedWorkerName = updated[photoIndex].workerName || 'unknown';
+            const displayProgress = Math.round(progress * 100);
+            updated[photoIndex] = {
+              ...updated[photoIndex],
+              generating: true,
+              loading: true,
+              progress: displayProgress,
+              statusText: `${cachedWorkerName} processing... ${displayProgress}%`,
+              jobId: job.id
+            };
+            return updated;
+          });
+        });
       };
       
       // Process the array buffer for iOS as a special precaution
@@ -835,6 +830,8 @@ const App = () => {
       const project = await sogniClient.projects.create({
         modelId: selectedModel,
         positivePrompt: stylePrompt,
+        negativePrompt: 'lowres, worst quality, low quality',
+        stylePrompt: '',
         sizePreset: 'custom',
         width: desiredWidth,
         height: desiredHeight,
@@ -867,26 +864,46 @@ const App = () => {
 
       // Attach a single project-level job event handler
       project.on('job', (event) => {
-        const { type, jobId, workerName, progress } = event;
-        const jobIndex = projectStateReference.current.jobMap.get(jobId);
-        const offset = keepOriginalPhoto ? 1 : 0;
-        const photoIndex = jobIndex + offset;
+        const { type, jobId, workerName, progress, jobIndex, positivePrompt } = event;
+        // Use jobIndex if available, otherwise fall back to jobId mapping
+        let photoIndex;
+        if (typeof jobIndex === 'number') {
+          const offset = keepOriginalPhoto ? 1 : 0;
+          photoIndex = jobIndex + offset;
+        } else {
+          const jobIdx = projectStateReference.current.jobMap.get(jobId);
+          const offset = keepOriginalPhoto ? 1 : 0;
+          photoIndex = jobIdx + offset;
+        }
         setPhotos(prev => {
           const updated = [...prev];
           if (photoIndex >= updated.length) return prev;
+          // Try to find a hashtag for the style prompt
+          let hashtag = '';
+          const stylePromptValue = updated[photoIndex].stylePrompt;
+          if (stylePromptValue) {
+            const foundKey = Object.entries(promptsData).find(([, value]) => value === stylePromptValue)?.[0];
+            if (foundKey) hashtag = `#${foundKey}`;
+          }
           if (type === 'initiating') {
             updated[photoIndex] = {
               ...updated[photoIndex],
-              statusText: `${workerName || 'unknown'} loading model...`,
+              statusText: `${workerName || 'unknown'} loading model`,
               workerName: workerName || 'unknown',
-              jobId
+              jobId,
+              jobIndex,
+              positivePrompt,
+              hashtag
             };
           } else if (type === 'started') {
             updated[photoIndex] = {
               ...updated[photoIndex],
               statusText: `${workerName || 'unknown'} starting job`,
               workerName: workerName || 'unknown',
-              jobId
+              jobId,
+              jobIndex,
+              positivePrompt,
+              hashtag
             };
           } else if (type === 'progress') {
             const cachedWorkerName = updated[photoIndex].workerName || 'unknown';
@@ -916,40 +933,9 @@ const App = () => {
         console.log('Project progress:', progress);
       });
 
-      project.on('completed', (urls) => {
+      project.on('completed', () => {
         console.log('Project completed');
         activeProjectReference.current = null; // Clear active project reference when complete
-        if (urls.length === 0) return;
-        // don't update photos here, we do that in the jobCompleted event for each job
-        /*
-        for (const [index, url] of urls.entries()) {
-          const offset = keepOriginalPhoto ? 1 : 0;
-          const photoIndex = index + offset;
-          
-          setPhotos(previous => {
-            const updated = [...previous];
-            if (!updated[photoIndex]) return previous;
-            
-            // Check if this photo has a permanent error - if so, don't update it
-            if (updated[photoIndex].permanentError) {
-              console.log(`Photo at index ${photoIndex} has permanent error, skipping update`);
-              return previous;
-            }
-            
-            if (updated[photoIndex].loading || updated[photoIndex].images.length === 0) {
-              updated[photoIndex] = {
-                ...updated[photoIndex],
-                generating: false,
-                loading: false,
-                images: [url],
-                newlyArrived: true,
-                statusText: `#${index+1}`
-              };
-            }
-            return updated;
-          });
-        }
-        */
       });
 
       project.on('failed', (error) => {
@@ -959,29 +945,19 @@ const App = () => {
 
       // Individual job events
       project.on('jobCompleted', (job) => {
-        console.log('Job completed:', job.id, job.resultUrl);
         if (!job.resultUrl) {
           console.error('Missing resultUrl for job:', job.id);
           return;
         }
-        
         const jobIndex = projectStateReference.current.jobMap.get(job.id);
-        console.log('Looking up job index for completed job:', job.id, 'found:', jobIndex, 'in map:', projectStateReference.current.jobMap);
-        if (jobIndex === undefined) {
-          console.error('Unknown job completed:', job.id);
-          return;
-        }
-        
-        if (cameraWindSoundReference.current) {
-          cameraWindSoundReference.current.play().catch(error => {
-            console.warn("Error playing camera wind sound:", error);
-          });
-        }
-        
         const offset = keepOriginalPhoto ? 1 : 0;
         const photoIndex = jobIndex + offset;
-        console.log(`Loading image for job ${job.id} into box ${photoIndex}, keepOriginalPhoto: ${keepOriginalPhoto}, offset: ${offset}`);
-        
+        const positivePrompt = job.positivePrompt;
+        let hashtag = '';
+        if (positivePrompt) {
+          const foundKey = Object.entries(promptsData).find(([, value]) => value === positivePrompt)?.[0];
+          if (foundKey) hashtag = `#${foundKey}`;
+        }
         const img = new Image();
         img.addEventListener('load', () => {
           setPhotos(previous => {
@@ -990,13 +966,11 @@ const App = () => {
               console.error(`No photo box found at index ${photoIndex}`);
               return previous;
             }
-            
             // Check if this photo has a permanent error - if so, don't update it
             if (updated[photoIndex].permanentError) {
               console.log(`Photo at index ${photoIndex} has permanent error, skipping update`);
               return previous;
             }
-            
             updated[photoIndex] = {
               ...updated[photoIndex],
               generating: false,
@@ -1004,17 +978,15 @@ const App = () => {
               progress: 100,
               images: [job.resultUrl],
               newlyArrived: true,
-              statusText: `#${jobIndex+1}`
+              statusText: hashtag || `#${jobIndex+1}`
             };
-            
             // Check if all photos are done generating
             const stillGenerating = updated.some(photo => photo.generating);
             if (!stillGenerating && activeProjectReference.current) {
-              // All photos are done, clear the active project
+              // All jobs are done, clear the active project
               console.log('All jobs completed, clearing active project');
               activeProjectReference.current = null;
             }
-            
             return updated;
           });
         });
@@ -2030,6 +2002,7 @@ const App = () => {
                     {photo.error ? 
                       `${typeof photo.error === 'object' ? 'Generation failed' : photo.error}` 
                       : (photo.statusText || loadingLabel || labelText)}
+                    {photo.hashtag ? ` ${photo.hashtag}` : ''}
                   </div>
                 </div>
               );
@@ -2181,6 +2154,7 @@ const App = () => {
                 </div>
                 <div className="photo-label">
                   {photo.statusText || labelText}
+                  {photo.hashtag ? ` ${photo.hashtag}` : ''}
                 </div>
               </div>
             );
@@ -2548,7 +2522,8 @@ const App = () => {
           error: null,
           originalDataUrl: lastPhotoData.dataUrl,
           newlyArrived: false,
-          statusText: 'Finding Art Robot...'
+          statusText: 'Finding Art Robot...',
+          stylePrompt: '' // No prompt for 'more' operation unless you want to track it
         });
       }
       

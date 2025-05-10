@@ -55,6 +55,10 @@ export class BackendProject implements SogniEventEmitter {
     workerName?: string;
     realJobId?: string;
     index?: number;
+    positivePrompt?: string;
+    negativePrompt?: string;
+    stylePrompt?: string;
+    jobIndex?: number;
     progressCallback?: (progress: number) => void;
     error?: string;
   }[] = [];
@@ -89,6 +93,10 @@ export class BackendProject implements SogniEventEmitter {
       workerName?: string;
       realJobId?: string;
       index?: number;
+      positivePrompt?: string;
+      negativePrompt?: string;
+      stylePrompt?: string;
+      jobIndex?: number;
       on: (event: string, callback: (progress: number) => void) => void;
       progressCallback?: (progress: number) => void;
       error?: string;
@@ -98,6 +106,10 @@ export class BackendProject implements SogniEventEmitter {
       workerName: workerName || '',
       index,
       realJobId: undefined,
+      positivePrompt: undefined,
+      negativePrompt: undefined,
+      stylePrompt: undefined,
+      jobIndex: undefined,
       on: (event: string, callback: (progress: number) => void) => {
         if (event === 'progress') {
           job.progressCallback = callback;
@@ -466,7 +478,7 @@ export class BackendSogniClient {
             workerName = event.workerName;
           }
           
-          console.log(`Event ${eventType} with jobId: ${jobId}, worker name: ${workerName || 'unknown'}`);
+          console.log(`Event ${eventType} with jobId: ${jobId}`);
           
           // Find the corresponding frontend job placeholder using the received jobId (SDK job.id/imgID)
           const jobIndex = project.jobs.findIndex(j => 
@@ -486,6 +498,14 @@ export class BackendSogniClient {
             if (workerName) {
               targetJob.workerName = workerName;
             }
+            // Update positive prompt if provided
+            if (event.positivePrompt) {
+              targetJob.positivePrompt = event.positivePrompt as string;
+            }
+            // Update job index if provided
+            if (event.index) {
+              targetJob.jobIndex = event.index as number;
+            }
           } else {
             console.warn(`Could not find placeholder job for event with jobId: ${jobId}. Event type: ${eventType}`);
           }
@@ -495,12 +515,16 @@ export class BackendSogniClient {
             case 'initiating':
             case 'started':
               if (targetJob) {
+                targetJob.jobIndex = event.index as number;
+                targetJob.positivePrompt = event.positivePrompt as string;
                 project.emit('job', { 
                   type: eventType, 
                   jobId: targetJob.id, // Emit with placeholder ID
                   realJobId: jobId, // Include real ID
                   projectId: project.id,
-                  workerName
+                  workerName,
+                  positivePrompt: event.positivePrompt as string,
+                  jobIndex: event.index as number,
                 });
               }
               break;
