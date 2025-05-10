@@ -507,7 +507,7 @@ export async function generateImage(params: Record<string, unknown>, progressCal
     }
     
     // Set up SSE for progress tracking
-    return new Promise((resolve, reject) => {
+    return new Promise((_resolve, reject) => {
       // Include connection retry logic for more robustness
       let retryCount = 0;
       const maxRetries = 5; // Increase from 3 to 5
