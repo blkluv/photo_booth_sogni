@@ -31,7 +31,7 @@ app.use((req, res, next) => {
   const origin = req.headers.origin;
   
   // Log origin for debugging
-  console.log(`DEBUG - CORS request from origin:`, origin);
+  // console.log(`DEBUG - CORS request from origin:`, origin);
   
   // Allow localhost access for development
   if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1')) {
@@ -91,7 +91,7 @@ app.use((req, res, next) => {
 // Log all requests for debugging
 app.use((req, res, next) => {
   console.log(`DEBUG - ${new Date().toISOString()} - ${req.method} ${req.path}`);
-  console.log(`DEBUG - Headers:`, JSON.stringify(req.headers));
+  //console.log(`DEBUG - Headers:`, JSON.stringify(req.headers));
   next();
 });
 

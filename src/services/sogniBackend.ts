@@ -464,8 +464,6 @@ export class BackendSogniClient {
           let workerName: string | undefined = undefined;
           if (typeof event.workerName === 'string') {
             workerName = event.workerName;
-          } else if (event.progress && typeof event.progress === 'object' && event.progress !== null && 'workerName' in event.progress && typeof (event.progress as Record<string, unknown>).workerName === 'string') {
-            workerName = (event.progress as Record<string, unknown>).workerName as string;
           }
           
           console.log(`Event ${eventType} with jobId: ${jobId}, worker name: ${workerName || 'unknown'}`);
@@ -477,7 +475,6 @@ export class BackendSogniClient {
           );
           
           let targetJob = jobIndex >= 0 ? project.jobs[jobIndex] : null;
-
           // If found, update its details
           if (targetJob) {
             // Assign real job ID if this is the first time we see it for this placeholder
@@ -503,7 +500,7 @@ export class BackendSogniClient {
                   jobId: targetJob.id, // Emit with placeholder ID
                   realJobId: jobId, // Include real ID
                   projectId: project.id,
-                  workerName: targetJob.workerName
+                  workerName
                 });
               }
               break;

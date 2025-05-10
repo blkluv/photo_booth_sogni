@@ -126,9 +126,6 @@ const App = () => {
     completedJobs: new Map(), // Store completed jobs that arrive before start
     pendingCompletions: new Map() // Store completions that arrive before we have the mapping
   });
-  
-  // Add a ref for handled jobs
-  const handledJobsReference = useRef(new Set());
 
   // At the top of App component, add new state variables - now loaded from cookies
   const [selectedModel, setSelectedModel] = useState(
@@ -309,25 +306,7 @@ const App = () => {
 
       client.projects.on('job', (event) => {
         console.log('Job event full payload:', event);
-        const { type, jobId, workerName } = event;
-        if ((type === 'initiating' || type === 'started') && !handledJobsReference.current.has(jobId)) {
-          handledJobsReference.current.add(jobId);
-          setPhotos((prevPhotos) => {
-            return prevPhotos.map((photo, index) => {
-              if (index === projectStateReference.current.jobMap.get(jobId)) {
-                const statusText = type === 'initiating' 
-                  ? `${workerName} loading model...`
-                  : `${workerName} starting job`;
-                return {
-                  ...photo,
-                  statusText,
-                  jobId,
-                };
-              }
-              return photo;
-            });
-          });
-        }
+        // Only keep this for logging or other job events if needed
       });
     } catch (error) {
       console.error('Failed initializing Sogni client:', error);
@@ -816,48 +795,30 @@ const App = () => {
 
       // Helper to set up job progress handler
       const setupJobProgress = (job) => {
-        // Only set up if we haven't already handled this job
         if (!handledJobs.current.has(job.id)) {
-          // Ensure we have a photo index that corresponds to a valid photo
-          // This should match the order we've requested images
           let jobIndex;
-
-          // First try to get it from an existing mapping
           if (projectStateReference.current.jobMap.has(job.id)) {
             jobIndex = projectStateReference.current.jobMap.get(job.id);
           } else {
-            // Otherwise create a new mapping
             jobIndex = projectStateReference.current.jobMap.size;
             projectStateReference.current.jobMap.set(job.id, jobIndex);
           }
-
-          // Mark this job as handled to prevent duplicate handlers
           handledJobs.current.add(job.id);
-          
           job.on('progress', (progress) => {
-            // Apply offset correctly depending on whether we're keeping the original photo
+            // Only update progress, not workerName or label
             const offset = keepOriginalPhoto ? 1 : 0;
             const photoIndex = jobIndex + offset;
-            
-            // Safety check - ensure a valid photo index
             setPhotos(previous => {
               const updated = [...previous];
-              
-              // Safety check - make sure the photo index is valid
-              if (photoIndex >= updated.length) {
-                // Skip updates for invalid indices
-                return previous;
-              }
-              
-              // Progress should be coming in as a 0-1 decimal, need to convert to percentage
+              if (photoIndex >= updated.length) return previous;
+              const cachedWorkerName = updated[photoIndex].workerName || 'unknown';
               const displayProgress = Math.round(progress * 100);
-              
               updated[photoIndex] = {
                 ...updated[photoIndex],
                 generating: true,
                 loading: true,
                 progress: displayProgress,
-                statusText: `${job.workerName} processing... ${displayProgress}%`,
+                statusText: `${cachedWorkerName} processing... ${displayProgress}%`,
                 jobId: job.id
               };
               return updated;
@@ -900,13 +861,48 @@ const App = () => {
       console.log('Project jobs to set up:', project.jobs);
       if (project.jobs && project.jobs.length > 0) {
         project.jobs.forEach((job, index) => {
-          console.log(`Initializing job ${job.id} for index ${index}`);
-          // Initialize the job map with the job ID -> photo index mapping
           projectStateReference.current.jobMap.set(job.id, index);
-          // Set up progress handler
-          setupJobProgress(job);
         });
       }
+
+      // Attach a single project-level job event handler
+      project.on('job', (event) => {
+        const { type, jobId, workerName, progress } = event;
+        const jobIndex = projectStateReference.current.jobMap.get(jobId);
+        const offset = keepOriginalPhoto ? 1 : 0;
+        const photoIndex = jobIndex + offset;
+        setPhotos(prev => {
+          const updated = [...prev];
+          if (photoIndex >= updated.length) return prev;
+          if (type === 'initiating') {
+            updated[photoIndex] = {
+              ...updated[photoIndex],
+              statusText: `${workerName || 'unknown'} loading model...`,
+              workerName: workerName || 'unknown',
+              jobId
+            };
+          } else if (type === 'started') {
+            updated[photoIndex] = {
+              ...updated[photoIndex],
+              statusText: `${workerName || 'unknown'} starting job`,
+              workerName: workerName || 'unknown',
+              jobId
+            };
+          } else if (type === 'progress') {
+            const cachedWorkerName = updated[photoIndex].workerName || 'unknown';
+            const displayProgress = Math.round((progress ?? 0) * 100);
+            updated[photoIndex] = {
+              ...updated[photoIndex],
+              generating: true,
+              loading: true,
+              progress: displayProgress,
+              statusText: `${cachedWorkerName} processing... ${displayProgress}%`,
+              jobId
+            };
+          }
+          return updated;
+        });
+      });
 
       // Watch for new jobs
       project.on('updated', (keys) => {

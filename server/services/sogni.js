@@ -505,9 +505,146 @@ export async function generateImage(params, progressCallback) {
       steps: isEnhancement ? 4 : 7,
       guidance: params.promptGuidance || (isEnhancement ? 1 : 7),
       numberOfImages: params.numberImages || 1,
+      // numberOfPreviews: params.numberPreviews || 1,
       scheduler: 'DPM Solver Multistep (DPM-Solver++)',
       timeStepSpacing: 'Karras'
     };
+
+    // Listen for individual project events: queued, completed, failed, error
+    client.projects.on('project', (event) => {
+      console.log(`Project event: "${event.type}" payload:`, event);
+      /* Example of each event we can expect:
+      {
+        type: 'queued',
+        projectId: '049E8DDD-5022-4425-A16F-EF538068FDFE',
+        queuePosition: 1
+      }
+      {
+        type: 'completed',
+        projectId: '049E8DDD-5022-4425-A16F-EF538068FDFE'
+      }
+      {
+        type: 'error',
+        projectId: 'F0C3F0C4-0CE3-4CBC-8A8D-B9D7F978AE8C',
+        error: { code: 4013, message: 'Model not found' }
+      }
+    */
+      let progressEvent;
+      switch (event.type) {
+        case 'queued':
+          progressEvent = {
+            type: 'queued',
+            queuePosition: event.queuePosition,
+          };
+          break;
+        case 'completed':
+          progressEvent = {
+            type: 'completed',
+          };
+          break;
+        case 'error':
+        case 'failed':
+          progressEvent = { 
+            type: 'failed',
+            error: event.message || event.error || 'Unknown job error'
+          };
+          break;  
+        default:
+          console.warn(`Unknown project event type: ${event.type}`);
+          break;
+      }
+      if (progressEvent) {
+        progressEvent.projectId = event.projectId;
+        progressCallback(progressEvent);
+      }
+    });
+    
+    // Listen for individual job events: initiating, started, progress, preview, completed, failed, error
+    client.projects.on('job', (event) => {
+      console.log(`Job event: "${event.type}" payload:`, event);
+      let progressEvent;
+      /* Example of each event we can expect:
+      {
+        type: 'initiating',
+        projectId: '049E8DDD-5022-4425-A16F-EF538068FDFE',
+        jobId: '6F9FD965-0EE7-4DFB-ADB0-E3821D763DE5',
+        workerName: 'vycod20',
+        positivePrompt: undefined,
+        negativePrompt: undefined,
+        jobIndex: 0
+      }
+      {
+        type: 'started',
+        projectId: '049E8DDD-5022-4425-A16F-EF538068FDFE',
+        jobId: '6F9FD965-0EE7-4DFB-ADB0-E3821D763DE5',
+        workerName: 'vycod20',
+        positivePrompt: undefined,
+        negativePrompt: undefined,
+        jobIndex: 0
+      }
+      {
+        type: 'progress',
+        projectId: '049E8DDD-5022-4425-A16F-EF538068FDFE',
+        jobId: '6F9FD965-0EE7-4DFB-ADB0-E3821D763DE5',
+        step: 2,
+        stepCount: 20
+      }
+      {
+        type: 'preview',
+        projectId: '049E8DDD-5022-4425-A16F-EF538068FDFE',
+        jobId: '6F9FD965-0EE7-4DFB-ADB0-E3821D763DE5',
+        url: 'http...'
+      }
+      {
+        type: 'completed',
+        projectId: '049E8DDD-5022-4425-A16F-EF538068FDFE',
+        jobId: '6F9FD965-0EE7-4DFB-ADB0-E3821D763DE5',
+        steps: 20,
+        seed: 2546631794,
+        resultUrl: 'http...',
+      }
+      */
+      switch (event.type) {
+        case 'initiating':
+        case 'started':
+          progressEvent = {
+            type: event.type,
+            workerName: event.workerName || 'unknown',
+            positivePrompt: event.positivePrompt,
+            jobIndex: event.jobIndex,
+            payload: event
+          }
+          break;
+        case 'progress':
+          progressEvent = {
+            type: 'progress',
+            progress: Math.floor(event.step / event.stepCount * 100),
+          };
+          break;
+        case 'completed':
+          progressEvent = {
+            type: 'jobCompleted',
+            resultUrl: event.resultUrl,
+          };
+          break;
+        case 'failed':
+        case 'error':
+          progressEvent = {
+            type: 'jobFailed',
+            error: event.message || event.error || 'Unknown job error'
+          };
+          break;
+        default:
+          console.warn(`Unknown job event type: ${event.type}`);
+          break;
+      }
+      if (progressEvent) {
+        progressEvent.jobId = event.jobId;
+        progressEvent.projectId = event.projectId;
+        progressCallback(progressEvent);
+      }
+    });
+        
     if (isEnhancement) {
       projectOptions.startingImage = params.startingImage instanceof Uint8Array 
         ? params.startingImage 
@@ -528,94 +665,14 @@ export async function generateImage(params, progressCallback) {
       console.warn("No starting image or controlNet image data provided.");
     }
     const project = await client.projects.create(projectOptions);
-    const handledJobProgress = new Set();
-    const setupProgressListener = (sdkJob) => {
-      if (!sdkJob || handledJobProgress.has(sdkJob.id)) return;
-      handledJobProgress.add(sdkJob.id);
-      sdkJob.on('progress', (progressValue) => {
-        if (progressCallback) {
-          const normalizedProgress = typeof progressValue === 'number' && progressValue > 1 
-                                     ? progressValue / 100 
-                                     : (progressValue || 0);
-          const progressEvent = {
-            type: 'progress',
-            jobId: sdkJob.id,
-            imgId: sdkJob.imgID,
-            progress: normalizedProgress,
-            projectId: project.id,
-            workerName: sdkJob.workerName || 'unknown'
-          };
-          progressCallback(progressEvent);
-        }
-      });
-      sdkJob.on('completed', (resultUrl) => {
-        if (progressCallback) {
-          progressCallback({
-            type: 'progress',
-            jobId: sdkJob.id,
-            imgId: sdkJob.imgID,
-            progress: 1.0, 
-            projectId: project.id,
-            workerName: sdkJob.workerName || 'unknown'
-          });
-          progressCallback({
-            type: 'jobCompleted',
-            jobId: sdkJob.id,
-            imgId: sdkJob.imgID,
-            resultUrl: resultUrl, 
-            projectId: project.id,
-            workerName: sdkJob.workerName || 'unknown'
-          });
-        }
-      });
-    };
-    if (project.jobs && project.jobs.length > 0) {
-      project.jobs.forEach(setupProgressListener);
-    }
-    project.on('updated', (keys) => {
-      if (keys.includes('jobs')) {
-        project.jobs.forEach(setupProgressListener);
-      }
-    });
-    project.on('jobStarted', (sdkJob) => {
-      setupProgressListener(sdkJob);
-      if (progressCallback) {
-        const startedEvent = {
-          type: 'started',
-          jobId: sdkJob.id,
-          imgId: sdkJob.imgID,
-          projectId: project.id,
-          workerName: sdkJob.workerName || 'unknown'
-        };
-        progressCallback(startedEvent);
-        progressCallback({
-          type: 'progress',
-          jobId: sdkJob.id,
-          imgId: sdkJob.imgID,
-          progress: 0.0,
-          projectId: project.id,
-          workerName: sdkJob.workerName || 'unknown'
-        });
-      }
-    });
-    project.on('jobFailed', (sdkJob) => {
-      if (progressCallback) {
-        progressCallback({
-          type: 'jobFailed',
-          jobId: sdkJob.id,
-          imgId: sdkJob.imgID,
-          error: sdkJob.error?.message || sdkJob.error || 'Unknown error',
-          projectId: project.id,
-          workerName: sdkJob.workerName || 'unknown'
-        });
-      }
-    });
+ 
     return await new Promise((resolve, reject) => {
       // Record activity whenever we get progress events
       project.on('updated', () => {
         recordClientActivity(client.appId);
       });
       
+      /*
       project.on('completed', () => {
         recordClientActivity(client.appId);
         resolve({
@@ -630,18 +687,7 @@ export async function generateImage(params, progressCallback) {
           });
         }
       });
-      
-      project.on('failed', (error) => {
-        recordClientActivity(client.appId);
-        reject(error);
-        if (progressCallback) {
-          progressCallback({
-            type: 'error',
-            projectId: project.id,
-            error: error?.message || error || 'Unknown project error'
-          });
-        }
-      });
+      */
     });
   } finally {
     // Always disconnect this client after use

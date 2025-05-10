@@ -148,14 +148,6 @@ function isObjectRecord(val: unknown): val is Record<string, unknown> {
   return typeof val === 'object' && val !== null && !Array.isArray(val);
 }
 
-function isStringArray(val: unknown): val is string[] {
-  return Array.isArray(val) && val.every(item => typeof item === 'string');
-}
-
-function getResult(val: Record<string, unknown>): unknown {
-  return Object.prototype.hasOwnProperty.call(val, 'result') ? val.result : null;
-}
-
 /**
  * Explicitly disconnect the current session from the server
  * Useful when manually cleaning up resources
@@ -589,106 +581,24 @@ export async function generateImage(params: Record<string, unknown>, progressCal
             try {
               const parsed: unknown = typeof event.data === 'string' ? JSON.parse(event.data) : {};
               const data: Record<string, unknown> = isObjectRecord(parsed) ? parsed : {};
-              // Add more detailed logging for message types
               const projectIdStr = typeof data.projectId === 'string' ? data.projectId : 'N/A';
               console.log(`SSE message received: Type=${String(data.type)}, ProjectID=${projectIdStr}`);
-              
+
               // For any message type, extend the connection timeout as we're getting data
               if (connectionTimeout !== undefined) {
                 clearTimeout(connectionTimeout);
                 connectionTimeout = undefined;
               }
-              
-              // Handle all Sogni event types
-              switch (data.type) {
-                case 'connected':
-                  // Connection confirmation
-                  console.log('SSE confirmed connection for project:', data.projectId);
-                  break;
-                  
-                case 'project-progress':
-                  // Handle project-level progress
-                  if (progressCallback) {
-                    console.log('Project level progress update:', data.progress);
-                    // Forward the progress only if it's a valid number
-                    if (data.progress !== null && data.progress !== undefined && typeof data.progress === 'number') {
-                      progressCallback(data.progress); 
-                    }
-                  }
-                  break;
-                  
-                case 'progress':
-                  // Handle job-level progress updates - always forward these to callbacks 
-                  if (progressCallback) {
-                    const eventWithWorker = {
-                      ...data,
-                      progress: data.progress !== undefined && typeof data.progress === 'number' 
-                        ? data.progress 
-                        : undefined
-                    };
-                    
-                    console.log('Job progress from server:', data.jobId, data.progress, data.workerName || 'unknown');
-                    progressCallback(eventWithWorker);
-                  }
-                  break;
-                  
-                case 'jobCompleted':
-                  // Handle job completion event
-                  console.log('Job completed via SSE:', data);
-                  if (progressCallback) {
-                    // Pass the full job completion data to the callback
-                    progressCallback(data); 
-                  }
-                  break;
-                  
-                case 'jobFailed':
-                  // Handle job failure event
-                  console.log('Job failed via SSE:', data);
-                  if (progressCallback) {
-                    // Pass the full job failure data to the callback
-                    progressCallback(data);
-                  }
-                  break;
-                  
-                case 'complete':
-                  // Handle overall project completion (all jobs finished)
-                  console.log('Generation complete via SSE, closing EventSource');
-                  if (connectionTimeout !== undefined) {
-                    clearTimeout(connectionTimeout);
-                    connectionTimeout = undefined;
-                  }
-                  if (eventSource) {
-                    eventSource.close();
-                  }
-                  const resultValue = getResult(data);
-                  let safeResult: unknown = null;
-                  if (isStringArray(resultValue)) {
-                    safeResult = resultValue;
-                  } else if (typeof resultValue === 'string') {
-                    safeResult = resultValue;
-                  } else if (typeof resultValue === 'object' && resultValue !== null) {
-                    safeResult = resultValue;
-                  }
-                  resolve(safeResult);
-                  break;
-                  
-                case 'error':
-                  // Clean up and reject with the error
-                  console.error('Error message from SSE:', data.error);
-                  if (connectionTimeout !== undefined) {
-                    clearTimeout(connectionTimeout);
-                    connectionTimeout = undefined;
-                  }
-                  if (eventSource) {
-                    eventSource.close();
-                  }
-                  reject(new Error(typeof data.error === 'string' ? data.error : 'Unknown server error'));
-                  break;
-                  
-                default:
-                  // Log unknown events but don't stop processing
-                  console.warn('Received unknown SSE message type:', data.type);
-                  break;
+
+              // Only handle connection/heartbeat events internally
+              if (data.type === 'connected' || data.type === 'heartbeat') {
+                // Optionally log or handle connection events
+                return;
+              }
+
+              // For all other events, just forward to the callback
+              if (progressCallback) {
+                progressCallback(data);
               }
             } catch (error) {
               console.error('Error parsing SSE message:', error, 'Original data:', event.data);

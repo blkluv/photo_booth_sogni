@@ -22,7 +22,7 @@ const ensureSessionId = (req, res, next) => {
   
   // Log the current cookie state for debugging
   console.log(`[SESSION] Cookie check for ${sessionCookieName}: ${sessionId || 'not found'}`);
-  console.log(`[SESSION] Request origin: ${req.headers.origin}, referer: ${req.headers.referer}`);
+  //console.log(`[SESSION] Request origin: ${req.headers.origin}, referer: ${req.headers.referer}`);
   
   // If no session ID exists, create one
   if (!sessionId) {
@@ -362,7 +362,10 @@ router.post('/generate', ensureSessionId, async (req, res) => {
     let lastProgressUpdate = Date.now();
     const progressHandler = (eventData) => {
       // Log the raw progress data received from the Sogni service callback
-      console.log(`[${localProjectId}] Received callback event:`, JSON.stringify(eventData));
+      // we don't currently care for the project 'complete' event as we listen to the job 'complete' events already
+      if (eventData.type !== 'complete') {
+        console.log(`[${localProjectId}] Received callback event:`, JSON.stringify(eventData));
+      }
       
       // Throttle SSE updates
       const now = Date.now();
@@ -378,23 +381,15 @@ router.post('/generate', ensureSessionId, async (req, res) => {
         ...eventData,
         projectId: localProjectId, // Standardize on the localProjectId for client-side tracking
         jobId: eventData.jobId, // This should now be correctly set by sogni.js (imgID or SDK job.id)
-        imgId: eventData.imgId, // Keep original imgId for reference if present
         workerName: eventData.workerName || 'unknown', // Ensure workerName is present
         progress: typeof eventData.progress === 'number' ? 
                   (eventData.progress > 1 ? eventData.progress / 100 : eventData.progress) : 
                   eventData.progress, // Normalize progress 0-1
       };
-      
-      // If there's no primary jobId but there is an imgId, use imgId as jobId.
-      // This is a fallback, sogni.js should ideally set jobId correctly.
-      if (!sseEvent.jobId && sseEvent.imgId) {
-        console.warn(`[${localProjectId}] sseEvent.jobId is missing, falling back to imgId: ${sseEvent.imgId}`);
-        sseEvent.jobId = sseEvent.imgId;
-      }
 
       // Critical: Ensure a valid jobId exists before sending, otherwise frontend can't track
       if (!sseEvent.jobId) {
-        console.error(`[${localProjectId}] Event is missing critical jobId, cannot send to client:`, JSON.stringify(sseEvent));
+        console.error(`[${localProjectId}] Event is missing critical jobId, cannot send to client event ${eventData.type}`);//, JSON.stringify(sseEvent));
         return; // Do not send event without a jobId
       }
       

@@ -102,61 +102,35 @@ export const enhancePhoto = async (options) => {
         });
       });
       
-      project.on('completed', (urls) => {
-        console.log('Project completed full payload:', { urls });
-        console.log(`[ENHANCE] Enhancement completed successfully`);
-        console.log(`[ENHANCE] Generated URLs:`, urls);
+      // Listen for jobCompleted event (not completed)
+      project.on('jobCompleted', (job) => {
+        console.log('Enhance jobCompleted full payload:', job);
         onSetActiveProject(null);
-        
-        // URLs could be either an array or an object with imageUrls property
-        const imageUrls = Array.isArray(urls) ? urls : 
-                         (urls && urls.imageUrls) ? urls.imageUrls :
-                         (urls && urls.status === 'success' && urls.imageUrls) ? urls.imageUrls : [];
-        
-        if (imageUrls.length > 0) {
-          console.log(`[ENHANCE] Replacing current image with enhanced version`);
+        if (job.resultUrl) {
           setPhotos(prev => {
             const updated = [...prev];
             if (!updated[photoIndex]) return prev;
-            
-            // Replace the current image with the enhanced version
             const updatedImages = [...updated[photoIndex].images];
-            
-            // Log the current state
-            console.log(`[ENHANCE] Current images: ${updatedImages.length}, subIndex: ${subIndex}`);
-            
-            // Make sure we have a valid subIndex
-            const indexToReplace = subIndex < updatedImages.length 
-              ? subIndex 
-              : updatedImages.length - 1;
-            
+            const indexToReplace = subIndex < updatedImages.length ? subIndex : updatedImages.length - 1;
             if (indexToReplace >= 0) {
-              // Replace the image at the valid index
-              updatedImages[indexToReplace] = imageUrls[0];
-              console.log(`[ENHANCE] Replaced image at index ${indexToReplace}`);
+              updatedImages[indexToReplace] = job.resultUrl;
             } else {
-              // If no valid index, just add the image
-              updatedImages.push(imageUrls[0]);
-              console.log(`[ENHANCE] Added new image since no valid index found`);
+              updatedImages.push(job.resultUrl);
             }
-            
             updated[photoIndex] = {
               ...updated[photoIndex],
               loading: false,
               enhancing: false,
               images: updatedImages,
               newlyArrived: true,
-              enhanced: true // Add a flag to indicate enhancement was successful
+              enhanced: true
             };
-            
             return updated;
           });
         } else {
-          console.error(`[ENHANCE] No URLs returned from completed job`);
           setPhotos(prev => {
             const updated = [...prev];
             if (!updated[photoIndex]) return prev;
-            
             updated[photoIndex] = {
               ...updated[photoIndex],
               loading: false,
@@ -167,16 +141,14 @@ export const enhancePhoto = async (options) => {
           });
         }
       });
-      
-      project.on('failed', (error) => {
-        console.error('Project failed full payload:', error);
-        console.error(`[ENHANCE] Enhancement failed`);
+
+      // Listen for jobFailed event (not failed)
+      project.on('jobFailed', (job) => {
+        console.error('Enhance jobFailed full payload:', job);
         onSetActiveProject(null);
-        
         setPhotos(prev => {
           const updated = [...prev];
           if (!updated[photoIndex]) return prev;
-          
           updated[photoIndex] = {
             ...updated[photoIndex],
             loading: false,
