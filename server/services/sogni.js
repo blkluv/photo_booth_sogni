@@ -641,8 +641,6 @@ export async function generateImage(client, params, progressCallback) {
       if (event.projectId !== projectId) {
         return;
       }
-      
-      console.log(`@@@@@@Project event: "${event.type}" payload:`, event);
       /* Example of each event we can expect:
       {
         type: 'queued',
