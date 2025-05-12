@@ -80,41 +80,15 @@ export const enhancePhoto = async (options) => {
       onSetActiveProject(project.id);
       console.log(`[ENHANCE] Project created with ID: ${project.id}`);
       
-      // Set up job progress handler
-      const setupJobProgress = (job) => {
-        job.on('progress', (progress) => {
-          // Ensure progress is a number between a 0-1
-          const progressValue = typeof progress === 'number' ? progress : 
-            (typeof progress === 'object' && progress.progress !== undefined) ? progress.progress : 0;
-          
-          console.log(`[ENHANCE] Job progress: ${Math.floor(progressValue * 100)}%`);
-          
-          setPhotos(prev => {
-            const updated = [...prev];
-            if (!updated[photoIndex]) return prev;
-            
-            updated[photoIndex] = {
-              ...updated[photoIndex],
-              enhancing: true,
-              progress: progressValue
-            };
-            return updated;
-          });
-        });
-      };
-      
-      // Apply progress handler to existing jobs
-      if (project.jobs && project.jobs.length > 0) {
-        project.jobs.forEach(setupJobProgress);
-      }
-      
-      // Handle project-level progress (general progress across all jobs)
+      // Set up listeners for the backend proxy client
       project.on('progress', (progress) => {
         // Ensure progress is a number between 0-1
         const progressValue = typeof progress === 'number' ? progress : 
           (typeof progress === 'object' && progress.progress !== undefined) ? progress.progress : 0;
         
-        console.log(`[ENHANCE] Overall progress: ${Math.floor(progressValue * 100)}%`);
+        console.log('Job progress full payload:', { jobId: project.id, progress: progressValue });
+        const progressPercent = Math.floor(progressValue * 100);
+        console.log(`[ENHANCE] Progress: ${progressPercent}%`);
         
         setPhotos(prev => {
           const updated = [...prev];
@@ -126,13 +100,6 @@ export const enhancePhoto = async (options) => {
           };
           return updated;
         });
-      });
-      
-      // Track new jobs as they're added
-      project.on('updated', (keys) => {
-        if (keys.includes('jobs')) {
-          project.jobs.forEach(setupJobProgress);
-        }
       });
       
       // Listen for jobCompleted event (not completed)
@@ -154,7 +121,6 @@ export const enhancePhoto = async (options) => {
               ...updated[photoIndex],
               loading: false,
               enhancing: false,
-              progress: 1, // Set to 100% when complete
               images: updatedImages,
               newlyArrived: true,
               enhanced: true

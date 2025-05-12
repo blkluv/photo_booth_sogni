@@ -91,7 +91,7 @@
     /* Fix label position */
     .film-frame.selected .photo-label {
       position: fixed !important;
-      bottom: -30px !important;
+      bottom: 20px !important;
       left: 0 !important;
       right: 0 !important;
       width: 70% !important;

@@ -2766,9 +2766,9 @@ const App = () => {
           
           /* Add animation for progress value changes */
           @keyframes progressPulse {
-            0% { opacity: 0.2; width: 5%; }
-            50% { opacity: 0.5; width: 15%; }
-            100% { opacity: 0.2; width: 5%; }
+            0% { opacity: 0.2; }
+            50% { opacity: 1; }
+            100% { opacity: 0.2; }
           }
         `;
         

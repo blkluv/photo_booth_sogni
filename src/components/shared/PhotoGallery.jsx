@@ -418,7 +418,7 @@ const PhotoGallery = ({
             background: photos[selectedPhotoIndex].enhanced 
               ? 'linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)' 
               : photos[selectedPhotoIndex].enhancing 
-                ? 'linear-gradient(to right, #72e3f2 0%, #4bbbd3 100%)'
+                ? '#cccccc'
                 : photos[selectedPhotoIndex].error
                   ? 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)'
                   : 'linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%)',
@@ -437,7 +437,6 @@ const PhotoGallery = ({
             alignItems: 'center',
             gap: '6px',
             transition: 'all 0.2s ease',
-            overflow: 'hidden',
           }}
           onMouseOver={e => {
             if (!(photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error)) {
@@ -460,36 +459,15 @@ const PhotoGallery = ({
             }
           }}
         >
-          {photos[selectedPhotoIndex].enhancing && (
-            <div 
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                bottom: 0,
-                width: photos[selectedPhotoIndex].progress !== undefined && photos[selectedPhotoIndex].progress > 0
-                  ? `${Math.floor(photos[selectedPhotoIndex].progress * 100)}%`
-                  : '5%',
-                background: 'rgba(255, 255, 255, 0.2)',
-                transition: 'width 0.5s ease',
-                zIndex: 0,
-                animation: photos[selectedPhotoIndex].progress === 0 || photos[selectedPhotoIndex].progress === undefined
-                  ? 'progressPulse 1.5s infinite ease-in-out'
-                  : 'none'
-              }}
-            />
-          )}
-          <span style={{ position: 'relative', zIndex: 1 }}>
-            {photos[selectedPhotoIndex].enhanced 
-              ? "↩️ Undo Enhance" 
-              : photos[selectedPhotoIndex].enhancing 
-                ? photos[selectedPhotoIndex].progress !== undefined && photos[selectedPhotoIndex].progress > 0
-                  ? `✨ Enhancing... ${Math.floor(photos[selectedPhotoIndex].progress * 100)}%`
-                  : "✨ Enhancing..."
-                : photos[selectedPhotoIndex].error
-                  ? "❌ Enhancement failed"
-                  : "✨ Enhance"}
-          </span>
+          {photos[selectedPhotoIndex].enhanced 
+            ? "↩️ Undo Enhance" 
+            : photos[selectedPhotoIndex].enhancing 
+              ? photos[selectedPhotoIndex].progress
+                ? `✨ Enhancing... ${Math.floor(photos[selectedPhotoIndex].progress * 100)}%`
+                : "✨ Enhancing..."
+              : photos[selectedPhotoIndex].error
+                ? "❌ Enhancement failed"
+                : "✨ Enhance"}
         </button>
       )}
       {/* Settings button when viewing a photo */}
