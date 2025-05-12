@@ -599,7 +599,6 @@ const PhotoGallery = ({
                       className="placeholder"
                       style={{
                         width: '100%',
-                        height: '100%',
                         objectFit: 'cover',
                         position: 'relative',
                         top: 0,
@@ -671,7 +670,6 @@ const PhotoGallery = ({
                   }}
                   style={{
                     width: '100%',
-                    height: '100%',
                     objectFit: 'cover',
                     position: 'relative',
                     top: 0,
