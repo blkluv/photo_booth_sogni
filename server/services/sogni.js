@@ -223,6 +223,11 @@ process.on('unhandledRejection', (reason, promise) => {
   
   // For any other unhandled rejection, log it
   console.error('Unhandled promise rejection:', reason);
+  
+  // Log promise object in development for debugging
+  if (process.env.NODE_ENV !== 'production') {
+    console.debug('Promise object:', promise);
+  }
 });
 
 // Helper to create a new SogniClient for each project
@@ -332,6 +337,48 @@ async function disconnectClient(client) {
   console.log(`Disconnecting Sogni client: ${clientId}`);
 
   try {
+    // Clean up event handlers if they exist
+    if (client._eventHandlers) {
+      try {
+        // Remove all project event handlers
+        if (client.projects && client.projects.off) {
+          // Clean up project handlers
+          if (client._eventHandlers.projectHandlers && client._eventHandlers.projectHandlers.size > 0) {
+            console.log(`Removing ${client._eventHandlers.projectHandlers.size} project event handlers for client: ${clientId}`);
+            
+            for (const [projectId, handler] of client._eventHandlers.projectHandlers.entries()) {
+              console.log(`Removing project event handler for project: ${projectId}`);
+              client.projects.off('project', handler);
+            }
+            client._eventHandlers.projectHandlers.clear();
+          }
+          
+          // Clean up job handlers
+          if (client._eventHandlers.jobHandlers && client._eventHandlers.jobHandlers.size > 0) {
+            console.log(`Removing ${client._eventHandlers.jobHandlers.size} job event handlers for client: ${clientId}`);
+            
+            for (const [projectId, handler] of client._eventHandlers.jobHandlers.entries()) {
+              console.log(`Removing job event handler for project: ${projectId}`);
+              client.projects.off('job', handler);
+            }
+            client._eventHandlers.jobHandlers.clear();
+          }
+        }
+        
+        // Remove the activity handler
+        if (client.off && client._eventHandlers.activityHandler) {
+          console.log(`Removing activity handler for client: ${clientId}`);
+          client.off('*', client._eventHandlers.activityHandler);
+          client._eventHandlers.activityHandler = null;
+        }
+        
+        // Clear all event handler references
+        client._eventHandlers = null;
+      } catch (listenerErr) {
+        console.warn(`Non-critical error removing event handlers for ${clientId}:`, listenerErr);
+      }
+    }
+    
     // Force close any socket connections first
     if (client._socket) {
       console.log(`Closing socket connection for client: ${clientId}`);
@@ -520,9 +567,61 @@ export async function generateImage(client, params, progressCallback) {
       ...(params.seed !== undefined ? { seed: params.seed } : {})
     };
 
-    // Listen for individual project events: queued, completed, failed, error
-    client.projects.on('project', (event) => {
-      console.log(`Project event: "${event.type}" payload:`, event);
+    // Initialize event tracker object if it doesn't exist
+    if (!client._eventHandlers) {
+      client._eventHandlers = {
+        projectHandlers: new Map(),
+        jobHandlers: new Map(),
+        activityHandler: null
+      };
+    }
+
+    // Set up global activity tracking if not already done
+    if (!client._eventHandlers.activityHandler) {
+      client._eventHandlers.activityHandler = () => {
+        recordClientActivity(client.appId);
+      };
+      
+      // Record activity on all client events
+      if (client.on) {
+        client.on('*', client._eventHandlers.activityHandler);
+      }
+    }
+        
+    if (isEnhancement) {
+      projectOptions.startingImage = params.startingImage instanceof Uint8Array 
+        ? params.startingImage 
+        : new Uint8Array(params.startingImage);
+      projectOptions.startingImageStrength = params.startingImageStrength || 0.85;
+    } else if (params.imageData) {
+      projectOptions.controlNet = {
+        name: 'instantid',
+        image: params.imageData instanceof Uint8Array 
+          ? params.imageData 
+          : new Uint8Array(params.imageData),
+        strength: params.controlNetStrength || 0.8,
+        mode: 'balanced',
+        guidanceStart: 0,
+        guidanceEnd: params.controlNetGuidanceEnd || 0.3,
+      };
+    } else {
+      console.warn("No starting image or controlNet image data provided.");
+    }
+
+    // Create the project first to get its ID
+    const project = await client.projects.create(projectOptions);
+    const projectId = project.id;
+    
+    console.log(`Created project with ID: ${projectId}`);
+    
+    // Now create project-specific handlers that filter by project ID
+    const projectHandler = (event) => {
+      // Only process events for this specific project
+      if (event.projectId !== projectId) {
+        return;
+      }
+      
+      console.log(`@@@@@@Project event: "${event.type}" payload:`, event);
       /* Example of each event we can expect:
       {
         type: 'queued',
@@ -538,7 +637,8 @@ export async function generateImage(client, params, progressCallback) {
         projectId: 'F0C3F0C4-0CE3-4CBC-8A8D-B9D7F978AE8C',
         error: { code: 4013, message: 'Model not found' }
       }
-    */
+      */
+      
       let progressEvent;
       switch (event.type) {
         case 'queued':
@@ -563,16 +663,20 @@ export async function generateImage(client, params, progressCallback) {
           console.warn(`Unknown project event type: ${event.type}`);
           break;
       }
-      if (progressEvent) {
+      
+      if (progressEvent && progressCallback) {
         progressEvent.projectId = event.projectId;
         progressCallback(progressEvent);
       }
-    });
+    };
     
-    // Listen for individual job events: initiating, started, progress, preview, completed, failed, error
-    client.projects.on('job', (event) => {
-      console.log(`Job event: "${event.type}" payload:`, event);
-      let progressEvent;
+    const jobHandler = (event) => {
+      // Only process events for this specific project
+      if (event.projectId !== projectId) {
+        return;
+      }
+      
+      console.log(`Job event for project ${projectId}: "${event.type}" payload:`, event);
       /* Example of each event we can expect:
       {
         type: 'initiating',
@@ -614,6 +718,8 @@ export async function generateImage(client, params, progressCallback) {
         resultUrl: 'http...',
       }
       */
+      
+      let progressEvent;
       switch (event.type) {
         case 'initiating':
         case 'started':
@@ -649,60 +755,33 @@ export async function generateImage(client, params, progressCallback) {
           console.warn(`Unknown job event type: ${event.type}`);
           break;
       }
-      if (progressEvent) {
+      
+      if (progressEvent && progressCallback) {
         progressEvent.jobId = event.jobId;
         progressEvent.projectId = event.projectId;
         progressCallback(progressEvent);
       }
-    });
-        
-    if (isEnhancement) {
-      projectOptions.startingImage = params.startingImage instanceof Uint8Array 
-        ? params.startingImage 
-        : new Uint8Array(params.startingImage);
-      projectOptions.startingImageStrength = params.startingImageStrength || 0.85;
-    } else if (params.imageData) {
-      projectOptions.controlNet = {
-        name: 'instantid',
-        image: params.imageData instanceof Uint8Array 
-          ? params.imageData 
-          : new Uint8Array(params.imageData),
-        strength: params.controlNetStrength || 0.8,
-        mode: 'balanced',
-        guidanceStart: 0,
-        guidanceEnd: params.controlNetGuidanceEnd || 0.3,
-      };
-    } else {
-      console.warn("No starting image or controlNet image data provided.");
-    }
-    const project = await client.projects.create(projectOptions);
- 
-    return await new Promise((resolve, reject) => {
-      // Record activity whenever we get progress events
-      project.on('updated', () => {
-        recordClientActivity(client.appId);
-      });
-      
-      /*
-      project.on('completed', () => {
-        recordClientActivity(client.appId);
-        resolve({
-          projectId: project.id,
-          result: { imageUrls: project.resultUrls }
-        });
-        if (progressCallback) {
-          progressCallback({
-            type: 'complete',
-            projectId: project.id,
-            result: { imageUrls: project.resultUrls } 
-          });
-        }
-      });
-      */
-    });
-  } finally {
-    // Always disconnect this client after use
-    await disconnectClient(client);
+    };
+    
+    // Store the handlers in the client's handler maps, indexed by project ID
+    client._eventHandlers.projectHandlers.set(projectId, projectHandler);
+    client._eventHandlers.jobHandlers.set(projectId, jobHandler);
+    
+    // Register the event handlers
+    client.projects.on('project', projectHandler);
+    client.projects.on('job', jobHandler);
+    
+    // Set up activity tracking for this project
+    project.on('updated', client._eventHandlers.activityHandler);
+    
+    return {
+      projectId: project.id,
+      client: client // Return the client reference so caller can access it
+    };
+  } catch (error) {
+    console.error(`Error generating image:`, error);
+    // In case of error, we still want to throw the error
+    throw error;
   }
 }
 
