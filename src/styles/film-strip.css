@@ -612,11 +612,11 @@
     background: rgba(255, 255, 255, 0.5) !important;
   }
   .film-strip-container.has-selected .photo-nav-btn.prev {
-    position: absolute !important;
+    position: fixed !important;
     left: -20px !important;
   }
   .film-strip-container.has-selected .photo-nav-btn.next {
-    position: absolute !important;
+    position: fixed !important;
     right: -23px !important;
   }
   .back-to-camera-btn {

@@ -5,47 +5,7 @@
 
 /* Only apply these fixes in portrait mode on iOS devices */
 @media (orientation: portrait) and (-webkit-touch-callout: none) {
-  /* CAMERA FRAME POSITIONING FIX */
-  body #root div[class*="cameraContainer"],
-  html body #root div[class*="cameraContainer"],
-  html body #root div[data-testid="camera-container"],
-  body #root [class*="cameraContainer"] {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    z-index: 99 !important;
-    max-width: none !important;
-    max-height: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    overflow: hidden !important;
-    background: transparent !important;
-  }
-  
-  /* POLAROID FRAME CENTERING FIX */
-  body #root div[class*="polaroidFrame"],
-  html body #root div[class*="polaroidFrame"],
-  body #root [class*="cameraContainer"] div[class*="polaroidFrame"],
-  html body #root div[class*="polaroidFrame"] {
-    position: absolute !important;
-    top: 48% !important; /* Adjusted to visually center */
-    left: 50% !important;
-    transform: translate(-50%, -50%) !important;
-    width: 86vw !important;
-    max-width: 86vw !important;
-    min-width: 0 !important;
-    height: auto !important;
-    margin: 0 !important;
-    box-shadow: 0 12px 24px rgba(0,0,0,0.25) !important;
-    border-radius: 12px !important;
-    overflow: visible !important;
-    z-index: 100 !important;
-  }
+
   
   /* ENSURE CORRECT CAMERA VIEW ASPECT RATIO */
   body #root div[class*="cameraView"],
