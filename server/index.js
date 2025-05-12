@@ -117,7 +117,11 @@ app.get('/api/health', (req, res) => {
 });
 
 // Static routes for production
-const staticDir = path.join(__dirname, '..', 'dist');
+const isDev = process.env.NODE_ENV !== 'production';
+const staticDir = isDev 
+  ? path.join(__dirname, '..', 'dist')
+  : '/var/www/photobooth.sogni.ai';
+  
 app.use(express.static(staticDir));
 
 // Catch-all route to serve index.html for SPA routing

@@ -9,8 +9,8 @@ interface EnvironmentURLs {
 
 // Production URLs
 const productionUrls: EnvironmentURLs = {
-  publicUrl: 'https://superapps.sogni.ai/photobooth',
-  apiUrl: 'https://superapps.sogni.ai/photobooth/api',
+  publicUrl: 'https://photobooth.sogni.ai',
+  apiUrl: 'https://photobooth.sogni.ai/api',
 };
 
 // Staging URLs

@@ -10,8 +10,8 @@ echo "=================================================="
 
 # Configuration
 REMOTE_HOST="sogni-api"
-REMOTE_FRONTEND_PATH="/var/www/superapps.sogni.ai/photobooth"
-REMOTE_BACKEND_PATH="/var/www/superapps.sogni.ai/photobooth-server"
+REMOTE_FRONTEND_PATH="/var/www/photobooth.sogni.ai"
+REMOTE_BACKEND_PATH="/var/www/photobooth.sogni.ai-server"
 LOG_FILE="deployment.log"
 
 # Check for server/.env file for credentials
@@ -102,9 +102,9 @@ SOGNI_APP_ID=$SOGNI_APP_ID
 SOGNI_ENV=production
 
 # App settings
-APP_URL=https://superapps.sogni.ai/photobooth
-API_URL=https://superapps.sogni.ai/photobooth/api
-CLIENT_ORIGIN=https://superapps.sogni.ai
+APP_URL=https://photobooth.sogni.ai
+API_URL=https://photobooth.sogni.ai/api
+CLIENT_ORIGIN=https://photobooth.sogni.ai
 EOF
 
 # Deploy the environment file
@@ -152,7 +152,7 @@ ssh $REMOTE_HOST << EOF
   fi
 
   # Install backend dependencies
-  cd /var/www/superapps.sogni.ai/photobooth-server
+  cd /var/www/photobooth.sogni.ai-server
   echo "📦 Installing backend dependencies..."
   npm install --omit=dev
   
@@ -181,7 +181,7 @@ ssh $REMOTE_HOST << EOF
   
   # Check that nginx is properly configured
   echo "🔍 Verifying nginx configuration..."
-  sudo cp /tmp/sogni-photobooth-nginx.conf /etc/nginx/conf.d/superapps.sogni.ai.conf
+  sudo cp /tmp/sogni-photobooth-nginx.conf /etc/nginx/conf.d/photobooth.sogni.ai.conf
   sudo nginx -t
   if [ $? -eq 0 ]; then
     sudo systemctl reload nginx
@@ -199,7 +199,7 @@ fi
 # Verify deployment
 show_step "Verifying deployment"
 echo "🔍 Checking backend health..."
-HEALTH_CHECK=$(curl -s -o /dev/null -w "%{http_code}" https://superapps.sogni.ai/photobooth/health || echo "failed")
+HEALTH_CHECK=$(curl -s -o /dev/null -w "%{http_code}" https://photobooth.sogni.ai/health || echo "failed")
 if [ "$HEALTH_CHECK" = "200" ]; then
   echo "✅ Backend health check successful"
 else
@@ -208,7 +208,7 @@ else
 fi
 
 echo "🔍 Checking frontend..."
-FRONTEND_CHECK=$(curl -s -o /dev/null -w "%{http_code}" -I https://superapps.sogni.ai/photobooth/ || echo "failed")
+FRONTEND_CHECK=$(curl -s -o /dev/null -w "%{http_code}" -I https://photobooth.sogni.ai/ || echo "failed")
 if [ "$FRONTEND_CHECK" = "200" ] || [ "$FRONTEND_CHECK" = "301" ] || [ "$FRONTEND_CHECK" = "302" ]; then
   echo "✅ Frontend check successful"
 else
@@ -218,7 +218,7 @@ fi
 
 echo "🔍 Checking API access..."
 # Try both API endpoints for thoroughness
-API_CHECK=$(curl -s -o /dev/null -w "%{http_code}" https://superapps.sogni.ai/photobooth/health || echo "failed")
+API_CHECK=$(curl -s -o /dev/null -w "%{http_code}" https://photobooth.sogni.ai/health || echo "failed")
 if [ "$API_CHECK" = "200" ]; then
   echo "✅ API health check successful"
 else
@@ -226,7 +226,7 @@ else
   echo "⚠️ Warning: The API health endpoint may not be accessible."
 fi
 
-API_STATUS_CHECK=$(curl -s -o /dev/null -w "%{http_code}" https://superapps.sogni.ai/photobooth/api/sogni/status || echo "failed")
+API_STATUS_CHECK=$(curl -s -o /dev/null -w "%{http_code}" https://photobooth.sogni.ai/api/sogni/status || echo "failed")
 echo "API status check returned code: $API_STATUS_CHECK"
 if [ "$API_STATUS_CHECK" = "200" ] || [ "$API_STATUS_CHECK" = "401" ]; then
   # 401 is acceptable as it means auth is required but endpoint is accessible
@@ -240,6 +240,6 @@ echo ""
 echo "✅ Deployment completed at $(date)"
 echo "=================================================="
 echo "Your application should be available at:"
-echo "Frontend: https://superapps.sogni.ai/photobooth/"
-echo "Backend API: https://superapps.sogni.ai/photobooth/api/"
+echo "Frontend: https://photobooth.sogni.ai/"
+echo "Backend API: https://photobooth.sogni.ai/api/"
 echo "Logs saved to: $LOG_FILE" 

@@ -3,48 +3,17 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from 'fs';
-import { spawn } from 'child_process';
+import process from 'process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-// Function to start backend server - REMOVED
-/*
-function startBackendServer() {
-  console.log('Starting backend server...');
-  // Use spawn to start the server process
-  const serverProcess = spawn('node', ['server/index.js'], {
-    stdio: 'inherit', // Pipe stdio to the parent process
-    detached: false, // Don't detach the process
-  });
-
-  // Handle server process events
-  serverProcess.on('error', (err) => {
-    console.error('Failed to start server:', err);
-  });
-
-  // On Vite exit, kill the server process
-  process.on('exit', () => {
-    if (serverProcess) {
-      console.log('Stopping backend server...');
-      // Ensure the server process is killed when Vite exits
-      serverProcess.kill();
-    }
-  });
-
-  // Also handle SIGINT and SIGTERM
-  process.on('SIGINT', () => process.exit());
-  process.on('SIGTERM', () => process.exit());
-}
-*/
 
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
   // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
   const env = loadEnv(mode, process.cwd(), "");
 
-  // Use '/photobooth/' base for production and '/' for development
-  const base = mode === "production" ? "/photobooth/" : "/";
-  console.log(`Using base path: ${base} for mode: ${mode}`);
+  // Use '/' base for production now that we're on our own domain
+  const base = '/';
 
   // Get version from package.json
   const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf-8'));
@@ -61,13 +30,6 @@ export default defineConfig(({ mode }) => {
     }
   }
 
-  // Start the backend server when Vite starts (only in development mode) - REMOVED
-  /*
-  if (mode === 'development') {
-    startBackendServer();
-  }
-  */
-
   return {
     plugins: [react()],
     base,
@@ -76,7 +38,7 @@ export default defineConfig(({ mode }) => {
       port: 5175,
       strictPort: true,
       https: false,            // disable HTTPS entirely as its handled by nginx
-      allowedHosts: ["photobooth-local.sogni.ai", "photobooth.sogni.ai", "superapps.sogni.ai"],
+      allowedHosts: ["photobooth-local.sogni.ai", "photobooth.sogni.ai"],
       cors: {
         origin: ["https://photobooth-local.sogni.ai", "http://localhost:5175"],
         methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -89,9 +51,9 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
           rewrite: path => path.replace(/^\/api/, ''),
-          configure: (proxy, options) => {
+          configure: (proxy) => {
             // Ensure proxy headers are properly passed for CORS
-            proxy.on('proxyReq', (proxyReq, req, res) => {
+            proxy.on('proxyReq', (proxyReq, req) => {
               // Copy all headers from the original request
               if (req.headers.origin) {
                 proxyReq.setHeader('Origin', req.headers.origin);
