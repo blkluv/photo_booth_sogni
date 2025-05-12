@@ -46,4 +46,8 @@ export interface Settings {
   controlNetGuidanceEnd: number;
   flashEnabled: boolean;
   keepOriginalPhoto: boolean;
+  positivePrompt?: string;
+  stylePrompt?: string;
+  negativePrompt?: string;
+  seed?: string;
 } 

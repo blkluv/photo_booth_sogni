@@ -60,6 +60,10 @@ export const DEFAULT_SETTINGS = {
   flashEnabled: true,
   keepOriginalPhoto: false,
   selectedStyle: "randomMix",
+  positivePrompt: '',
+  stylePrompt: '',
+  negativePrompt: '',
+  seed: '',
 };
 
 // Backend now handles all Sogni API communication, so we don't need these URLs in the frontend

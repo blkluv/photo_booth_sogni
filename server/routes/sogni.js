@@ -337,9 +337,7 @@ router.options('/generate', (req, res) => {
 
 // Generate image with project tracking
 router.post('/generate', ensureSessionId, async (req, res) => {
-  console.log("!!!!!!!!!!!!!!!!!!!!!!!!!! ROUTE /sogni/generate HIT !!!!!!!!!!!!!!!!!!!!!!!!!!");
   const localProjectId = `project-${Date.now()}`;
-  console.log(`DEBUG - ${new Date().toISOString()} - POST /sogni/generate - Request received. Body keys:`, Object.keys(req.body || {}));
   console.log(`[${localProjectId}] Starting image generation request for session ${req.sessionId}...`);
   
   try {
