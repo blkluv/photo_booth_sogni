@@ -14,7 +14,7 @@ function show_help {
   echo ""
   echo "Available commands:"
   echo "  restart     - Restart the server (ensures ports and kills existing first)"
-  echo "  nginx       - Update nginx configuration"
+  echo "  nginx       - Deprecated. See README.md for manual Nginx setup for local domains."
   echo "  fix         - Fix connection issues"
   echo "  integrate   - Integrate with Sogni ecosystem"
   echo "  memory      - Check memory usage"
@@ -60,7 +60,7 @@ function check_server_status {
     echo "✅ Frontend server: Running"
     fe_port=$(lsof -i :5175 -sTCP:LISTEN -t 2>/dev/null)
     if [ -n "$fe_port" ]; then
-      echo "   Port: 5175"
+      echo "   Port: 5175 (Access via https://photobooth-local.sogni.ai through Nginx)"
     else
       echo "   Port: Unknown (not using default port 5175)"
     fi
@@ -75,18 +75,33 @@ function check_server_status {
     echo "❌ Nginx: Not running"
   fi
   
-  # Check SSL certificates
+  # Check SSL certificates (at user-specified global Nginx path)
   if [ -f "/opt/homebrew/etc/nginx/ssl/sogni-local.crt" ] && [ -f "/opt/homebrew/etc/nginx/ssl/sogni-local.key" ]; then
-    echo "✅ SSL certificates: Present"
+    echo "✅ SSL certificates: Present (/opt/homebrew/etc/nginx/ssl/sogni-local.crt)"
+    # Optional: Add openssl check for domain validity if openssl is available
   else
-    echo "❌ SSL certificates: Missing"
+    echo "❌ SSL certificates: Missing at /opt/homebrew/etc/nginx/ssl/sogni-local.crt or sogni-local.key"
+    echo "   Ensure your Nginx setup uses valid certificates for photobooth-local.sogni.ai and photobooth-api-local.sogni.ai."
+    echo "   Refer to README.md Quick Start Step 3b for certificate requirements."
   fi
   
-  # Check if hosts file is configured
+  # Check if hosts file is configured for both domains
+  hosts_frontend_ok=false
+  hosts_api_ok=false
   if grep -q "photobooth-local.sogni.ai" /etc/hosts; then
-    echo "✅ Hosts file: Configured"
+    hosts_frontend_ok=true
+  fi
+  if grep -q "photobooth-api-local.sogni.ai" /etc/hosts; then
+    hosts_api_ok=true
+  fi
+  
+  if $hosts_frontend_ok && $hosts_api_ok; then
+    echo "✅ Hosts file: Configured for photobooth-local.sogni.ai and photobooth-api-local.sogni.ai"
   else
-    echo "❌ Hosts file: Missing photobooth-local.sogni.ai entry"
+    echo "❌ Hosts file: Missing entries. Ensure both domains point to 127.0.0.1 in /etc/hosts."
+    [ $hosts_frontend_ok = false ] && echo "   Missing: photobooth-local.sogni.ai"
+    [ $hosts_api_ok = false ] && echo "   Missing: photobooth-api-local.sogni.ai"
+    echo "   See README.md Quick Start Step 3a."
   fi
   
   echo ""

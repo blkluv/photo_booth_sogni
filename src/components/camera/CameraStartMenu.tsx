@@ -33,8 +33,8 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
     const file = e.target.files?.[0];
     if (file) {
       // Check file size (2MB limit)
-      if (file.size > 2 * 1024 * 1024) {
-        alert("Image must be less than 2MB.");
+      if (file.size > 3 * 1024 * 1024) {
+        alert("Image must be less than 3MB.");
         // Clear the input
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;

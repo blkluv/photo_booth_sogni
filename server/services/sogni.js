@@ -232,8 +232,10 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Helper to create a new SogniClient for each project
 async function createSogniClient(appIdPrefix, clientProvidedAppId) {
+  console.log(`DEBUG - createSogniClient: Entered function. appIdPrefix: ${appIdPrefix}, clientProvidedAppId: ${clientProvidedAppId}`);
   // Only allow creation if clientProvidedAppId is present
   if (!clientProvidedAppId) {
+    console.error("DEBUG - createSogniClient: clientProvidedAppId is missing!");
     throw new Error('clientProvidedAppId is required to create a SogniClient');
   }
   const generatedAppId = clientProvidedAppId;
@@ -242,18 +244,28 @@ async function createSogniClient(appIdPrefix, clientProvidedAppId) {
   sogniUsername = process.env.SOGNI_USERNAME;
   const password = process.env.SOGNI_PASSWORD;
   sogniUrls = getSogniUrls(sogniEnv);
+  const customJsonRpcUrl = process.env.JSON_RPC_URL;
   
   console.log(`Creating Sogni client with app ID: ${sogniAppId}`);
+  if (customJsonRpcUrl) {
+    console.log(`DEBUG - createSogniClient: Using custom JSON_RPC_URL: ${customJsonRpcUrl} for socket/realtime communication.`);
+  } else {
+    console.log(`DEBUG - createSogniClient: Using default socketEndpoint from SOGNI_ENV (${sogniEnv}): ${sogniUrls.socket}`);
+  }
   
   try {
+    console.log("DEBUG - createSogniClient: Attempting SogniClient.createInstance...");
     const client = await SogniClient.createInstance({
       appId: sogniAppId,
       testnet: true,
       network: "fast",
       logLevel: "info",
       restEndpoint: sogniUrls.api,
-      socketEndpoint: sogniUrls.socket,
+      socketEndpoint: sogniUrls.socket, // Use custom URL if provided, else default
+      ...(customJsonRpcUrl ? { jsonRpcUrl: customJsonRpcUrl } : {}),
     });
+    
+    console.log("DEBUG - createSogniClient: SogniClient.createInstance successful.");
     
     // Explicitly ensure client has the appId property set
     if (!client.appId) {
@@ -269,20 +281,28 @@ async function createSogniClient(appIdPrefix, clientProvidedAppId) {
     // Try to restore session with tokens if available
     try {
       if (sogniTokens && sogniTokens.token && sogniTokens.refreshToken) {
+        console.log("DEBUG - createSogniClient: Attempting to set token...");
         await client.account.setToken(sogniUsername, sogniTokens);
+        console.log("DEBUG - createSogniClient: setToken successful.");
         recordClientActivity(sogniAppId); // Record activity after token set
         
         if (!client.account.isLoggedIn) {
+          console.log("DEBUG - createSogniClient: Not logged in after setToken, attempting login...");
           await client.account.login(sogniUsername, password);
+          console.log("DEBUG - createSogniClient: Login after setToken successful.");
           recordClientActivity(sogniAppId); // Record activity after login
         }
       } else {
+        console.log("DEBUG - createSogniClient: No sogniTokens, attempting initial login...");
         await client.account.login(sogniUsername, password);
+        console.log("DEBUG - createSogniClient: Initial login successful.");
         recordClientActivity(sogniAppId); // Record activity after login
       }
     } catch (e) {
       console.warn(`Login error for client ${sogniAppId}, trying again:`, e.message);
+      console.log("DEBUG - createSogniClient: Login failed, attempting retry login...");
       await client.account.login(sogniUsername, password);
+      console.log("DEBUG - createSogniClient: Retry login successful.");
       recordClientActivity(sogniAppId); // Record activity even after error recovery
     }
     
@@ -319,6 +339,7 @@ async function createSogniClient(appIdPrefix, clientProvidedAppId) {
     return client;
   } catch (error) {
     console.error(`Error creating Sogni client with app ID ${sogniAppId}:`, error);
+    console.error("DEBUG - createSogniClient: Error caught during SogniClient.createInstance or login.", error);
     
     // Clean up tracking for this failed client
     activeConnections.delete(sogniAppId);
@@ -923,6 +944,9 @@ export async function cleanupSogniClient({ logout = false, includeSessionClients
 
 // Get or create a Sogni client for a session
 export async function getSessionClient(sessionId, clientAppId) {
+  console.log(`DEBUG - getSessionClient: Entered function. sessionId: ${sessionId}, clientAppId: ${clientAppId}`);
+  console.log(`[SESSION] Getting client for session ${sessionId} with app ID: ${clientAppId}`);
+  
   // If client app ID is provided and we already have this client
   if (clientAppId && activeConnections.has(clientAppId)) {
     const existingClient = activeConnections.get(clientAppId);

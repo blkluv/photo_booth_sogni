@@ -45,26 +45,6 @@ export default defineConfig(({ mode }) => {
         credentials: true,
         allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "X-Client-App-ID"]
       },
-      proxy: {
-        '/api': {
-          target: 'http://localhost:3001',
-          changeOrigin: true,
-          secure: false,
-          rewrite: path => path.replace(/^\/api/, ''),
-          configure: (proxy) => {
-            // Ensure proxy headers are properly passed for CORS
-            proxy.on('proxyReq', (proxyReq, req) => {
-              // Copy all headers from the original request
-              if (req.headers.origin) {
-                proxyReq.setHeader('Origin', req.headers.origin);
-              }
-              if (req.headers['x-client-app-id']) {
-                proxyReq.setHeader('X-Client-App-ID', req.headers['x-client-app-id']);
-              }
-            });
-          }
-        }
-      }
     },
     build: {
       outDir: 'dist',
@@ -82,6 +62,8 @@ export default defineConfig(({ mode }) => {
       // Replace sensitive env variables with safe placeholders
       'import.meta.env.VITE_SOGNI_APP_ID': JSON.stringify('***REMOVED***'),
       'import.meta.env.APP_VERSION': JSON.stringify(appVersion),
+      // Remove VITE_API_ENDPOINT as src/config/urls.ts handles API URLs based on MODE
+      // 'import.meta.env.VITE_API_ENDPOINT': JSON.stringify(env.VITE_API_ENDPOINT || 'https://photobooth-api-local.sogni.ai'), 
     },
   };
 });

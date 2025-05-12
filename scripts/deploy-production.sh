@@ -9,35 +9,18 @@ echo "🚀 Starting Sogni Photobooth Production Deployment"
 echo "=================================================="
 
 # Configuration
-REMOTE_HOST="sogni-api"
+REMOTE_HOST="sogni-staging"
 REMOTE_FRONTEND_PATH="/var/www/photobooth.sogni.ai"
 REMOTE_BACKEND_PATH="/var/www/photobooth.sogni.ai-server"
 LOG_FILE="deployment.log"
 
-# Check for server/.env file for credentials
-if [ -f server/.env ]; then
-  echo "📄 Using credentials from server/.env file"
-  # Extract credentials from server/.env file
-  SOGNI_USERNAME=$(grep SOGNI_USERNAME server/.env | cut -d= -f2)
-  SOGNI_PASSWORD=$(grep SOGNI_PASSWORD server/.env | cut -d= -f2)
-  SOGNI_APP_ID=$(grep SOGNI_APP_ID server/.env | cut -d= -f2)
-  
-  if [ -z "$SOGNI_USERNAME" ] || [ -z "$SOGNI_PASSWORD" ] || [ -z "$SOGNI_APP_ID" ]; then
-    echo "⚠️ Warning: Some credentials are missing from server/.env"
-  else
-    echo "✅ Credentials found in server/.env"
-  fi
+# Check for server/.env.production file. This file will be deployed AS IS to production.
+if [ ! -f server/.env.production ]; then
+  echo "❌ server/.env.production file not found! This file is required for production deployment."
+  echo "   It should contain all necessary production environment variables."
+  exit 1
 else
-  echo "❌ server/.env file not found! Deployment may fail due to missing credentials."
-  
-  # Try root .env as fallback
-  if [ -f .env ]; then
-    echo "📄 Using credentials from root .env file as fallback"
-    export $(grep -v '^#' .env | xargs)
-  else
-    echo "❌ No .env files found! Deployment will likely fail."
-    exit 1
-  fi
+  echo "📄 Found server/.env.production. This file will be deployed as the production .env file."
 fi
 
 # Start logging
@@ -59,6 +42,23 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 echo "✅ Frontend built successfully"
+
+# Create necessary directories on the server
+show_step "Creating directories on $REMOTE_HOST"
+# Construct the base path from REMOTE_FRONTEND_PATH if they share a common parent like /var/www/photobooth.sogni.ai
+# Assuming REMOTE_FRONTEND_PATH is /var/www/photobooth.sogni.ai 
+# and REMOTE_BACKEND_PATH is /var/www/photobooth.sogni.ai-server
+# We need to ensure /var/www exists and is writable, or use sudo mkdir for full paths and chown.
+
+# Using a simpler approach: create each path and chown it to the current user on the remote machine.
+# This assumes $USER on the remote machine is the one that should own the files.
+ssh $REMOTE_HOST "sudo mkdir -p ${REMOTE_FRONTEND_PATH} && sudo chown -R \$USER:\$USER ${REMOTE_FRONTEND_PATH} && sudo mkdir -p ${REMOTE_BACKEND_PATH} && sudo chown -R \$USER:\$USER ${REMOTE_BACKEND_PATH}"
+
+if [ $? -ne 0 ]; then
+  echo "❌ Failed to create directories on $REMOTE_HOST! Check SSH connection and permissions for ${REMOTE_FRONTEND_PATH} and ${REMOTE_BACKEND_PATH}."
+  exit 1
+fi
+echo "✅ Directories created successfully on $REMOTE_HOST"
 
 # Deploy frontend
 show_step "Deploying frontend to $REMOTE_HOST:$REMOTE_FRONTEND_PATH"
@@ -87,41 +87,14 @@ if [ $? -ne 0 ]; then
 fi
 echo "✅ Nginx configuration deployed to temp location"
 
-# Create a temporary production .env file locally with proper variable substitution
-show_step "Creating production environment file"
-TEMP_ENV_FILE=$(mktemp)
-cat > $TEMP_ENV_FILE << EOF
-# Production environment variables
-NODE_ENV=production
-PORT=3001
-
-# Sogni API credentials
-SOGNI_USERNAME=$SOGNI_USERNAME
-SOGNI_PASSWORD=$SOGNI_PASSWORD
-SOGNI_APP_ID=$SOGNI_APP_ID
-SOGNI_ENV=production
-
-# App settings
-APP_URL=https://photobooth.sogni.ai
-API_URL=https://photobooth.sogni.ai/api
-CLIENT_ORIGIN=https://photobooth.sogni.ai
-EOF
-
-# Deploy the environment file
-show_step "Deploying environment file"
-echo "Debug: Credentials being deployed (username partly redacted):"
-echo "SOGNI_USERNAME=${SOGNI_USERNAME:0:3}****"
-echo "SOGNI_APP_ID=$SOGNI_APP_ID"
-echo "SOGNI_ENV=production"
-
-rsync -ar --progress $TEMP_ENV_FILE $REMOTE_HOST:$REMOTE_BACKEND_PATH/.env
+# Deploy the environment file from local server/.env.production
+show_step "Deploying production environment file from local server/.env.production"
+rsync -ar --progress server/.env.production $REMOTE_HOST:$REMOTE_BACKEND_PATH/.env
 if [ $? -ne 0 ]; then
-  echo "❌ Environment file deployment failed! Exiting."
-  rm -f $TEMP_ENV_FILE
+  echo "❌ Production environment file (server/.env.production) deployment failed! Exiting."
   exit 1
 fi
-rm -f $TEMP_ENV_FILE
-echo "✅ Environment file deployed successfully"
+echo "✅ Production environment file (server/.env.production) deployed successfully to $REMOTE_BACKEND_PATH/.env"
 
 # Setup and start services on remote server
 show_step "Setting up and starting services on remote server"
@@ -198,42 +171,30 @@ fi
 
 # Verify deployment
 show_step "Verifying deployment"
-echo "🔍 Checking backend health..."
-HEALTH_CHECK=$(curl -s -o /dev/null -w "%{http_code}" https://photobooth.sogni.ai/health || echo "failed")
-if [ "$HEALTH_CHECK" = "200" ]; then
-  echo "✅ Backend health check successful"
+echo "🔍 Checking backend health directly on port 3001..."
+HEALTH_CHECK_DIRECT=$(curl -s -o /dev/null -w "%{http_code}" http://$REMOTE_HOST:3001/health || echo "failed")
+if [ "$HEALTH_CHECK_DIRECT" = "200" ] || [ "$HEALTH_CHECK_DIRECT" = "404" ]; then # 404 if /health is under /api in app
+  echo "✅ Backend is running (direct check status code: $HEALTH_CHECK_DIRECT)"
 else
-  echo "❌ Backend health check failed with status $HEALTH_CHECK"
+  echo "❌ Backend direct health check failed with status $HEALTH_CHECK_DIRECT"
   echo "⚠️ Warning: The backend may not be running correctly. Please check logs with: ssh $REMOTE_HOST 'pm2 logs sogni-photobooth-production'"
 fi
 
-echo "🔍 Checking frontend..."
-FRONTEND_CHECK=$(curl -s -o /dev/null -w "%{http_code}" -I https://photobooth.sogni.ai/ || echo "failed")
-if [ "$FRONTEND_CHECK" = "200" ] || [ "$FRONTEND_CHECK" = "301" ] || [ "$FRONTEND_CHECK" = "302" ]; then
-  echo "✅ Frontend check successful"
+echo "🔍 Checking frontend availability via Nginx (photobooth.sogni.ai)..."
+FRONTEND_NGINX_CHECK=$(curl -s -o /dev/null -w "%{http_code}" -I http://photobooth.sogni.ai/ || echo "failed") # Check via HTTP as Nginx listens on 80
+if [ "$FRONTEND_NGINX_CHECK" = "200" ] || [ "$FRONTEND_NGINX_CHECK" = "301" ] || [ "$FRONTEND_NGINX_CHECK" = "302" ]; then # 30x if Cloudflare redirects to HTTPS
+  echo "✅ Frontend Nginx check successful (status code: $FRONTEND_NGINX_CHECK)"
 else
-  echo "❌ Frontend check failed with status $FRONTEND_CHECK"
-  echo "⚠️ Warning: The frontend may not be accessible. Please check nginx configuration."
+  echo "❌ Frontend Nginx check failed with status $FRONTEND_NGINX_CHECK"
 fi
 
-echo "🔍 Checking API access..."
-# Try both API endpoints for thoroughness
-API_CHECK=$(curl -s -o /dev/null -w "%{http_code}" https://photobooth.sogni.ai/health || echo "failed")
-if [ "$API_CHECK" = "200" ]; then
-  echo "✅ API health check successful"
+echo "🔍 Checking API availability via Nginx (photobooth-api.sogni.ai)..."
+API_NGINX_CHECK=$(curl -s -o /dev/null -w "%{http_code}" -I http://photobooth-api.sogni.ai/health || echo "failed") # Check via HTTP
+if [ "$API_NGINX_CHECK" = "200" ] || [ "$API_NGINX_CHECK" = "301" ] || [ "$API_NGINX_CHECK" = "302" ]; then # 30x if Cloudflare redirects to HTTPS, 200 if /health is direct
+  echo "✅ API Nginx check successful (status code: $API_NGINX_CHECK)"
 else
-  echo "❌ API health check failed with status $API_CHECK"
-  echo "⚠️ Warning: The API health endpoint may not be accessible."
-fi
-
-API_STATUS_CHECK=$(curl -s -o /dev/null -w "%{http_code}" https://photobooth.sogni.ai/api/sogni/status || echo "failed")
-echo "API status check returned code: $API_STATUS_CHECK"
-if [ "$API_STATUS_CHECK" = "200" ] || [ "$API_STATUS_CHECK" = "401" ]; then
-  # 401 is acceptable as it means auth is required but endpoint is accessible
-  echo "✅ API sogni/status endpoint accessible"
-else
-  echo "❌ API sogni/status check failed with status $API_STATUS_CHECK"
-  echo "⚠️ Warning: The API endpoints may not be correctly configured."
+  echo "❌ API Nginx check failed with status $API_NGINX_CHECK"
+  echo "⚠️ Warning: The API through Nginx may not be correctly configured."
 fi
 
 echo ""
@@ -241,5 +202,5 @@ echo "✅ Deployment completed at $(date)"
 echo "=================================================="
 echo "Your application should be available at:"
 echo "Frontend: https://photobooth.sogni.ai/"
-echo "Backend API: https://photobooth.sogni.ai/api/"
+echo "Backend API: https://photobooth-api.sogni.ai/"
 echo "Logs saved to: $LOG_FILE" 

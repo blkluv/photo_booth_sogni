@@ -68,9 +68,51 @@ PORT=3001
 CLIENT_ORIGIN=https://photobooth-local.sogni.ai
 ```
 
-### 3 · Run in dev mode (two terminals)
+### 3 · Configure Local Hosts & SSL Certificate
 
-One terminal to run the React front-end and another for the Node Express back-end.
+For the best local development experience, we use Nginx as a reverse proxy to handle SSL and route traffic to the appropriate services (frontend and backend) on separate subdomains.
+
+**a. Update your hosts file:**
+   You\'ll need to map the local development domains to your loopback address. Add the following lines to your `/etc/hosts` file (or equivalent for your OS):
+
+   ```
+   127.0.0.1 photobooth-local.sogni.ai
+   127.0.0.1 photobooth-api-local.sogni.ai
+   ```
+
+**b. Ensure SSL Certificate is Valid:**
+   The Nginx configuration (`scripts/nginx/local.conf`) is set up to use SSL certificates located at:
+   - `/opt/homebrew/etc/nginx/ssl/sogni-local.crt`
+   - `/opt/homebrew/etc/nginx/ssl/sogni-local.key`
+
+   These certificates **must be valid for both** `photobooth-local.sogni.ai` and `photobooth-api-local.sogni.ai`.
+   If you\'re not using Nginx, you can still run the frontend on http://localhost:5175 and the backend on http://localhost:3001. However, the API calls from the frontend (if accessed via localhost:5175) are configured in `src/config/urls.ts` to also target `https://photobooth-api-local.sogni.ai` by default for the `development` environment, which would require the hosts file and a running Nginx (or direct backend exposure on that domain with valid SSL for that domain).
+
+### 4 · Configure Nginx and Run in dev mode (two terminals)
+
+Before starting the development servers, ensure Nginx is running and configured to use the local setup.
+
+**a. Configure Nginx:**
+   Copy the provided Nginx configuration file from this project to your Nginx server configuration directory. A common location for Homebrew Nginx is `/opt/homebrew/etc/nginx/servers/`.
+
+   ```bash
+   # Run from the project root directory
+   cp scripts/nginx/local.conf /opt/homebrew/etc/nginx/servers/photobooth-local.conf
+   ```
+   *(Note: You might need `sudo` depending on permissions. Alternatively, you could create a symbolic link instead of copying.)*
+
+**b. Reload Nginx:**
+   Apply the configuration changes by reloading or restarting Nginx.
+
+   ```bash
+   # Example for Homebrew Nginx
+   brew services restart nginx
+   # Or, using nginx directly:
+   # sudo nginx -s reload
+   ```
+
+**c. Run Development Servers:**
+   Now, start the React front-end and the Node Express back-end in separate terminals.
 
 ```bash
 # Terminal 1 – backend
@@ -79,7 +121,7 @@ cd server && npm run dev
 # Terminal 2 – frontend (in project root)
 npm run dev
 ```
-Visit **https://photobooth-local.sogni.ai** (recommended Nginx reverse-proxy) **or** http://localhost:5175.
+Visit **https://photobooth-local.sogni.ai**. The frontend will make API calls to **https://photobooth-api-local.sogni.ai**.
 
 ### Optional script runner
 
@@ -114,11 +156,13 @@ If you prefer not to keep terminals open, you can use the script runner. This wi
 | File | Purpose |
 |------|---------|
 | `server/.env` | Backend secrets & CORS origin |
-| `.env`, `.env.staging` | Frontend build-time vars (Vite) |
 | `configs/local/*.conf` | Nginx local SSL reverse-proxy |
+| `scripts/nginx/local.conf` | Main Nginx configuration for local development, defining frontend and backend subdomains. Expects SSL certs at `/opt/homebrew/etc/nginx/ssl/`. |
 
 ### SSL & Custom Domain (optional)
-Running `./scripts/run.sh nginx` installs a local Nginx config + self-signed cert so you can use **https://photobooth-local.sogni.ai** with secure cookies.
+Running Nginx with the provided `scripts/nginx/local.conf` uses SSL certificates (expected at `/opt/homebrew/etc/nginx/ssl/sogni-local.crt` and `sogni-local.key` - see **Quick Start - Step 3b** for creation/validation instructions using `openssl`) so you can use **https://photobooth-local.sogni.ai** for the frontend and **https://photobooth-api-local.sogni.ai** for the backend, with secure cookies and proper CORS handling.
+
+The `./scripts/run.sh nginx` command is deprecated. Manual Nginx configuration and certificate management as described in **Quick Start - Step 3** is the recommended approach for this setup.
 
 ---
 

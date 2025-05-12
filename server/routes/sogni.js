@@ -78,14 +78,14 @@ const sendSSEMessage = (client, data) => {
 
 // Add OPTIONS handler for the /status endpoint to handle preflight requests
 router.options('/status', (req, res) => {
-  // Set CORS headers for preflight requests
-  if (req.headers.origin) {
-    res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Client-App-ID, Accept');
-    res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
-  }
+  // CORS headers are now handled by Nginx for the api subdomain
+  // if (req.headers.origin) {
+  //   res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
+  //   res.setHeader('Access-Control-Allow-Credentials', 'true');
+  //   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  //   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Client-App-ID, Accept');
+  //   res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
+  // }
   res.status(204).end(); // No content response for OPTIONS
 });
 
@@ -154,13 +154,7 @@ router.get('/status', ensureSessionId, async (req, res) => {
 
 // Add OPTIONS handler for the /progress/:projectId endpoint
 router.options('/progress/:projectId', (req, res) => {
-  if (req.headers.origin) {
-    res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Client-App-ID, Accept');
-    res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
-  }
+  // CORS headers are now handled by Nginx
   res.status(204).end();
 });
 
@@ -187,13 +181,13 @@ router.get('/progress/:projectId', ensureSessionId, (req, res) => {
   // Disable response compression - can cause issues with SSE
   res.setHeader('Content-Encoding', 'identity');
   
-  // Critical for CORS with credentials - ensure we're accepting all origins for SSE
-  const origin = req.headers.origin || (req.headers.referer ? new URL(req.headers.referer).origin : '*');
-  console.log(`SSE CORS: Setting Access-Control-Allow-Origin to: ${origin}`);
-  res.setHeader('Access-Control-Allow-Origin', origin);
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Client-App-ID');
+  // CORS headers are now handled by Nginx for the api subdomain
+  // const origin = req.headers.origin || (req.headers.referer ? new URL(req.headers.referer).origin : '*');
+  // console.log(`SSE CORS: Setting Access-Control-Allow-Origin to: ${origin}`);
+  // res.setHeader('Access-Control-Allow-Origin', origin);
+  // res.setHeader('Access-Control-Allow-Credentials', 'true');
+  // res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  // res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Client-App-ID');
   
   // Disable Nginx buffering if present
   res.setHeader('X-Accel-Buffering', 'no');
@@ -337,24 +331,18 @@ router.post('/cancel/:projectId', ensureSessionId, async (req, res) => {
 
 // Add OPTIONS handler for the /generate endpoint
 router.options('/generate', (req, res) => {
-  if (req.headers.origin) {
-    res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Client-App-ID, Accept');
-    res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
-  }
+  // CORS headers are now handled by Nginx
   res.status(204).end();
 });
 
 // Generate image with project tracking
 router.post('/generate', ensureSessionId, async (req, res) => {
-  // Create a unique project ID for tracking this specific /generate request
+  console.log("!!!!!!!!!!!!!!!!!!!!!!!!!! ROUTE /sogni/generate HIT !!!!!!!!!!!!!!!!!!!!!!!!!!");
   const localProjectId = `project-${Date.now()}`;
+  console.log(`DEBUG - ${new Date().toISOString()} - POST /sogni/generate - Request received. Body keys:`, Object.keys(req.body || {}));
   console.log(`[${localProjectId}] Starting image generation request for session ${req.sessionId}...`);
   
   try {
-    // Extract client app ID from header, body, or query parameter
     const clientAppId = req.headers['x-client-app-id'] || req.body.clientAppId || req.query.clientAppId;
     console.log(`[${localProjectId}] Using client app ID: ${clientAppId || 'none provided'}`);
     
@@ -408,11 +396,13 @@ router.post('/generate', ensureSessionId, async (req, res) => {
     
     // Get or create a client for this session, using the client-provided app ID
     const client = await getSessionClient(req.sessionId, clientAppId);
-    // Start the generation process using the session's client
     const params = req.body;
-    // Pass the client to generateImage
+
+    console.log(`DEBUG - ${new Date().toISOString()} - [${localProjectId}] Calling Sogni SDK (generateImage function) with params:`, Object.keys(params));
+    
     generateImage(client, params, progressHandler)
       .then(sogniResult => {
+        console.log(`DEBUG - ${new Date().toISOString()} - [${localProjectId}] Sogni SDK (generateImage function) promise resolved.`);
         console.log(`[${localProjectId}] Sogni generation process finished. Sogni Project ID: ${sogniResult.projectId}, Result URLs:`, JSON.stringify(sogniResult.result?.imageUrls || []));
         
         // Check if results are empty
@@ -453,6 +443,7 @@ router.post('/generate', ensureSessionId, async (req, res) => {
         }
       })
       .catch(error => {
+        console.error(`ERROR - ${new Date().toISOString()} - [${localProjectId}] Sogni SDK (generateImage function) promise rejected:`, error);
         console.error(`[${localProjectId}] Sogni generation process failed:`, error);
         if (activeProjects.has(localProjectId)) {
           const clients = activeProjects.get(localProjectId);
@@ -477,10 +468,13 @@ router.post('/generate', ensureSessionId, async (req, res) => {
       message: 'Image generation request received and processing started.' 
     });
   } catch (error) {
+    console.error(`ERROR - ${new Date().toISOString()} - [${localProjectId}] Uncaught error in POST /generate handler:`, error);
     console.error(`[${localProjectId}] Error in POST /generate handler:`, error);
     res.status(500).json({ 
       error: 'Failed to initiate image generation',
-      message: error.message 
+      message: error.message,
+      // Adding full error details to the response for debugging (consider removing for production)
+      errorDetails: { name: error.name, message: error.message, stack: error.stack, ...error }
     });
   }
 });

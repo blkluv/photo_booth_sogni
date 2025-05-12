@@ -171,24 +171,30 @@ sleep 5
 
 # Verify deployment
 show_step "Verifying deployment"
-echo "🔍 Checking backend health..."
+echo "🔍 Checking backend health directly on port 3002..."
 HEALTH_CHECK=$(curl -s -o /dev/null -w "%{http_code}" http://$REMOTE_HOST:3002/health || echo "failed")
-if [ "$HEALTH_CHECK" = "200" ] || [ "$HEALTH_CHECK" = "404" ]; then
-  # 404 is acceptable as it means the server is running but might not have a /health endpoint
-  echo "✅ Backend is running (status code: $HEALTH_CHECK)"
+if [ "$HEALTH_CHECK" = "200" ] || [ "$HEALTH_CHECK" = "404" ]; then # 404 if /health is under /api in app
+  echo "✅ Backend is running (direct check status code: $HEALTH_CHECK)"
 else
-  echo "❌ Backend health check failed with status $HEALTH_CHECK"
+  echo "❌ Backend direct health check failed with status $HEALTH_CHECK"
   echo "⚠️ Warning: The backend may not be running correctly. Please check logs with: ssh $REMOTE_HOST 'pm2 logs sogni-photobooth-staging'"
 fi
 
-echo "🔍 Checking nginx configuration..."
-NGINX_CHECK=$(curl -s -o /dev/null -w "%{http_code}" -I http://photobooth-staging.sogni.ai/ || echo "failed")
-if [ "$NGINX_CHECK" = "200" ] || [ "$NGINX_CHECK" = "301" ] || [ "$NGINX_CHECK" = "302" ]; then
-  echo "✅ Nginx configuration check successful"
+echo "🔍 Checking frontend availability via Nginx (photobooth-staging.sogni.ai)..."
+FRONTEND_NGINX_CHECK=$(curl -s -o /dev/null -w "%{http_code}" -I http://photobooth-staging.sogni.ai/ || echo "failed")
+if [ "$FRONTEND_NGINX_CHECK" = "200" ] || [ "$FRONTEND_NGINX_CHECK" = "301" ] || [ "$FRONTEND_NGINX_CHECK" = "302" ]; then # 30x if Cloudflare redirects to HTTPS
+  echo "✅ Frontend Nginx check successful (status code: $FRONTEND_NGINX_CHECK)"
 else
-  echo "❌ Nginx check failed with status $NGINX_CHECK"
-  echo "⚠️ Warning: The nginx configuration may not be correct. Please check /etc/nginx/conf.d/"
-  echo "   You may need to manually update DNS settings to point to the server."
+  echo "❌ Frontend Nginx check failed with status $FRONTEND_NGINX_CHECK"
+fi
+
+echo "🔍 Checking API availability via Nginx (photobooth-api-staging.sogni.ai)..."
+API_NGINX_CHECK=$(curl -s -o /dev/null -w "%{http_code}" -I http://photobooth-api-staging.sogni.ai/health || echo "failed")
+if [ "$API_NGINX_CHECK" = "200" ] || [ "$API_NGINX_CHECK" = "301" ] || [ "$API_NGINX_CHECK" = "302" ]; then # 30x if Cloudflare redirects to HTTPS, 200 if /health is direct
+  echo "✅ API Nginx check successful (status code: $API_NGINX_CHECK)"
+else
+  echo "❌ API Nginx check failed with status $API_NGINX_CHECK"
+  echo "⚠️ Warning: The API through Nginx may not be correctly configured."
 fi
 
 echo ""
@@ -196,7 +202,7 @@ echo "✅ Deployment completed at $(date)"
 echo "=================================================="
 echo "Your staging application should be available at:"
 echo "Frontend: http://photobooth-staging.sogni.ai/"
-echo "Backend API: http://photobooth-staging.sogni.ai/api/"
+echo "Backend API: http://photobooth-api-staging.sogni.ai/"
 if [ -f server/.env.staging ]; then
   echo "✅ Used server/.env.staging for backend configuration"
 else

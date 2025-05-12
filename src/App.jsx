@@ -2212,7 +2212,9 @@ const App = () => {
         {/* Main area with video - conditional rendering based on showPhotoGrid */}
         {renderMainArea()}
 
-        {/* Photo gallery grid - shown when showPhotoGrid is true */}
+        {/* Conditionally render photo grid only if Sogni client is ready */}
+        {showPhotoGrid && isSogniReady && sogniClient && (
+          <div className={`film-strip-container ${showPhotoGrid ? 'visible' : ''}`}>
         <PhotoGallery
           photos={photos}
           selectedPhotoIndex={selectedPhotoIndex}
@@ -2240,6 +2242,8 @@ const App = () => {
           desiredHeight={desiredHeight}
           selectedSubIndex={selectedSubIndex}
         />
+          </div>
+        )}
 
         <canvas ref={canvasReference} className="hidden" />
 

@@ -1,5 +1,5 @@
 import express from 'express';
-import cors from 'cors';
+// import cors from 'cors'; // Nginx handles CORS now
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
@@ -25,68 +25,6 @@ const port = process.env.PORT || 3001;
 // Get allowed origins from environment variables or use defaults
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5174,https://photobooth-local.sogni.ai';
 console.log('DEBUG - CLIENT_ORIGIN from .env:', CLIENT_ORIGIN);
-
-// CORS configuration with options handling
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  
-  // Log origin for debugging
-  // console.log(`DEBUG - CORS request from origin:`, origin);
-  
-  // Allow localhost access for development
-  if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1')) {
-    console.log('DEBUG - CORS: Allowing localhost request');
-    res.header('Access-Control-Allow-Origin', origin || '*');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Client-App-ID');
-    
-    // Special handling for SSE endpoints
-    if (req.path.includes('/progress/')) {
-      // Set SSE headers
-      res.header('Content-Type', 'text/event-stream');
-      res.header('Cache-Control', 'no-cache');
-      res.header('Connection', 'keep-alive');
-      res.header('X-Accel-Buffering', 'no'); // For nginx proxy buffering
-    }
-    
-    // Handle preflight
-    if (req.method === 'OPTIONS') {
-      return res.status(200).send();
-    }
-    
-    return next();
-  }
-  
-  // Check if origin is allowed
-  if (CLIENT_ORIGIN.includes(origin) || origin.includes('sogni.ai')) {
-    console.log('DEBUG - Allowed CORS for:', origin);
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Client-App-ID');
-    
-    // Special handling for SSE endpoints
-    if (req.path.includes('/progress/')) {
-      // Set SSE headers
-      res.header('Content-Type', 'text/event-stream');
-      res.header('Cache-Control', 'no-cache');
-      res.header('Connection', 'keep-alive');
-      res.header('X-Accel-Buffering', 'no'); // For nginx proxy buffering
-    }
-    
-    // Handle preflight
-    if (req.method === 'OPTIONS') {
-      return res.status(200).send();
-    }
-    
-    return next();
-  }
-  
-  // Log denied requests
-  console.log('DEBUG - CORS: Request denied from:', origin);
-  return next(new Error('Not allowed by CORS'));
-});
 
 // Log all requests for debugging
 app.use((req, res, next) => {

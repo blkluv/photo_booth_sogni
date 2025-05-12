@@ -10,31 +10,31 @@ interface EnvironmentURLs {
 // Production URLs
 const productionUrls: EnvironmentURLs = {
   publicUrl: 'https://photobooth.sogni.ai',
-  apiUrl: 'https://photobooth.sogni.ai/api',
+  apiUrl: 'https://photobooth-api.sogni.ai',
 };
 
 // Staging URLs
 const stagingUrls: EnvironmentURLs = {
   publicUrl: 'https://photobooth-staging.sogni.ai',
-  apiUrl: 'https://photobooth-staging.sogni.ai/api',
+  apiUrl: 'https://photobooth-api-staging.sogni.ai',
 };
 
-// Local development URLs
+// Local development URLs (when accessed via localhost:5175 directly)
 const developmentUrls: EnvironmentURLs = {
   publicUrl: 'http://localhost:5175',
-  apiUrl: 'http://localhost:3001/api',
+  apiUrl: 'https://photobooth-api-local.sogni.ai',
 };
 
 // Local secure development URLs (for https://photobooth-local.sogni.ai)
 const localSecureUrls: EnvironmentURLs = {
   publicUrl: 'https://photobooth-local.sogni.ai',
-  apiUrl: 'https://photobooth-local.sogni.ai/api',
+  apiUrl: 'https://photobooth-api-local.sogni.ai',
 };
 
 // Get URLs based on environment
 export const getURLs = (): EnvironmentURLs => {
   const environment = import.meta.env.MODE || 'development';
-  
+
   console.log(`Loading URLs for environment: ${environment}`);
   
   // Special handling for secure local development
