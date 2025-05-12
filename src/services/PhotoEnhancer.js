@@ -69,7 +69,7 @@ export const enhancePhoto = async (options) => {
         sizePreset: 'custom',
         width,
         height,
-        steps: 5,
+        steps: 4,
         guidance: 1,
         numberOfImages: 1,
         startingImage: Array.from(new Uint8Array(arrayBuffer)),

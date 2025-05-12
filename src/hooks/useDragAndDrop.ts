@@ -10,7 +10,6 @@ interface UseDragAndDropProps {
     controlNetStrength: number;
     controlNetGuidanceEnd: number;
     selectedStyle: string;
-    customPrompt?: string;
   };
   setPhotos: React.Dispatch<React.SetStateAction<Photo[]>>;
   isSogniReady: boolean;

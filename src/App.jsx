@@ -22,6 +22,7 @@ import CameraStartMenu from './components/camera/CameraStartMenu';
 import StyleDropdown from './components/shared/StyleDropdown';
 import AdvancedSettings from './components/shared/AdvancedSettings';
 import promptsData from './prompts.json';
+import PhotoGallery from './components/shared/PhotoGallery';
 
 const App = () => {
   const videoReference = useRef(null);
@@ -32,7 +33,6 @@ const App = () => {
 
   // Style selection -- default to what's in cookies
   const [selectedStyle, setSelectedStyle] = useState(getSettingFromCookie('selectedStyle', DEFAULT_SETTINGS.selectedStyle));
-  const [customPrompt, setCustomPrompt] = useState(getSettingFromCookie('customPrompt', ''));
   
   // Add state for style prompts instead of modifying the imported constant
   const [stylePrompts, setStylePrompts] = useState(initialStylePrompts);
@@ -150,6 +150,37 @@ const App = () => {
   // Add state for current thought
   const [currentThought, setCurrentThought] = useState(null);
 
+  // Remove customPrompt, add new prompt and seed states
+  const [positivePrompt, setPositivePrompt] = useState(getSettingFromCookie('positivePrompt', ''));
+  const [stylePrompt, setStylePrompt] = useState(getSettingFromCookie('stylePrompt', ''));
+  const [negativePrompt, setNegativePrompt] = useState(getSettingFromCookie('negativePrompt', ''));
+  const [seed, setSeed] = useState(getSettingFromCookie('seed', ''));
+
+  // --- Ensure handlers are defined here, before any JSX or usage ---
+  const handleUpdateStyle = (style) => {
+    setSelectedStyle(style);
+    saveSettingsToCookies({ selectedStyle: style });
+    if (style === 'custom') {
+      setPositivePrompt('');
+      saveSettingsToCookies({ positivePrompt: '' });
+    } else {
+      const prompt = stylePrompts[style] || '';
+      setPositivePrompt(prompt);
+      saveSettingsToCookies({ positivePrompt: prompt });
+    }
+  };
+
+  const handlePositivePromptChange = (value) => {
+    setPositivePrompt(value);
+    saveSettingsToCookies({ positivePrompt: value });
+    if (selectedStyle !== 'custom') {
+      const currentPrompt = stylePrompts[selectedStyle] || '';
+      if (value !== currentPrompt) {
+        setSelectedStyle('custom');
+        saveSettingsToCookies({ selectedStyle: 'custom' });
+      }
+    }
+  };
 
   // Update showThought function
   let thoughtInProgress = false;
@@ -663,51 +694,57 @@ const App = () => {
   // -------------------------
   const generateFromBlob = async (photoBlob, newPhotoIndex, dataUrl, isMoreOperation = false) => {
     try {
-      // Save the last used photo data for "More" button functionality
       setLastPhotoData({ blob: photoBlob, dataUrl });
-      
-      // Check if we're on iOS - we'll need special handling
       const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-      
-      // Get the style prompt, generating random if selected
-      let stylePrompt;
-      
-      if (selectedStyle === 'custom') {
-        stylePrompt = customPrompt || 'A custom style portrait';
-      } else if (selectedStyle === 'random') {
-        // Ensure we have prompts loaded
-        if (Object.keys(stylePrompts).length <= 2) {
-          // Reload prompts if they're not available
-          try {
-            const prompts = await loadPrompts();
-            if (Object.keys(prompts).length > 0) {
-              // Update state with new prompts
-              setStylePrompts(() => {
-                const newStylePrompts = {
-                  custom: '',
-                  ...Object.fromEntries(
-                    Object.entries(prompts)
-                      .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
-                  )
-                };
-                newStylePrompts.random = `{${Object.values(prompts).join('|')}}`;
-                return newStylePrompts;
-              });
+      // Prompt logic: use positivePrompt if set, else fallback to style prompt logic
+      let finalPositivePrompt = positivePrompt.trim();
+      if (!finalPositivePrompt) {
+        if (selectedStyle === 'custom') {
+          finalPositivePrompt = 'A custom style portrait';
+        } else if (selectedStyle === 'random') {
+          if (Object.keys(stylePrompts).length <= 2) {
+            try {
+              const prompts = await loadPrompts();
+              if (Object.keys(prompts).length > 0) {
+                setStylePrompts(() => {
+                  const newStylePrompts = {
+                    custom: '',
+                    ...Object.fromEntries(
+                      Object.entries(prompts)
+                        .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+                    )
+                  };
+                  newStylePrompts.random = `{${Object.values(prompts).join('|')}}`;
+                  return newStylePrompts;
+                });
+              }
+            } catch (error) {
+              console.error('Error loading prompts on demand:', error);
             }
-          } catch (error) {
-            console.error('Error loading prompts on demand:', error);
           }
+          const randomStyle = getRandomStyle(stylePrompts);
+          finalPositivePrompt = stylePrompts[randomStyle] || 'A creative portrait style';
+        } else if (selectedStyle === 'randomMix') {
+          finalPositivePrompt = getRandomMixPrompts(numberImages, stylePrompts);
+        } else {
+          finalPositivePrompt = stylePrompts[selectedStyle] || 'A creative portrait style';
         }
-        
-        const randomStyle = getRandomStyle(stylePrompts);
-        stylePrompt = stylePrompts[randomStyle] || 'A creative portrait style';
-      } else if (selectedStyle === 'randomMix') {
-        stylePrompt = getRandomMixPrompts(numberImages, stylePrompts);
-      } else {
-        stylePrompt = stylePrompts[selectedStyle] || 'A creative portrait style';
+      }
+      // Style prompt logic: use stylePrompt from state, fallback to empty string
+      let finalStylePrompt = stylePrompt.trim();
+      // Negative prompt logic: use negativePrompt from state, fallback to default
+      let finalNegativePrompt = negativePrompt.trim() || 'lowres, worst quality, low quality';
+      // Seed logic: if seed is empty, do not send; else parse as int
+      let seedValue = seed.trim();
+      let seedParam = undefined;
+      if (seedValue !== '') {
+        const parsed = parseInt(seedValue, 10);
+        if (!isNaN(parsed) && parsed >= 0 && parsed <= 4294967295) {
+          seedParam = parsed;
+        }
       }
       
-      console.log('Style prompt:', stylePrompt);
+      console.log('Style prompt:', finalPositivePrompt);
       projectStateReference.current = {
         currentPhotoIndex: newPhotoIndex,
         pendingCompletions: new Map(),
@@ -756,7 +793,7 @@ const App = () => {
                 error: null,
                 originalDataUrl: dataUrl, // Use reference photo as placeholder
                 newlyArrived: false,
-                statusText: 'Finding Art Robot...'
+                statusText: 'Calling Art Robot...'
               });
             }
           }
@@ -766,17 +803,8 @@ const App = () => {
 
       // Only animate if this is the first time (not a "more" operation)
       if (!isMoreOperation) {
-        // Animate camera and studio lights out
-        setLightsAnimating(true);
-        
-        // Wait for animation to complete before showing grid and hiding lights
-        setTimeout(() => {
-          setShowPhotoGrid(true);
-          setStudioLightsHidden(true);
-          setTimeout(() => {
-            setLightsAnimating(false);
-          }, 800); // Match animation duration
-        }, 700); // Match the duration of cameraFlyUp animation
+        // Show photo grid immediately instead of animating
+        setShowPhotoGrid(true);
       }
 
       // For iOS, ensure the blob is fully ready before sending to API
@@ -814,7 +842,7 @@ const App = () => {
               generating: true,
               loading: true,
               progress: displayProgress,
-              statusText: `${cachedWorkerName} processing... ${displayProgress}%`,
+              statusText: `${cachedWorkerName} creating... ${displayProgress}%`,
               jobId: job.id
             };
             return updated;
@@ -829,9 +857,9 @@ const App = () => {
       // The API is the same but will use our secure backend instead of direct SDK calls
       const project = await sogniClient.projects.create({
         modelId: selectedModel,
-        positivePrompt: stylePrompt,
-        negativePrompt: 'lowres, worst quality, low quality',
-        stylePrompt: '',
+        positivePrompt: finalPositivePrompt,
+        negativePrompt: finalNegativePrompt,
+        stylePrompt: finalStylePrompt,
         sizePreset: 'custom',
         width: desiredWidth,
         height: desiredHeight,
@@ -847,7 +875,8 @@ const App = () => {
           mode: 'balanced',
           guidanceStart: 0,
           guidanceEnd: controlNetGuidanceEnd,
-        }
+        },
+        ...(seedParam !== undefined ? { seed: seedParam } : {})
       });
 
       activeProjectReference.current = project.id;
@@ -865,6 +894,17 @@ const App = () => {
       // Attach a single project-level job event handler
       project.on('job', (event) => {
         const { type, jobId, workerName, progress, jobIndex, positivePrompt } = event;
+        console.log('📸 Job event received:', { 
+          type, 
+          jobId, 
+          workerName, 
+          progress, 
+          jobIndex, 
+          positivePrompt,
+          selectedStyle,
+          stylePrompt: stylePrompt.trim()
+        });
+        
         // Use jobIndex if available, otherwise fall back to jobId mapping
         let photoIndex;
         if (typeof jobIndex === 'number') {
@@ -893,6 +933,7 @@ const App = () => {
               jobId,
               jobIndex,
               positivePrompt,
+              stylePrompt: stylePrompt.trim(),  // Add stylePrompt here
               hashtag
             };
           } else if (type === 'started') {
@@ -903,6 +944,7 @@ const App = () => {
               jobId,
               jobIndex,
               positivePrompt,
+              stylePrompt: stylePrompt.trim(),  // Add stylePrompt here
               hashtag
             };
           } else if (type === 'progress') {
@@ -953,11 +995,25 @@ const App = () => {
         const offset = keepOriginalPhoto ? 1 : 0;
         const photoIndex = jobIndex + offset;
         const positivePrompt = job.positivePrompt;
+        
+        console.log('📸 Job completed:', {
+          jobId: job.id,
+          positivePrompt,
+          selectedStyle,
+          stylePrompt: stylePrompt.trim()
+        });
+        
         let hashtag = '';
         if (positivePrompt) {
           const foundKey = Object.entries(promptsData).find(([, value]) => value === positivePrompt)?.[0];
-          if (foundKey) hashtag = `#${foundKey}`;
+          if (foundKey) {
+            hashtag = `#${foundKey}`;
+            console.log('📸 Found hashtag for prompt:', { positivePrompt, hashtag, foundKey });
+          } else {
+            console.log('📸 No hashtag match found for prompt:', positivePrompt);
+          }
         }
+        
         const img = new Image();
         img.addEventListener('load', () => {
           setPhotos(previous => {
@@ -971,6 +1027,23 @@ const App = () => {
               console.log(`Photo at index ${photoIndex} has permanent error, skipping update`);
               return previous;
             }
+            
+            // If we have a valid stylePrompt, use that to help with hashtag lookup
+            if (!hashtag && stylePrompt.trim()) {
+              // Check if stylePrompt matches any key in promptsData
+              const styleKey = Object.entries(promptsData).find(([, value]) => value === stylePrompt.trim())?.[0];
+              if (styleKey) {
+                console.log('📸 Found hashtag from stylePrompt:', styleKey);
+                hashtag = `#${styleKey}`;
+              }
+            }
+            
+            // If we still don't have a hashtag but have a selectedStyle, use that
+            if (!hashtag && selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix') {
+              console.log('📸 Using selectedStyle for hashtag:', selectedStyle);
+              hashtag = `#${selectedStyle}`;
+            }
+            
             updated[photoIndex] = {
               ...updated[photoIndex],
               generating: false,
@@ -978,8 +1051,19 @@ const App = () => {
               progress: 100,
               images: [job.resultUrl],
               newlyArrived: true,
+              positivePrompt, // Ensure we keep the positivePrompt
+              stylePrompt: stylePrompt.trim(), // Make sure stylePrompt is included
               statusText: hashtag || `#${jobIndex+1}`
             };
+            
+            console.log('📸 Updated photo with result:', {
+              photoIndex,
+              hashtag,
+              stylePrompt: updated[photoIndex].stylePrompt,
+              positivePrompt: updated[photoIndex].positivePrompt,
+              statusText: updated[photoIndex].statusText
+            });
+            
             // Check if all photos are done generating
             const stillGenerating = updated.some(photo => photo.generating);
             if (!stillGenerating && activeProjectReference.current) {
@@ -1068,15 +1152,7 @@ const App = () => {
       });
       
       // Still show photo grid on error
-      setLightsAnimating(true);
-      
-      setTimeout(() => {
-        setShowPhotoGrid(true);
-        setStudioLightsHidden(true);
-        setTimeout(() => {
-          setLightsAnimating(false);
-        }, 800);
-      }, 700);
+      setShowPhotoGrid(true);
     }
   };
 
@@ -1466,8 +1542,7 @@ const App = () => {
       }}>
         <button
           className="header-style-select global-style-btn"
-          onClick={toggleStyleDropdown}
-          ref={styleButtonReference}
+          onClick={() => setShowStyleDropdown(!showStyleDropdown)}
           style={{
             all: 'unset',
             display: 'flex',
@@ -1505,11 +1580,11 @@ const App = () => {
           isOpen={showStyleDropdown}
           onClose={() => setShowStyleDropdown(false)}
           selectedStyle={selectedStyle}
-          updateStyle={(style) => updateSetting(setSelectedStyle, 'selectedStyle')(style)}
+          updateStyle={handleUpdateStyle}
           defaultStylePrompts={stylePrompts}
           showControlOverlay={showControlOverlay}
           setShowControlOverlay={setShowControlOverlay}
-          dropdownPosition={dropdownPosition}
+          dropdownPosition="bottom" // Force dropdown to appear below the button since it's at the top of the screen
           triggerButtonClass=".global-style-btn"
         />
       </div>
@@ -1574,13 +1649,11 @@ const App = () => {
             onTakePhoto={handleTakePhoto}
             showPhotoGrid={showPhotoGrid}
             selectedStyle={selectedStyle}
-            onStyleSelect={(style) => updateSetting(setSelectedStyle, 'selectedStyle')(style)}
+            onStyleSelect={handleUpdateStyle}
             showSettings={showControlOverlay}
             onToggleSettings={() => setShowControlOverlay(!showControlOverlay)}
             testId="camera-view"
             stylePrompts={stylePrompts}
-            customPrompt={customPrompt}
-            onCustomPromptChange={(value) => updateSetting(setCustomPrompt, 'customPrompt')(value)}
             cameraDevices={cameraDevices}
             selectedCameraDeviceId={selectedCameraDeviceId}
             onCameraSelect={handleCameraSelection}
@@ -1588,20 +1661,40 @@ const App = () => {
             isFrontCamera={isFrontCamera}
             modelOptions={getModelOptions()}
             selectedModel={selectedModel}
-            onModelSelect={(value) => updateSetting(setSelectedModel, 'selectedModel')(value)}
+            onModelSelect={(value) => {
+              setSelectedModel(value);
+              saveSettingsToCookies({ selectedModel: value });
+            }}
             numImages={numberImages}
-            onNumImagesChange={(value) => updateSetting(setNumberImages, 'numImages')(value)}
+            onNumImagesChange={(value) => {
+              setNumberImages(value);
+              saveSettingsToCookies({ numImages: value });
+            }}
             promptGuidance={promptGuidance}
-            onPromptGuidanceChange={(value) => updateSetting(setPromptGuidance, 'promptGuidance')(value)}
+            onPromptGuidanceChange={(value) => {
+              setPromptGuidance(value);
+              saveSettingsToCookies({ promptGuidance: value });
+            }}
             controlNetStrength={controlNetStrength}
-            onControlNetStrengthChange={(value) => updateSetting(setControlNetStrength, 'controlNetStrength')(value)}
+            onControlNetStrengthChange={(value) => {
+              setControlNetStrength(value);
+              saveSettingsToCookies({ controlNetStrength: value });
+            }}
             controlNetGuidanceEnd={controlNetGuidanceEnd}
-            onControlNetGuidanceEndChange={(value) => updateSetting(setControlNetGuidanceEnd, 'controlNetGuidanceEnd')(value)}
+            onControlNetGuidanceEndChange={(value) => {
+              setControlNetGuidanceEnd(value);
+              saveSettingsToCookies({ controlNetGuidanceEnd: value });
+            }}
             flashEnabled={flashEnabled}
-            onFlashEnabledChange={(value) => updateSetting(setFlashEnabled, 'flashEnabled')(value)}
+            onFlashEnabledChange={(value) => {
+              setFlashEnabled(value);
+              saveSettingsToCookies({ flashEnabled: value });
+            }}
             keepOriginalPhoto={keepOriginalPhoto}
-            onKeepOriginalPhotoChange={(value) => updateSetting(setKeepOriginalPhoto, 'keepOriginalPhoto')(value)}
-            onResetSettings={resetAllSettings}
+            onKeepOriginalPhotoChange={(value) => {
+              setKeepOriginalPhoto(value);
+              saveSettingsToCookies({ keepOriginalPhoto: value });
+            }}
           />
           
           {/* Other UI elements like canvas, flash effect, etc. */}
@@ -1613,622 +1706,8 @@ const App = () => {
   );
 
   // -------------------------
-  //   Thumbnails at bottom
+  //   Drag overlay
   // -------------------------
-  const renderGallery = () => {    
-    if (photos.length === 0 || !showPhotoGrid) return null;
-    
-    // Track if any generation is in progress
-    const isGenerating = photos.some(photo => photo.generating);
-    
-    return (
-      <div className={`film-strip-container ${showPhotoGrid ? 'visible' : 'hiding'} ${selectedPhotoIndex === null ? '' : 'has-selected'}`}
-        style={{
-          background: 'rgba(248, 248, 248, 0.85)',
-          backgroundImage: `
-            linear-gradient(125deg, rgba(255,138,0,0.8), rgba(229,46,113,0.8), rgba(185,54,238,0.8), rgba(58,134,255,0.8)),
-            repeating-linear-gradient(45deg, rgba(255,255,255,0.15) 0px, rgba(255,255,255,0.15) 2px, transparent 2px, transparent 4px),
-            repeating-linear-gradient(-45deg, rgba(255,255,255,0.15) 0px, rgba(255,255,255,0.15) 2px, transparent 2px, transparent 4px)
-          `,
-          backgroundSize: '400% 400%, 20px 20px, 20px 20px',
-          animation: 'psychedelic-shift 15s ease infinite',
-        }}>
-        {/* Style Dropdown Removed - now available globally */}
-
-        {/* Back to Camera button */}
-        <button
-          className="back-to-camera-btn"
-          onClick={handleBackToCamera}
-          style={{
-            position: 'fixed',
-            left: '20px',
-            bottom: '20px',
-            background: 'linear-gradient(135deg, #ffb6e6 0%, #ff5e8a 100%)',
-            color: 'white',
-            border: 'none',
-            padding: '12px 24px',
-            borderRadius: '8px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '16px',
-            zIndex: 9999,
-            transition: 'transform 0.2s, box-shadow 0.2s',
-          }}
-        >
-          ← 📸
-        </button>
-
-        {/* Settings button - always show in photo grid */}
-        {selectedPhotoIndex === null && (
-          <button
-            className="header-settings-btn"
-            onClick={() => setShowControlOverlay(!showControlOverlay)}
-            style={{
-              position: 'fixed',
-              top: 24,
-              right: 24,
-              background: 'linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%)',
-              border: 'none',
-              color: '#fff',
-              fontSize: 20,
-              width: 38,
-              height: 38,
-              borderRadius: '50%',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-              cursor: 'pointer',
-              fontWeight: 900,
-              lineHeight: 1,
-              padding: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.2s ease',
-              zIndex: 1000,
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.transform = 'scale(1.05)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
-            }}
-            title="Settings"
-          >
-            ⚙️
-          </button>
-        )}
-
-        {/* More button - positioned on the right side */}
-        {!isGenerating && selectedPhotoIndex === null && (
-          <button
-            className="more-photos-btn"
-            onClick={handleGenerateMorePhotos}
-            disabled={activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob}
-            style={{
-              position: 'fixed',
-              right: '20px',
-              bottom: '20px',
-              background: 'linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%)',
-              color: 'white',
-              border: 'none',
-              padding: '12px 24px',
-              borderRadius: '8px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-              cursor: activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob ? 'not-allowed' : 'pointer',
-              fontWeight: 'bold',
-              fontSize: '12px',
-              zIndex: 9999,
-              transition: 'all 0.2s ease',
-              opacity: activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob ? 0.6 : 1,
-            }}
-            onMouseOver={(e) => {
-              if (!(activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob)) {
-                e.currentTarget.style.transform = 'scale(1.05)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
-              }
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
-            }}
-            onMouseDown={(e) => {
-              if (!(activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob)) {
-                e.currentTarget.style.transform = 'scale(0.95)';
-              }
-            }}
-            onMouseUp={(e) => {
-              if (!(activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob)) {
-                e.currentTarget.style.transform = 'scale(1.05)';
-              }
-            }}
-          >
-            More ✨
-          </button>
-        )}
-
-        {/* Navigation buttons - only show when a photo is selected */}
-        {selectedPhotoIndex !== null && photos.length > 1 && (
-          <>
-            <button className="photo-nav-btn prev" onClick={handlePreviousPhoto}>
-              &#8249;
-            </button>
-            <button className="photo-nav-btn next" onClick={handleNextPhoto}>
-              &#8250;
-            </button>
-            <button 
-              className="photo-close-btn" 
-              onClick={() => setSelectedPhotoIndex(null)}
-              style={{
-                position: 'fixed',
-                top: '20px',
-                right: '20px',
-                background: 'rgba(0, 0, 0, 0.6)',
-                color: 'white',
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                border: 'none',
-                fontSize: '24px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                zIndex: 99999,
-                boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
-                transition: 'all 0.2s ease',
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 83, 83, 0.8)';
-                e.currentTarget.style.transform = 'scale(1.05)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = 'rgba(0, 0, 0, 0.6)';
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
-              onMouseDown={(e) => {
-                e.currentTarget.style.transform = 'scale(0.95)';
-              }}
-              onMouseUp={(e) => {
-                e.currentTarget.style.transform = 'scale(1.05)';
-              }}
-            >
-              ×
-            </button>
-          </>
-        )}
-
-        {/* Also add a close button when there's only one photo */}
-        {selectedPhotoIndex !== null && photos.length <= 1 && (
-          <button 
-            className="photo-close-btn" 
-            onClick={() => setSelectedPhotoIndex(null)}
-            style={{
-              position: 'fixed',
-              top: '20px',
-              right: '20px',
-              background: 'rgba(0, 0, 0, 0.6)',
-              color: 'white',
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              border: 'none',
-              fontSize: '24px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              zIndex: 99999,
-              boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
-              transition: 'all 0.2s ease',
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 83, 83, 0.8)';
-              e.currentTarget.style.transform = 'scale(1.05)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.background = 'rgba(0, 0, 0, 0.6)';
-              e.currentTarget.style.transform = 'scale(1)';
-            }}
-            onMouseDown={(e) => {
-              e.currentTarget.style.transform = 'scale(0.95)';
-            }}
-            onMouseUp={(e) => {
-              e.currentTarget.style.transform = 'scale(1.05)';
-            }}
-          >
-            ×
-          </button>
-        )}
-
-        {/* Settings button when viewing a photo */}
-        {selectedPhotoIndex !== null && (
-          <button
-            className="header-settings-btn"
-            onClick={() => setShowControlOverlay(!showControlOverlay)}
-            style={{
-              position: 'fixed',
-              top: 24,
-              right: 72,
-              background: 'linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%)',
-              border: 'none',
-              color: '#fff',
-              fontSize: 20,
-              width: 38,
-              height: 38,
-              borderRadius: '50%',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-              cursor: 'pointer',
-              fontWeight: 900,
-              lineHeight: 1,
-              padding: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.2s ease',
-              zIndex: 99999,
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.transform = 'scale(1.05)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
-            }}
-            title="Settings"
-          >
-            ⚙️
-          </button>
-        )}
-        
-        {/* Help button in photo grid view */}
-        <button
-          className="header-info-btn"
-          onClick={toggleNotesModal}
-          style={{
-            position: 'fixed',
-            top: 24,
-            right: selectedPhotoIndex !== null ? 120 : 72,
-            background: 'linear-gradient(135deg, #ffb6e6 0%, #ff5e8a 100%)',
-            border: 'none',
-            color: '#fff',
-            fontSize: 22,
-            width: 38,
-            height: 38,
-            borderRadius: '50%',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-            cursor: 'pointer',
-            fontWeight: 900,
-            lineHeight: 1,
-            padding: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'all 0.2s ease',
-            zIndex: 1000,
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.transform = 'scale(1.05)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.transform = 'scale(1)';
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
-          }}
-          title="Photobooth Tips"
-        >
-          ?
-        </button>
-
-        <div className={`film-strip-content ${selectedPhotoIndex === null ? '' : 'has-selected'}`} style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-          gap: '32px',
-          justifyItems: 'center',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '100%',
-          maxWidth: '1600px',
-          margin: '0 auto',
-          padding: '32px'
-        }}>
-          {photos.map((photo, index) => {
-            const isSelected = index === selectedPhotoIndex;
-            const isReference = photo.isOriginal;
-            const placeholderUrl = photo.originalDataUrl;
-            const progress = Math.floor(photo.progress || 0);
-            const loadingLabel = progress > 0 ? `${progress}%` : "";
-            const labelText = isReference ? "Reference" : `#${index-keepOriginalPhoto+1}`;
-            
-            // Force square aspect ratio with important flags
-            const squareStyle = {
-              width: '100%',
-              maxWidth: '240px',
-              aspectRatio: '1 / 1',
-              margin: '0 auto',
-              backgroundColor: 'white'
-            };
-
-            // Loading or error state
-            if ((photo.loading && photo.images.length === 0) || (photo.error && photo.images.length === 0)) {
-              return (
-                <div
-                  key={photo.id}
-                  className={`film-frame loading ${isSelected ? 'selected' : ''}`}
-                  data-fadepolaroid={photo.loading && !photo.error ? 'true' : undefined}
-                  data-enhancing={photo.enhancing ? 'true' : undefined}
-                  data-error={photo.error ? 'true' : undefined}
-                  data-enhanced={photo.enhanced ? 'true' : undefined}
-                  data-progress={Math.floor(photo.progress * 100) || 0}
-                  onClick={() => isSelected ? setSelectedPhotoIndex(null) : setSelectedPhotoIndex(index)}
-                  style={{
-                    ...squareStyle,
-                    '--enhance-progress': photo.progress ? `${Math.floor(photo.progress * 100)}%` : '0%',
-                    position: 'relative',
-                    borderRadius: '3px',
-                    padding: '12px',
-                    paddingBottom: '60px',
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-                    display: 'flex',
-                    flexDirection: 'column'
-                  }}
-                >
-                  <div>
-                    {placeholderUrl && (
-                      <img
-                        src={placeholderUrl}
-                        alt="Original reference"
-                        className="placeholder"
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                          position: 'relative',
-                          top: 0,
-                          left: 0,
-                          opacity: 0.7,
-                          animation: photo.error ? '' : 'placeholderPulse 2s ease-in-out infinite',
-                          zIndex: 1
-                        }}
-                      />
-                    )}
-                    
-                    {/* Progress bar */}
-                    {/* Progress bar removed as requested */}
-                  </div>
-                  <div className="photo-label" style={{ color: photo.error ? '#d32f2f' : undefined, fontWeight: photo.error ? 700 : undefined }}>
-                    {photo.error ? 
-                      `${typeof photo.error === 'object' ? 'Generation failed' : photo.error}` 
-                      : (photo.statusText || loadingLabel || labelText)}
-                    {photo.hashtag ? ` ${photo.hashtag}` : ''}
-                  </div>
-                </div>
-              );
-            }
-
-            // Show completed image
-            const thumbUrl = photo.images[0] || '';
-
-            const handlePhotoSelect = (index, e) => {
-              const element = e.currentTarget;
-              
-              if (selectedPhotoIndex === index) {
-                // Capture current position before removing selected state
-                const first = element.getBoundingClientRect();
-                setSelectedPhotoIndex(null);
-                
-                // Add animating class only to this element
-                element.classList.add('animating-selection');
-                
-                // Animate back to grid position
-                requestAnimationFrame(() => {
-                  const last = element.getBoundingClientRect();
-                  const deltaX = first.left - last.left;
-                  const deltaY = first.top - last.top;
-                  const deltaScale = first.width / last.width;
-
-                  // Apply starting transform
-                  element.style.transition = 'none';
-                  element.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${deltaScale})`;
-                  
-                  // Force reflow
-                  element.offsetHeight;
-                  
-                  // Animate to final position
-                  element.style.transition = 'transform 0.5s cubic-bezier(0.2, 0, 0.2, 1)';
-                  
-                  // Clean up after animation
-                  setTimeout(() => {
-                    element.style.transition = '';
-                    element.style.transform = '';
-                    element.classList.remove('animating-selection');
-                  }, 500);
-                });
-                return;
-              }
-
-              // When selecting a photo
-              // Scroll to top first to ensure proper positioning
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-              
-              // Capture starting position
-              const first = element.getBoundingClientRect();
-              
-              // Add animating class only to this element
-              element.classList.add('animating-selection');
-              
-              // Update state to mark as selected
-              setSelectedPhotoIndex(index);
-              
-              // After state update, calculate and animate
-              requestAnimationFrame(() => {
-                const last = element.getBoundingClientRect();
-                const deltaX = first.left - last.left;
-                const deltaY = first.top - last.top;
-                const deltaScale = first.width / last.width;
-                
-                // Apply starting transform
-                element.style.transition = 'none';
-                element.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${deltaScale})`;
-                
-                // Force reflow
-                element.offsetHeight;
-                
-                // Animate to final position
-                element.style.transition = 'transform 0.5s cubic-bezier(0.2, 0, 0.2, 1)';
-                element.style.transform = 'rotate(0deg)';
-                
-                // Clean up after animation
-                setTimeout(() => {
-                  element.classList.remove('animating-selection');
-                }, 500);
-              });
-            };
-
-            // Update the film-frame rendering to use the new handler
-            return (
-              <div 
-                key={photo.id}
-                className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''}`}
-                onClick={(e) => isSelected ? handlePhotoViewerClick(e) : handlePhotoSelect(index, e)}
-                data-enhancing={photo.enhancing ? 'true' : undefined}
-                data-error={photo.error ? 'true' : undefined}
-                data-enhanced={photo.enhanced ? 'true' : undefined}
-                style={{
-                  ...squareStyle,
-                  '--enhance-progress': photo.progress ? `${Math.floor(photo.progress * 100)}%` : '0%',
-                  position: 'relative',
-                  borderRadius: '3px',
-                  padding: '12px',
-                  paddingBottom: '60px',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-                  display: 'flex',
-                  flexDirection: 'column'
-                }}
-              >
-                <div style={{
-                  position: 'relative',
-                  width: '100%',
-                  height: '100%'
-                }}>
-                    <img
-                      src={thumbUrl}
-                      alt={`Generated #${index}`}
-                      onError={(e) => {
-                        console.log('Image failed to load, using original as fallback');
-                        if (photo.originalDataUrl && e.target.src !== photo.originalDataUrl) {
-                          e.target.src = photo.originalDataUrl;
-                          e.target.style.opacity = '0.7'; // Make it slightly faded to indicate it's a fallback
-                          e.target.classList.add('fallback'); // Add fallback class for styling
-                          
-                          // Update the photo state to mark it as having an error
-                          setPhotos(prev => {
-                            const updated = [...prev];
-                            if (updated[index]) {
-                              updated[index] = {
-                                ...updated[index],
-                                loadError: true,
-                                statusText: `${updated[index].statusText || ''} (Using original)`
-                              };
-                            }
-                            return updated;
-                          });
-                        }
-                      }}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        position: 'relative',
-                        top: 0,
-                        left: 0,
-                        display: 'block',
-                        animation: 'targetImageFadeIn 0.3s ease-in forwards'
-                      }}
-                  />
-                  
-                  {/* Progress bar for photos still loading */}
-                  {/* Progress bar removed as requested */}
-                </div>
-                <div className="photo-label">
-                  {photo.statusText || labelText}
-                  {photo.hashtag ? ` ${photo.hashtag}` : ''}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  // Create a wrapper setter for each setting that also saves to cookies
-  const updateSetting = (setter, settingName) => (value) => {
-    setter(value);
-    saveSettingsToCookies({ [settingName]: value });
-  };
-
-  // Reset all settings to defaults
-  const resetAllSettings = () => {
-    setSelectedModel(getValidModelValue(DEFAULT_SETTINGS.selectedModel));
-    setNumberImages(DEFAULT_SETTINGS.numImages);
-    setPromptGuidance(DEFAULT_SETTINGS.promptGuidance);
-    setControlNetStrength(DEFAULT_SETTINGS.controlNetStrength);
-    setControlNetGuidanceEnd(DEFAULT_SETTINGS.controlNetGuidanceEnd);
-    setFlashEnabled(DEFAULT_SETTINGS.flashEnabled);
-    setKeepOriginalPhoto(DEFAULT_SETTINGS.keepOriginalPhoto);
-    setSelectedStyle(DEFAULT_SETTINGS.selectedStyle);
-    setCustomPrompt('');
-    
-    // Save all defaults to cookies
-    saveSettingsToCookies({
-      ...DEFAULT_SETTINGS,
-      selectedModel: getValidModelValue(DEFAULT_SETTINGS.selectedModel)
-    });
-  };
-
-  // Update state for studio lights
-  const [studioLightsHidden, setStudioLightsHidden] = useState(false);
-  const [lightsAnimating, setLightsAnimating] = useState(false);
-
-  // Add state to track dropdown position
-  const [dropdownPosition, setDropdownPosition] = useState('bottom');
-  
-  // Add ref for dropdown button
-  const styleButtonReference = useRef(null);
-
-  // Add function to detect dropdown position and prevent clipping
-  const toggleStyleDropdown = () => {
-    // If already open, just close it
-    if (showStyleDropdown) {
-      setShowStyleDropdown(false);
-      return;
-    }
-    
-    // Calculate dropdown position based on button position
-    if (styleButtonReference.current) {
-      const buttonRect = styleButtonReference.current.getBoundingClientRect();
-      const spaceAbove = buttonRect.top;
-      const spaceBelow = window.innerHeight - buttonRect.bottom;
-      
-      // If more space below than above or if not enough space above for dropdown, position below
-      // Otherwise position above (which is the default for our bottom toolbar)
-      if (spaceBelow > spaceAbove || spaceAbove < 350) {
-        setDropdownPosition('bottom');
-      } else {
-        setDropdownPosition('top');
-      }
-    } else {
-      // Default to above if we can't find the button
-      setDropdownPosition('top');
-    }
-    
-    setShowStyleDropdown(true);
-  };
-
-  // Clean, polished transition from photogrid to camera
   const handleBackToCamera = () => {
     // Scroll to top smoothly
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2251,13 +1730,11 @@ const App = () => {
         slothicornReference.current.style.setProperty('bottom', '-360px', 'important');
         slothicornReference.current.classList.remove('animating');
       }
-      setStudioLightsHidden(true);
-      
       // Show the start menu again instead of the camera
       setShowStartMenu(true);
       
       setTimeout(() => {
-        setStudioLightsHidden(false);
+        // Remove the setStudioLightsHidden line - no studio lights animation needed
       }, 300);
     }, 450); // Reduced time to match our new animation duration
   };
@@ -2522,7 +1999,7 @@ const App = () => {
           error: null,
           originalDataUrl: lastPhotoData.dataUrl,
           newlyArrived: false,
-          statusText: 'Finding Art Robot...',
+          statusText: 'Calling Art Robot...',
           stylePrompt: '' // No prompt for 'more' operation unless you want to track it
         });
       }
@@ -2599,31 +2076,53 @@ const App = () => {
         <AdvancedSettings 
           visible={showControlOverlay}
           onClose={() => setShowControlOverlay(false)}
-          selectedStyle={selectedStyle}
-          customPrompt={customPrompt}
-          onCustomPromptChange={(value) => {
-            setCustomPrompt(value);
-            saveSettingsToCookies({ customPrompt: value });
-          }}
+          positivePrompt={positivePrompt}
+          onPositivePromptChange={handlePositivePromptChange}
+          stylePrompt={stylePrompt}
+          onStylePromptChange={(value) => { setStylePrompt(value); saveSettingsToCookies({ stylePrompt: value }); }}
+          negativePrompt={negativePrompt}
+          onNegativePromptChange={(value) => { setNegativePrompt(value); saveSettingsToCookies({ negativePrompt: value }); }}
+          seed={seed}
+          onSeedChange={(value) => { setSeed(value); saveSettingsToCookies({ seed: value }); }}
           cameraDevices={cameraDevices}
           selectedCameraDeviceId={selectedCameraDeviceId}
           onCameraSelect={handleCameraSelection}
           modelOptions={getModelOptions()}
           selectedModel={selectedModel}
-          onModelSelect={(value) => updateSetting(setSelectedModel, 'selectedModel')(value)}
+          onModelSelect={(value) => {
+            setSelectedModel(value);
+            saveSettingsToCookies({ selectedModel: value });
+          }}
           numImages={numberImages}
-          onNumImagesChange={(value) => updateSetting(setNumberImages, 'numImages')(value)}
+          onNumImagesChange={(value) => {
+            setNumberImages(value);
+            saveSettingsToCookies({ numImages: value });
+          }}
           promptGuidance={promptGuidance}
-          onPromptGuidanceChange={(value) => updateSetting(setPromptGuidance, 'promptGuidance')(value)}
+          onPromptGuidanceChange={(value) => {
+            setPromptGuidance(value);
+            saveSettingsToCookies({ promptGuidance: value });
+          }}
           controlNetStrength={controlNetStrength}
-          onControlNetStrengthChange={(value) => updateSetting(setControlNetStrength, 'controlNetStrength')(value)}
+          onControlNetStrengthChange={(value) => {
+            setControlNetStrength(value);
+            saveSettingsToCookies({ controlNetStrength: value });
+          }}
           controlNetGuidanceEnd={controlNetGuidanceEnd}
-          onControlNetGuidanceEndChange={(value) => updateSetting(setControlNetGuidanceEnd, 'controlNetGuidanceEnd')(value)}
+          onControlNetGuidanceEndChange={(value) => {
+            setControlNetGuidanceEnd(value);
+            saveSettingsToCookies({ controlNetGuidanceEnd: value });
+          }}
           flashEnabled={flashEnabled}
-          onFlashEnabledChange={(value) => updateSetting(setFlashEnabled, 'flashEnabled')(value)}
+          onFlashEnabledChange={(value) => {
+            setFlashEnabled(value);
+            saveSettingsToCookies({ flashEnabled: value });
+          }}
           keepOriginalPhoto={keepOriginalPhoto}
-          onKeepOriginalPhotoChange={(value) => updateSetting(setKeepOriginalPhoto, 'keepOriginalPhoto')(value)}
-          onResetSettings={resetAllSettings}
+          onKeepOriginalPhotoChange={(value) => {
+            setKeepOriginalPhoto(value);
+            saveSettingsToCookies({ keepOriginalPhoto: value });
+          }}
         />
 
         {/* Help button - only show in camera view */}
@@ -2707,16 +2206,16 @@ const App = () => {
         )}
         
         {/* Studio lights - permanent background elements */}
-        <div className={`studio-lights-container ${studioLightsHidden ? 'studio-lights-hidden' : ''}`}>
+        <div className="studio-lights-container">
           <img 
             src={light1Image} 
             alt="Studio Light" 
-            className={`studio-light left ${lightsAnimating ? 'sliding-out' : ''}`} 
+            className="studio-light left" 
           />
           <img 
             src={light2Image} 
             alt="Studio Light" 
-            className={`studio-light right ${lightsAnimating ? 'sliding-out' : ''}`} 
+            className="studio-light right" 
           />
         </div>
         
@@ -2755,7 +2254,27 @@ const App = () => {
         {renderMainArea()}
 
         {/* Photo gallery grid - shown when showPhotoGrid is true */}
-        {renderGallery()}
+        <PhotoGallery
+          photos={photos}
+          selectedPhotoIndex={selectedPhotoIndex}
+          setSelectedPhotoIndex={setSelectedPhotoIndex}
+          showPhotoGrid={showPhotoGrid}
+          handleBackToCamera={handleBackToCamera}
+          handlePreviousPhoto={handlePreviousPhoto}
+          handleNextPhoto={handleNextPhoto}
+          handlePhotoViewerClick={handlePhotoViewerClick}
+          handleGenerateMorePhotos={handleGenerateMorePhotos}
+          handleShowControlOverlay={() => setShowControlOverlay(!showControlOverlay)}
+          isGenerating={photos.some(photo => photo.generating)}
+          keepOriginalPhoto={keepOriginalPhoto}
+          lastPhotoData={lastPhotoData}
+          activeProjectReference={activeProjectReference}
+          isSogniReady={isSogniReady}
+          toggleNotesModal={toggleNotesModal}
+          setPhotos={setPhotos}
+          selectedStyle={selectedStyle}
+          stylePrompts={stylePrompts}
+        />
 
         <canvas ref={canvasReference} className="hidden" />
 

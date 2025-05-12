@@ -1,7 +1,8 @@
+/* global process */
 import { SogniClient } from '@sogni-ai/sogni-client';
 import dotenv from 'dotenv';
-import fs from 'fs';
-import path from 'path';
+// import fs from 'fs'; // removed unused
+// import path from 'path'; // removed unused
 
 // Load environment variables
 dotenv.config();
@@ -42,11 +43,11 @@ export function logConnectionStatus(operation, clientId) {
 }
 
 // Helper to record activity on a client
-function recordClientActivity(clientId, env) {
+function recordClientActivity(clientId) {
   if (clientId) {
     connectionLastActivity.set(clientId, Date.now());
     // Uncomment for debugging
-    // console.log(`[ACTIVITY] Recorded activity for client: ${clientId} in env: ${env}`);
+    // console.log(`[ACTIVITY] Recorded activity for client: ${clientId}`);
   }
 }
 
@@ -55,7 +56,6 @@ export const checkIdleConnections = async () => {
   const now = Date.now();
   const idleTimeThreshold = now - INACTIVITY_TIMEOUT_MS;
   let idleConnectionsCount = 0;
-  const disconnectionPromises = [];
 
   // First identify all idle clients
   const idleClients = [];
@@ -258,7 +258,7 @@ async function createSogniClient(appIdPrefix, clientProvidedAppId) {
     
     // Track this actual client
     activeConnections.set(sogniAppId, client);
-    recordClientActivity(sogniAppId, sogniEnv);
+    recordClientActivity(sogniAppId);
     logConnectionStatus('Created', sogniAppId);
 
     // Try to restore session with tokens if available
@@ -516,7 +516,8 @@ export async function generateImage(client, params, progressCallback) {
       numberOfImages: params.numberImages || 1,
       // numberOfPreviews: params.numberPreviews || 1,
       scheduler: 'DPM Solver Multistep (DPM-Solver++)',
-      timeStepSpacing: 'Karras'
+      timeStepSpacing: 'Karras',
+      ...(params.seed !== undefined ? { seed: params.seed } : {})
     };
 
     // Listen for individual project events: queued, completed, failed, error

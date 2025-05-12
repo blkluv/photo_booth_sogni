@@ -415,6 +415,7 @@ export async function createProject(params: Record<string, unknown>, progressCal
         controlNetStrength,
         controlNetGuidanceEnd,
         imageData: Array.isArray(imageData) || imageData instanceof Uint8Array ? imageData : [],
+        seed: params.seed || undefined,
       };
     }
     

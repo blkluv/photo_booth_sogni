@@ -47,7 +47,6 @@ export class PhotoService {
       controlNetStrength: number;
       controlNetGuidanceEnd: number;
       selectedStyle: string;
-      customPrompt?: string;
     }
   ): Promise<Photo> {
     const photoId = generateUUID();
@@ -74,7 +73,7 @@ export class PhotoService {
       const job = await (this.sogniClient as SogniClientWithGenerate).generateFromImage({
         image: photoBlob,
         model: settings.selectedModel,
-        prompt: settings.customPrompt || settings.selectedStyle,
+        prompt: settings.selectedStyle,
         promptGuidance: settings.promptGuidance,
         controlNetStrength: settings.controlNetStrength,
         controlNetGuidanceEnd: settings.controlNetGuidanceEnd,

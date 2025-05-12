@@ -98,7 +98,7 @@ describe('CameraView', () => {
   });
 
   it('calls onStyleSelect with correct style when clicking a style option', () => {
-    render(<CameraView {...defaultProps} stylePrompts={{ anime: 'Anime style prompt' }} />);
+    render(<CameraView {...defaultProps} />);
     
     // Open the dropdown
     const styleButton = screen.getByTestId('style-button');

@@ -27,12 +27,6 @@ interface CameraViewProps {
   onToggleSettings?: () => void;
   /** Optional test ID for testing */
   testId?: string;
-  /** Available style prompts */
-  stylePrompts?: Record<string, string>;
-  /** Custom prompt text */
-  customPrompt?: string;
-  /** Handler for custom prompt changes */
-  onCustomPromptChange?: (prompt: string) => void;
   /** Camera devices list */
   cameraDevices?: MediaDeviceInfo[];
   /** Selected camera device ID */
@@ -89,8 +83,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
   showSettings = false,
   onToggleSettings = () => {},
   testId,
-  customPrompt = '',
-  onCustomPromptChange,
   cameraDevices = [],
   selectedCameraDeviceId = '',
   onCameraSelect,
@@ -218,8 +210,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
         visible={showSettings || false}
         onClose={onToggleSettings || (() => {})}
         selectedStyle={selectedStyle}
-        customPrompt={customPrompt}
-        onCustomPromptChange={onCustomPromptChange}
         cameraDevices={cameraDevices}
         selectedCameraDeviceId={selectedCameraDeviceId}
         onCameraSelect={onCameraSelect}

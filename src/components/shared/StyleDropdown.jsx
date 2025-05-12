@@ -17,6 +17,7 @@ const StyleDropdown = ({
 }) => {
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const [mounted, setMounted] = useState(false);
+  const [actualPosition, setActualPosition] = useState(dropdownPosition);
   const dropdownReference = useRef(null);
   const [initialScrollDone, setInitialScrollDone] = useState(false);
   
@@ -27,6 +28,7 @@ const StyleDropdown = ({
       if (styleButton) {
         const rect = styleButton.getBoundingClientRect();
         const dropdownWidth = 240;
+        const dropdownHeight = 380; // Approximate height for calculation
         
         // Calculate safe left position to prevent off-screen rendering
         let leftPosition = rect.left + rect.width / 2;
@@ -41,22 +43,70 @@ const StyleDropdown = ({
           leftPosition = window.innerWidth - 10 - (dropdownWidth / 2);
         }
         
+        // Determine if dropdown should appear above or below the button
+        // based on available space and preferred position
+        let calculatedPosition;
+        
+        const spaceAbove = rect.top;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        
         if (dropdownPosition === 'top') {
-          // Position above the button (for bottom toolbar)
-          setPosition({
-            bottom: window.innerHeight - rect.top + 10,
-            left: leftPosition,
-            width: dropdownWidth
-          });
+          // Check if there's enough space above
+          if (spaceAbove >= dropdownHeight) {
+            // Position above the button
+            calculatedPosition = 'top';
+            setPosition({
+              bottom: window.innerHeight - rect.top + 10,
+              left: leftPosition,
+              width: dropdownWidth
+            });
+          } else if (spaceBelow >= dropdownHeight) {
+            // Not enough space above, but enough below
+            calculatedPosition = 'bottom';
+            setPosition({
+              top: rect.bottom + 10,
+              left: leftPosition,
+              width: dropdownWidth
+            });
+          } else {
+            // Not enough space anywhere - center it as best we can
+            calculatedPosition = 'bottom';
+            setPosition({
+              top: Math.max(10, rect.bottom - (rect.bottom + dropdownHeight - window.innerHeight + 10)),
+              left: leftPosition,
+              width: dropdownWidth
+            });
+          }
         } else {
-          // Position below the button (for grid view)
-          setPosition({
-            top: rect.bottom + 10,
-            left: leftPosition,
-            width: dropdownWidth
-          });
+          // Default to bottom positioning first
+          if (spaceBelow >= dropdownHeight) {
+            // Position below the button
+            calculatedPosition = 'bottom';
+            setPosition({
+              top: rect.bottom + 10,
+              left: leftPosition,
+              width: dropdownWidth
+            });
+          } else if (spaceAbove >= dropdownHeight) {
+            // Not enough space below, but enough above
+            calculatedPosition = 'top';
+            setPosition({
+              bottom: window.innerHeight - rect.top + 10,
+              left: leftPosition,
+              width: dropdownWidth
+            });
+          } else {
+            // Not enough space anywhere - center it
+            calculatedPosition = 'bottom';
+            setPosition({
+              top: Math.max(10, rect.bottom - (rect.bottom + dropdownHeight - window.innerHeight + 10)),
+              left: leftPosition,
+              width: dropdownWidth
+            });
+          }
         }
         
+        setActualPosition(calculatedPosition);
         setMounted(true);
         setInitialScrollDone(false); // Reset scroll state when dropdown opens
       }
@@ -119,9 +169,9 @@ const StyleDropdown = ({
   return ReactDOM.createPortal(
     <div 
       ref={dropdownReference}
-      className={`style-dropdown ${dropdownPosition}-position`}
+      className={`style-dropdown ${actualPosition}-position`}
       style={{
-        ...(dropdownPosition === 'top' 
+        ...(actualPosition === 'top' 
           ? { bottom: position.bottom } 
           : { top: position.top }),
         left: position.left,

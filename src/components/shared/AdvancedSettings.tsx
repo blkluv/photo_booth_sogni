@@ -7,10 +7,22 @@ interface AdvancedSettingsProps {
   onClose: () => void;
   /** Current style selection */
   selectedStyle?: string;
-  /** Custom prompt text */
-  customPrompt?: string;
-  /** Handler for custom prompt changes */
-  onCustomPromptChange?: (prompt: string) => void;
+  /** Positive prompt text */
+  positivePrompt?: string;
+  /** Handler for positive prompt changes */
+  onPositivePromptChange?: (prompt: string) => void;
+  /** Style prompt text */
+  stylePrompt?: string;
+  /** Handler for style prompt changes */
+  onStylePromptChange?: (prompt: string) => void;
+  /** Negative prompt text */
+  negativePrompt?: string;
+  /** Handler for negative prompt changes */
+  onNegativePromptChange?: (prompt: string) => void;
+  /** Seed value */
+  seed?: string;
+  /** Handler for seed change */
+  onSeedChange?: (seed: string) => void;
   /** Camera devices list */
   cameraDevices?: MediaDeviceInfo[];
   /** Selected camera device ID */
@@ -57,9 +69,14 @@ interface AdvancedSettingsProps {
 export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
   visible,
   onClose,
-  selectedStyle = '',
-  customPrompt = '',
-  onCustomPromptChange,
+  positivePrompt = '',
+  onPositivePromptChange,
+  stylePrompt = '',
+  onStylePromptChange,
+  negativePrompt = '',
+  onNegativePromptChange,
+  seed = '',
+  onSeedChange,
   cameraDevices = [],
   selectedCameraDeviceId = '',
   onCameraSelect,
@@ -111,20 +128,6 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
           </div>
         )}
 
-        {/* Custom prompt */}
-        {selectedStyle === 'custom' && (
-          <div className="control-option">
-            <label className="control-label">Custom Style Prompt:</label>
-            <textarea
-              className="custom-style-input"
-              placeholder="Enter your custom style prompt here..."
-              value={customPrompt}
-              onChange={(e) => onCustomPromptChange?.(e.target.value)}
-              rows={4}
-            />
-          </div>
-        )}
-
         {/* Model selector */}
         {modelOptions.length > 0 && (
           <div className="control-option">
@@ -156,6 +159,56 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
             className="slider-input"
           />
           <span className="slider-value">{numImages}</span>
+        </div>
+      
+              {/* Positive Prompt */}
+              <div className="control-option">
+          <label className="control-label">Positive Prompt:</label>
+          <textarea
+            className="custom-style-input"
+            placeholder="Describe what you want to see..."
+            value={positivePrompt}
+            onChange={(e) => onPositivePromptChange?.(e.target.value)}
+            rows={3}
+          />
+        </div>
+
+        {/* Style Prompt */}
+        <div className="control-option">
+          <label className="control-label">Style Prompt:</label>
+          <textarea
+            className="custom-style-input"
+            placeholder="Additional style modifier (optional, appended to positive prompt)"
+            value={stylePrompt}
+            onChange={(e) => onStylePromptChange?.(e.target.value)}
+            rows={2}
+          />
+        </div>
+
+        {/* Negative Prompt */}
+        <div className="control-option">
+          <label className="control-label">Negative Prompt:</label>
+          <textarea
+            className="custom-style-input"
+            placeholder="lowres, worst quality, low quality"
+            value={negativePrompt}
+            onChange={(e) => onNegativePromptChange?.(e.target.value)}
+            rows={2}
+          />
+        </div>
+
+        {/* Seed */}
+        <div className="control-option">
+          <label className="control-label">Seed (leave blank for random):</label>
+          <input
+            type="number"
+            min={0}
+            max={4294967295}
+            className="custom-style-input"
+            placeholder="Random"
+            value={seed}
+            onChange={(e) => onSeedChange?.(e.target.value)}
+          />
         </div>
 
         {/* Prompt Guidance slider */}
