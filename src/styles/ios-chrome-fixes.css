@@ -59,6 +59,63 @@
       margin: 8px auto !important;
       display: block !important;
     }
+    
+    /* Fix photo grid layout for iOS portrait */
+    .film-frame {
+      aspect-ratio: calc(896 / 1152) !important; /* Portrait aspect ratio for iOS */
+      padding: 8px 8px 40px 8px !important; /* Increase bottom padding */
+      display: flex !important;
+      flex-direction: column !important;
+    }
+    
+    /* Fix for selected photo view in portrait */
+    .film-frame.selected {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      max-width: none !important;
+      max-height: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      z-index: 9998 !important;
+      transform: none !important;
+    }
+    
+    /* Fix label position */
+    .film-frame.selected .photo-label {
+      position: fixed !important;
+      bottom: -30px !important;
+      left: 0 !important;
+      right: 0 !important;
+      width: 70% !important;
+      margin: 0 auto !important;
+      text-align: center !important;
+      font-size: 16px !important;
+    }
+    
+    /* Hide back to camera button when a photo is selected */
+    .film-strip-container.has-selected .back-to-camera-btn {
+      display: none !important;
+    }
+    
+    .film-frame.selected img {
+      position: relative !important;
+      border-left: 18px solid white !important;
+      border-right: 18px solid white !important;
+      border-top: 18px solid white !important;
+      border-bottom: 80px solid white !important;
+      max-width: 90vw !important;
+      max-height: 75vh !important;
+      margin: 0 auto !important;
+      display: block !important;
+    }
   }
 }
 

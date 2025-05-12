@@ -22,6 +22,12 @@ const PhotoGallery = ({
   setPhotos,
   selectedStyle,
   stylePrompts,
+  enhancePhoto,
+  undoEnhancement,
+  sogniClient,
+  desiredWidth,
+  desiredHeight,
+  selectedSubIndex = 0,
 }) => {
   // Skip rendering if there are no photos or the grid is hidden
   if (photos.length === 0 || !showPhotoGrid) return null;
@@ -334,7 +340,7 @@ const PhotoGallery = ({
         </>
       )}
       {/* Also add a close button when there's only one photo */}
-      {selectedPhotoIndex !== null && photos.length <= 1 && (
+      {selectedPhotoIndex !== null && photos.length === 1 && (
         <button 
           className="photo-close-btn" 
           onClick={() => setSelectedPhotoIndex(null)}
@@ -365,14 +371,125 @@ const PhotoGallery = ({
             e.currentTarget.style.background = 'rgba(0, 0, 0, 0.6)';
             e.currentTarget.style.transform = 'scale(1)';
           }}
-          onMouseDown={e => {
-            e.currentTarget.style.transform = 'scale(0.95)';
-          }}
-          onMouseUp={e => {
-            e.currentTarget.style.transform = 'scale(1.05)';
-          }}
         >
           ×
+        </button>
+      )}
+      {/* Add enhance button when a photo is selected - replace the ::after pseudo element */}
+      {selectedPhotoIndex !== null && photos[selectedPhotoIndex] && (
+        <button
+          className="enhance-photo-btn"
+          onClick={(e) => {
+            const currentPhoto = photos[selectedPhotoIndex];
+            // Handle undo enhance if already enhanced
+            if (currentPhoto.enhanced && !currentPhoto.loading && !currentPhoto.enhancing) {
+              undoEnhancement({
+                photoIndex: selectedPhotoIndex,
+                subIndex: selectedSubIndex,
+                setPhotos
+              });
+            } 
+            // Normal enhance flow
+            else if (!currentPhoto.loading && !currentPhoto.enhancing) {
+              enhancePhoto({
+                photo: currentPhoto,
+                photoIndex: selectedPhotoIndex,
+                subIndex: selectedSubIndex,
+                width: desiredWidth,
+                height: desiredHeight,
+                sogniClient,
+                setPhotos,
+                onSetActiveProject: (projectId) => {
+                  activeProjectReference.current = projectId;
+                }
+              });
+            }
+            e.stopPropagation();
+          }}
+          disabled={
+            photos[selectedPhotoIndex].loading || 
+            photos[selectedPhotoIndex].enhancing ||
+            photos[selectedPhotoIndex].error
+          }
+          style={{
+            position: 'fixed',
+            right: '20px',
+            bottom: '20px',
+            background: photos[selectedPhotoIndex].enhanced 
+              ? 'linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)' 
+              : photos[selectedPhotoIndex].enhancing 
+                ? 'linear-gradient(to right, #72e3f2 0%, #4bbbd3 100%)'
+                : photos[selectedPhotoIndex].error
+                  ? 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)'
+                  : 'linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%)',
+            color: 'white',
+            border: 'none',
+            padding: '12px 24px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            cursor: photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error
+              ? 'default'
+              : 'pointer',
+            fontWeight: 'bold',
+            fontSize: '12px',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 0.2s ease',
+            overflow: 'hidden',
+          }}
+          onMouseOver={e => {
+            if (!(photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error)) {
+              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+            }
+          }}
+          onMouseOut={e => {
+            e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+          }}
+          onMouseDown={e => {
+            if (!(photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error)) {
+              e.currentTarget.style.transform = 'scale(0.95)';
+            }
+          }}
+          onMouseUp={e => {
+            if (!(photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error)) {
+              e.currentTarget.style.transform = 'scale(1.05)';
+            }
+          }}
+        >
+          {photos[selectedPhotoIndex].enhancing && (
+            <div 
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                bottom: 0,
+                width: photos[selectedPhotoIndex].progress !== undefined && photos[selectedPhotoIndex].progress > 0
+                  ? `${Math.floor(photos[selectedPhotoIndex].progress * 100)}%`
+                  : '5%',
+                background: 'rgba(255, 255, 255, 0.2)',
+                transition: 'width 0.5s ease',
+                zIndex: 0,
+                animation: photos[selectedPhotoIndex].progress === 0 || photos[selectedPhotoIndex].progress === undefined
+                  ? 'progressPulse 1.5s infinite ease-in-out'
+                  : 'none'
+              }}
+            />
+          )}
+          <span style={{ position: 'relative', zIndex: 1 }}>
+            {photos[selectedPhotoIndex].enhanced 
+              ? "↩️ Undo Enhance" 
+              : photos[selectedPhotoIndex].enhancing 
+                ? photos[selectedPhotoIndex].progress !== undefined && photos[selectedPhotoIndex].progress > 0
+                  ? `✨ Enhancing... ${Math.floor(photos[selectedPhotoIndex].progress * 100)}%`
+                  : "✨ Enhancing..."
+                : photos[selectedPhotoIndex].error
+                  ? "❌ Enhancement failed"
+                  : "✨ Enhance"}
+          </span>
         </button>
       )}
       {/* Settings button when viewing a photo */}
@@ -619,6 +736,12 @@ PhotoGallery.propTypes = {
   setPhotos: PropTypes.func.isRequired,
   selectedStyle: PropTypes.string,
   stylePrompts: PropTypes.object,
+  enhancePhoto: PropTypes.func.isRequired,
+  undoEnhancement: PropTypes.func.isRequired,
+  sogniClient: PropTypes.object.isRequired,
+  desiredWidth: PropTypes.number.isRequired,
+  desiredHeight: PropTypes.number.isRequired,
+  selectedSubIndex: PropTypes.number,
 };
 
 export default React.memo(PhotoGallery); 

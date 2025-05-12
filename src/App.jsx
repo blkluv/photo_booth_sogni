@@ -1759,52 +1759,11 @@ const App = () => {
   const handlePhotoViewerClick = (e) => {
     if (selectedPhotoIndex === null) return;
     
-    // Check if the target is the enhance button (::after pseudo-element)
-    // We can detect clicks on ::after by checking the click position relative to the element
+    // If the target is the film-frame, close the photo viewer
     const target = e.target;
     
     if (target.classList.contains('film-frame') && target.classList.contains('selected')) {
-      const rect = target.getBoundingClientRect();
-      const clickX = e.clientX;
-      const clickY = e.clientY;
-      
-      // Check if click is in the bottom-right area where the enhance button is
-      if (clickX >= rect.right - 150 && clickX <= rect.right && 
-          clickY >= rect.bottom - 80 && clickY <= rect.bottom) {
-        // Enhance button clicked
-        const currentPhoto = photos[selectedPhotoIndex];
-        
-        // Handle undo enhance if already enhanced
-        if (currentPhoto.enhanced && !currentPhoto.loading && !currentPhoto.enhancing) {
-          undoEnhancement({
-            photoIndex: selectedPhotoIndex,
-            subIndex: selectedSubIndex,
-            setPhotos
-          });
-          e.stopPropagation();
-          return;
-        }
-        
-        // Normal enhance flow
-        if (!currentPhoto.loading && !currentPhoto.enhancing) {
-          enhancePhoto({
-            photo: currentPhoto,
-            photoIndex: selectedPhotoIndex,
-            subIndex: selectedSubIndex,
-            width: desiredWidth,
-            height: desiredHeight,
-            sogniClient,
-            setPhotos,
-            onSetActiveProject: (projectId) => {
-              activeProjectReference.current = projectId;
-            }
-          });
-          e.stopPropagation();
-          return;
-        }
-      }
-      
-      // If not clicked on the enhance button, close the photo viewer
+      // Close the photo viewer when clicking anywhere except on controls
       setSelectedPhotoIndex(null);
     }
   };
@@ -2274,6 +2233,12 @@ const App = () => {
           setPhotos={setPhotos}
           selectedStyle={selectedStyle}
           stylePrompts={stylePrompts}
+          enhancePhoto={enhancePhoto}
+          undoEnhancement={undoEnhancement}
+          sogniClient={sogniClient}
+          desiredWidth={desiredWidth}
+          desiredHeight={desiredHeight}
+          selectedSubIndex={selectedSubIndex}
         />
 
         <canvas ref={canvasReference} className="hidden" />
@@ -2500,27 +2465,25 @@ const App = () => {
           .enhance-photo-btn {
             position: fixed !important;
             right: 20px !important;
-            top: 20px !important;
-            background: rgba(255, 255, 255, 0.85) !important;
-            color: #333 !important;
+            bottom: 20px !important;
+            background: linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%) !important;
+            color: white !important;
             border: none !important;
             padding: 10px 18px !important;
-            border-radius: 6px !important;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1) !important;
+            border-radius: 8px !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
             cursor: pointer !important;
-            font-weight: 500 !important;
+            font-weight: bold !important;
             font-size: 14px !important;
             z-index: 999999 !important;
             display: flex !important;
             align-items: center !important;
             gap: 6px !important;
-            backdrop-filter: blur(4px) !important;
-            -webkit-backdrop-filter: blur(4px) !important;
             transition: all 0.2s ease !important;
           }
           
           .enhance-photo-btn:hover {
-            background: white !important;
+            transform: scale(1.05) !important;
             box-shadow: 0 3px 8px rgba(0,0,0,0.15) !important;
           }
           
@@ -2536,37 +2499,32 @@ const App = () => {
           .selected-photo-container .enhance-photo-btn {
             position: fixed !important;
             right: 20px !important;
-            top: 20px !important;
-            background: rgba(255, 255, 255, 0.85) !important;
-            color: #333 !important;
+            bottom: 20px !important;
+            background: linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%) !important;
+            color: white !important;
             border: none !important;
-            padding: 10px 18px !important;
-            border-radius: 6px !important;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1) !important;
+            padding: 12px 24px !important;
+            border-radius: 8px !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
             cursor: pointer !important;
-            font-weight: 500 !important;
-            font-size: 14px !important;
+            font-weight: bold !important;
+            font-size: 16px !important;
             z-index: 999999 !important;
             display: flex !important;
             align-items: center !important;
-            gap: 6px !important;
-            backdrop-filter: blur(4px) !important;
-            -webkit-backdrop-filter: blur(4px) !important;
-            transition: all 0.2s ease !important;
+            gap: 8px !important;
           }
-          
+
           .selected-photo-container .enhance-photo-btn:hover {
-            background: white !important;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.15) !important;
-            transform: scale(1.02) !important;
+            transform: scale(1.05) !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
           }
-          
+
           .selected-photo-container .enhance-photo-btn:disabled {
-            background: rgba(230, 230, 230, 0.8) !important;
-            color: #999 !important;
+            background: #cccccc !important;
             cursor: default !important;
             transform: none !important;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.05) !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
           }
           
           /* ------- FIX 4: Loading image fade effect ------- */
@@ -2617,8 +2575,8 @@ const App = () => {
           .selected-photo-container .enhance-photo-btn {
             position: fixed !important;
             right: 20px !important;
-            top: 20px !important;
-            background: linear-gradient(135deg, #FF3366 0%, #FF5E8A 100%) !important;
+            bottom: 20px !important;
+            background: linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%) !important;
             color: white !important;
             border: none !important;
             padding: 12px 24px !important;
@@ -2808,9 +2766,9 @@ const App = () => {
           
           /* Add animation for progress value changes */
           @keyframes progressPulse {
-            0% { opacity: 0.2; }
-            50% { opacity: 1; }
-            100% { opacity: 0.2; }
+            0% { opacity: 0.2; width: 5%; }
+            50% { opacity: 0.5; width: 15%; }
+            100% { opacity: 0.2; width: 5%; }
           }
         `;
         
