@@ -160,3 +160,8 @@
 
 /* hover brighten */
 .photo-preview:hover { opacity: 0.6; } 
+
+/* hide x.com sharing button for now*/
+.share-twitter-btn {
+  display: none;
+}

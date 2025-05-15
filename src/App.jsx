@@ -737,20 +737,20 @@ const App = () => {
       let finalPositivePrompt = positivePrompt.trim();
       if (!finalPositivePrompt) {
         if (selectedStyle === 'custom') {
-          finalPositivePrompt = 'A custom style portrait';
+          finalPositivePrompt = '';
         } else if (selectedStyle === 'random') {
           // ... (prompt loading logic remains the same)
           const randomStyle = getRandomStyle(stylePrompts);
-          finalPositivePrompt = stylePrompts[randomStyle] || 'A creative portrait style';
+          finalPositivePrompt = stylePrompts[randomStyle] || '';
         } else if (selectedStyle === 'randomMix') {
           // Use numImages from context state
           finalPositivePrompt = getRandomMixPrompts(numImages, stylePrompts); 
         } else {
-          finalPositivePrompt = stylePrompts[selectedStyle] || 'A creative portrait style';
+          finalPositivePrompt = stylePrompts[selectedStyle] || '';
         }
       }
       // Style prompt logic: use context state
-      let finalStylePrompt = stylePrompt.trim() || 'A creative portrait style'; 
+      let finalStylePrompt = stylePrompt.trim() || ''; 
       // Negative prompt logic: use context state
       let finalNegativePrompt = negativePrompt.trim() || 'lowres, worst quality, low quality'; 
       // Seed logic: use context state
