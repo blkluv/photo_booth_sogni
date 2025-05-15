@@ -309,6 +309,50 @@ const App = () => {
   // Add state for backend connection errors
   const [backendError, setBackendError] = useState(null);
 
+  // Add a new handler for initiating Twitter share
+  const handleShareToX = async (photoIndex) => {
+    if (photoIndex === null || !photos[photoIndex] || !photos[photoIndex].images || !photos[photoIndex].images[0]) {
+      console.error('No image selected or image URL is missing for sharing.');
+      // Optionally, show a user-facing error message
+      return;
+    }
+
+    const imageUrl = photos[photoIndex].images[0];
+    console.log('Attempting to share image to X:', imageUrl);
+
+    try {
+      // We'll use a generic error display for now, can be refined
+      setBackendError(null); 
+
+      const response = await fetch('https://photobooth-api.sogni.ai/api/auth/x/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ imageUrl }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Failed to start Twitter share process.' }));
+        console.error('Failed to initiate Twitter share:', response.status, errorData);
+        setBackendError(`Error starting share: ${errorData.message || response.statusText}`);
+        return;
+      }
+
+      const { authUrl } = await response.json();
+      if (authUrl) {
+        // window.location.href = authUrl; // Old: redirects in the same tab
+        window.open(authUrl, '_blank'); // New: opens in a new tab
+      } else {
+        console.error('No authUrl received from backend.');
+        setBackendError('Could not get Twitter authorization URL.');
+      }
+    } catch (error) {
+      console.error('Error in handleShareToX:', error);
+      setBackendError(`Client-side error initiating share: ${error.message}`);
+    }
+  };
+
   // -------------------------
   //   Sogni initialization
   // -------------------------
@@ -706,11 +750,11 @@ const App = () => {
         }
       }
       // Style prompt logic: use context state
-      let finalStylePrompt = stylePrompt.trim(); 
+      let finalStylePrompt = stylePrompt.trim() || 'A creative portrait style'; 
       // Negative prompt logic: use context state
       let finalNegativePrompt = negativePrompt.trim() || 'lowres, worst quality, low quality'; 
       // Seed logic: use context state
-      let seedValue = seed.trim(); 
+      let seedValue = seed.trim();
       let seedParam = undefined;
       if (seedValue !== '') {
         const parsed = parseInt(seedValue, 10);
@@ -1430,7 +1474,7 @@ const App = () => {
     }
 
     // For all devices, ensure the final image has the exact desired aspect ratio
-    // This prevents any issues with aspect ratio in the photo grid
+    // This prevents any issues with aspect ratio in the photo grid view
     const { width: targetWidth, height: targetHeight } = getCustomDimensions();
     console.log(`Enforcing aspect ratio ${targetWidth}:${targetHeight} for captured photo`);
     
@@ -2173,6 +2217,7 @@ const App = () => {
           desiredWidth={desiredWidth}
           desiredHeight={desiredHeight}
           selectedSubIndex={selectedSubIndex}
+          handleShareToX={handleShareToX}
         />
           </div>
         )}

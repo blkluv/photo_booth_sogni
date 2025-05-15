@@ -1,14 +1,22 @@
 import express from 'express';
 // import cors from 'cors'; // Nginx handles CORS now
-import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+// import session from 'express-session'; // Original express-session, replaced
+import cookieSession from 'cookie-session'; // Using cookie-session
+import crypto from 'crypto';
 import sogniRoutes from './routes/sogni.js';
+import xAuthRoutes from './routes/xAuthRoutes.js';
 
-// Load environment variables
+// Load environment variables FIRST
 dotenv.config();
+
+// DEBUG: Log critical environment variables early
+console.log(`DEBUG: Initial NODE_ENV: ${process.env.NODE_ENV}`);
+console.log(`DEBUG: Initial COOKIE_DOMAIN from env: ${process.env.COOKIE_DOMAIN}`);
+console.log(`DEBUG: Initial SESSION_SECRET from env is set: ${!!process.env.SESSION_SECRET}`);
 
 // Automatically allow self-signed certificates when in local environment
 if (process.env.SOGNI_ENV === 'local') {
@@ -22,27 +30,57 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 3001;
 
-// Get allowed origins from environment variables or use defaults
+// Get allowed origins and other critical env vars
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5174,https://photobooth-local.sogni.ai';
+const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+// FRONTEND_URL is primarily used in xAuthRoutes, sourced from twitterShareService.js which gets it from process.env
+const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || (process.env.NODE_ENV === 'production' ? '.sogni.ai' : 'localhost');
+
 console.log('DEBUG - CLIENT_ORIGIN from .env:', CLIENT_ORIGIN);
+console.log('DEBUG - COOKIE_DOMAIN for session:', COOKIE_DOMAIN);
+if (!process.env.SESSION_SECRET) {
+  console.warn('⚠️ SESSION_SECRET not set in .env, using a random one. Set for production!');
+}
+if (process.env.NODE_ENV === 'production' && COOKIE_DOMAIN !== '.sogni.ai') {
+  console.warn(`⚠️ Production environment detected, but COOKIE_DOMAIN is set to "${COOKIE_DOMAIN}". Ensure this is intended for cross-subdomain cookies like .sogni.ai.`);
+}
 
-// Log all requests for debugging
-app.use((req, res, next) => {
-  console.log(`DEBUG - ${new Date().toISOString()} - ${req.method} ${req.path}`);
-  //console.log(`DEBUG - Headers:`, JSON.stringify(req.headers));
-  next();
-});
+// Middleware ordering is important
+// 1. Trust proxy (if applicable)
+app.set('trust proxy', 1); // Trust first proxy if deployed behind one (e.g., Nginx, Heroku)
 
-// Cookie parser middleware
+// 2. Cookie Parser (might not be strictly necessary before cookieSession, but doesn't hurt)
 app.use(cookieParser());
 
-// Body parser middleware
-app.use(bodyParser.json({ limit: '50mb' })); // Increased limit for larger images
-app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
+// 3. Body Parsers
+app.use(express.json({ limit: '50mb' })); 
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// 4. Cookie-based session middleware
+app.use(cookieSession({
+  name: 'sogni-photobooth-session', // Specific name for the session cookie
+  secret: SESSION_SECRET,          // Secret used to sign and verify the cookie values
+  // keys: [SESSION_SECRET], // Not needed if `secret` is provided and you aren't doing key rotation
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production', // Only send cookie over HTTPS in production
+  domain: COOKIE_DOMAIN,                        // e.g., '.sogni.ai' for production
+  maxAge: 24 * 60 * 60 * 1000,              // 24 hours
+  sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'lax' // 'lax' is a good default
+}));
+
+// Logging middleware (after session to see session data if needed, or before for just path)
+app.use((req, res, next) => {
+  console.log(`DEBUG - ${new Date().toISOString()} - ${req.method} ${req.path}`);
+  // console.log('DEBUG - Request cookies:', req.cookies);
+  // console.log('DEBUG - Request session (after cookieSession):', req.session);
+  next();
+});
 
 // API routes
 app.use('/sogni', sogniRoutes);  // Original route
 app.use('/api/sogni', sogniRoutes);  // Add this new route for direct API access
+app.use('/api/auth/x', xAuthRoutes); // Twitter OAuth routes, prefixed with /api for consistency
+app.use('/auth/x', xAuthRoutes); // Also keep /auth/x for the direct callback from Twitter if redirect URI is /auth/x/callback
 
 // Health check endpoint
 app.get('/health', (req, res) => {
