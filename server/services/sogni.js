@@ -232,121 +232,135 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Helper to create a new SogniClient for each project
 async function createSogniClient(appIdPrefix, clientProvidedAppId) {
-  console.log(`DEBUG - createSogniClient: Entered function. appIdPrefix: ${appIdPrefix}, clientProvidedAppId: ${clientProvidedAppId}`);
-  // Only allow creation if clientProvidedAppId is present
-  if (!clientProvidedAppId) {
-    console.error("DEBUG - createSogniClient: clientProvidedAppId is missing!");
-    throw new Error('clientProvidedAppId is required to create a SogniClient');
-  }
-  const generatedAppId = clientProvidedAppId;
-  sogniAppId = generatedAppId;
-  sogniEnv = process.env.SOGNI_ENV || 'production';
-  sogniUsername = process.env.SOGNI_USERNAME;
-  const password = process.env.SOGNI_PASSWORD;
-  sogniUrls = getSogniUrls(sogniEnv);
-  const customJsonRpcUrl = process.env.JSON_RPC_URL;
+  console.log(`Creating Sogni client with app ID: ${clientProvidedAppId}`);
   
-  console.log(`Creating Sogni client with app ID: ${sogniAppId}`);
-  if (customJsonRpcUrl) {
-    console.log(`DEBUG - createSogniClient: Using custom JSON_RPC_URL: ${customJsonRpcUrl} for socket/realtime communication.`);
-  } else {
-    console.log(`DEBUG - createSogniClient: Using default socketEndpoint from SOGNI_ENV (${sogniEnv}): ${sogniUrls.socket}`);
+  // Cache client creation to prevent duplicates during high-load periods
+  const cacheKey = clientProvidedAppId;
+  
+  // Check if we have a currently pending client creation for this appId
+  if (!createSogniClient._pendingClients) {
+    createSogniClient._pendingClients = new Map();
   }
   
-  try {
-    console.log("DEBUG - createSogniClient: Attempting SogniClient.createInstance...");
-    const client = await SogniClient.createInstance({
-      appId: sogniAppId,
-      testnet: true,
-      network: "fast",
-      logLevel: "info",
-      restEndpoint: sogniUrls.api,
-      socketEndpoint: sogniUrls.socket, // Use custom URL if provided, else default
-      ...(customJsonRpcUrl ? { jsonRpcUrl: customJsonRpcUrl } : {}),
-    });
-    
-    console.log("DEBUG - createSogniClient: SogniClient.createInstance successful.");
-    
-    // Explicitly ensure client has the appId property set
-    if (!client.appId) {
-      console.log(`Setting missing appId property on client to: ${sogniAppId}`);
-      client.appId = sogniAppId;
-    }
-    
-    // Track this actual client
-    activeConnections.set(sogniAppId, client);
-    recordClientActivity(sogniAppId);
-    logConnectionStatus('Created', sogniAppId);
-
-    // Try to restore session with tokens if available
+  // If we have a pending promise for this client, return it
+  if (createSogniClient._pendingClients.has(cacheKey)) {
+    console.log(`Reusing in-flight client creation for ${cacheKey}`);
+    return createSogniClient._pendingClients.get(cacheKey);
+  }
+  
+  // Cache tokens globally for faster authentication
+  if (!sogniTokens && createSogniClient._globalTokens) {
+    sogniTokens = createSogniClient._globalTokens;
+  }
+  
+  // Create client creation promise
+  const clientPromise = (async () => {
     try {
-      if (sogniTokens && sogniTokens.token && sogniTokens.refreshToken) {
-        console.log("DEBUG - createSogniClient: Attempting to set token...");
-        await client.account.setToken(sogniUsername, sogniTokens);
-        console.log("DEBUG - createSogniClient: setToken successful.");
-        recordClientActivity(sogniAppId); // Record activity after token set
-        
-        if (!client.account.isLoggedIn) {
-          console.log("DEBUG - createSogniClient: Not logged in after setToken, attempting login...");
+      // Only allow creation if clientProvidedAppId is present
+      if (!clientProvidedAppId) {
+        throw new Error('clientProvidedAppId is required to create a SogniClient');
+      }
+      
+      const generatedAppId = clientProvidedAppId;
+      sogniAppId = generatedAppId;
+      sogniEnv = process.env.SOGNI_ENV || 'production';
+      sogniUsername = process.env.SOGNI_USERNAME;
+      const password = process.env.SOGNI_PASSWORD;
+      sogniUrls = getSogniUrls(sogniEnv);
+      const customJsonRpcUrl = process.env.JSON_RPC_URL;
+      
+      // Optimized client creation with faster timeouts
+      const client = await SogniClient.createInstance({
+        appId: sogniAppId,
+        testnet: true,
+        network: "fast",
+        logLevel: "info",
+        restEndpoint: sogniUrls.api,
+        socketEndpoint: sogniUrls.socket,
+        ...(customJsonRpcUrl ? { jsonRpcUrl: customJsonRpcUrl } : {}),
+        connectionTimeout: 5000, // 5 second connection timeout (reduced from default)
+      });
+      
+      // Explicitly ensure client has the appId property set
+      if (!client.appId) {
+        client.appId = sogniAppId;
+      }
+      
+      // Track this actual client
+      activeConnections.set(sogniAppId, client);
+      recordClientActivity(sogniAppId);
+      logConnectionStatus('Created', sogniAppId);
+
+      // Fast path: Try to restore session with tokens if available
+      try {
+        if (sogniTokens && sogniTokens.token && sogniTokens.refreshToken) {
+          await client.account.setToken(sogniUsername, sogniTokens);
+          recordClientActivity(sogniAppId); // Record activity after token set
+          
+          if (!client.account.isLoggedIn) {
+            await client.account.login(sogniUsername, password);
+            recordClientActivity(sogniAppId); // Record activity after login
+          }
+        } else {
+          // No tokens available, do a fresh login
           await client.account.login(sogniUsername, password);
-          console.log("DEBUG - createSogniClient: Login after setToken successful.");
           recordClientActivity(sogniAppId); // Record activity after login
         }
-      } else {
-        console.log("DEBUG - createSogniClient: No sogniTokens, attempting initial login...");
+      } catch (e) {
+        // Login retry on failure, with minimal logging
         await client.account.login(sogniUsername, password);
-        console.log("DEBUG - createSogniClient: Initial login successful.");
-        recordClientActivity(sogniAppId); // Record activity after login
+        recordClientActivity(sogniAppId); // Record activity even after error recovery
       }
-    } catch (e) {
-      console.warn(`Login error for client ${sogniAppId}, trying again:`, e.message);
-      console.log("DEBUG - createSogniClient: Login failed, attempting retry login...");
-      await client.account.login(sogniUsername, password);
-      console.log("DEBUG - createSogniClient: Retry login successful.");
-      recordClientActivity(sogniAppId); // Record activity even after error recovery
+      
+      // Save tokens for reuse
+      if (client.account.currentAccount && client.account.currentAccount.token && client.account.currentAccount.refreshToken) {
+        const tokens = {
+          token: client.account.currentAccount.token,
+          refreshToken: client.account.currentAccount.refreshToken,
+        };
+        
+        // Store both in instance variable and static cache
+        sogniTokens = tokens;
+        createSogniClient._globalTokens = tokens;
+      }
+      
+      // Add event listeners to record activity on any client events
+      if (client.on) {
+        client.on('*', () => recordClientActivity(client.appId || sogniAppId));
+      }
+      
+      // Add WebSocket error handlers to prevent uncaught exceptions
+      if (client._socket) {
+        client._socket.addEventListener('error', (err) => {
+          if (err.message && err.message.includes('closed before')) {
+            console.log(`Ignored WebSocket connection race error for client ${client.appId || sogniAppId}`);
+          } else {
+            console.warn(`WebSocket error for client ${client.appId || sogniAppId}:`, err);
+          }
+        });
+      }
+      
+      return client;
+    } catch (error) {
+      console.error(`Error creating Sogni client with app ID ${clientProvidedAppId}:`, error);
+      
+      // Clean up tracking for this failed client
+      activeConnections.delete(sogniAppId);
+      connectionLastActivity.delete(sogniAppId);
+      
+      throw error;
+    } finally {
+      // Clean up cache entry
+      setTimeout(() => {
+        createSogniClient._pendingClients.delete(cacheKey);
+      }, 5000); // Keep cache entry for 5 seconds
     }
-    
-    // Save tokens for reuse
-    if (client.account.currentAccount && client.account.currentAccount.token && client.account.currentAccount.refreshToken) {
-      sogniTokens = {
-        token: client.account.currentAccount.token,
-        refreshToken: client.account.currentAccount.refreshToken,
-      };
-    }
-    
-    // Add event listeners to record activity on any client events
-    // This ensures clients remain active during long-running projects
-    if (client.on) {
-      client.on('*', () => recordClientActivity(client.appId || sogniAppId));
-    }
-    
-    // If client has projects, add event listeners there too
-    if (client.projects && client.projects.on) {
-      client.projects.on('*', () => recordClientActivity(client.appId || sogniAppId));
-    }
-    
-    // Add WebSocket error handlers to prevent uncaught exceptions
-    if (client._socket) {
-      client._socket.addEventListener('error', (err) => {
-        if (err.message && err.message.includes('closed before')) {
-          console.log(`Ignored WebSocket connection race error for client ${client.appId || sogniAppId}`);
-        } else {
-          console.warn(`WebSocket error for client ${client.appId || sogniAppId}:`, err);
-        }
-      });
-    }
-    
-    return client;
-  } catch (error) {
-    console.error(`Error creating Sogni client with app ID ${sogniAppId}:`, error);
-    console.error("DEBUG - createSogniClient: Error caught during SogniClient.createInstance or login.", error);
-    
-    // Clean up tracking for this failed client
-    activeConnections.delete(sogniAppId);
-    connectionLastActivity.delete(sogniAppId);
-    
-    throw error;
-  }
+  })();
+  
+  // Store in pending clients cache
+  createSogniClient._pendingClients.set(cacheKey, clientPromise);
+  
+  return clientPromise;
 }
 
 // Standardize client disconnection
@@ -942,60 +956,103 @@ export async function cleanupSogniClient({ logout = false, includeSessionClients
 
 // Get or create a Sogni client for a session
 export async function getSessionClient(sessionId, clientAppId) {
-  console.log(`DEBUG - getSessionClient: Entered function. sessionId: ${sessionId}, clientAppId: ${clientAppId}`);
   console.log(`[SESSION] Getting client for session ${sessionId} with app ID: ${clientAppId}`);
   
-  // If client app ID is provided and we already have this client
-  if (clientAppId && activeConnections.has(clientAppId)) {
-    const existingClient = activeConnections.get(clientAppId);
+  // Cache key for this request
+  const cacheKey = `${sessionId}:${clientAppId || ''}`;
+  
+  // Check request cache first (short-lived to prevent duplicates)
+  if (!getSessionClient._requestCache) {
+    getSessionClient._requestCache = new Map();
+  }
+  
+  // If we have a pending promise for this exact request, return it
+  if (getSessionClient._requestCache.has(cacheKey)) {
+    const cachedPromise = getSessionClient._requestCache.get(cacheKey);
+    const cacheTimestamp = getSessionClient._requestCacheTimestamps?.get(cacheKey) || 0;
     
-    // Update the session mapping
-    if (sessionId && existingClient) {
-      const oldClientId = sessionClients.get(sessionId);
-      
-      // If this session was mapped to a different client, log it
-      if (oldClientId && oldClientId !== clientAppId) {
-        console.log(`[SESSION] Session ${sessionId} was previously mapped to ${oldClientId}, updating to ${clientAppId}`);
+    // Only use cache if it's fresh (last 10 seconds)
+    if (Date.now() - cacheTimestamp < 10000) {
+      console.log(`[SESSION] Reusing in-flight request for ${cacheKey} from cache`);
+      return cachedPromise;
+    }
+  }
+  
+  // Create a promise for this session request
+  const clientPromise = (async () => {
+    try {
+      // If client app ID is provided and we already have this client
+      if (clientAppId && activeConnections.has(clientAppId)) {
+        const existingClient = activeConnections.get(clientAppId);
+        
+        // Update the session mapping
+        if (sessionId && existingClient) {
+          const oldClientId = sessionClients.get(sessionId);
+          
+          // If this session was mapped to a different client, log it
+          if (oldClientId && oldClientId !== clientAppId) {
+            console.log(`[SESSION] Session ${sessionId} was previously mapped to ${oldClientId}, updating to ${clientAppId}`);
+          }
+          
+          // Update the mapping
+          sessionClients.set(sessionId, clientAppId);
+          console.log(`[SESSION] Reusing client ${clientAppId} for session ${sessionId} (by app ID)`);
+          
+          // Record activity to keep the client active
+          recordClientActivity(clientAppId);
+          return existingClient;
+        }
       }
       
-      // Update the mapping
-      sessionClients.set(sessionId, clientAppId);
-      console.log(`[SESSION] Reusing client ${clientAppId} for session ${sessionId} (by app ID)`);
+      // If this session already has a client assigned
+      if (sessionId && sessionClients.has(sessionId)) {
+        const clientId = sessionClients.get(sessionId);
+        const existingClient = activeConnections.get(clientId);
+        
+        // If the client still exists and is valid
+        if (existingClient) {
+          console.log(`[SESSION] Reusing existing client ${clientId} for session ${sessionId}`);
+          recordClientActivity(clientId);
+          return existingClient;
+        } else {
+          console.log(`[SESSION] Client ${clientId} no longer exists for session ${sessionId}, creating new one`);
+          sessionClients.delete(sessionId);
+        }
+      }
       
-      // Record activity to keep the client active
-      recordClientActivity(clientAppId);
-      return existingClient;
+      // Prefer the client-provided app ID to ensure consistency
+      const appId = clientAppId || `session-${sessionId}`;
+      
+      // Create a new client for this session (optimized)
+      console.log(`[SESSION] Creating new client for session ${sessionId} with app ID: ${appId}`);
+      const client = await createSogniClient(undefined, appId);
+      
+      // Store the session-to-client mapping
+      if (sessionId && client && client.appId) {
+        sessionClients.set(sessionId, client.appId);
+        console.log(`[SESSION] Mapped session ${sessionId} to client ${client.appId}`);
+      }
+      
+      return client;
+    } finally {
+      // Always clean up the cache entry for this request
+      setTimeout(() => {
+        getSessionClient._requestCache.delete(cacheKey);
+        if (getSessionClient._requestCacheTimestamps) {
+          getSessionClient._requestCacheTimestamps.delete(cacheKey);
+        }
+      }, 10000); // Keep the cache entry for 10 seconds to avoid duplicate requests
     }
+  })();
+  
+  // Store in request cache with timestamp
+  getSessionClient._requestCache.set(cacheKey, clientPromise);
+  
+  // Initialize timestamp tracking if needed
+  if (!getSessionClient._requestCacheTimestamps) {
+    getSessionClient._requestCacheTimestamps = new Map();
   }
+  getSessionClient._requestCacheTimestamps.set(cacheKey, Date.now());
   
-  // If this session already has a client assigned
-  if (sessionId && sessionClients.has(sessionId)) {
-    const clientId = sessionClients.get(sessionId);
-    const existingClient = activeConnections.get(clientId);
-    
-    // If the client still exists and is valid
-    if (existingClient) {
-      console.log(`[SESSION] Reusing existing client ${clientId} for session ${sessionId}`);
-      recordClientActivity(clientId);
-      return existingClient;
-    } else {
-      console.log(`[SESSION] Client ${clientId} no longer exists for session ${sessionId}, creating new one`);
-      sessionClients.delete(sessionId);
-    }
-  }
-  
-  // Prefer the client-provided app ID to ensure consistency
-  const appId = clientAppId || `session-${sessionId}`;
-  
-  // Create a new client for this session
-  console.log(`[SESSION] Creating new client for session ${sessionId} with app ID: ${appId}`);
-  const client = await createSogniClient(undefined, appId);
-  
-  // Store the session-to-client mapping
-  if (sessionId && client && client.appId) {
-    sessionClients.set(sessionId, client.appId);
-    console.log(`[SESSION] Mapped session ${sessionId} to client ${client.appId}`);
-  }
-  
-  return client;
+  return clientPromise;
 } 
