@@ -1,5 +1,5 @@
 import express from 'express';
-import { getClientInfo, generateImage, initializeSogniClient, cleanupSogniClient, getSessionClient, disconnectSessionClient, getActiveConnectionsCount, checkIdleConnections, activeConnections, sessionClients } from '../services/sogni.js';
+import { getClientInfo, generateImage, cleanupSogniClient, getSessionClient, disconnectSessionClient, getActiveConnectionsCount, checkIdleConnections, activeConnections, sessionClients } from '../services/sogni.js';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
@@ -346,14 +346,23 @@ router.post('/generate', ensureSessionId, async (req, res) => {
                   eventData.progress, // Normalize progress 0-1
       };
 
-      // Critical: Ensure a valid jobId exists before sending, otherwise frontend can't track
-      /* some are project events
-      if (!sseEvent.jobId) {
-        console.error(`[${localProjectId}] Event is missing critical jobId, cannot send to client event ${eventData.type}`);//, JSON.stringify(sseEvent));
-        return; // Do not send event without a jobId
+      // Handle the 'queued' event specifically
+      if (eventData.type === 'queued') {
+        const sseEvent = {
+          type: 'queued',
+          projectId: localProjectId, // Standardize on the localProjectId for client-side tracking
+          queuePosition: eventData.queuePosition,
+        };
+        if (activeProjects.has(localProjectId)) {
+          const clients = activeProjects.get(localProjectId);
+          console.log(`[${localProjectId}] Forwarding 'queued' event to ${clients.size} SSE client(s):`, JSON.stringify(sseEvent));
+          clients.forEach(client => {
+            sendSSEMessage(client, sseEvent);
+          });
+        }
+        return; // Exit the handler for this specific event type after processing
       }
-      */
-      
+
       if (activeProjects.has(localProjectId)) {
         const clients = activeProjects.get(localProjectId);
         // console.log(`[${localProjectId}] Forwarding event to ${clients.size} SSE client(s):`, JSON.stringify(sseEvent));
@@ -374,44 +383,7 @@ router.post('/generate', ensureSessionId, async (req, res) => {
     generateImage(client, params, progressHandler)
       .then(sogniResult => {
         console.log(`DEBUG - ${new Date().toISOString()} - [${localProjectId}] Sogni SDK (generateImage function) promise resolved.`);
-        console.log(`[${localProjectId}] Sogni generation process finished. Sogni Project ID: ${sogniResult.projectId}, Result URLs:`, JSON.stringify(sogniResult.result?.imageUrls || []));
-        
-        // Check if results are empty
-        if (!sogniResult.result?.imageUrls || sogniResult.result.imageUrls.length === 0) {
-          console.warn(`[${localProjectId}] Received empty result URLs from Sogni project ${sogniResult.projectId}`);
-          
-          // Send error event instead of complete for empty results
-          if (activeProjects.has(localProjectId)) {
-            const clients = activeProjects.get(localProjectId);
-            const errorEvent = { 
-              type: 'error', 
-              projectId: localProjectId,
-              sogniProjectId: sogniResult.projectId,
-              message: 'Generation completed but no images were produced',
-              details: 'The server received empty result URLs from Sogni'
-            };
-            console.log(`[${localProjectId}] Sending 'error' event for empty results to ${clients.size} SSE client(s)`);
-            clients.forEach((client) => {
-              sendSSEMessage(client, errorEvent);
-            });
-          }
-          return;
-        }
-        
-        // When complete with valid results, notify connected SSE clients
-        if (activeProjects.has(localProjectId)) {
-          const clients = activeProjects.get(localProjectId);
-          const completionEvent = {
-            type: 'complete', 
-            projectId: localProjectId, // Use localProjectId for client tracking
-            sogniProjectId: sogniResult.projectId, // Include actual Sogni project ID
-            result: sogniResult.result // Result URLs from Sogni
-          };
-          console.log(`[${localProjectId}] Sending 'complete' event to ${clients.size} SSE client(s):`);//, JSON.stringify(completionEvent));
-          clients.forEach((client) => {
-            sendSSEMessage(client, completionEvent);
-          });
-        }
+        console.log(`[${localProjectId}] Sogni generation process finished. Sogni Project ID: ${sogniResult.projectId}, Result:`, JSON.stringify(sogniResult.result));
       })
       .catch(error => {
         console.error(`ERROR - ${new Date().toISOString()} - [${localProjectId}] Sogni SDK (generateImage function) promise rejected:`, error);

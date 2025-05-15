@@ -487,29 +487,54 @@ export class BackendSogniClient {
           );
           
           let targetJob = jobIndex >= 0 ? project.jobs[jobIndex] : null;
-          // If found, update its details
-          if (targetJob) {
-            // Assign real job ID if this is the first time we see it for this placeholder
-            if (jobId && !targetJob.realJobId) {
-              targetJob.realJobId = jobId;
-              console.log(`JOB ID MAPPING: Placeholder ${targetJob.id} assigned realJobId ${jobId}`);
-            }
-            // Update worker name if provided
-            if (workerName) {
-              targetJob.workerName = workerName;
-            }
-            // Update positive prompt if provided
-            if (event.positivePrompt) {
-              targetJob.positivePrompt = event.positivePrompt as string;
-            }
-            // Update job index if provided
-            if (event.index) {
-              targetJob.jobIndex = event.index as number;
-            }
-          } else {
-            console.warn(`Could not find placeholder job for event with jobId: ${jobId}. Event type: ${eventType}`);
+
+          // Handle the 'queued' event
+          if (eventType === 'queued') {
+              const queuePosition = event.queuePosition as number;
+              if (targetJob) {
+                  console.log(`Handling queued event for job ${targetJob.id} with position ${queuePosition}`);
+                  // Emit a job event with the queued type and position
+                  project.emit('job', {
+                      type: 'queued',
+                      jobId: targetJob.id, // Use placeholder ID
+                      realJobId: jobId, // Include real ID if available (though queued might not have it yet)
+                      projectId: project.id,
+                      queuePosition: queuePosition,
+                  });
+              } else {
+                  console.warn(`Queued event received for unknown job ID: ${jobId || 'N/A'}`);
+              }
+              // No further processing needed for queued event in this switch
+              return;
           }
           
+          // If it's not a queued event, and we don't have a target job yet, log and maybe handle later
+          if (!targetJob) {
+            // For events like 'initiating' or 'started', we might not have a realJobId yet.
+            // We should try to find a pending job placeholder based on index if provided.
+            const jobIndexByIndex = typeof event.index === 'number' ? project.jobs.findIndex(j => j.jobIndex === event.index) : -1;
+            targetJob = jobIndexByIndex >= 0 ? project.jobs[jobIndexByIndex] : null;
+          }
+
+          // If still no target job, it might be a project-level event or an unexpected job ID
+          if (!targetJob) {
+              console.warn(`Event ${eventType} received for unknown job ID: ${jobId || 'N/A'}, and no job found by index.`);
+              // Consider if this event should be ignored or logged differently
+              return; // Skip processing if no target job is found
+          }
+
+          // Update the realJobId once we get it from a 'started' or 'jobCompleted' event
+          if (jobId && !targetJob.realJobId && (eventType === 'started' || eventType === 'jobCompleted' || eventType === 'progress')) {
+              targetJob.realJobId = jobId;
+              console.log(`Assigned realJobId ${jobId} to placeholder job ${targetJob.id}`);
+          }
+          
+          // Update worker name if available
+          if (workerName && !targetJob.workerName) {
+              targetJob.workerName = workerName;
+              console.log(`Assigned workerName ${workerName} to placeholder job ${targetJob.id}`);
+          }
+
           // Process based on event type
           switch (eventType) {
             case 'initiating':

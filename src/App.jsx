@@ -898,28 +898,18 @@ const App = () => {
 
       // Attach a single project-level job event handler
       project.on('job', (event) => {
-        const { type, jobId, workerName, progress, jobIndex, positivePrompt } = event;
-        console.log('📸 Job event received:', { 
-          type, 
-          jobId, 
-          workerName, 
-          progress, 
-          jobIndex, 
-          positivePrompt,
-          selectedStyle,
-          stylePrompt: stylePrompt.trim()
-        });
+        const { type, jobId, workerName, queuePosition, jobIndex, positivePrompt, progress } = event;
         
-        // Use jobIndex if available, otherwise fall back to jobId mapping
-        let photoIndex;
-        if (typeof jobIndex === 'number') {
-          const offset = keepOriginalPhoto ? 1 : 0;
-          photoIndex = jobIndex + offset;
-        } else {
-          const jobIdx = projectStateReference.current.jobMap.get(jobId);
-          const offset = keepOriginalPhoto ? 1 : 0;
-          photoIndex = jobIdx + offset;
+        // Find the photo associated with this job
+        const photoIndex = projectStateReference.current.jobMap.has(jobId)
+          ? projectStateReference.current.jobMap.get(jobId) + (keepOriginalPhoto ? 1 : 0)
+          : -1; // Handle cases where job ID might not be in the map yet
+          
+        if (photoIndex === -1) {
+            console.warn(`Job event received for unknown job ID: ${jobId}. Event type: ${type}. Skipping update.`);
+            return;
         }
+
         setPhotos(prev => {
           const updated = [...prev];
           if (photoIndex >= updated.length) return prev;
@@ -963,6 +953,19 @@ const App = () => {
               statusText: `${cachedWorkerName} processing... ${displayProgress}%`,
               jobId
             };
+          } else if (type === 'queued') { // Handle the new 'queued' event
+              const currentStatusText = updated[photoIndex].statusText || 'Calling Art Robot...';
+              // Only update if the current status text still indicates waiting/calling
+              if (currentStatusText.includes('Calling Art Robot') || currentStatusText.includes('In queue')) {
+                updated[photoIndex] = {
+                  ...updated[photoIndex],
+                  generating: true,
+                  loading: true,
+                  // Update status text with queue position
+                  statusText: `Queue position ${queuePosition}`,
+                  jobId, // Ensure jobId is set
+                };
+              }
           }
           return updated;
         });

@@ -13,11 +13,6 @@ import xAuthRoutes from './routes/xAuthRoutes.js';
 // Load environment variables FIRST
 dotenv.config();
 
-// DEBUG: Log critical environment variables early
-console.log(`DEBUG: Initial NODE_ENV: ${process.env.NODE_ENV}`);
-console.log(`DEBUG: Initial COOKIE_DOMAIN from env: ${process.env.COOKIE_DOMAIN}`);
-console.log(`DEBUG: Initial SESSION_SECRET from env is set: ${!!process.env.SESSION_SECRET}`);
-
 // Automatically allow self-signed certificates when in local environment
 if (process.env.SOGNI_ENV === 'local') {
   console.log('⚠️ Local environment detected: Self-signed certificates allowed');
@@ -36,8 +31,6 @@ const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toSt
 // FRONTEND_URL is primarily used in xAuthRoutes, sourced from twitterShareService.js which gets it from process.env
 const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || (process.env.NODE_ENV === 'production' ? '.sogni.ai' : 'localhost');
 
-console.log('DEBUG - CLIENT_ORIGIN from .env:', CLIENT_ORIGIN);
-console.log('DEBUG - COOKIE_DOMAIN for session:', COOKIE_DOMAIN);
 if (!process.env.SESSION_SECRET) {
   console.warn('⚠️ SESSION_SECRET not set in .env, using a random one. Set for production!');
 }
