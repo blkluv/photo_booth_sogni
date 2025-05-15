@@ -542,6 +542,7 @@ export async function generateImage(params: Record<string, unknown>, progressCal
         }
       };
       
+      // Start connecting immediately without delay
       const connectSSE = () => {
         // Clean up any existing connection first
         clearAllTimers();
@@ -549,7 +550,7 @@ export async function generateImage(params: Record<string, unknown>, progressCal
         
         // Add client app ID to the URL as a query parameter for more reliable passing 
         // through proxies and better debugging
-        const progressUrl = `${API_BASE_URL}/sogni/progress/${projectId}?clientAppId=${encodeURIComponent(clientAppId)}`;
+        const progressUrl = `${API_BASE_URL}/sogni/progress/${projectId}?clientAppId=${encodeURIComponent(clientAppId)}&_t=${Date.now()}`;
         console.log(`Connecting to progress stream: ${progressUrl} (attempt ${retryCount + 1})`);
         
         // Create the EventSource with the with-credentials flag for CORS
@@ -558,7 +559,7 @@ export async function generateImage(params: Record<string, unknown>, progressCal
             withCredentials: true 
           });
           
-          // Set a connection timeout
+          // Set a shorter initial connection timeout
           connectionTimeout = setTimeout(() => {
             console.error('EventSource connection timeout');
             safelyCloseEventSource();
@@ -571,7 +572,7 @@ export async function generateImage(params: Record<string, unknown>, progressCal
             } else {
               reject(new Error('EventSource connection failed after multiple attempts'));
             }
-          }, 15000); // Increased from 10s to 15s timeout for slower connections
+          }, 7000); // Reduced from 15s to 7s for initial connection
           
           // Successfully connected
           eventSource.onopen = () => {

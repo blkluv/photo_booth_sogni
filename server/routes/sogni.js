@@ -165,58 +165,27 @@ router.get('/progress/:projectId', ensureSessionId, (req, res) => {
   // Extract client app ID from header or query parameter
   const clientAppId = req.headers['x-client-app-id'] || req.query.clientAppId;
   
-  // Log request info for debugging
-  console.log(`SSE connection request for project: ${projectId}, client app ID: ${clientAppId || 'none'}`);
-  console.log(`SSE request headers:`, JSON.stringify({
-    origin: req.headers.origin,
-    referer: req.headers.referer,
-    host: req.headers.host
-  }));
+  // Log request info for debugging (streamlined for performance)
+  console.log(`SSE connection request for project: ${projectId}, client: ${clientAppId || 'none'}`);
   
-  // Set headers for SSE
+  // Set headers for SSE - optimized order for faster processing
   res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
-  
-  // Disable response compression - can cause issues with SSE
   res.setHeader('Content-Encoding', 'identity');
-  
-  // CORS headers are now handled by Nginx for the api subdomain
-  // const origin = req.headers.origin || (req.headers.referer ? new URL(req.headers.referer).origin : '*');
-  // console.log(`SSE CORS: Setting Access-Control-Allow-Origin to: ${origin}`);
-  // res.setHeader('Access-Control-Allow-Origin', origin);
-  // res.setHeader('Access-Control-Allow-Credentials', 'true');
-  // res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  // res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Client-App-ID');
-  
-  // Disable Nginx buffering if present
   res.setHeader('X-Accel-Buffering', 'no');
   
-  // Send immediate response to prevent timeouts
-  res.write(`data: ${JSON.stringify({ type: 'connected', projectId })}\n\n`);
+  // Send immediate response before other processing
+  res.write(`data: ${JSON.stringify({ type: 'connected', projectId, timestamp: Date.now() })}\n\n`);
   
+  // Immediately flush the response to send data to client
   try {
     res.flushHeaders();
   } catch (err) {
     console.error(`Error flushing headers: ${err.message}`);
   }
   
-  // Send a heartbeat every 3 seconds to keep the connection alive
-  const heartbeatInterval = setInterval(() => {
-    if (res.writable) {
-      try {
-        res.write(":\n\n"); 
-      } catch (err) {
-        console.warn(`Heartbeat write failed: ${err.message}`);
-        clearInterval(heartbeatInterval);
-      }
-    } else {
-      console.warn(`SSE connection for ${projectId} is no longer writable`);
-      clearInterval(heartbeatInterval);
-    }
-  }, 3000); // Reduced to 3s to keep connection more active
-  
-  // Add this connection to the map
+  // Set up client tracking - do this after initial response is sent
   if (!activeProjects.has(projectId)) {
     activeProjects.set(projectId, new Set());
   }
@@ -228,9 +197,22 @@ router.get('/progress/:projectId', ensureSessionId, (req, res) => {
     sogniCleanupTimer = null;
   }
   
-  // Handle client disconnect
+  // Send a heartbeat every 15 seconds to keep the connection alive
+  // Increased from 3s to reduce unnecessary traffic
+  const heartbeatInterval = setInterval(() => {
+    if (res.writable) {
+      try {
+        res.write(":\n\n"); 
+      } catch (err) {
+        clearInterval(heartbeatInterval);
+      }
+    } else {
+      clearInterval(heartbeatInterval);
+    }
+  }, 15000);
+  
+  // Handle client disconnect - simplified for performance
   req.on('close', () => {
-    console.log(`SSE connection closed for project: ${projectId}`);
     clearInterval(heartbeatInterval);
     
     if (activeProjects.has(projectId)) {
@@ -239,25 +221,18 @@ router.get('/progress/:projectId', ensureSessionId, (req, res) => {
         activeProjects.delete(projectId);
       }
     }
+    
     // If no active projects remain, schedule Sogni cleanup
     if (activeProjects.size === 0) {
       if (sogniCleanupTimer) clearTimeout(sogniCleanupTimer);
       sogniCleanupTimer = setTimeout(() => {
-        cleanupSogniClient({ logout: false }); // Use logout: true if you want to fully log out
+        cleanupSogniClient({ logout: false });
       }, SOGNI_CLEANUP_DELAY_MS);
     }
   });
   
-  // If the connection fails to establish properly, clean up
-  req.on('error', (err) => {
-    // ECONNRESET errors are common when browsers close connections
-    // so we'll log them at a lower level
-    if (err && err.code === 'ECONNRESET') {
-      console.log(`SSE connection for project ${projectId} was reset by the client`);
-    } else {
-      console.error(`SSE connection error for project ${projectId}:`, err);
-    }
-    
+  // Handle connection errors - simplified
+  req.on('error', () => {
     clearInterval(heartbeatInterval);
     
     if (activeProjects.has(projectId)) {
@@ -268,10 +243,8 @@ router.get('/progress/:projectId', ensureSessionId, (req, res) => {
     }
   });
   
-  // Add a safety timeout that will close the connection after a reasonable amount of time
-  // to prevent zombie connections
+  // Add a safety timeout - reduced from 10 minutes to 5 minutes
   const connectionTimeout = setTimeout(() => {
-    console.log(`Closing SSE connection for project ${projectId} after max duration`);
     clearInterval(heartbeatInterval);
     
     try {
@@ -280,7 +253,7 @@ router.get('/progress/:projectId', ensureSessionId, (req, res) => {
         res.end();
       }
     } catch (err) {
-      console.warn(`Error closing SSE connection: ${err.message}`);
+      // Silent catch - connection likely already closed
     }
     
     if (activeProjects.has(projectId)) {
@@ -289,7 +262,7 @@ router.get('/progress/:projectId', ensureSessionId, (req, res) => {
         activeProjects.delete(projectId);
       }
     }
-  }, 10 * 60 * 1000); // 10 minutes max connection time
+  }, 5 * 60 * 1000); // 5 minutes max connection time
   
   // Clean up the timeout when the connection closes
   req.on('close', () => {
