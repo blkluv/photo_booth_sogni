@@ -159,9 +159,4 @@
 .photo-preview.next { right: -100%; }
 
 /* hover brighten */
-.photo-preview:hover { opacity: 0.6; } 
-
-/* hide x.com sharing button for now*/
-.share-twitter-btn {
-  display: none;
-}
+.photo-preview:hover { opacity: 0.6; }

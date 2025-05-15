@@ -588,6 +588,19 @@ export class BackendSogniClient {
             case 'connected':
               break;
               
+            case 'error': // Handle error event from backend
+              console.error(`Backend reported an error for project ${project.id}:`, event);
+              const backendErrorMessage = event.message as string || 'Backend generation error';
+              // Emit a 'failed' event with the error message
+              project.emit('failed', new Error(backendErrorMessage));
+              // Also fail any pending jobs associated with this project
+              project.jobs.forEach(job => {
+                if (!job.resultUrl && !job.error) {
+                  project.failJob(job.id, backendErrorMessage);
+                }
+              });
+              break;
+              
             default:
               console.warn(`Unhandled event type in apiCreateProject callback: ${eventType}`);
           }

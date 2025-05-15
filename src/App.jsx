@@ -991,6 +991,28 @@ const App = () => {
       project.on('failed', (error) => {
         console.error('Project failed:', error);
         activeProjectReference.current = null; // Clear active project reference when failed
+        
+        // Update the state for photos that were part of this failed project
+        setPhotos(prevPhotos => {
+          return prevPhotos.map(photo => {
+            // Check if this photo was part of the project that just failed
+            // This is a bit tricky as the project 'failed' event doesn't carry job IDs.
+            // We'll assume any photo currently marked as 'generating' is part of the failed project.
+            // A more robust solution might involve tracking which photo IDs belong to which project ID.
+            if (photo.generating) {
+              console.log(`Marking photo ${photo.id} as failed due to project failure`);
+              return {
+                ...photo,
+                generating: false,
+                loading: false,
+                error: 'Whoops, request failed',
+                permanentError: true, // Mark as permanent error
+                statusText: 'Failed' // Update status text
+              };
+            }
+            return photo;
+          });
+        });
       });
 
       // Individual job events
@@ -1110,7 +1132,7 @@ const App = () => {
             ...updated[photoIndex],
             generating: false,
             loading: false,
-            error: 'Image generation failed',
+            error: 'Generation failed',
             permanentError: true, // Mark as permanent so it won't be overwritten
             statusText: 'Failed'
           };
