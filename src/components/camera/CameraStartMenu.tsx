@@ -89,8 +89,7 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
           
           <div className="option-button drag-photo info-only">
             <div className="option-icon">✋</div>
-            <div className="option-label">Drag & Drop</div>
-            <div className="option-description">or Drop images anywhere</div>
+            <div className="option-label">Drag & Drop Photo</div>
           </div>
         </div>
         

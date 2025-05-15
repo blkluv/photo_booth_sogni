@@ -55,7 +55,7 @@
 
 .option-button {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   background-color: #333;
   border: none;
@@ -63,7 +63,7 @@
   padding: 24px;
   transition: all 0.2s ease;
   cursor: pointer;
-  width: 160px;
+  width: 210px;
   color: white;
 }
 
@@ -121,13 +121,6 @@
   background-color: #333;
 }
 
-.option-description {
-  font-size: 0.8rem;
-  margin-top: 8px;
-  color: #ccc;
-  font-style: italic;
-}
-
 .option-button:hover {
   background-color: #444;
   transform: translateY(-5px);
@@ -140,7 +133,7 @@
 
 .option-icon {
   font-size: 2.5rem;
-  margin-bottom: 12px;
+  margin-right: 12px;
 }
 
 .option-label {
@@ -209,6 +202,7 @@
   }
   
   .option-button {
+    display: block;
     width: 100%;
     padding: 16px;
   }

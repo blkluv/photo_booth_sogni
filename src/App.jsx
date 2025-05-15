@@ -152,6 +152,9 @@ const App = () => {
   // Add state for current thought
   const [currentThought, setCurrentThought] = useState(null); // Keep this
 
+  // Add state to track if camera has been manually started by the user
+  const [cameraManuallyStarted, setCameraManuallyStarted] = useState(false);
+
   // --- Ensure handlers are defined here, before any JSX or usage ---
   // Update handleUpdateStyle to use updateSetting
   const handleUpdateStyle = (style) => {
@@ -356,7 +359,7 @@ const App = () => {
   // -------------------------
   //   Sogni initialization
   // -------------------------
-  const initializeSogni = async () => {
+  const initializeSogni = useCallback(async () => {
     try {
       // Reset any previous errors
       setBackendError(null);
@@ -406,7 +409,7 @@ const App = () => {
         setBackendError(`Error connecting to the Sogni service: ${error.message}`);
       }
     }
-  };
+  }, [sogniClient]); // Added sogniClient as dependency, state setters are stable
 
   /**
    * Start the camera stream for a given deviceId or fallback.
@@ -554,7 +557,7 @@ const App = () => {
     } catch (error) {
       console.error('Failed to get camera access', error);
     }
-  }, [desiredWidth, desiredHeight, isFrontCamera]);
+  }, [desiredWidth, desiredHeight, isFrontCamera, videoReference, setOrientationHandler]);
 
   /**
    * Enumerate devices and store them in state.
@@ -571,16 +574,13 @@ const App = () => {
 
   // Modified useEffect to start camera automatically
   useEffect(() => {
-    const initializeCamera = async () => {
+    const initializeAppOnMount = async () => {
       await listCameras();
-      // Initialize Sogni and start camera simultaneously
-      await Promise.all([
-        initializeSogni(),
-        startCamera(selectedCameraDeviceId)
-      ]);
+      // Initialize Sogni, but do not start camera here
+      await initializeSogni();
     };
     
-    initializeCamera();
+    initializeAppOnMount();
     
     // Return cleanup function to disconnect Sogni client when component unmounts
     return () => {
@@ -601,7 +601,7 @@ const App = () => {
         }
       }
     };
-  }, [listCameras, startCamera, selectedCameraDeviceId]);
+  }, [listCameras, initializeSogni]);
   
   // Add an effect specifically for page unload/refresh cleanup
   useEffect(() => {
@@ -630,7 +630,7 @@ const App = () => {
 
   // If we return to camera, ensure the video is playing
   useEffect(() => {
-    if (selectedPhotoIndex === null && videoReference.current) {
+    if (cameraManuallyStarted && selectedPhotoIndex === null && videoReference.current) {
       console.log("Restarting video playback");
       // Add a small delay to ensure DOM updates before attempting to play
       setTimeout(() => {
@@ -650,7 +650,7 @@ const App = () => {
         }
       }, 100);
     }
-  }, [selectedPhotoIndex, startCamera, selectedCameraDeviceId]);
+  }, [selectedPhotoIndex, startCamera, selectedCameraDeviceId, cameraManuallyStarted]);
 
   // Preload images for the selected photo
   useEffect(() => {
@@ -1545,6 +1545,7 @@ const App = () => {
     const deviceId = typeof e === 'string' ? e : e.target.value;
     setSelectedCameraDeviceId(deviceId);
     await startCamera(deviceId);
+    setCameraManuallyStarted(true); // User explicitly selected a camera
   };
 
   // -------------------------
@@ -1842,6 +1843,7 @@ const App = () => {
     setShowStartMenu(false);
     // Start camera after user selects the option
     await startCamera(null);
+    setCameraManuallyStarted(true); // User explicitly chose to take a photo
   };
 
   // Handler for the "Browse Photo" option in start menu
@@ -1935,6 +1937,7 @@ const App = () => {
     // Need to restart the camera with the new facing mode
     // No need to pass deviceId when toggling
     startCamera();
+    setCameraManuallyStarted(true); // User explicitly toggled camera
     
     // Also update the mirror effect immediately
     if (videoReference.current) {

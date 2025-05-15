@@ -23,12 +23,6 @@ interface AdvancedSettingsProps {
   seed?: string;
   /** Handler for seed change */
   onSeedChange?: (seed: string) => void;
-  /** Camera devices list */
-  cameraDevices?: MediaDeviceInfo[];
-  /** Selected camera device ID */
-  selectedCameraDeviceId?: string;
-  /** Handler for camera selection */
-  onCameraSelect?: (deviceId: string) => void;
   /** Model options */
   modelOptions?: Array<{ label: string; value: string; }>;
   /** Selected model */
@@ -77,9 +71,6 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
   onNegativePromptChange,
   seed = '',
   onSeedChange,
-  cameraDevices = [],
-  selectedCameraDeviceId = '',
-  onCameraSelect,
   modelOptions = [],
   selectedModel = '',
   onModelSelect,
@@ -108,25 +99,6 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
         >
           ×
         </button>
-        
-        {/* Camera selector */}
-        {cameraDevices.length > 0 && (
-          <div className="control-option">
-            <label className="control-label">Camera:</label>
-            <select
-              className="camera-select"
-              onChange={(e) => onCameraSelect?.(e.target.value)}
-              value={selectedCameraDeviceId || ''}
-            >
-              <option value="">Default (user-facing)</option>
-              {cameraDevices.map((device) => (
-                <option key={device.deviceId} value={device.deviceId}>
-                  {device.label || `Camera ${device.deviceId}`}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
 
         {/* Model selector */}
         {modelOptions.length > 0 && (

@@ -27,12 +27,6 @@ interface CameraViewProps {
   onToggleSettings?: () => void;
   /** Optional test ID for testing */
   testId?: string;
-  /** Camera devices list */
-  cameraDevices?: MediaDeviceInfo[];
-  /** Selected camera device ID */
-  selectedCameraDeviceId?: string;
-  /** Handler for camera selection */
-  onCameraSelect?: (deviceId: string) => void;
   /** Handler for toggling between front and rear cameras */
   onToggleCamera?: () => void;
   /** Model options */
@@ -83,9 +77,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
   showSettings = false,
   onToggleSettings = () => {},
   testId,
-  cameraDevices = [],
-  selectedCameraDeviceId = '',
-  onCameraSelect,
   onToggleCamera,
   modelOptions = [],
   selectedModel = '',
@@ -210,9 +201,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
         visible={showSettings || false}
         onClose={onToggleSettings || (() => {})}
         selectedStyle={selectedStyle}
-        cameraDevices={cameraDevices}
-        selectedCameraDeviceId={selectedCameraDeviceId}
-        onCameraSelect={onCameraSelect}
         modelOptions={modelOptions}
         selectedModel={selectedModel}
         onModelSelect={onModelSelect}
