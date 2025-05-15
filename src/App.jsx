@@ -8,6 +8,7 @@ import { goToPreviousPhoto, goToNextPhoto } from './utils/photoNavigation';
 import { loadPrompts, getRandomStyle, getRandomMixPrompts } from './services/prompts';
 import { initializeSogniClient } from './services/sogni';
 import { enhancePhoto, undoEnhancement } from './services/PhotoEnhancer';
+import { shareToTwitter } from './services/TwitterShare';
 import clickSound from './click.mp3';
 import cameraWindSound from './camera-wind.mp3';
 import slothicornImage from './slothicorn-camera.png';
@@ -314,46 +315,12 @@ const App = () => {
 
   // Add a new handler for initiating Twitter share
   const handleShareToX = async (photoIndex) => {
-    if (photoIndex === null || !photos[photoIndex] || !photos[photoIndex].images || !photos[photoIndex].images[0]) {
-      console.error('No image selected or image URL is missing for sharing.');
-      // Optionally, show a user-facing error message
-      return;
-    }
-
-    const imageUrl = photos[photoIndex].images[0];
-    console.log('Attempting to share image to X:', imageUrl);
-
-    try {
-      // We'll use a generic error display for now, can be refined
-      setBackendError(null); 
-
-      const response = await fetch('https://photobooth-api.sogni.ai/api/auth/x/start', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ imageUrl }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Failed to start Twitter share process.' }));
-        console.error('Failed to initiate Twitter share:', response.status, errorData);
-        setBackendError(`Error starting share: ${errorData.message || response.statusText}`);
-        return;
-      }
-
-      const { authUrl } = await response.json();
-      if (authUrl) {
-        // window.location.href = authUrl; // Old: redirects in the same tab
-        window.open(authUrl, '_blank'); // New: opens in a new tab
-      } else {
-        console.error('No authUrl received from backend.');
-        setBackendError('Could not get Twitter authorization URL.');
-      }
-    } catch (error) {
-      console.error('Error in handleShareToX:', error);
-      setBackendError(`Client-side error initiating share: ${error.message}`);
-    }
+    // Call the extracted Twitter sharing service
+    await shareToTwitter({
+      photoIndex,
+      photos,
+      setBackendError
+    });
   };
 
   // -------------------------

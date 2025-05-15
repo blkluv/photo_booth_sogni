@@ -471,8 +471,8 @@ const PhotoGallery = ({
                 : "✨ Enhance"}
         </button>
       )}
-      {/* Add Share to X button when a photo is selected, TODO re-enable Twitter sharing when working */}
-      {selectedPhotoIndex !== null && false && photos[selectedPhotoIndex] && (
+      {/* Add Share to X button when a photo is selected */}
+      {selectedPhotoIndex !== null && photos[selectedPhotoIndex] && (
         <button
           className="share-twitter-btn"
           onClick={(e) => {

@@ -4,11 +4,9 @@ import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-// import session from 'express-session'; // Original express-session, replaced
-import cookieSession from 'cookie-session'; // Using cookie-session
-import crypto from 'crypto';
 import sogniRoutes from './routes/sogni.js';
 import xAuthRoutes from './routes/xAuthRoutes.js';
+import process from 'process'; // Added to address linter error
 
 // Load environment variables FIRST
 dotenv.config();
@@ -25,17 +23,13 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 3001;
 
-// Get allowed origins and other critical env vars
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5174,https://photobooth-local.sogni.ai';
-const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
-// FRONTEND_URL is primarily used in xAuthRoutes, sourced from twitterShareService.js which gets it from process.env
-const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || (process.env.NODE_ENV === 'production' ? '.sogni.ai' : 'localhost');
+// Get allowed origins and determine effective cookie domain for subdomain compatibility
+const COOKIE_DOMAIN_EFFECTIVE = process.env.COOKIE_DOMAIN || (process.env.NODE_ENV === 'production' ? '.sogni.ai' : 'localhost');
+console.log("DEBUG - Effective COOKIE_DOMAIN (after fallback logic):", COOKIE_DOMAIN_EFFECTIVE);
 
-if (!process.env.SESSION_SECRET) {
-  console.warn('⚠️ SESSION_SECRET not set in .env, using a random one. Set for production!');
-}
-if (process.env.NODE_ENV === 'production' && COOKIE_DOMAIN !== '.sogni.ai') {
-  console.warn(`⚠️ Production environment detected, but COOKIE_DOMAIN is set to "${COOKIE_DOMAIN}". Ensure this is intended for cross-subdomain cookies like .sogni.ai.`);
+// Add warning for production environments with non-standard domain
+if (process.env.NODE_ENV === 'production' && COOKIE_DOMAIN_EFFECTIVE !== '.sogni.ai') {
+  console.warn(`⚠️ Production environment detected, but COOKIE_DOMAIN is set to "${COOKIE_DOMAIN_EFFECTIVE}". Ensure this is intended for cross-subdomain cookies like .sogni.ai.`);
 }
 
 // Middleware ordering is important
@@ -49,23 +43,26 @@ app.use(cookieParser());
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// 4. Cookie-based session middleware
-app.use(cookieSession({
-  name: 'sogni-photobooth-session', // Specific name for the session cookie
-  secret: SESSION_SECRET,          // Secret used to sign and verify the cookie values
-  // keys: [SESSION_SECRET], // Not needed if `secret` is provided and you aren't doing key rotation
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production', // Only send cookie over HTTPS in production
-  domain: COOKIE_DOMAIN,                        // e.g., '.sogni.ai' for production
-  maxAge: 24 * 60 * 60 * 1000,              // 24 hours
-  sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'lax' // 'lax' is a good default
-}));
-
-// Logging middleware (after session to see session data if needed, or before for just path)
+// Logging middleware - focused on cookie tracking for OAuth debugging
 app.use((req, res, next) => {
-  console.log(`DEBUG - ${new Date().toISOString()} - ${req.method} ${req.path}`);
-  // console.log('DEBUG - Request cookies:', req.cookies);
-  // console.log('DEBUG - Request session (after cookieSession):', req.session);
+  
+  // Log the sogni_session_id specifically, which we're using for Twitter OAuth
+  if (req.cookies?.sogni_session_id) {
+    console.log('DEBUG - Found sogni_session_id:', req.cookies.sogni_session_id);
+  }
+
+  // General Set-Cookie logging for all responses
+  const originalEnd = res.end;
+  res.end = function (...args) {
+    const setCookieHeaders = res.getHeaders()['set-cookie'];
+    // Only log if Set-Cookie headers were actually added to this response
+    if (setCookieHeaders && (!Array.isArray(setCookieHeaders) || setCookieHeaders.length > 0)) {
+      console.log(`DEBUG - Response Final Set-Cookie for ${req.method} ${req.path}:`, setCookieHeaders);
+    }
+    originalEnd.apply(res, args);
+    return this;
+  };
+
   next();
 });
 
@@ -99,7 +96,7 @@ app.get('*', (req, res) => {
 });
 
 // Error handling middleware
-app.use((err, req, res, next) => {
+app.use((err, req, res) => {
   console.error('Server error:', err);
   res.status(500).json({ error: err.message });
 });
