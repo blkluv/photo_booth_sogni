@@ -1644,7 +1644,7 @@ const App = () => {
         }}>
           <h3 style={{ margin: '0 0 10px 0' }}>Backend Connection Error</h3>
           <p style={{ margin: '0 0 15px 0' }}>{backendError}</p>
-          <button onClick={() => window.location.reload()} style={{
+          <button onClick={() => setBackendError(null)} style={{
             padding: '8px 16px',
             background: '#d32f2f',
             color: 'white',
@@ -1652,7 +1652,7 @@ const App = () => {
             borderRadius: '4px',
             cursor: 'pointer',
             fontWeight: 'bold'
-          }}>Reload Page</button>
+          }}>Okkkayy</button>
         </div>
       )}
 
