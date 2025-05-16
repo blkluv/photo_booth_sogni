@@ -11,7 +11,8 @@ import {
   getSessionIdFromState, 
   deleteTwitterOAuthData,
   redisReady,
-  listAllTwitterSessions
+  listAllTwitterSessions,
+  incrementTwitterShares
 } from '../services/redisService.js';
 
 const router = express.Router();
@@ -227,6 +228,9 @@ router.post('/start', getSessionId, async (req, res) => {
           
           console.log('[Twitter OAuth] Successfully shared image using existing token');
           shareSucceeded = true;
+          
+          // Track successful share in metrics
+          await incrementTwitterShares();
           
           // Refresh the timestamp on the token
           try {
@@ -527,6 +531,9 @@ router.get('/callback', async (req, res) => {
       const defaultMessage = "Created in #SogniPhotobooth https://photobooth.sogni.ai";
       await shareImageToX(loggedUserClient, imageUrl, message || defaultMessage);
       console.log('[Twitter OAuth] Successfully shared image to Twitter');
+      
+      // Track successful share in metrics
+      await incrementTwitterShares();
 
       // Update the stored token with a "lastUsed" timestamp
       if (redisReady()) {

@@ -1,6 +1,13 @@
 import express from 'express';
 import { getClientInfo, generateImage, cleanupSogniClient, getSessionClient, disconnectSessionClient, getActiveConnectionsCount, checkIdleConnections, activeConnections, sessionClients } from '../services/sogni.js';
 import { v4 as uuidv4 } from 'uuid';
+import { 
+  incrementBatchesGenerated, 
+  incrementPhotosGenerated, 
+  incrementPhotosEnhanced,
+  incrementPhotosTakenViaCamera,
+  incrementPhotosUploadedViaBrowse
+} from '../services/redisService.js';
 
 const router = express.Router();
 
@@ -317,6 +324,32 @@ router.post('/generate', ensureSessionId, async (req, res) => {
     const clientAppId = req.headers['x-client-app-id'] || req.body.clientAppId || req.query.clientAppId;
     console.log(`[${localProjectId}] Using client app ID: ${clientAppId || 'none provided'}`);
     
+    // Track a new batch being generated for metrics
+    await incrementBatchesGenerated();
+    
+    // If we have numImages parameter, increment photos generated count
+    if (req.body.numberImages && !isNaN(parseInt(req.body.numberImages))) {
+      const numberImages = parseInt(req.body.numberImages);
+      await incrementPhotosGenerated(numberImages);
+      // if the selectedModel is flux it is an enhance job
+      if (req.body.selectedModel === 'flux1-schnell-fp8') {
+        await incrementPhotosEnhanced();
+      }
+    } else {
+      // Default to 1 if not specified
+      await incrementPhotosGenerated(1);
+    }
+    
+    // Track camera vs file upload based on sourceType parameter
+    const sourceType = req.body.sourceType;
+    if (sourceType === 'camera') {
+      await incrementPhotosTakenViaCamera();
+      console.log(`[${localProjectId}] Tracked camera photo from sourceType parameter`);
+    } else if (sourceType === 'upload') {
+      await incrementPhotosUploadedViaBrowse();
+      console.log(`[${localProjectId}] Tracked uploaded photo from sourceType parameter`);
+    }
+    
     // Track progress and send updates
     let lastProgressUpdate = Date.now();
     const progressHandler = (eventData) => {
@@ -378,7 +411,7 @@ router.post('/generate', ensureSessionId, async (req, res) => {
     const client = await getSessionClient(req.sessionId, clientAppId);
     const params = req.body;
 
-    console.log(`DEBUG - ${new Date().toISOString()} - [${localProjectId}] Calling Sogni SDK (generateImage function) with params:`, Object.keys(params));
+    // console.log(`DEBUG - ${new Date().toISOString()} - [${localProjectId}] Calling Sogni SDK (generateImage function) with params:`, Object.keys(params));
     
     generateImage(client, params, progressHandler)
       .then(sogniResult => {

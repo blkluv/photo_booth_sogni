@@ -1,4 +1,5 @@
-import React, { useRef } from 'react';
+import React, { useRef, } from 'react';
+import MetricsBar from '../shared/MetricsBar';
 import './CameraStartMenu.css';
 
 interface CameraStartMenuProps {
@@ -103,6 +104,8 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
             </button>
           </div>
         )}
+        
+        <MetricsBar />
       </div>
       
       <input 

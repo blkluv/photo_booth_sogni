@@ -187,7 +187,7 @@ const StyleDropdown = ({
           }}
         >
           <span>🎲</span>
-          <span>Random Mix</span>
+          <span>YOLO MODE</span>
         </div>
         
         <div 

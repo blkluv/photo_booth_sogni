@@ -709,9 +709,9 @@ const App = () => {
   // -------------------------
   //   Shared logic for generating images from a Blob
   // -------------------------
-  const generateFromBlob = async (photoBlob, newPhotoIndex, dataUrl, isMoreOperation = false) => {
+  const generateFromBlob = async (photoBlob, newPhotoIndex, dataUrl, isMoreOperation = false, sourceType = 'upload') => {
     try {
-      setLastPhotoData({ blob: photoBlob, dataUrl });
+      setLastPhotoData({ blob: photoBlob, dataUrl, sourceType });
       const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
       // Prompt logic: use context state
       let finalPositivePrompt = positivePrompt.trim();
@@ -744,6 +744,7 @@ const App = () => {
       }
       
       console.log('Style prompt:', finalPositivePrompt);
+      console.log('Source type:', sourceType);
       projectStateReference.current = {
         currentPhotoIndex: newPhotoIndex,
         pendingCompletions: new Map(),
@@ -766,7 +767,8 @@ const App = () => {
               images: [dataUrl],
               originalDataUrl: dataUrl,
               newlyArrived: false,
-              isOriginal: true
+              isOriginal: true,
+              sourceType // Include sourceType in original photo
             });
           }
           
@@ -789,7 +791,8 @@ const App = () => {
                 error: null,
                 originalDataUrl: dataUrl, // Use reference photo as placeholder
                 newlyArrived: false,
-                statusText: 'Calling Art Robot...'
+                statusText: 'Calling Art Robot...',
+                sourceType // Include sourceType in generated photos
               });
             }
           }
@@ -861,6 +864,7 @@ const App = () => {
           guidanceStart: 0,
           guidanceEnd: controlNetGuidanceEnd,
         },
+        sourceType: sourceType, // Add sourceType for analytics tracking
         ...(seedParam !== undefined ? { seed: seedParam } : {})
       });
 
@@ -1215,6 +1219,7 @@ const App = () => {
       originalDataUrl: null, // Will be updated with cropped version
       newlyArrived: false,
       generationCountdown: 10,
+      sourceType: 'upload' // Add sourceType for uploaded files
     };
     
     setPhotos((previous) => [...previous, newPhoto]);
@@ -1248,7 +1253,7 @@ const App = () => {
         });
         
         // Use the cropped blob for generation
-        generateFromBlob(croppedBlob, newPhotoIndex, croppedDataUrl);
+        generateFromBlob(croppedBlob, newPhotoIndex, croppedDataUrl, false, 'upload');
       } catch (error) {
         console.error('Error cropping image:', error);
         // Fallback to original if cropping fails
@@ -1262,7 +1267,7 @@ const App = () => {
           }
           return updated;
         });
-        generateFromBlob(file, newPhotoIndex, originalDataUrl);
+        generateFromBlob(file, newPhotoIndex, originalDataUrl, false, 'upload');
       }
     });
     reader.readAsDataURL(file);
@@ -1478,6 +1483,23 @@ const App = () => {
       return;
     }
 
+    // Create a new photo item with the sourceType
+    setPhotos(previous => {
+      return [
+        ...previous,
+        {
+          id: Date.now(),
+          generating: true,
+          images: [],
+          error: null,
+          originalDataUrl: null, // Will be updated with cropped version
+          newlyArrived: false,
+          generationCountdown: 10,
+          sourceType: 'camera' // Add sourceType for camera captures
+        }
+      ];
+    });
+
     // For all devices, ensure the final image has the exact desired aspect ratio
     // This prevents any issues with aspect ratio in the photo grid view
     const { width: targetWidth, height: targetHeight } = getCustomDimensions();
@@ -1495,11 +1517,11 @@ const App = () => {
         reader.onload = async function() {
           const arrayBuffer = this.result;
           const newBlob = new Blob([arrayBuffer], {type: 'image/png'});
-          generateFromBlob(newBlob, photos.length, croppedDataUrl);
+          generateFromBlob(newBlob, photos.length, croppedDataUrl, false, 'camera');
         };
         reader.readAsArrayBuffer(croppedBlob);
       } else {
-        generateFromBlob(croppedBlob, photos.length, croppedDataUrl);
+        generateFromBlob(croppedBlob, photos.length, croppedDataUrl, false, 'camera');
       }
     } catch (error) {
       console.error('Error during image cropping, using original capture:', error);
@@ -1509,11 +1531,11 @@ const App = () => {
         reader.onload = async function() {
           const arrayBuffer = this.result;
           const newBlob = new Blob([arrayBuffer], {type: 'image/png'});
-          generateFromBlob(newBlob, photos.length, dataUrl);
+          generateFromBlob(newBlob, photos.length, dataUrl, false, 'camera');
         };
         reader.readAsArrayBuffer(blob);
       } else {
-        generateFromBlob(blob, photos.length, dataUrl);
+        generateFromBlob(blob, photos.length, dataUrl, false, 'camera');
       }
     }
   };
@@ -1849,6 +1871,7 @@ const App = () => {
       originalDataUrl: null, // Will be updated with cropped version
       newlyArrived: false,
       generationCountdown: 10,
+      sourceType: 'upload' // Add sourceType for uploaded files
     };
     
     setPhotos((previous) => [...previous, newPhoto]);
@@ -1882,7 +1905,7 @@ const App = () => {
         });
         
         // Use the cropped blob for generation
-        generateFromBlob(croppedBlob, newPhotoIndex, croppedDataUrl);
+        generateFromBlob(croppedBlob, newPhotoIndex, croppedDataUrl, false, 'upload');
       } catch (error) {
         console.error('Error cropping image:', error);
         // Fallback to original if cropping fails
@@ -1896,7 +1919,7 @@ const App = () => {
           }
           return updated;
         });
-        generateFromBlob(file, newPhotoIndex, originalDataUrl);
+        generateFromBlob(file, newPhotoIndex, originalDataUrl, false, 'upload');
       }
     });
     reader.readAsDataURL(file);
@@ -1954,6 +1977,20 @@ const App = () => {
     // Use keepOriginalPhoto from context state
     const existingOriginalPhoto = keepOriginalPhoto ? photos.find(p => p.isOriginal) : null; 
     
+    // Determine sourceType - prefer using the sourceType of the original photo we're generating from
+    let sourceType = 'upload'; // Default to upload if we can't determine
+    
+    // If we have an existing original photo with sourceType, use that
+    if (existingOriginalPhoto && existingOriginalPhoto.sourceType) {
+      sourceType = existingOriginalPhoto.sourceType;
+    } 
+    // Otherwise check the lastPhotoData (the photo being used for generation)
+    else if (lastPhotoData.sourceType) {
+      sourceType = lastPhotoData.sourceType;
+    }
+    
+    console.log(`Using sourceType '${sourceType}' for generating more photos`);
+    
     setPhotos(() => {
       const newPhotos = existingOriginalPhoto ? [existingOriginalPhoto] : [];
       
@@ -1968,7 +2005,8 @@ const App = () => {
           originalDataUrl: lastPhotoData.dataUrl,
           newlyArrived: false,
           statusText: 'Calling Art Robot...',
-          stylePrompt: '' // Use context stylePrompt here? Or keep empty?
+          stylePrompt: '', // Use context stylePrompt here? Or keep empty?
+          sourceType: sourceType // Store sourceType in photo object for reference
         });
       }
       
@@ -1980,9 +2018,8 @@ const App = () => {
       const blobCopy = blob.slice(0, blob.size, blob.type);
       await new Promise(resolve => setTimeout(resolve, 50));
       const newPhotoIndex = existingOriginalPhoto ? 1 : 0;
-      // Pass context stylePrompt to generateFromBlob?
-      // For now, assuming generateFromBlob pulls current context state
-      await generateFromBlob(blobCopy, newPhotoIndex, dataUrl, true);
+      // Pass sourceType to generateFromBlob
+      await generateFromBlob(blobCopy, newPhotoIndex, dataUrl, true, sourceType);
     } catch (error) {
       console.error('Error generating more photos:', error);
       setPhotos(() => {
@@ -1994,7 +2031,8 @@ const App = () => {
             loading: false,
             error: `Error: ${error.message || error}`,
             originalDataUrl: lastPhotoData.dataUrl,
-            permanentError: true
+            permanentError: true,
+            sourceType: sourceType // Store sourceType in photo object
           });
         }
         return newPhotos;

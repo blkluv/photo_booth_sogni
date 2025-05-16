@@ -435,6 +435,9 @@ export class BackendSogniClient {
    * Create a new project using the backend API
    */
   private createProject(params: Record<string, unknown>): Promise<BackendProject> {
+    // Debug log to track sourceType
+    console.log(`BackendSogniClient.createProject called with sourceType: ${typeof params.sourceType === 'string' ? params.sourceType : 'undefined'}`);
+    
     // Create a new project object to return to the caller
     const projectId = `backend-project-${Date.now()}`;
     const project = new BackendProject(projectId);

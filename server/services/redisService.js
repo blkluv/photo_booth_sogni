@@ -248,4 +248,139 @@ export const listAllTwitterSessions = async () => {
 
 export const redisReady = () => redisClient.isOpen;
 
-export default redisClient; 
+export default redisClient;
+
+// Metrics tracking prefixes
+const METRICS_PREFIX = 'metrics:';
+const TODAY_PREFIX = 'today:';  // UTC daily metrics
+const LIFETIME_PREFIX = 'lifetime:'; // All-time metrics
+
+/**
+ * Increment a specific metric counter
+ * @param {string} metric - The metric name to increment
+ * @param {number} amount - Amount to increment by (default: 1)
+ * @returns {boolean} - Success status
+ */
+export const incrementMetric = async (metric, amount = 1) => {
+  if (!redisClient.isOpen) {
+    console.warn(`[Redis] Not connected, skipping metrics increment for ${metric}`);
+    return false;
+  }
+
+  try {
+    // Get current UTC date (YYYY-MM-DD)
+    const today = new Date().toISOString().split('T')[0];
+    const todayKey = `${METRICS_PREFIX}${TODAY_PREFIX}${today}:${metric}`;
+    const lifetimeKey = `${METRICS_PREFIX}${LIFETIME_PREFIX}${metric}`;
+
+    // Increment both daily and lifetime counters
+    await redisClient.incrBy(todayKey, amount);
+    await redisClient.incrBy(lifetimeKey, amount);
+    
+    // Set expiry on daily metrics (keep for 90 days)
+    await redisClient.expire(todayKey, 90 * 24 * 60 * 60);
+
+    console.log(`[Redis] Incremented metric ${metric} by ${amount}`);
+    return true;
+  } catch (error) {
+    console.error(`[Redis] Error incrementing metric ${metric}:`, error);
+    return false;
+  }
+};
+
+/**
+ * Increment batches generated metric
+ * @param {number} amount - Amount to increment by (default: 1)
+ */
+export const incrementBatchesGenerated = async (amount = 1) => {
+  return incrementMetric('batches_generated', amount);
+};
+
+/**
+ * Increment photos generated metric
+ * @param {number} amount - Amount to increment by (default: 1)
+ */
+export const incrementPhotosGenerated = async (amount = 1) => {
+  return incrementMetric('photos_generated', amount);
+};
+
+/**
+ * Increment photos enhanced metric
+ * @param {number} amount - Amount to increment by (default: 1)
+ */
+export const incrementPhotosEnhanced = async (amount = 1) => {
+  return incrementMetric('photos_enhanced', amount);
+};
+
+/**
+ * Increment photos taken via camera metric
+ * @param {number} amount - Amount to increment by (default: 1)
+ */
+export const incrementPhotosTakenViaCamera = async (amount = 1) => {
+  return incrementMetric('photos_taken_camera', amount);
+};
+
+/**
+ * Increment photos uploaded via browse metric
+ * @param {number} amount - Amount to increment by (default: 1)
+ */
+export const incrementPhotosUploadedViaBrowse = async (amount = 1) => {
+  return incrementMetric('photos_uploaded_browse', amount);
+};
+
+/**
+ * Increment Twitter shares metric
+ * @param {number} amount - Amount to increment by (default: 1)
+ */
+export const incrementTwitterShares = async (amount = 1) => {
+  return incrementMetric('twitter_shares', amount);
+};
+
+/**
+ * Get all metrics for today and lifetime
+ * @returns {Object} - Metrics data or null if error
+ */
+export const getAllMetrics = async () => {
+  if (!redisClient.isOpen) {
+    console.warn('[Redis] Not connected, cannot retrieve metrics');
+    return null;
+  }
+
+  try {
+    // Get current UTC date (YYYY-MM-DD)
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Define metric keys
+    const metrics = [
+      'batches_generated',
+      'photos_generated',
+      'photos_enhanced',
+      'photos_taken_camera',
+      'photos_uploaded_browse',
+      'twitter_shares'
+    ];
+    
+    const result = {
+      today: {},
+      lifetime: {},
+      date: today
+    };
+    
+    // Get all today's metrics
+    for (const metric of metrics) {
+      const todayKey = `${METRICS_PREFIX}${TODAY_PREFIX}${today}:${metric}`;
+      const lifetimeKey = `${METRICS_PREFIX}${LIFETIME_PREFIX}${metric}`;
+      
+      const todayValue = await redisClient.get(todayKey) || '0';
+      const lifetimeValue = await redisClient.get(lifetimeKey) || '0';
+      
+      result.today[metric] = parseInt(todayValue, 10);
+      result.lifetime[metric] = parseInt(lifetimeValue, 10);
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('[Redis] Error retrieving metrics:', error);
+    return null;
+  }
+}; 

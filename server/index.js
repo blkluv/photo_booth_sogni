@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import sogniRoutes from './routes/sogni.js';
 import xAuthRoutes from './routes/xAuthRoutes.js';
+import metricsRoutes from './routes/metricsRoutes.js';
 import process from 'process'; // Added to address linter error
 
 // Load environment variables FIRST
@@ -66,11 +67,23 @@ app.use((req, res, next) => {
   next();
 });
 
-// API routes
+// Add debug logging for API routes to help diagnose the metrics issue
+app.use('/api', (req, res, next) => {
+  console.log(`[API Debug] ${req.method} ${req.path} received`);
+  const originalJson = res.json;
+  res.json = function(data) {
+    console.log(`[API Debug] ${req.method} ${req.path} responding with JSON:`, typeof data);
+    return originalJson.call(this, data);
+  };
+  next();
+});
+
+// API routes - MAKE SURE THESE COME BEFORE THE STATIC/CATCH-ALL ROUTES
 app.use('/sogni', sogniRoutes);  // Original route
 app.use('/api/sogni', sogniRoutes);  // Add this new route for direct API access
 app.use('/api/auth/x', xAuthRoutes); // Twitter OAuth routes, prefixed with /api for consistency
 app.use('/auth/x', xAuthRoutes); // Also keep /auth/x for the direct callback from Twitter if redirect URI is /auth/x/callback
+app.use('/api/metrics', metricsRoutes); // Metrics routes
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -92,13 +105,18 @@ app.use(express.static(staticDir));
 
 // Catch-all route to serve index.html for SPA routing
 app.get('*', (req, res) => {
+  console.log(`[Catch-all] Serving index.html for path: ${req.path}`);
   res.sendFile(path.join(staticDir, 'index.html'));
 });
 
 // Error handling middleware
-app.use((err, req, res) => {
+app.use((err, req, res, next) => {
   console.error('Server error:', err);
-  res.status(500).json({ error: err.message });
+  if (!res.headersSent) {
+    res.status(500).json({ error: err.message });
+  } else {
+    next(err);
+  }
 });
 
 // Start the server

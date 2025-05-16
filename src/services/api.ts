@@ -324,6 +324,9 @@ export async function checkSogniStatus() {
  */
 export async function createProject(params: Record<string, unknown>, progressCallback?: (data: unknown) => void): Promise<unknown> {
   try {
+    // Debug log to track sourceType
+    console.log(`createProject called with sourceType: ${typeof params.sourceType === 'string' ? params.sourceType : 'undefined'}`);
+    
     // Process the image data based on the request type (enhancement or generation)
     let imageData: unknown;
     let isEnhancement = false;
@@ -393,7 +396,8 @@ export async function createProject(params: Record<string, unknown>, progressCal
         promptGuidance: params.guidance,
         numberImages: params.numberOfImages,
         startingImage: Array.isArray(imageData) || imageData instanceof Uint8Array ? imageData : [],
-        startingImageStrength: params.startingImageStrength || 0.85
+        startingImageStrength: params.startingImageStrength || 0.85,
+        sourceType: params.sourceType // Pass sourceType through for enhancement
       };
     } else {
       // Generation parameters with controlNet
@@ -416,6 +420,7 @@ export async function createProject(params: Record<string, unknown>, progressCal
         controlNetGuidanceEnd,
         imageData: Array.isArray(imageData) || imageData instanceof Uint8Array ? imageData : [],
         seed: params.seed || undefined,
+        sourceType: params.sourceType // Pass sourceType through for generation
       };
     }
     
@@ -467,12 +472,18 @@ export async function cancelProject(projectId: string): Promise<unknown> {
 export async function generateImage(params: Record<string, unknown>, progressCallback?: (progress: unknown) => void): Promise<unknown> {
   try {
     console.log(`Making request to: ${API_BASE_URL}/sogni/generate`);
+    // Debug log to track sourceType
+    console.log(`generateImage received sourceType: ${typeof params.sourceType === 'string' ? params.sourceType : 'undefined'}`);
     
     // Include client app ID in the params
     const requestParams = {
       ...params,
-      clientAppId // Add the client app ID
+      clientAppId, // Add the client app ID
+      sourceType: params.sourceType || ''
     };
+    
+    // Debug log the final sourceType being sent to API
+    console.log(`Final sourceType being sent to API: ${typeof requestParams.sourceType === 'string' ? requestParams.sourceType : 'unknown type'}`);
     
     // Start the generation process
     const response = await fetch(`${API_BASE_URL}/sogni/generate`, {

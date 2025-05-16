@@ -44,7 +44,6 @@
   display: flex;
   justify-content: center;
   gap: 24px;
-  margin-bottom: 32px;
   flex-wrap: wrap;
 }
 
@@ -253,5 +252,50 @@
 
   .option-button {
     padding: 12px;
+  }
+}
+
+/* Metrics section */
+.metrics-section {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  z-index: 5;
+}
+
+.metrics-section::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50%;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(255, 126, 179, 0), rgba(255, 126, 179, 0.8), rgba(255, 126, 179, 0));
+}
+
+.metrics-heading {
+  font-size: 1.2rem;
+  font-weight: 500;
+  margin-bottom: 15px;
+  color: #ff7eb3;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  position: relative;
+  text-align: center;
+  text-shadow: 0 0 8px rgba(255, 126, 179, 0.5);
+}
+
+/* Media queries for mobile devices */
+@media (max-width: 600px), (orientation: portrait) and (max-device-width: 1024px) {
+  .metrics-section {
+    margin-top: 20px;
+    padding-top: 15px;
+  }
+  
+  .metrics-heading {
+    font-size: 1rem;
+    margin-bottom: 10px;
   }
 } 

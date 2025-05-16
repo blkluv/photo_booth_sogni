@@ -30,6 +30,10 @@ export default defineConfig(({ mode }) => {
     }
   }
 
+  // Determine the backend API port - default to 3001 if not specified
+  const backendPort = parseInt(env.BACKEND_PORT || '3001', 10);
+  console.log(`Backend API configured on port: ${backendPort}`);
+
   return {
     plugins: [react()],
     base,
@@ -45,6 +49,38 @@ export default defineConfig(({ mode }) => {
         credentials: true,
         allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "X-Client-App-ID"]
       },
+      proxy: {
+        // Proxy API requests to the backend server
+        '/api': {
+          target: `http://localhost:${backendPort}`,
+          changeOrigin: true,
+          secure: false,
+          ws: true,
+          configure: (proxy, _options) => {
+            proxy.on('error', (err, _req, _res) => {
+              console.log('Proxy error:', err);
+            });
+            proxy.on('proxyReq', (proxyReq, req, _res) => {
+              console.log('Proxying request:', req.method, req.url);
+            });
+            proxy.on('proxyRes', (proxyRes, req, _res) => {
+              console.log('Proxy response:', proxyRes.statusCode, req.url);
+            });
+          },
+        },
+        // Also proxy the /sogni endpoint
+        '/sogni': {
+          target: `http://localhost:${backendPort}`,
+          changeOrigin: true,
+          secure: false,
+        },
+        // Also proxy health endpoint
+        '/health': {
+          target: `http://localhost:${backendPort}`,
+          changeOrigin: true,
+          secure: false,
+        }
+      }
     },
     build: {
       outDir: 'dist',
@@ -64,6 +100,6 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.APP_VERSION': JSON.stringify(appVersion),
       // Remove VITE_API_ENDPOINT as src/config/urls.ts handles API URLs based on MODE
       // 'import.meta.env.VITE_API_ENDPOINT': JSON.stringify(env.VITE_API_ENDPOINT || 'https://photobooth-api-local.sogni.ai'), 
-    },
+    }
   };
 });
