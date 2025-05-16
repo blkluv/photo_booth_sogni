@@ -70,7 +70,7 @@ const getSessionId = (req, res, next) => {
 // POST /api/auth/x/start - Initiate Twitter OAuth flow
 router.post('/start', getSessionId, async (req, res) => {
   try {
-    const { imageUrl } = req.body;
+    const { imageUrl, message } = req.body;
     if (!imageUrl) {
       return res.status(400).json({ message: 'imageUrl is required' });
     }
@@ -95,6 +95,7 @@ router.post('/start', getSessionId, async (req, res) => {
       codeVerifier,
       state: twitterState, 
       imageUrl,
+      message,  // Store the custom message if provided
       sessionId: req.sessionId, // Store the original session ID
       timestamp: Date.now() // Add timestamp for TTL
     };
@@ -184,7 +185,7 @@ router.get('/callback', async (req, res) => {
       return res.status(400).send('OAuth session expired. Please try initiating the share again.');
     }
     
-    const { codeVerifier, imageUrl } = oauthData;
+    const { codeVerifier, imageUrl, message } = oauthData;
 
     // Validate state to ensure CSRF protection - now we need to check if our combined state was returned correctly
     // We don't need to do exact matching because we're already extracting the session ID from the state
@@ -210,8 +211,9 @@ router.get('/callback', async (req, res) => {
 
     // 3. Share the image to Twitter
     console.log(`Attempting to share image: ${imageUrl} with access token (using loggedUserClient).`);
-    // Pass the loggedUserClient directly to shareImageToX
-    await shareImageToX(loggedUserClient, imageUrl, "Check out this photo from Sogni Photobooth! #SogniAI");
+    // Pass the loggedUserClient directly to shareImageToX with custom message if provided
+    const defaultMessage = "Created in #SogniPhotobooth https://photobooth.sogni.ai";
+    await shareImageToX(loggedUserClient, imageUrl, message || defaultMessage);
 
     // 4. Clear the OAuth data from our map as it's now used
     sessionOAuthData.delete(sessionId);

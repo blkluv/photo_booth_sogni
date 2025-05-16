@@ -60,10 +60,10 @@ export const loginWithOAuth2 = async (code, codeVerifier) => {
  * Shares an image to Twitter on behalf of the user.
  * @param {TwitterApi} userClient - The user's Twitter API client.
  * @param {string} imageUrl - The URL of the image to share.
- * @param {string} [tweetText="Check out this photo from Sogni Photobooth!"] - Optional text for the tweet.
+ * @param {string} [tweetText=""] - Optional text for the tweet.
  * @returns {Promise<object>} The result of the tweet posting (data part).
  */
-export const shareImageToX = async (userClient, imageUrl, tweetText = "Check out this photo from Sogni Photobooth!") => {
+export const shareImageToX = async (userClient, imageUrl, tweetText = "") => {
   try {
     // userClient is now passed in directly, no need to create a new one from accessToken.
     // The block for creating and verifying userClient has been removed.

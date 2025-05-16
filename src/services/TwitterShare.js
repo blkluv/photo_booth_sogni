@@ -5,18 +5,34 @@
 import config from '../config';
 
 /**
+ * Extract hashtag from photo data
+ * @param {Object} photo - Photo object containing style information
+ * @returns {string|null} - Hashtag or null if not found
+ */
+export const getPhotoHashtag = (photo) => {
+  if (!photo) return null;
+  
+  // Try to find the hashtag in different possible locations
+  return photo.hashtag || 
+    (photo.styleInfo?.hashtag) || 
+    (photo.style && `#${photo.style.replace(/\s+/g, '')}`);
+};
+
+/**
  * Share a photo to Twitter (X) using the popup approach
  * @param {Object} params - Parameters for sharing
  * @param {number} params.photoIndex - Index of the photo to share
  * @param {Array} params.photos - Array of photo objects
  * @param {Function} params.setBackendError - Function to update backend error state
- * @param {number} params.maxRetries - Maximum number of retries for network errors (optional)
+ * @param {string} [params.customMessage] - Optional custom message to include in the tweet
+ * @param {number} [params.maxRetries=2] - Maximum number of retries for network errors
  * @returns {Promise<void>}
  */
 export const shareToTwitter = async ({
   photoIndex,
   photos,
   setBackendError,
+  customMessage,
   maxRetries = 2
 }) => {
   if (photoIndex === null || !photos[photoIndex] || !photos[photoIndex].images || !photos[photoIndex].images[0]) {
@@ -25,9 +41,9 @@ export const shareToTwitter = async ({
     return;
   }
 
-  const imageUrl = photos[photoIndex].images[0];
+  const photo = photos[photoIndex];
+  const imageUrl = photo.images[0];
   console.log('Attempting to share image to X:', imageUrl);
-
 
   let retries = 0;
   const attemptShare = async () => {
@@ -42,7 +58,10 @@ export const shareToTwitter = async ({
           'Content-Type': 'application/json',
         },
         credentials: 'include', // Important! Ensures cookies are sent
-        body: JSON.stringify({ imageUrl }),
+        body: JSON.stringify({ 
+          imageUrl,
+          message: customMessage // Include optional custom message
+        }),
       });
 
       if (!response.ok) {
@@ -145,5 +164,6 @@ export const shareToTwitter = async ({
 };
 
 export default {
-  shareToTwitter
+  shareToTwitter,
+  getPhotoHashtag
 }; 

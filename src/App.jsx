@@ -25,6 +25,7 @@ import AdvancedSettings from './components/shared/AdvancedSettings';
 import promptsData from './prompts.json';
 import PhotoGallery from './components/shared/PhotoGallery';
 import { useApp } from './context/AppContext';
+import TwitterShareModal from './components/shared/TwitterShareModal';
 
 const App = () => {
   const videoReference = useRef(null);
@@ -155,6 +156,10 @@ const App = () => {
 
   // Add state to track if camera has been manually started by the user
   const [cameraManuallyStarted, setCameraManuallyStarted] = useState(false);
+
+  // Add state for Twitter share modal
+  const [showTwitterModal, setShowTwitterModal] = useState(false);
+  const [twitterPhotoIndex, setTwitterPhotoIndex] = useState(null);
 
   // --- Ensure handlers are defined here, before any JSX or usage ---
   // Update handleUpdateStyle to use updateSetting
@@ -313,13 +318,21 @@ const App = () => {
   // Add state for backend connection errors
   const [backendError, setBackendError] = useState(null);
 
-  // Add a new handler for initiating Twitter share
+  // Update the handler for initiating Twitter share
   const handleShareToX = async (photoIndex) => {
-    // Call the extracted Twitter sharing service
+    // Set the photo index and open the modal
+    setTwitterPhotoIndex(photoIndex);
+    setShowTwitterModal(true);
+  };
+  
+  // Add a handler for the actual sharing with custom message
+  const handleTwitterShare = async (customMessage) => {
+    // Call the extracted Twitter sharing service with custom message
     await shareToTwitter({
-      photoIndex,
+      photoIndex: twitterPhotoIndex,
       photos,
-      setBackendError
+      setBackendError,
+      customMessage
     });
   };
 
@@ -1994,6 +2007,15 @@ const App = () => {
   // -------------------------
   return (
     <>
+      {/* Twitter Share Modal */}
+      <TwitterShareModal 
+        isOpen={showTwitterModal}
+        onClose={() => setShowTwitterModal(false)}
+        onShare={handleTwitterShare}
+        imageUrl={twitterPhotoIndex !== null && photos[twitterPhotoIndex] ? photos[twitterPhotoIndex].images[0] : null}
+        photoData={twitterPhotoIndex !== null ? photos[twitterPhotoIndex] : null}
+      />
+      
       {currentThought && (/iphone|ipad|ipod|android/i.test(navigator.userAgent) === false) && (
         <div style={{ 
           position: 'fixed', 

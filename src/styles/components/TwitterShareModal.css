@@ -1,0 +1,228 @@
+/* Twitter Share Modal Styles */
+.twitter-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+  backdrop-filter: blur(5px);
+  animation: fadeIn 0.2s ease;
+}
+
+.twitter-modal {
+  background: white;
+  width: 90%;
+  max-width: 500px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  animation: slideUp 0.3s ease;
+  position: relative;
+}
+
+.twitter-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 50%;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  color: #536471;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 1;
+}
+
+.twitter-modal-close:hover {
+  background: rgba(0, 0, 0, 0.1);
+  transform: rotate(90deg);
+}
+
+.twitter-modal-header {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.twitter-modal-header h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 0 0 10px;
+  color: #0f1419;
+}
+
+.twitter-logo {
+  width: 24px;
+  height: 24px;
+}
+
+.twitter-modal-content {
+  padding: 20px;
+}
+
+.twitter-message-container {
+  position: relative;
+  margin-bottom: 15px;
+}
+
+.twitter-message {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  resize: vertical;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #0f1419;
+  transition: border-color 0.2s ease;
+}
+
+.twitter-message:focus {
+  border-color: #1DA1F2;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(29, 161, 242, 0.2);
+}
+
+.twitter-char-counter {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  font-size: 12px;
+  color: #536471;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.twitter-image-preview {
+  margin-top: 15px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.twitter-image-preview img {
+  width: 100%;
+  display: block;
+  max-height: 250px;
+  object-fit: contain;
+  background: #f7f9fa;
+}
+
+.twitter-modal-footer {
+  padding: 15px 20px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.twitter-share-btn {
+  background: #1DA1F2;
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 50px;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.2s ease;
+}
+
+.twitter-share-btn:hover {
+  background: #1a91da;
+}
+
+.twitter-share-btn:disabled {
+  background: #8ecdf7;
+  cursor: not-allowed;
+}
+
+.twitter-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.twitter-loading {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.twitter-loading .dot {
+  width: 6px;
+  height: 6px;
+  background: white;
+  border-radius: 50%;
+  animation: loadingDot 1s ease-in-out infinite;
+}
+
+.twitter-loading .dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.twitter-loading .dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes loadingDot {
+  0%, 100% { transform: scale(0.8); opacity: 0.5; }
+  50% { transform: scale(1.2); opacity: 1; }
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  .twitter-modal {
+    width: 95%;
+    max-width: 100%;
+  }
+  
+  .twitter-modal-header {
+    padding: 14px 16px;
+  }
+  
+  .twitter-modal-content {
+    padding: 16px;
+  }
+  
+  .twitter-message {
+    min-height: 80px;
+    font-size: 14px;
+  }
+  
+  .twitter-image-preview img {
+    max-height: 180px;
+  }
+  
+  .twitter-modal-footer {
+    padding: 12px 16px;
+  }
+} 
