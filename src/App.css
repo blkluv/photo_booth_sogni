@@ -569,4 +569,46 @@ html body .photobooth-app .photobooth-frame .photobooth-header .tips-ribbon {
   margin-top: -5px !important;
   width: 40px !important;
   height: 40px !important;
+}
+
+/* Base styles for the Twitter share button */
+.share-twitter-btn {
+  position: fixed !important;
+  left: 20px !important; /* Default position */
+  bottom: 20px !important;
+  background: linear-gradient(135deg, #1DA1F2 0%, #1A91DA 100%) !important;
+  color: white !important;
+  border: none !important;
+  padding: 12px 24px !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+  cursor: pointer !important;
+  font-weight: bold !important;
+  font-size: 12px !important;
+  z-index: 99999 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  transition: all 0.2s ease !important;
+}
+
+.share-twitter-btn:hover {
+  transform: scale(1.05) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+}
+
+.share-twitter-btn:active {
+  transform: scale(0.95) !important;
+}
+
+/* Override position only in selected photo view */
+.selected-photo-container .share-twitter-btn {
+  left: 20px !important;
+  right: auto !important;
+}
+
+/* Ensure back-to-camera button is hidden in selected photo view */
+.film-strip-container.has-selected .back-to-camera-btn,
+.selected-photo-container ~ .back-to-camera-btn {
+  display: none !important;
 } 

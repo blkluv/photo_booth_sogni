@@ -486,27 +486,6 @@ const PhotoGallery = ({
             !photos[selectedPhotoIndex].images ||
             photos[selectedPhotoIndex].images.length === 0
           }
-          style={{
-            position: 'fixed',
-            right: '180px',
-            bottom: '20px',
-            background: 'linear-gradient(135deg, #1DA1F2 0%, #1A91DA 100%)',
-            color: 'white',
-            border: 'none',
-            padding: '12px 24px',
-            borderRadius: '8px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            cursor: (photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error || !photos[selectedPhotoIndex].images || photos[selectedPhotoIndex].images.length === 0) 
-              ? 'default' 
-              : 'pointer',
-            fontWeight: 'bold',
-            fontSize: '12px',
-            zIndex: 99999,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            transition: 'all 0.2s ease',
-          }}
           onMouseOver={e => {
             if (!(photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error || !photos[selectedPhotoIndex].images || photos[selectedPhotoIndex].images.length === 0)) {
               e.currentTarget.style.transform = 'scale(1.05)';
