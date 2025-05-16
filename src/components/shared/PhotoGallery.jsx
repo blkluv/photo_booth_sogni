@@ -36,7 +36,6 @@ const PhotoGallery = ({
   const squareStyle = {
     width: '100%',
     maxWidth: '240px',
-    aspectRatio: '1 / 1',
     margin: '0 auto',
     backgroundColor: 'white',
   };
@@ -618,11 +617,11 @@ const PhotoGallery = ({
                 data-enhancing={photo.enhancing ? 'true' : undefined}
                 data-error={photo.error ? 'true' : undefined}
                 data-enhanced={photo.enhanced ? 'true' : undefined}
-                data-progress={Math.floor(photo.progress * 100) || 0}
+                data-progress={Math.floor(photo.progress) || 0}
                 onClick={() => isSelected ? setSelectedPhotoIndex(null) : setSelectedPhotoIndex(index)}
                 style={{
                   ...squareStyle,
-                  '--enhance-progress': photo.progress ? `${Math.floor(photo.progress * 100)}%` : '0%',
+                  '--enhance-progress': photo.progress ? `${Math.floor(photo.progress)}%` : '0%',
                   position: 'relative',
                   borderRadius: '3px',
                   padding: '12px',
@@ -673,7 +672,7 @@ const PhotoGallery = ({
               data-enhanced={photo.enhanced ? 'true' : undefined}
               style={{
                 ...squareStyle,
-                '--enhance-progress': photo.progress ? `${Math.floor(photo.progress * 100)}%` : '0%',
+                '--enhance-progress': photo.progress ? `${Math.floor(photo.progress)}%` : '0%',
                 position: 'relative',
                 borderRadius: '3px',
                 padding: '12px',

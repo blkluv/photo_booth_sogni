@@ -2717,14 +2717,14 @@ const App = () => {
           }
           
           /* Only apply transitions on hover/active for deliberate interaction */
-          .film-frame:hover {
+          .film-frame:not(.selected):hover {
             transform: scale(1.05) translateZ(0) !important;
             box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25) !important;
             transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), 
                         box-shadow 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
           }
           
-          .film-frame:active {
+          .film-frame:not(.selected):active {
             transform: scale(0.98) translateZ(0) !important;
             box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2) !important;
             transition: all 0.1s ease-out !important;
