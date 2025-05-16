@@ -7,7 +7,7 @@ const TwitterShareModal = ({
   onClose, 
   onShare, 
   imageUrl, 
-  defaultMessage = "Check out this photo from Sogni Photobooth! ✨",
+  defaultMessage = "From my latest photoshoot in #SogniPhotobooth ✨ https://photobooth.sogni.ai",
   photoData,
   maxLength = 280
 }) => {

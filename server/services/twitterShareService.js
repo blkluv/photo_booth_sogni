@@ -412,3 +412,50 @@ export const shareImageToX = async (userClient, imageUrl, tweetText = "") => {
 
 // Export CLIENT_ORIGIN as well if needed by other parts of the server for redirects
 export { CLIENT_ORIGIN };
+
+/**
+ * Creates a Twitter client from a stored access token
+ * @param {Object} accessToken - The stored Twitter access token object
+ * @returns {TwitterApi} A configured Twitter API client
+ */
+export const getClientFromToken = (accessToken) => {
+  if (!accessToken) {
+    throw new Error('No access token provided to create Twitter client');
+  }
+  
+  console.log('[Twitter] Creating client from stored access token');
+  
+  try {
+    // Log token type for debugging
+    console.log('[Twitter] Token type:', typeof accessToken);
+    
+    // Handle different token formats (string or object)
+    let tokenToUse = accessToken;
+    
+    // If it's an object with token properties, use those
+    if (typeof accessToken === 'object' && accessToken.token) {
+      console.log('[Twitter] Using token.token property');
+      tokenToUse = accessToken.token;
+    } else if (typeof accessToken === 'object' && typeof accessToken.token_type === 'string') {
+      console.log('[Twitter] Using token object directly');
+      // It's already in the correct format
+    } else if (typeof accessToken === 'string') {
+      console.log('[Twitter] Using string token');
+    } else {
+      console.log('[Twitter] Unknown token format, trying to use as-is');
+      console.log('[Twitter] Token keys:', Object.keys(accessToken));
+    }
+    
+    // Create a user client from the stored access token
+    const userClient = new TwitterApi(tokenToUse);
+    
+    if (!userClient) {
+      throw new Error('Failed to create Twitter client from token');
+    }
+    
+    return userClient;
+  } catch (error) {
+    console.error('[Twitter] Error creating client from token:', error);
+    throw new Error(`Failed to initialize Twitter client: ${error.message}`);
+  }
+};
