@@ -5,7 +5,7 @@
 #
 # Environment file priority:
 # 1. server/.env.staging - Used for backend deployment (highest priority)
-# 2. .env.staging - Used for environment variables during build
+# 2. .env.staging - Used for environment variables during build (including Google Analytics)
 
 set -e # Exit immediately if a command exits with a non-zero status
 
@@ -18,14 +18,21 @@ REMOTE_FRONTEND_PATH="/var/www/photobooth-staging.sogni.ai/dist"
 REMOTE_BACKEND_PATH="/var/www/photobooth-staging.sogni.ai/backend"
 LOG_FILE="staging-deployment.log"
 
-# Load environment variables from .env.staging only
-if [ -f .env.staging ]; then
-  echo "📄 Loading environment variables from .env.staging"
-  export $(grep -v '^#' .env.staging | xargs)
+# Check for frontend .env.staging file. If not found, create one from template.
+if [ ! -f .env.staging ]; then
+  echo "⚠️ No .env.staging file found for frontend"
 else
-  echo "❌ No .env.staging file found! Cannot deploy to staging without staging configuration."
-  echo "Please create a .env.staging file with the necessary staging credentials."
+  echo "📄 Found .env.staging for frontend. Loading environment variables..."
+  export $(grep -v '^#' .env.staging | xargs)
+fi
+
+# Check for server/.env.staging file
+if [ ! -f server/.env.staging ]; then
+  echo "❌ No server/.env.staging file found! Cannot deploy to staging without backend configuration."
+  echo "Please create a server/.env.staging file with the necessary credentials."
   exit 1
+else
+  echo "📄 Found server/.env.staging file for backend deployment."
 fi
 
 # Start logging
@@ -85,6 +92,15 @@ if [ -f server/.env.staging ]; then
 else
   echo "ℹ️ No server/.env.staging found, will create .env from variables"
 fi
+
+# Deploy the environment file from local .env.production
+show_step "Deploying environment file from local .env.staging"
+rsync -ar --progress .env.staging $REMOTE_HOST:$REMOTE_FRONTEND_PATH/.env
+if [ $? -ne 0 ]; then
+  echo "❌ Staging environment file (.env.staging) deployment failed! Exiting."
+  exit 1
+fi
+echo "✅ Staging environment file (.env.staging) deployed successfully to $REMOTE_FRONTEND_PATH/.env"
 
 # Deploy nginx configuration
 show_step "Deploying nginx configuration"

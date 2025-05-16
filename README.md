@@ -66,6 +66,13 @@ SOGNI_PASSWORD=your_password
 SOGNI_ENV=local                # local | staging | production
 PORT=3001
 CLIENT_ORIGIN=https://photobooth-local.sogni.ai
+
+# Redis Configuration (optional, for Analytics, improved session management, Twitter/X sharing)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB_INDEX=1
+REDIS_VERBOSE_LOGGING=true
 ```
 
 ### 3 · Configure Local Hosts & SSL Certificate
@@ -155,9 +162,56 @@ If you prefer not to keep terminals open, you can use the script runner. This wi
 
 | File | Purpose |
 |------|---------|
-| `server/.env` | Backend secrets & CORS origin |
+| `server/.env` | Backend secrets, CORS origin, Redis configuration |
+| `.env.local` | Local frontend configuration including Google Analytics settings |
+| `.env.staging` | Staging frontend configuration for builds |
+| `.env.production` | Production frontend configuration for builds |
 | `configs/local/*.conf` | Nginx local SSL reverse-proxy |
 | `scripts/nginx/local.conf` | Main Nginx configuration for local development, defining frontend and backend subdomains. Expects SSL certs at `/opt/homebrew/etc/nginx/ssl/`. |
+
+### Analytics Configuration
+
+The application supports Google Analytics for basic page tracking. To enable it:
+
+1. Create a `.env.local` file in the project root with the following variables:
+   ```
+   # Google Analytics Configuration
+   # Set to 'false' to disable GA completely
+   VITE_GA_ENABLED=true
+   # Your Google Analytics measurement ID (e.g., G-XXXXXXXXXX)
+   VITE_GA_MEASUREMENT_ID=G-XXXXXXXXXX
+   # Domain for cookies, set to 'auto' for default behavior or specify 'sogni.ai' to share across subdomains
+   VITE_GA_DOMAIN=sogni.ai
+   ```
+
+2. The analytics implementation:
+   - Respects user privacy by making it easy to disable
+   - Supports cross-subdomain tracking for sogni.ai domains
+   - Only records basic page views by default (camera view, photo gallery, individual photos)
+   - Provides infrastructure for future event tracking if needed
+   - Includes version tracking for better data segmentation
+
+### Redis Configuration
+
+The application utilizes Redis for session management and persistence of Twitter/X OAuth data when using the photo sharing functionality:
+
+1. Add these Redis configuration variables to your `server/.env` file:
+   ```
+   # Redis Configuration
+   REDIS_HOST=localhost
+   REDIS_PORT=6379
+   REDIS_PASSWORD=
+   REDIS_DB_INDEX=1
+   REDIS_VERBOSE_LOGGING=true
+   ```
+
+2. Redis benefits:
+   - Provides persistent session storage for Twitter/X OAuth flow
+   - Falls back to in-memory storage if Redis is unavailable
+   - Automatically handles TTL (Time-To-Live) for session data
+   - Improves scalability when deploying to multiple server instances
+
+Redis is optional - if not available, the system will use in-memory storage as a fallback.
 
 ### SSL & Custom Domain (optional)
 Running Nginx with the provided `scripts/nginx/local.conf` uses SSL certificates (expected at `/opt/homebrew/etc/nginx/ssl/sogni-local.crt` and `sogni-local.key` - see **Quick Start - Step 3b** for creation/validation instructions using `openssl`) so you can use **https://photobooth-local.sogni.ai** for the frontend and **https://photobooth-api-local.sogni.ai** for the backend, with secure cookies and proper CORS handling.
@@ -187,13 +241,21 @@ npm run test:visual:refactor  # compare & report
 ## 📦 Production Build & Deploy
 
 ```bash
-# build static frontend (dist/) & type-check
-npm run build
+# Build for production
+npm run build            # Uses .env.production for frontend config
 
+# Build for staging
+npm run build:staging    # Uses .env.staging for frontend config
 
+# Deploy to production (requires server/.env.production)
+npm run deploy:production
+
+# Deploy to staging (requires server/.env.staging and .env.staging)
+npm run deploy:staging
 ```
+
 Deploy `/dist` to your static host and `/server` behind Node (PM2, systemd, etc.).  
-Make sure **PORT**, **CLIENT_ORIGIN** and SSL are configured.
+Make sure **PORT**, **CLIENT_ORIGIN**, **Redis configuration** (if using Twitter sharing), and SSL are configured.
 
 ---
 

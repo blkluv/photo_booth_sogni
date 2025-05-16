@@ -9,6 +9,7 @@ import { loadPrompts, getRandomStyle, getRandomMixPrompts } from './services/pro
 import { initializeSogniClient } from './services/sogni';
 import { enhancePhoto, undoEnhancement } from './services/PhotoEnhancer';
 import { shareToTwitter } from './services/TwitterShare';
+import { trackPageView } from './utils/analytics';
 import clickSound from './click.mp3';
 import cameraWindSound from './camera-wind.mp3';
 import slothicornImage from './slothicorn-camera.png';
@@ -58,6 +59,9 @@ const App = () => {
   // Info modal state - adding back the missing state
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showPhotoGrid, setShowPhotoGrid] = useState(false);
+  
+  // Add the start menu state here
+  const [showStartMenu, setShowStartMenu] = useState(true);
 
   // Photos array
   const [photos, setPhotos] = useState([]);
@@ -160,6 +164,24 @@ const App = () => {
   // Add state for Twitter share modal
   const [showTwitterModal, setShowTwitterModal] = useState(false);
   const [twitterPhotoIndex, setTwitterPhotoIndex] = useState(null);
+
+  // Track page views when view changes
+  useEffect(() => {
+    // Get current view state based on app state
+    let currentView = 'start-menu';
+    
+    if (selectedPhotoIndex !== null) {
+      // Track individual photo view
+      currentView = `photo/${selectedPhotoIndex}`;
+    } else if (showPhotoGrid) {
+      currentView = 'gallery';
+    } else if (!showStartMenu) {
+      currentView = 'camera';
+    }
+    
+    // Send page view to Google Analytics
+    trackPageView(currentView);
+  }, [selectedPhotoIndex, showPhotoGrid, showStartMenu]);
 
   // --- Ensure handlers are defined here, before any JSX or usage ---
   // Update handleUpdateStyle to use updateSetting
@@ -1837,9 +1859,7 @@ const App = () => {
     }
   }, [showStyleDropdown]);
 
-  // Add a new state to control whether to show the start menu
-  const [showStartMenu, setShowStartMenu] = useState(true);
-  
+  // The start menu state was moved to the top
   // Handler for the "Take Photo" option in start menu
   const handleTakePhotoOption = async () => {
     setShowStartMenu(false);

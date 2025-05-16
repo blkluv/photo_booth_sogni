@@ -16,11 +16,18 @@ LOG_FILE="deployment.log"
 
 # Check for server/.env.production file. This file will be deployed AS IS to production.
 if [ ! -f server/.env.production ]; then
-  echo "❌ server/.env.production file not found! This file is required for production deployment."
-  echo "   It should contain all necessary production environment variables."
+  echo "❌ server/.env.production file not found! This file is required for production backend deployment."
   exit 1
 else
-  echo "📄 Found server/.env.production. This file will be deployed as the production .env file."
+  echo "📄 Found server/.env.production. This file will be deployed as the production backend .env file."
+fi
+
+# Check for frontend .env.production file. If not found, create one from template.
+if [ ! -f server/.env.production ]; then
+  echo "❌ .env.production file not found! This file is required for production frontend deployment."
+  exit 1
+else
+  echo "📄 Found /.env.production. This file will be deployed as the production frontend .env file."
 fi
 
 # Start logging
@@ -95,6 +102,15 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 echo "✅ Production environment file (server/.env.production) deployed successfully to $REMOTE_BACKEND_PATH/.env"
+
+# Deploy the environment file from local .env.production
+show_step "Deploying production environment file from local .env.production"
+rsync -ar --progress .env.production $REMOTE_HOST:$REMOTE_FRONTEND_PATH/.env
+if [ $? -ne 0 ]; then
+  echo "❌ Production environment file (.env.production) deployment failed! Exiting."
+  exit 1
+fi
+echo "✅ Production environment file (.env.production) deployed successfully to $REMOTE_FRONTEND_PATH/.env"
 
 # Setup and start services on remote server
 show_step "Setting up and starting services on remote server"
