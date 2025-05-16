@@ -3,94 +3,108 @@
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.75);
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.75);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10000;
-  padding: 20px;
-  backdrop-filter: blur(5px);
-  animation: fadeIn 0.2s ease;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .twitter-modal {
-  background: white;
+  background-color: white;
+  border-radius: 16px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
   width: 90%;
-  max-width: 500px;
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  max-width: 520px;
+  max-height: 90vh;
   overflow: hidden;
-  animation: slideUp 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.25s ease-out;
   position: relative;
+}
+
+@keyframes slideIn {
+  from { transform: translateY(20px); opacity: 0.8; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
 .twitter-modal-close {
   position: absolute;
   top: 12px;
   right: 12px;
+  background: rgba(0, 0, 0, 0.1);
+  border: none;
+  color: #333;
   width: 30px;
   height: 30px;
-  border: none;
-  background: rgba(0, 0, 0, 0.05);
   border-radius: 50%;
-  font-size: 24px;
-  line-height: 1;
-  cursor: pointer;
-  color: #536471;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  font-size: 20px;
+  cursor: pointer;
   z-index: 1;
+  transition: all 0.2s ease;
 }
 
 .twitter-modal-close:hover {
-  background: rgba(0, 0, 0, 0.1);
-  transform: rotate(90deg);
+  background: rgba(0, 0, 0, 0.2);
+  transform: scale(1.1);
 }
 
 .twitter-modal-header {
   padding: 16px 20px;
+  border-bottom: 1px solid #eee;
   display: flex;
   align-items: center;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  gap: 12px;
 }
 
 .twitter-modal-header h2 {
   font-size: 18px;
-  font-weight: 700;
-  margin: 0 0 0 10px;
-  color: #0f1419;
+  margin: 0;
+  font-weight: 600;
+  color: #333;
 }
 
 .twitter-logo {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
 }
 
 .twitter-modal-content {
-  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 20px;
+  overflow-y: auto;
+  max-height: calc(90vh - 140px);
 }
 
 .twitter-message-container {
   position: relative;
-  margin-bottom: 15px;
 }
 
 .twitter-message {
   width: 100%;
   min-height: 100px;
   padding: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid #ddd;
   border-radius: 8px;
-  resize: vertical;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 16px;
-  line-height: 1.5;
-  color: #0f1419;
-  transition: border-color 0.2s ease;
+  resize: vertical;
+  font-family: inherit;
+  box-sizing: border-box;
+  color: #000000;
 }
 
 .twitter-message:focus {
@@ -101,108 +115,205 @@
 
 .twitter-char-counter {
   position: absolute;
-  bottom: 10px;
-  right: 10px;
+  bottom: 8px;
+  right: 12px;
   font-size: 12px;
-  color: #536471;
-  background: rgba(255, 255, 255, 0.8);
-  padding: 2px 6px;
-  border-radius: 10px;
+  color: #666;
 }
 
 .twitter-image-preview {
-  margin-top: 15px;
+  padding: 12px;
+  background: #f8f8f8;
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  position: relative;
 }
 
 .twitter-image-preview img {
-  width: 100%;
-  display: block;
-  max-height: 250px;
+  max-width: 100%;
+  max-height: 300px;
   object-fit: contain;
-  background: #f7f9fa;
+  border-radius: 4px;
+  display: block;
+}
+
+/* Styling for polaroid image container */
+.polaroid-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+/* Styling for polaroid image in preview */
+.twitter-image-preview img[src^="data:image"],
+.polaroid-container img {
+  /* For polaroid data URLs */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin: 12px 0;
+  max-height: 400px; /* Increased from 360px to accommodate larger bottom border */
+  border-radius: 4px;
+  object-fit: contain;
+}
+
+/* Debug label - hidden in production */
+.preview-label-debug {
+  display: none; /* Set to 'block' only for debugging */
+  font-size: 10px;
+  color: #999;
+  margin-top: 4px;
+  text-align: center;
+  font-style: italic;
+}
+
+.twitter-image-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  height: 200px;
+  color: #666;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 30px;
+  height: 30px;
+  border: 3px solid rgba(29, 161, 242, 0.2);
+  border-radius: 50%;
+  border-top-color: #1DA1F2;
+  animation: spin 1s ease-in-out infinite;
+}
+
+.twitter-no-image {
+  padding: 40px;
+  color: #999;
+  text-align: center;
+  font-style: italic;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .twitter-modal-footer {
-  padding: 15px 20px;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 16px 20px;
+  border-top: 1px solid #eee;
   display: flex;
   justify-content: flex-end;
 }
 
 .twitter-share-btn {
-  background: #1DA1F2;
+  background-color: #1DA1F2;
   color: white;
   border: none;
-  padding: 10px 24px;
   border-radius: 50px;
-  font-weight: 700;
-  font-size: 15px;
+  padding: 10px 24px;
+  font-size: 16px;
+  font-weight: 500;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
 }
 
-.twitter-share-btn:hover {
-  background: #1a91da;
+.twitter-share-btn:hover:not(:disabled) {
+  background-color: #1a91da;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(29, 161, 242, 0.4);
 }
 
 .twitter-share-btn:disabled {
-  background: #8ecdf7;
+  background-color: #9ad0f5;
   cursor: not-allowed;
 }
 
 .twitter-icon {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
 }
 
 .twitter-loading {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
 }
 
-.twitter-loading .dot {
+.dot {
   width: 6px;
   height: 6px;
-  background: white;
+  background-color: white;
   border-radius: 50%;
-  animation: loadingDot 1s ease-in-out infinite;
+  display: inline-block;
+  animation: dotFade 1.4s infinite ease-in-out both;
 }
 
-.twitter-loading .dot:nth-child(2) {
-  animation-delay: 0.2s;
+.dot:nth-child(1) {
+  animation-delay: -0.32s;
 }
 
-.twitter-loading .dot:nth-child(3) {
-  animation-delay: 0.4s;
+.dot:nth-child(2) {
+  animation-delay: -0.16s;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+@keyframes dotFade {
+  0%, 80%, 100% { 
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  40% { 
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
-@keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-
-@keyframes loadingDot {
-  0%, 100% { transform: scale(0.8); opacity: 0.5; }
-  50% { transform: scale(1.2); opacity: 1; }
-}
-
-/* Mobile optimizations */
-@media (max-width: 640px) {
+/* Mobile responsiveness */
+@media (max-width: 768px) {
   .twitter-modal {
     width: 95%;
-    max-width: 100%;
+    max-width: 460px;
+    max-height: 85vh;
+  }
+  
+  .twitter-modal-content {
+    max-height: calc(85vh - 140px);
+  }
+  
+  .twitter-message {
+    min-height: 80px;
+  }
+  
+  .twitter-image-preview {
+    min-height: 180px;
+  }
+  
+  .twitter-image-preview img {
+    max-height: 250px;
+  }
+}
+
+@media (max-width: 480px) {
+  .twitter-modal {
+    width: 100%;
+    height: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .twitter-modal-content {
+    flex: 1;
+    max-height: none;
   }
   
   .twitter-modal-header {
@@ -210,19 +321,24 @@
   }
   
   .twitter-modal-content {
-    padding: 16px;
-  }
-  
-  .twitter-message {
-    min-height: 80px;
-    font-size: 14px;
-  }
-  
-  .twitter-image-preview img {
-    max-height: 180px;
+    padding: 12px 16px;
   }
   
   .twitter-modal-footer {
     padding: 12px 16px;
+  }
+  
+  .twitter-share-btn {
+    padding: 8px 20px;
+    font-size: 15px;
+  }
+  
+  .twitter-image-preview {
+    padding: 8px;
+    min-height: 150px;
+  }
+  
+  .twitter-image-preview img[src^="data:image"] {
+    max-height: 320px;
   }
 } 

@@ -1,25 +1,86 @@
 import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import '../../styles/components/TwitterShareModal.css';
+import { createPolaroidImage } from '../../utils/imageProcessing';
+import { getPhotoHashtag } from '../../services/TwitterShare';
+
+// Helper to ensure Permanent Marker font is loaded
+const ensureFontLoaded = () => {
+  if (!document.querySelector('link[href*="Permanent+Marker"]')) {
+    const fontLink = document.createElement('link');
+    fontLink.href = 'https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap';
+    fontLink.rel = 'stylesheet';
+    document.head.appendChild(fontLink);
+  }
+};
 
 const TwitterShareModal = ({ 
   isOpen, 
   onClose, 
   onShare, 
   imageUrl, 
-  defaultMessage = "From my latest photoshoot in #SogniPhotobooth ✨ https://photobooth.sogni.ai",
+  defaultMessage = "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨ https://photobooth.sogni.ai",
   photoData,
   maxLength = 280
 }) => {
   const [message, setMessage] = useState('');
   const [isSharing, setIsSharing] = useState(false);
+  const [polaroidImageUrl, setPolaroidImageUrl] = useState(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(true);
   const textareaRef = useRef(null);
   const modalRef = useRef(null);
   
   // Get hashtag from photo data if available
-  const styleHashtag = photoData?.hashtag || 
-    (photoData?.styleInfo?.hashtag || 
-    (photoData?.style && `#${photoData.style.replace(/\s+/g, '')}`));
+  const styleHashtag = getPhotoHashtag(photoData);
+  
+  // Determine photo label - prefer status text if available, otherwise use a combination of number label and hashtag
+  const photoNumberLabel = photoData?.statusText?.split('#')[0]?.trim() || photoData?.label || '';
+  
+  // Combine the number label and hashtag
+  const photoLabel = photoNumberLabel + (styleHashtag ? ` ${styleHashtag}` : '');
+  
+  // Ensure font is loaded when component mounts
+  useEffect(() => {
+    ensureFontLoaded();
+  }, []);
+  
+  // Create polaroid preview when modal opens and imageUrl changes
+  useEffect(() => {
+    if (isOpen && imageUrl) {
+      setIsLoadingPreview(true);
+      
+      const generatePolaroidPreview = async () => {
+        try {
+          // Make sure the font is loaded before generating the preview
+          await document.fonts.ready;
+          
+          // Custom options for better polaroid styling
+          const options = {
+            frameBottomWidth: 150, // Updated to match Twitter sharing settings
+            labelFont: '34px "Permanent Marker", cursive', // Explicit font styling
+            labelColor: '#333333' // Ensure visible text color
+          };
+          
+          console.log(`Creating polaroid preview with label: "${photoLabel}"`);
+          // Create and use polaroid data URL directly - avoid converting to Blob
+          const polaroidUrl = await createPolaroidImage(imageUrl, photoLabel, options);
+          setPolaroidImageUrl(polaroidUrl);
+        } catch (error) {
+          console.error('Error creating polaroid preview:', error);
+          setPolaroidImageUrl(imageUrl); // Fallback to original image
+        } finally {
+          setIsLoadingPreview(false);
+        }
+      };
+      
+      generatePolaroidPreview();
+    }
+    
+    return () => {
+      // Cleanup function
+      setPolaroidImageUrl(null);
+    };
+  }, [isOpen, imageUrl, photoLabel]);
   
   useEffect(() => {
     // Initialize message with default and hashtag when modal opens
@@ -99,7 +160,25 @@ const TwitterShareModal = ({
           </div>
           
           <div className="twitter-image-preview">
-            {imageUrl && <img src={imageUrl} alt="Preview" />}
+            {isLoadingPreview ? (
+              <div className="twitter-image-loading">
+                <span className="loading-spinner"></span>
+                <p>Preparing polaroid image...</p>
+              </div>
+            ) : polaroidImageUrl ? (
+              <div className="polaroid-container">
+                <img src={polaroidImageUrl} alt="Preview" />
+                {photoLabel && (
+                  <div className="preview-label-debug">
+                    Using label: {photoLabel}
+                  </div>
+                )}
+              </div>
+            ) : imageUrl ? (
+              <img src={imageUrl} alt="Preview" />
+            ) : (
+              <div className="twitter-no-image">No image selected</div>
+            )}
           </div>
         </div>
         
@@ -107,7 +186,7 @@ const TwitterShareModal = ({
           <button 
             className="twitter-share-btn" 
             onClick={handleShare}
-            disabled={isSharing || !message.trim()}
+            disabled={isSharing || !message.trim() || isLoadingPreview}
           >
             {isSharing ? (
               <span className="twitter-loading">

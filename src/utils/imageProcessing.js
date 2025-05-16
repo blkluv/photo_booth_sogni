@@ -35,31 +35,153 @@ export async function resizeDataUrl(dataUrl, width, height) {
 }
 
 /**
- * Calls the describe_image_upload API to get a textual description
- * of the given photo blob.
+ * Creates a polaroid framed version of an image for social sharing
+ * @param {string} imageUrl - URL or data URL of the image to frame
+ * @param {string} label - Optional label to display at the bottom of the polaroid
+ * @param {Object} options - Additional options
+ * @param {number} options.frameWidth - Width of the polaroid border sides (default: 24px)
+ * @param {number} options.frameTopWidth - Width of the polaroid border top (default: 24px)
+ * @param {number} options.frameBottomWidth - Width of the polaroid border bottom (default: 64px)
+ * @param {string} options.frameColor - Color of the polaroid frame (default: white)
+ * @param {string} options.labelFont - Font for the label (default: 16px "Permanent Marker", cursive)
+ * @param {string} options.labelColor - Color for the label text (default: #333)
+ * @returns {Promise<string>} Data URL of the generated polaroid image
  */
-export async function describeImage(photoBlob) {
-  const formData = new FormData();
-  formData.append("file", photoBlob, "photo.png");
-  
-  try {
-    const response = await fetch("https://prompt.sogni.ai/describe_image_upload", {
-      method: "POST",
-      body: formData,
-    });
+export async function createPolaroidImage(imageUrl, label, options = {}) {
+  return new Promise((resolve, reject) => {
+    const {
+      frameWidth = 24,
+      frameTopWidth = 24,
+      frameBottomWidth = 150, // Updated to match Twitter sharing settings (150px)
+      frameColor = 'white',
+      labelFont = '34px "Permanent Marker", cursive',
+      labelColor = '#333'
+    } = options;
 
-    if (!response.ok) {
-      console.warn("API describe_image_upload returned non-OK", response.statusText);
-      return "";
+    // Load the Permanent Marker font if it's not already loaded
+    if (!document.querySelector('link[href*="Permanent+Marker"]')) {
+      // Create a link element for the Google Font
+      const fontLink = document.createElement('link');
+      fontLink.href = 'https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap';
+      fontLink.rel = 'stylesheet';
+      document.head.appendChild(fontLink);
+      
+      console.log('Loaded Permanent Marker font for polaroid label');
     }
 
-    const json = await response.json();
-    // the API returns { "description": "...some text..." }
-    return json.description || "";
-  } catch (error) {
-    console.error("Error describing image:", error);
-    return "";
-  }
+    const img = new Image();
+    img.crossOrigin = 'anonymous'; // Handle CORS for image loading
+    
+    img.onload = () => {
+      // Ensure any text to draw exists
+      const textToDraw = label ? label.trim() : '';
+      console.log(`Drawing polaroid with label: "${textToDraw}"`);
+      
+      // Create a canvas for the polaroid
+      const canvas = document.createElement('canvas');
+      
+      // Calculate dimensions to maintain aspect ratio
+      const aspectRatio = img.width / img.height;
+      
+      // Set a reasonable max size for the polaroid
+      const maxImageWidth = 1600;
+      const maxImageHeight = 1600;
+      
+      let imageWidth, imageHeight;
+      
+      if (img.width > img.height) {
+        // Landscape orientation
+        imageWidth = Math.min(img.width, maxImageWidth);
+        imageHeight = imageWidth / aspectRatio;
+      } else {
+        // Portrait or square orientation
+        imageHeight = Math.min(img.height, maxImageHeight);
+        imageWidth = imageHeight * aspectRatio;
+      }
+      
+      // Calculate full polaroid dimensions including frame
+      const polaroidWidth = imageWidth + (frameWidth * 2);
+      const polaroidHeight = imageHeight + frameTopWidth + frameBottomWidth;
+      
+      // Set canvas size to the polaroid dimensions
+      canvas.width = polaroidWidth;
+      canvas.height = polaroidHeight;
+      
+      const ctx = canvas.getContext('2d');
+      
+      // Draw polaroid frame (white background)
+      ctx.fillStyle = frameColor;
+      ctx.fillRect(0, 0, polaroidWidth, polaroidHeight);
+      
+      // Draw the image centered in the frame
+      ctx.drawImage(img, frameWidth, frameTopWidth, imageWidth, imageHeight);
+      
+      // Add subtle inner shadow to make it look more realistic
+      ctx.shadowColor = 'rgba(0,0,0,0.1)';
+      ctx.shadowBlur = 6;
+      ctx.shadowOffsetY = 1;
+      ctx.shadowOffsetX = 0;
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+      ctx.strokeRect(frameWidth, frameTopWidth, imageWidth, imageHeight);
+      
+      // Reset shadow for text
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+      
+      // Add label if provided and not empty
+      if (textToDraw) {
+        // Set font with Permanent Marker
+        ctx.font = labelFont;
+        ctx.fillStyle = labelColor;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Position label in the bottom white area, a bit higher from the bottom for better visual balance
+        const labelY = polaroidHeight - (frameBottomWidth / 2);
+        
+        // Constrain label length if too long
+        const maxLabelWidth = polaroidWidth - 40; // Increased padding
+        let displayLabel = textToDraw;
+        
+        if (ctx.measureText(textToDraw).width > maxLabelWidth) {
+          // Truncate and add ellipsis if too long
+          for (let i = textToDraw.length; i > 0; i--) {
+            const truncated = textToDraw.substring(0, i) + '...';
+            if (ctx.measureText(truncated).width <= maxLabelWidth) {
+              displayLabel = truncated;
+              break;
+            }
+          }
+        }
+        
+        // Add a subtle text shadow for better readability
+        ctx.shadowColor = 'rgba(0,0,0,0.2)'; // Increased shadow opacity for better visibility
+        ctx.shadowBlur = 1; // Increased blur for more noticeable shadow
+        ctx.shadowOffsetY = 1;
+        
+        ctx.fillText(displayLabel, polaroidWidth / 2, labelY);
+        
+        console.log(`Drew label: "${displayLabel}" at y=${labelY} with bottom width ${frameBottomWidth}`);
+      }
+      
+      // Convert to data URL
+      const dataUrl = canvas.toDataURL('image/png');
+      
+      // For debugging: display the image in the console
+      console.log(`Generated polaroid with dimensions: ${polaroidWidth}x${polaroidHeight}`);
+      
+      resolve(dataUrl);
+    };
+    
+    img.onerror = (err) => {
+      console.error('Error creating polaroid image:', err);
+      reject(new Error('Failed to load image for polaroid frame'));
+    };
+    
+    img.src = imageUrl;
+  });
 }
 
 /** 
