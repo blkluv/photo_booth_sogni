@@ -124,10 +124,10 @@ export const storeTwitterStateMapping = async (state, sessionId, ttlSeconds = 90
   try {
     const key = `${TWITTER_STATE_PREFIX}${state}`;
     await redisClient.set(key, sessionId, { EX: ttlSeconds });
-    console.log(`[Redis] Stored Twitter state mapping ${state.substring(0, 8)}... -> ${sessionId} with TTL ${ttlSeconds}s`);
+    //console.log(`[Redis] Stored Twitter state mapping ${state.substring(0, 8)}... -> ${sessionId} with TTL ${ttlSeconds}s`);
     return true;
   } catch (error) {
-    console.error('[Redis] Error storing Twitter state mapping:', error);
+    //console.error('[Redis] Error storing Twitter state mapping:', error);
     return false;
   }
 };

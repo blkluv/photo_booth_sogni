@@ -334,29 +334,29 @@ router.get('/callback', async (req, res) => {
     }
     
     if (!sessionId) {
-      console.error(`[Twitter OAuth] No session found for state: ${state}`);
+      // console.error(`[Twitter OAuth] No session found for state: ${state}`);
       return sendErrorPage(res, 'Session expired or invalid. Please try again.');
     }
     
-    console.log(`[Twitter OAuth] Using session ID: ${sessionId} with storage: ${redisReady() ? 'Redis' : 'in-memory'}`);
+    // console.log(`[Twitter OAuth] Using session ID: ${sessionId} with storage: ${redisReady() ? 'Redis' : 'in-memory'}`);
     
     // Try to get OAuth data from Redis first
     let oauthData = null;
     let dataSource = 'none';
     
     if (redisReady()) {
-      console.log(`[Twitter OAuth] Attempting to retrieve OAuth data from Redis using session ID: ${sessionId}`);
+      // console.log(`[Twitter OAuth] Attempting to retrieve OAuth data from Redis using session ID: ${sessionId}`);
       oauthData = await getTwitterOAuthData(sessionId);
       
       if (oauthData) {
-        console.log('[Twitter OAuth] Found OAuth data directly in Redis with session ID');
+        // console.log('[Twitter OAuth] Found OAuth data directly in Redis with session ID');
         dataSource = 'redis-direct';
       }
     } else {
       // Try in-memory storage as fallback
       oauthData = sessionOAuthData.get(sessionId);
       if (oauthData) {
-        console.log('[Twitter OAuth] Found OAuth data in in-memory storage');
+        // console.log('[Twitter OAuth] Found OAuth data in in-memory storage');
         dataSource = 'memory-direct';
       }
     }
@@ -366,8 +366,8 @@ router.get('/callback', async (req, res) => {
       return sendErrorPage(res, 'Authentication data expired or invalid. Please try again.');
     }
     
-    console.log(`[Twitter OAuth] OAuth data retrieval result: ${dataSource}`);
-    console.log('[Twitter OAuth] Retrieved OAuth data successfully, proceeding with Twitter API call');
+    // console.log(`[Twitter OAuth] OAuth data retrieval result: ${dataSource}`);
+    // onsole.log('[Twitter OAuth] Retrieved OAuth data successfully, proceeding with Twitter API call');
 
     // Extract required data from OAuth data
     const { codeVerifier, pendingImageUrl: imageUrl, pendingMessage: message } = oauthData;
@@ -416,8 +416,24 @@ router.get('/callback', async (req, res) => {
         console.log('[Twitter OAuth] Stored access token in memory before attempting share');
       }
       
-      // Continue with sharing logic...
-
+      // Log info before sharing
+      console.log('[Twitter OAuth] Token exchange successful, attempting to share image');
+      
+      // Share the image on Twitter with the logged in user
+      const tweetResult = await shareImageToX(loggedUserClient, imageUrl, message);
+      
+      // Add specific check for successful tweet result
+      if (!tweetResult || !tweetResult.data || !tweetResult.data.id) {
+        throw new Error('Could not verify successful image share. Tweet data incomplete.');
+      }
+      
+      // Increment share count in analytics
+      if (sessionId && redisReady()) {
+        await incrementTwitterShares();
+      }
+      
+      console.log('[Twitter OAuth] Image successfully shared to X, tweet ID:', tweetResult.data.id);
+      
       // Success HTML with messaging to parent window
       const successHtml = `
         <!DOCTYPE html>
@@ -664,5 +680,98 @@ const cleanupExpiredOAuthData = () => {
 
 // Run cleanup every 5 minutes for in-memory fallback
 setInterval(cleanupExpiredOAuthData, 5 * 60 * 1000);
+
+// Add this function before the routes, after the constants
+const sendErrorPage = (res, userMessage) => {
+  // Log the error message
+  console.error(`[Twitter OAuth] Sending error page: ${userMessage}`);
+  
+  // Send HTML with error message that will post to opener
+  const errorHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Twitter Share Failed</title>
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+          background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+          color: #333;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100vh;
+          margin: 0;
+          padding: 20px;
+          text-align: center;
+        }
+        .error-card {
+          background: white;
+          border-radius: 10px;
+          box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+          padding: 30px;
+          max-width: 400px;
+          width: 100%;
+        }
+        h2 {
+          color: #E0245E;
+          margin-top: 0;
+        }
+        .icon {
+          font-size: 48px;
+          margin-bottom: 20px;
+        }
+        .message {
+          margin-bottom: 20px;
+          color: #555;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="error-card">
+        <div class="icon">✕</div>
+        <h2>Share Failed</h2>
+        <div class="message">${userMessage}</div>
+      </div>
+      <script>
+        // Send error message to opener window
+        if (window.opener) {
+          try {
+            window.opener.postMessage({
+              type: 'twitter-auth-error',
+              service: 'twitter',
+              message: ${JSON.stringify(userMessage)}
+            }, '*'); // Using * since CLIENT_ORIGIN may vary
+            
+            console.log('Error message posted to opener');
+          } catch (err) {
+            console.error('Error posting message to opener:', err);
+          }
+        } else {
+          console.warn('No opener window found');
+        }
+        
+        // Auto-close this window after a delay
+        setTimeout(function() {
+          window.close();
+          // If window doesn't close (e.g., if not opened by script), redirect
+          setTimeout(function() {
+            window.location.href = "${CLIENT_ORIGIN}?share_status=error&service=twitter&message=${encodeURIComponent(userMessage)}";
+          }, 500);
+        }, 3000);
+      </script>
+    </body>
+    </html>
+  `;
+  
+  if (!res.headersSent) {
+    res.send(errorHtml);
+    return true;
+  } else {
+    console.error("Headers already sent, cannot send error HTML.");
+    return false;
+  }
+};
 
 export default router; 

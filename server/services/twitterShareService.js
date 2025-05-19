@@ -95,7 +95,7 @@ export const shareImageToX = async (userClient, imageUrl, tweetText = "") => {
       console.log('Continuing with media upload as token may still have write access.');
     }
 
-    console.log(`Downloading image from: ${imageUrl}`);
+    console.log(`Downloading image from: ${imageUrl.startsWith('data:image') ? 'data:image' : imageUrl}`);
     let imageBuffer;
     let imageResponse;
     try {
@@ -366,7 +366,7 @@ export const shareImageToX = async (userClient, imageUrl, tweetText = "") => {
       }
       
       console.log('Tweet posted successfully with ID:', tweetResult.data.id);
-      return tweetResult.data;
+      return tweetResult;
     } catch (tweetError) {
       console.error('Error posting tweet to Twitter:', tweetError);
       
