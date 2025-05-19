@@ -33,6 +33,7 @@ export const getPhotoHashtag = (photo) => {
  * @param {Function} params.setBackendError - Function to update backend error state
  * @param {string} [params.customMessage] - Optional custom message to include in the tweet
  * @param {number} [params.maxRetries=2] - Maximum number of retries for network errors
+ * @param {Function} [params.onSuccess] - Callback function for direct share success
  * @returns {Promise<void>}
  */
 export const shareToTwitter = async ({
@@ -40,7 +41,8 @@ export const shareToTwitter = async ({
   photos,
   setBackendError,
   customMessage,
-  maxRetries = 2
+  maxRetries = 2,
+  onSuccess = null,
 }) => {
   if (photoIndex === null || !photos[photoIndex] || !photos[photoIndex].images || !photos[photoIndex].images[0]) {
     console.error('No image selected or image URL is missing for sharing.');
@@ -144,6 +146,91 @@ export const shareToTwitter = async ({
         }
 
         const responseData = await response.json();
+        
+        // Handle direct share - backend used an existing token without requiring auth
+        if (responseData.success === true && !responseData.authUrl) {
+          console.log('Image shared directly using existing token');
+          
+          // Create a small notification popup with consistent styling instead of alert
+          const width = 400;
+          const height = 300;
+          const left = window.innerWidth / 2 - width / 2 + window.screenX;
+          const top = window.innerHeight / 2 - height / 2 + window.screenY;
+          
+          const successPopup = window.open(
+            '',
+            'twitter-success-popup',
+            `width=${width},height=${height},left=${left},top=${top},location=no,menubar=no,toolbar=no,status=no`
+          );
+          
+          if (successPopup) {
+            // Use the same template as in xAuthRoutes.js for consistency
+            successPopup.document.write(`
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Sharing to X - Success</title>
+                <style>
+                  body {
+                    font-family: sans-serif;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    margin: 0;
+                    background-color: #f8f9fa;
+                  }
+                  .success-card {
+                    background: white;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                    padding: 2rem;
+                    text-align: center;
+                    max-width: 90%;
+                    width: 400px;
+                  }
+                  .icon {
+                    font-size: 4rem;
+                    color: #00acee;
+                    margin-bottom: 1rem;
+                  }
+                  h2 {
+                    margin-top: 0;
+                    color: #333;
+                  }
+                  .message {
+                    color: #555;
+                    margin: 1rem 0;
+                  }
+                </style>
+              </head>
+              <body>
+                <div class="success-card">
+                  <div class="icon">✓</div>
+                  <h2>Share Successful!</h2>
+                  <div class="message">Your image has been successfully shared to X.</div>
+                </div>
+                <script>
+                  // Auto-close this window after a delay
+                  setTimeout(function() {
+                    window.close();
+                  }, 2000);
+                </script>
+              </body>
+              </html>
+            `);
+            successPopup.document.close();
+          }
+          
+          // Still call the onSuccess callback if provided
+          if (onSuccess && typeof onSuccess === 'function') {
+            onSuccess();
+          }
+          return;
+        }
+        
         if (!responseData.authUrl) {
           console.error('No authUrl received from backend.');
           setBackendError('Could not get Twitter authorization URL.');
@@ -177,6 +264,9 @@ export const shareToTwitter = async ({
           if (event.data && event.data.type === 'twitter-auth-success') {
             // Auth succeeded
             window.removeEventListener('message', messageHandler);
+            if (onSuccess && typeof onSuccess === 'function') {
+              onSuccess();
+            }
           } else if (event.data && event.data.type === 'twitter-auth-error') {
             // Auth failed
             window.removeEventListener('message', messageHandler);

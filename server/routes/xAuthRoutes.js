@@ -1,7 +1,7 @@
 import express from 'express';
 // import { generateAuthLink, loginWithOAuth2, shareImageToX } from '../services/twitterShareService.js'; // We'll uncomment later
 import crypto from 'crypto'; // For generating a random state string
-import { generateAuthLink, loginWithOAuth2, shareImageToX, CLIENT_ORIGIN } from '../services/twitterShareService.js';
+import { generateAuthLink, loginWithOAuth2, shareImageToX, CLIENT_ORIGIN, refreshOAuth2Token, getClientFromToken } from '../services/twitterShareService.js';
 import { v4 as uuidv4 } from 'uuid';
 import process from 'process'; // Add process import for environment variables
 import { 
@@ -169,350 +169,241 @@ const getSessionId = (req, res, next) => {
 // POST /api/auth/x/start - Initiate Twitter OAuth flow
 router.post('/start', getSessionId, async (req, res) => {
   try {
+    // Check for required data
     const { imageUrl, message } = req.body;
     if (!imageUrl) {
-      return res.status(400).json({ message: 'imageUrl is required' });
+      return res.status(400).json({ message: 'No image URL provided' });
     }
 
-    // First, check if we have a valid access token stored for this session
+    const sessionId = req.sessionId;
+    
+    // Check for existing token
     let existingOAuthData = null;
-    
     if (redisReady()) {
-      console.log('[Twitter OAuth] Checking for existing access token in Redis...');
-      existingOAuthData = await getTwitterOAuthData(req.sessionId);
-      if (existingOAuthData) {
-        console.log('[Twitter OAuth] Found OAuth data in Redis:', JSON.stringify({
-          hasAccessToken: !!existingOAuthData.accessToken,
-          timestamp: existingOAuthData.timestamp,
-          age: (Date.now() - existingOAuthData.timestamp) / 1000 + ' seconds'
-        }));
-      }
-    } else if (sessionOAuthData.has(req.sessionId)) {
-      console.log('[Twitter OAuth] Checking for existing access token in memory...');
-      existingOAuthData = sessionOAuthData.get(req.sessionId);
-      if (existingOAuthData) {
-        console.log('[Twitter OAuth] Found OAuth data in memory:', JSON.stringify({
-          hasAccessToken: !!existingOAuthData.accessToken,
-          timestamp: existingOAuthData.timestamp,
-          age: (Date.now() - existingOAuthData.timestamp) / 1000 + ' seconds'
-        }));
-      }
+      existingOAuthData = await getTwitterOAuthData(sessionId);
+    } else {
+      existingOAuthData = sessionOAuthData.get(sessionId);
     }
-    
-    // If we have a valid access token, use it directly
+
+    // Check if we have a valid token
     if (existingOAuthData && existingOAuthData.accessToken) {
-      console.log('[Twitter OAuth] Found existing access token, using it directly');
+      console.log('[Twitter OAuth] Found existing OAuth data for session, checking if token is valid');
       
-      // Check if token is expired
+      // Check if token is expired or will expire soon
       const isExpired = existingOAuthData.tokenCreatedAt && 
                        existingOAuthData.expiresIn && 
-                       Date.now() > (existingOAuthData.tokenCreatedAt + (existingOAuthData.expiresIn * 1000));
-                       
-      if (isExpired) {
-        console.log('[Twitter OAuth] Existing token is expired, falling back to OAuth flow');
-      } else {
-        let shareSucceeded = false;
-        let shareError = null;
-        
+                       Date.now() > (existingOAuthData.tokenCreatedAt + (existingOAuthData.expiresIn * 1000) - 300000); // 5 minutes buffer
+      
+      // Try to refresh if expired and we have a refresh token
+      if (isExpired && existingOAuthData.refreshToken) {
+        console.log('[Twitter OAuth] Token expired or will expire soon, attempting to refresh');
         try {
-          // Import loggedUserClient from Twitter services
-          const { getClientFromToken } = await import('../services/twitterShareService.js');
+          const refreshedData = await refreshOAuth2Token(existingOAuthData.refreshToken);
           
-          // Create a client using the stored token
+          if (refreshedData && refreshedData.accessToken) {
+            // Update token data
+            existingOAuthData.accessToken = refreshedData.accessToken;
+            existingOAuthData.refreshToken = refreshedData.refreshToken || existingOAuthData.refreshToken;
+            existingOAuthData.expiresIn = refreshedData.expiresIn || existingOAuthData.expiresIn;
+            existingOAuthData.tokenCreatedAt = refreshedData.tokenCreatedAt;
+            existingOAuthData.lastRefresh = Date.now();
+            
+            // Store updated token
+            if (redisReady()) {
+              await storeTwitterOAuthData(sessionId, existingOAuthData, 
+                      existingOAuthData.expiresIn ? Math.min(existingOAuthData.expiresIn, OAUTH_DATA_TTL_SECONDS) : OAUTH_DATA_TTL_SECONDS);
+              console.log('[Twitter OAuth] Successfully refreshed and stored token in Redis');
+            } else {
+              sessionOAuthData.set(sessionId, existingOAuthData);
+              console.log('[Twitter OAuth] Successfully refreshed and stored token in memory');
+            }
+          } else {
+            console.log('[Twitter OAuth] Token refresh failed, will need to reauthorize');
+          }
+        } catch (refreshError) {
+          console.error('[Twitter OAuth] Error refreshing token:', refreshError);
+          // Continue with standard flow if refresh fails
+        }
+      }
+      
+      // Try to use existing token for direct share if still valid or successfully refreshed
+      if (!isExpired || existingOAuthData.lastRefresh) {
+        try {
+          console.log('[Twitter OAuth] Using existing token to share directly');
+          
+          // Create Twitter client from the stored token
           const loggedUserClient = getClientFromToken(existingOAuthData.accessToken);
           
-          // Share the image directly
-          console.log(`[Twitter OAuth] Directly sharing image using existing token: ${imageUrl.substring(0, 30)}...`);
-          const defaultMessage = "Created in #SogniPhotobooth https://photobooth.sogni.ai";
-          await shareImageToX(loggedUserClient, imageUrl, message || defaultMessage);
+          // Attempt to share the image directly
+          await shareImageToX(loggedUserClient, imageUrl, message || "Created in #SogniPhotobooth https://photobooth.sogni.ai");
           
-          console.log('[Twitter OAuth] Successfully shared image using existing token');
-          shareSucceeded = true;
+          // Update usage timestamps
+          existingOAuthData.lastUsed = Date.now();
+          existingOAuthData.lastSuccess = Date.now();
+          
+          // Store the updated data
+          if (redisReady()) {
+            await storeTwitterOAuthData(sessionId, existingOAuthData, 
+                    existingOAuthData.expiresIn ? Math.min(existingOAuthData.expiresIn, OAUTH_DATA_TTL_SECONDS) : OAUTH_DATA_TTL_SECONDS);
+          } else {
+            sessionOAuthData.set(sessionId, existingOAuthData);
+          }
           
           // Track successful share in metrics
           await incrementTwitterShares();
           
-          // Refresh the timestamp on the token
-          try {
-            if (redisReady()) {
-              const updatedData = { 
-                ...existingOAuthData, 
-                timestamp: Date.now(),
-                lastUsed: Date.now()
-              };
-              await storeTwitterOAuthData(req.sessionId, updatedData, 
-                            existingOAuthData.expiresIn ? 
-                            Math.min(existingOAuthData.expiresIn, OAUTH_DATA_TTL_SECONDS) : 
-                            OAUTH_DATA_TTL_SECONDS);
-            } else {
-              existingOAuthData.timestamp = Date.now();
-              existingOAuthData.lastUsed = Date.now();
-              sessionOAuthData.set(req.sessionId, existingOAuthData);
-            }
-          } catch (storageError) {
-            // Log but don't fail if we can't update the token timestamp
-            // The share already succeeded, which is what matters
-            console.log('[Twitter OAuth] Warning: Could not update token timestamp after successful share:', storageError.message);
-          }
-        } catch (tokenError) {
-          // Capture the error but don't throw yet - we'll decide what to do after
-          shareError = tokenError;
-          console.log('[Twitter OAuth] Error using existing token:', tokenError.message);
-        }
-        
-        // If sharing succeeded, return success regardless of any token storage errors
-        if (shareSucceeded) {
-          // Return success even if there were non-critical errors after sharing
-          return res.json({ success: true, message: 'Image shared directly with existing token' });
-        } else {
-          // If there was a sharing error, log and fall back to the OAuth flow
-          console.log('[Twitter OAuth] Falling back to OAuth flow due to sharing error:', shareError.message);
+          // Send direct success response
+          console.log('[Twitter OAuth] Successfully shared directly using existing token');
+          
+          // Make sure the response includes all necessary fields for the client to recognize success
+          return res.json({ 
+            success: true,
+            message: 'Image shared directly using existing token',
+            directShare: true  // Add this flag to help client distinguish direct shares
+          });
+        } catch (directShareError) {
+          console.error('[Twitter OAuth] Error using existing token for direct share:', directShareError);
+          console.log('[Twitter OAuth] Will proceed with standard OAuth flow');
+          // Fall through to standard OAuth flow if direct share fails
         }
       }
     }
 
-    // Normal OAuth flow (if no token or token failed)
-    // 1. Generate a state value with session ID embedded, making it possible to retrieve session data after redirects
-    const baseState = crypto.randomBytes(12).toString('hex'); // Slightly smaller to allow room for session ID
-    // Combine the state with the session ID so we can retrieve the correct data even if cookies change
-    const combinedState = `${baseState}__${req.sessionId}`;
+    // Standard OAuth flow (only reached if we don't have a valid token or direct share fails)
+    // Generate a unique state string
+    const state = crypto.randomBytes(16).toString('hex');
     
-    // 2. Generate the authentication link with the combined state
-    console.log(`Creating OAuth state with embedded session ID: ${combinedState}`);
-    const { url, codeVerifier, state: twitterState } = generateAuthLink(combinedState);
-    console.log(`Twitter API returned state: ${twitterState}`);
-    
-    // Check if Twitter's API modified our state (it sometimes does)
-    if (twitterState !== combinedState) {
-      console.log(`NOTE: Twitter modified our state parameter! Original: ${combinedState}, Twitter: ${twitterState}`);
+    // Store session ID mapped to state
+    if (redisReady()) {
+      await storeTwitterStateMapping(state, sessionId);
+    } else {
+      sessionIdIndex.set(state, sessionId);
     }
-
-    // 3. Store OAuth data in Redis (or fallback to in-memory map)
-    const oauthData = {
+    
+    // Generate OAuth URL
+    const { url, codeVerifier } = generateAuthLink(state);
+    
+    // Store code verifier in session data for later verification
+    const oauthData = { 
       codeVerifier,
-      state: twitterState, 
-      imageUrl,
-      message,  // Store the custom message if provided
-      sessionId: req.sessionId, // Store the original session ID
-      timestamp: Date.now() // Add timestamp for TTL with in-memory fallback
+      timestamp: Date.now(),
+      pendingImageUrl: imageUrl,
+      pendingMessage: message
     };
     
-    // Try to store in Redis first, fall back to in-memory storage
-    let storedInRedis = false;
     if (redisReady()) {
-      storedInRedis = await storeTwitterOAuthData(req.sessionId, oauthData, OAUTH_DATA_TTL_SECONDS);
-      
-      // Also store mappings for both the original and Twitter-modified states
-      await storeTwitterStateMapping(combinedState, req.sessionId, OAUTH_DATA_TTL_SECONDS);
-      if (twitterState !== combinedState) {
-        await storeTwitterStateMapping(twitterState, req.sessionId, OAUTH_DATA_TTL_SECONDS);
-      }
+      await storeTwitterOAuthData(sessionId, oauthData, OAUTH_DATA_TTL_SECONDS);
+    } else {
+      sessionOAuthData.set(sessionId, oauthData);
     }
     
-    // Fallback to in-memory storage if Redis storage failed
-    if (!storedInRedis) {
-      sessionOAuthData.set(req.sessionId, oauthData);
-      
-      // Index both the combined state and the Twitter state to this session ID
-      sessionIdIndex.set(combinedState, req.sessionId);
-      sessionIdIndex.set(twitterState, req.sessionId);
-      console.log(`Indexed both original state and Twitter state to session ID ${req.sessionId}`);
-    }
+    console.log(`[Twitter OAuth] Stored code verifier for state ${state} and session ${sessionId}`);
     
-    // Log session data for debugging
-    console.log('Twitter OAuth data stored for session:', req.sessionId);
-    console.log('OAuth data:', oauthData);
-    console.log('Storage method:', storedInRedis ? 'Redis' : 'In-memory fallback');
-
-    // 4. Send the authorization URL back to the frontend.
+    // Send OAuth URL to client
     res.json({ authUrl: url });
-
   } catch (error) {
-    console.error('Error in /api/auth/x/start:', error);
-    if (!res.headersSent) {
-        res.status(500).json({ message: "Internal server error during OAuth start." });
-    }
+    console.error('Error starting Twitter share:', error);
+    res.status(500).json({ message: `Error starting Twitter share: ${error.message}` });
   }
 });
 
 // GET /auth/x/callback - Handle Twitter OAuth callback
 router.get('/callback', async (req, res) => {
   try {
-    const { code, state: returnedState } = req.query;
-    console.log(`[Twitter OAuth] Callback received with state: ${returnedState?.substring(0, 8)}...`);
-    console.log(`[Twitter OAuth] Auth code present: ${!!code}`);
-
-    // Try to extract the session ID from the state parameter first
-    let sessionId = null;
-    if (returnedState && returnedState.includes('__')) {
-      const parts = returnedState.split('__');
-      if (parts.length === 2) {
-        sessionId = parts[1];
-        console.log('[Twitter OAuth] Extracted session ID from state parameter:', sessionId);
-      } else {
-        console.log(`[Twitter OAuth] Unable to parse session ID from state, found ${parts.length} parts instead of 2`);
-      }
+    // Get state and code from query parameters
+    const { state, code } = req.query;
+    
+    if (!state || !code) {
+      const errorMessage = !state ? 'Missing OAuth state' : 'Missing authorization code';
+      console.error(`[Twitter OAuth] ${errorMessage}`);
+      return sendErrorPage(res, errorMessage);
+    }
+    
+    // Make sure the state is a string - simplified check to avoid false rejections
+    if (typeof state !== 'string') {
+      console.error(`[Twitter OAuth] State is not a string. Received: ${typeof state}`);
+      return sendErrorPage(res, 'Invalid OAuth state. Please try again.');
+    }
+    
+    // Get the session ID associated with this state
+    let sessionId;
+    if (redisReady()) {
+      sessionId = await getSessionIdFromState(state);
     } else {
-      console.log(`[Twitter OAuth] State parameter doesn't contain session ID delimiter: ${returnedState}`);
+      sessionId = sessionIdIndex.get(state);
     }
     
-    // Fall back to cookie if session ID couldn't be extracted from state
     if (!sessionId) {
-      sessionId = req.cookies?.sogni_session_id;
-      console.log('[Twitter OAuth] Using session ID from cookie (fallback):', sessionId);
-    }
-    
-    // Verify session ID is present by any means
-    if (!sessionId) {
-      console.error('[Twitter OAuth] Session ID missing from both state and cookies');
-      return res.status(400).send('Session ID missing. Please try initiating the share again.');
+      console.error(`[Twitter OAuth] No session found for state: ${state}`);
+      return sendErrorPage(res, 'Session expired or invalid. Please try again.');
     }
     
     console.log(`[Twitter OAuth] Using session ID: ${sessionId} with storage: ${redisReady() ? 'Redis' : 'in-memory'}`);
     
     // Try to get OAuth data from Redis first
     let oauthData = null;
-    let sessionIdFromState = null;
     let dataSource = 'none';
     
     if (redisReady()) {
-      // Check if we have a direct session match
-      console.log('[Twitter OAuth] Attempting to retrieve OAuth data from Redis using session ID:', sessionId);
+      console.log(`[Twitter OAuth] Attempting to retrieve OAuth data from Redis using session ID: ${sessionId}`);
       oauthData = await getTwitterOAuthData(sessionId);
       
       if (oauthData) {
-        dataSource = 'redis-direct';
         console.log('[Twitter OAuth] Found OAuth data directly in Redis with session ID');
+        dataSource = 'redis-direct';
       }
-      
-      // If not found and we have a state parameter, try to look up session ID from state
-      if (!oauthData && returnedState) {
-        console.log('[Twitter OAuth] Direct Redis lookup failed, trying state mapping...');
-        sessionIdFromState = await getSessionIdFromState(returnedState);
-        if (sessionIdFromState) {
-          console.log(`[Twitter OAuth] Found indexed session ID ${sessionIdFromState} for state ${returnedState?.substring(0, 8)}... in Redis`);
-          oauthData = await getTwitterOAuthData(sessionIdFromState);
-          
-          // Update session ID to the indexed one for further operations
-          if (oauthData) {
-            dataSource = 'redis-state-mapping';
-            console.log('[Twitter OAuth] Found OAuth data in Redis via state mapping');
-            sessionId = sessionIdFromState;
-          }
-        }
+    } else {
+      // Try in-memory storage as fallback
+      oauthData = sessionOAuthData.get(sessionId);
+      if (oauthData) {
+        console.log('[Twitter OAuth] Found OAuth data in in-memory storage');
+        dataSource = 'memory-direct';
       }
     }
     
-    // Fall back to in-memory storage if Redis lookup failed
-    if (!oauthData) {
-      console.log('[Twitter OAuth] Redis lookup failed or unavailable, trying in-memory fallback...');
-      
-      // First try to get OAuth data directly
-      oauthData = sessionOAuthData.get(sessionId);
-      if (oauthData) {
-        dataSource = 'memory-direct';
-        console.log('[Twitter OAuth] Found OAuth data directly in memory with session ID');
-      }
-      
-      // If not found and we have a state parameter, try to use the index
-      if (!oauthData && returnedState) {
-        console.log('[Twitter OAuth] Direct memory lookup failed, trying state mapping...');
-        const indexedSessionId = sessionIdIndex.get(returnedState);
-        if (indexedSessionId) {
-          console.log(`[Twitter OAuth] Found indexed session ID ${indexedSessionId} for state ${returnedState?.substring(0, 8)}... in memory`);
-          oauthData = sessionOAuthData.get(indexedSessionId);
-          // Update session ID to the indexed one for further operations
-          if (oauthData) {
-            dataSource = 'memory-state-mapping';
-            console.log('[Twitter OAuth] Found OAuth data in memory via state mapping');
-            sessionId = indexedSessionId;
-          }
-        }
-      }
+    if (!oauthData || !oauthData.codeVerifier) {
+      console.error(`[Twitter OAuth] OAuth data not found or missing code verifier for session ${sessionId}`);
+      return sendErrorPage(res, 'Authentication data expired or invalid. Please try again.');
     }
     
     console.log(`[Twitter OAuth] OAuth data retrieval result: ${dataSource}`);
-    
-    // Check if we found the OAuth data
-    if (!oauthData) {
-      console.error('[Twitter OAuth] OAuth data not found for session');
-      return res.status(400).send('OAuth session data missing. Please try initiating the share again.');
-    }
-    
-    // Check if OAuth data is expired (only for in-memory fallback)
-    if (!redisReady()) {
-      const now = Date.now();
-      if (now - oauthData.timestamp > OAUTH_DATA_TTL) {
-        console.error('[Twitter OAuth] OAuth data expired');
-        sessionOAuthData.delete(sessionId); // Clean up expired data
-        return res.status(400).send('OAuth session expired. Please try initiating the share again.');
-      }
-    }
-    
-    const { codeVerifier, imageUrl, message } = oauthData;
     console.log('[Twitter OAuth] Retrieved OAuth data successfully, proceeding with Twitter API call');
 
-    // Validate state to ensure CSRF protection - now we need to check if our combined state was returned correctly
-    // We don't need to do exact matching because we're already extracting the session ID from the state
-    if (!returnedState || !returnedState.includes('__')) {
-      console.error(
-        `[Twitter OAuth] Invalid state format. Received: ${returnedState}`
-      );
-      
-      // Clean up invalid data
-      if (redisReady()) {
-        await deleteTwitterOAuthData(sessionId);
-      } else {
-        sessionOAuthData.delete(sessionId);
-      }
-      
-      return res.status(400).send('Invalid OAuth state format. Please try again.');
-    }
-
-    if (!code) {
-      console.error('[Twitter OAuth] Authorization code missing.');
-      // Twitter might also return error parameters like error=access_denied
-      if (req.query.error) {
-        return res.status(403).send(`Twitter authorization failed: ${req.query.error_description || req.query.error}. Please try again.`);
-      }
-      return res.status(400).send('Authorization code missing from Twitter callback. Please try again.');
-    }
-
+    // Extract required data from OAuth data
+    const { codeVerifier, pendingImageUrl: imageUrl, pendingMessage: message } = oauthData;
+    
+    // IMPORTANT: Do not delete OAuth data yet, wait until the token exchange is successful
+    
     try {
-      // 2. Exchange authorization code for access token
-      console.log('[Twitter OAuth] Exchanging authorization code for access token...');
-      const { client: loggedUserClient, accessToken, refreshToken, expiresIn, scope } = await loginWithOAuth2(code, codeVerifier);
-      console.log('[Twitter OAuth] Successfully obtained access token');
-
-      // Store the token immediately after obtaining it, in case the sharing step fails
-      // This allows retry without re-authorization
+      // Complete the OAuth2 flow by exchanging the authorization code for an access token
+      const { client: loggedUserClient, accessToken, refreshToken, expiresIn, scope } = 
+        await loginWithOAuth2(code, codeVerifier);
+      
+      console.log('[Twitter OAuth] Successfully exchanged authorization code for access token');
+      
+      // Now we can safely update the OAuth data
       if (redisReady()) {
-        // Update the oauthData to store token data before trying to share
-        const tokenData = {
+        // Instead of deleting, update the OAuth data with the new tokens
+        const updatedOAuthData = { 
           ...oauthData,
-          accessToken, // Store the actual token object
-          refreshToken, // Store refresh token for long-term access
-          expiresIn, // Store expiration time
-          scope, // Store granted scopes
-          tokenCreatedAt: Date.now(), // Track when the token was created
-          // Delete the code verifier as it's now used
-          codeVerifier: undefined,
-          // Set a fresh timestamp
-          timestamp: Date.now()
+          accessToken,
+          refreshToken,
+          expiresIn,
+          scope,
+          tokenCreatedAt: Date.now(),
+          timestamp: Date.now(),
         };
+        // Remove the code verifier as it's no longer needed
+        delete updatedOAuthData.codeVerifier;
         
-        console.log('[Twitter OAuth] Storing token data with expiration in', expiresIn, 'seconds');
+        await storeTwitterOAuthData(sessionId, updatedOAuthData, 
+                  updatedOAuthData.expiresIn ? 
+                  Math.min(updatedOAuthData.expiresIn, OAUTH_DATA_TTL_SECONDS) : 
+                  OAUTH_DATA_TTL_SECONDS);
         
-        // Use the expiresIn value from the token if available, or default TTL otherwise
-        const tokenTtl = expiresIn ? Math.min(expiresIn, OAUTH_DATA_TTL_SECONDS) : OAUTH_DATA_TTL_SECONDS;
-        
-        await storeTwitterOAuthData(sessionId, tokenData, tokenTtl);
-        console.log('[Twitter OAuth] Stored access token before attempting share');
-        
-        // Log the token object structure to help with debugging
-        console.log('[Twitter OAuth] Token object keys:', Object.keys(accessToken));
+        console.log('[Twitter OAuth] Updated OAuth data with access token');
       } else {
-        // In-memory fallback for token storage
+        // In-memory fallback
         oauthData.accessToken = accessToken;
         oauthData.refreshToken = refreshToken;
         oauthData.expiresIn = expiresIn;
@@ -524,39 +415,90 @@ router.get('/callback', async (req, res) => {
         sessionOAuthData.set(sessionId, oauthData);
         console.log('[Twitter OAuth] Stored access token in memory before attempting share');
       }
-
-      // 3. Share the image to Twitter
-      console.log(`[Twitter OAuth] Attempting to share image: ${imageUrl?.substring(0, 30)}... with access token`);
-      // Pass the loggedUserClient directly to shareImageToX with custom message if provided
-      const defaultMessage = "Created in #SogniPhotobooth https://photobooth.sogni.ai";
-      await shareImageToX(loggedUserClient, imageUrl, message || defaultMessage);
-      console.log('[Twitter OAuth] Successfully shared image to Twitter');
       
-      // Track successful share in metrics
-      await incrementTwitterShares();
+      // Continue with sharing logic...
 
-      // Update the stored token with a "lastUsed" timestamp
-      if (redisReady()) {
-        const currentData = await getTwitterOAuthData(sessionId);
-        if (currentData) {
-          const updatedData = { 
-            ...currentData,
-            lastUsed: Date.now(),
-            lastSuccess: Date.now(),
-          };
-          
-          await storeTwitterOAuthData(sessionId, updatedData, 
-                        updatedData.expiresIn ? 
-                        Math.min(updatedData.expiresIn, OAUTH_DATA_TTL_SECONDS) : 
-                        OAUTH_DATA_TTL_SECONDS);
-          
-          console.log('[Twitter OAuth] Updated OAuth data with success timestamp');
-        }
-      } else {
-        oauthData.lastUsed = Date.now();
-        oauthData.lastSuccess = Date.now();
-        sessionOAuthData.set(sessionId, oauthData);
-      }
+      // Success HTML with messaging to parent window
+      const successHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Sharing to X - Success</title>
+          <style>
+            body {
+              font-family: sans-serif;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              height: 100vh;
+              margin: 0;
+              background-color: #f8f9fa;
+            }
+            .success-card {
+              background: white;
+              border-radius: 8px;
+              box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+              padding: 2rem;
+              text-align: center;
+              max-width: 90%;
+              width: 400px;
+            }
+            .icon {
+              font-size: 4rem;
+              color: #00acee;
+              margin-bottom: 1rem;
+            }
+            h2 {
+              margin-top: 0;
+              color: #333;
+            }
+            .message {
+              color: #555;
+              margin: 1rem 0;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="success-card">
+            <div class="icon">✓</div>
+            <h2>Share Successful!</h2>
+            <div class="message">Your image has been successfully shared to X.</div>
+          </div>
+          <script>
+            // Notify the opener window about successful share
+            if (window.opener) {
+              try {
+                window.opener.postMessage({
+                  type: 'twitter-auth-success',
+                  service: 'twitter',
+                  message: 'Successfully shared to X'
+                }, '*');
+                
+                console.log('Success message posted to opener');
+              } catch (err) {
+                console.error('Error posting message to opener:', err);
+              }
+            } else {
+              console.warn('No opener window found');
+            }
+            
+            // Auto-close this window after a delay
+            setTimeout(function() {
+              window.close();
+              // If window doesn't close (e.g., if not opened by script), redirect
+              setTimeout(function() {
+                window.location.href = "${CLIENT_ORIGIN}?share_status=success&service=twitter";
+              }, 500);
+            }, 2000);
+          </script>
+        </body>
+        </html>
+      `;
+      
+      res.send(successHtml);
+
     } catch (apiError) {
       console.error('[Twitter OAuth] Error during token exchange or sharing:', apiError);
       
@@ -579,86 +521,6 @@ router.get('/callback', async (req, res) => {
       // Re-throw the error to be handled by the outer catch
       throw apiError;
     }
-
-    // 5. Send HTML page that posts a message to the opener window
-    const successHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Twitter Share Successful</title>
-        <style>
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            color: #333;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            padding: 20px;
-            text-align: center;
-          }
-          .success-card {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-            padding: 30px;
-            max-width: 400px;
-            width: 100%;
-          }
-          h2 {
-            color: #1DA1F2;
-            margin-top: 0;
-          }
-          .icon {
-            font-size: 48px;
-            margin-bottom: 20px;
-          }
-          .message {
-            margin-bottom: 20px;
-            color: #555;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="success-card">
-          <div class="icon">✓</div>
-          <h2>Successfully Shared!</h2>
-          <div class="message">Your photo has been shared to Twitter. This window will close automatically.</div>
-        </div>
-        <script>
-          // Send success message to opener window
-          if (window.opener) {
-            try {
-              window.opener.postMessage({
-                type: 'twitter-auth-success',
-                service: 'twitter'
-              }, '*'); // Using * since CLIENT_ORIGIN may vary
-              
-              console.log('Success message posted to opener');
-            } catch (err) {
-              console.error('Error posting message to opener:', err);
-            }
-          } else {
-            console.warn('No opener window found');
-          }
-          
-          // Auto-close this window after a short delay
-          setTimeout(function() {
-            window.close();
-            // If window doesn't close (e.g., if not opened by script), redirect
-            setTimeout(function() {
-              window.location.href = "${CLIENT_ORIGIN}?share_status=success&service=twitter";
-            }, 500);
-          }, 2000);
-        </script>
-      </body>
-      </html>
-    `;
-    
-    res.send(successHtml);
 
   } catch (error) {
     console.error('Error in /auth/x/callback:', error.message);

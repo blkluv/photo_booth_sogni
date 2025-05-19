@@ -459,3 +459,33 @@ export const getClientFromToken = (accessToken) => {
     throw new Error(`Failed to initialize Twitter client: ${error.message}`);
   }
 };
+
+/**
+ * Refresh an OAuth2 token using the refresh token
+ * @param {string} refreshToken - The refresh token to use
+ * @returns {Promise<object>} New token data or null if refresh failed
+ */
+export const refreshOAuth2Token = async (refreshToken) => {
+  if (!refreshToken) {
+    console.error('[Twitter] No refresh token provided');
+    return null;
+  }
+  
+  try {
+    console.log('[Twitter] Attempting to refresh OAuth2 token');
+    const { client: refreshedClient, accessToken, refreshToken: newRefreshToken, expiresIn } = 
+      await appOnlyClient.refreshOAuth2Token(refreshToken);
+    
+    console.log('[Twitter] Successfully refreshed OAuth2 token');
+    return { 
+      client: refreshedClient, 
+      accessToken, 
+      refreshToken: newRefreshToken, 
+      expiresIn,
+      tokenCreatedAt: Date.now()
+    };
+  } catch (error) {
+    console.error('[Twitter] Failed to refresh OAuth2 token:', error);
+    return null;
+  }
+};
