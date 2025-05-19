@@ -421,13 +421,40 @@ router.post('/generate', ensureSessionId, async (req, res) => {
       .catch(error => {
         console.error(`ERROR - ${new Date().toISOString()} - [${localProjectId}] Sogni SDK (generateImage function) promise rejected:`, error);
         console.error(`[${localProjectId}] Sogni generation process failed:`, error);
+        
+        // Check if this is an authentication error
+        const isAuthError = error.status === 401 || 
+                           (error.payload && error.payload.errorCode === 107) || 
+                           error.message?.includes('Invalid token');
+        
+        if (isAuthError) {
+          console.log(`[${localProjectId}] Authentication error detected, will clean up client to force re-authentication on next request`);
+          
+          // Get the client ID associated with this session
+          const sessionId = req.sessionId;
+          if (sessionId && sessionClients.has(sessionId)) {
+            const clientId = sessionClients.get(sessionId);
+            
+            // Force client cleanup to trigger re-authentication on next request
+            console.log(`[${localProjectId}] Forcing cleanup of client ${clientId} due to auth error`);
+            cleanupSogniClient(clientId);
+            
+            // Remove the session-to-client mapping to force new client creation
+            sessionClients.delete(sessionId);
+          }
+        }
+        
         if (activeProjects.has(localProjectId)) {
           const clients = activeProjects.get(localProjectId);
           const errorEvent = { 
             type: 'error', 
             projectId: localProjectId,
             message: error.message || 'Image generation failed',
-            details: error.toString() // Include more error details
+            details: error.toString(),
+            errorCode: isAuthError ? 'auth_error' : 
+                     (error.payload?.errorCode ? `api_error_${error.payload.errorCode}` : 'unknown_error'),
+            status: error.status || 500,
+            isAuthError: isAuthError
           };
           console.log(`[${localProjectId}] Sending 'error' event to ${clients.size} SSE client(s):`, JSON.stringify(errorEvent));
           clients.forEach((client) => {
