@@ -2678,12 +2678,6 @@ const App = () => {
           .fade-in {
             transition: opacity 0.5s !important;
           }
-          
-          /* Target image fade-in animation */
-          @keyframes targetImageFadeIn {
-            from { opacity: 0.2; }
-            to { opacity: 1; }
-          }
 
           /* ------- UPDATED: Improve Film Frame Hover Effects ------- */
           .film-frame {

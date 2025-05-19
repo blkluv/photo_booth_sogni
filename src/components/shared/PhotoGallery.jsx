@@ -35,7 +35,6 @@ const PhotoGallery = ({
   
   const squareStyle = {
     width: '100%',
-    maxWidth: '240px',
     margin: '0 auto',
     backgroundColor: 'white',
   };
@@ -709,8 +708,7 @@ const PhotoGallery = ({
                     position: 'relative',
                     top: 0,
                     left: 0,
-                    display: 'block',
-                    animation: 'targetImageFadeIn 0.3s ease-in forwards'
+                    display: 'block'
                   }}
                 />
               </div>
