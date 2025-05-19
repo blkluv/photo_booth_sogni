@@ -100,6 +100,10 @@
       text-align: center !important;
       font-size: 16px !important;
     }
+
+    .film-frame:not(.selected) .photo-label {
+      bottom: 20px !important;
+    }
     
     /* Hide back to camera button when a photo is selected */
     .film-strip-container.has-selected .back-to-camera-btn {
