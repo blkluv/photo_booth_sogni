@@ -313,12 +313,14 @@ export const shareImageToX = async (userClient, imageUrl, tweetText = "") => {
     // Post the tweet with the media using enhanced error handling
     console.log('Posting tweet...');
     try {
+      /*
       console.log(`Attempting to post tweet with text: "${tweetText}" and media ID: ${mediaId}`);
       console.log('Tweet request payload:', JSON.stringify({
         text: tweetText,
         media: { media_ids: [mediaId] },
       }, null, 2));
-      
+      */
+
       // Perform the tweet request with better error handling
       let rawTweetResult;
       try {
@@ -327,8 +329,8 @@ export const shareImageToX = async (userClient, imageUrl, tweetText = "") => {
           media: { media_ids: [mediaId] },
         });
         
-        console.log('Raw tweet response type:', typeof rawTweetResult);
-        console.log('Raw tweet response:', JSON.stringify(rawTweetResult, null, 2));
+        // console.log('Raw tweet response type:', typeof rawTweetResult);
+        // console.log('Raw tweet response:', JSON.stringify(rawTweetResult, null, 2));
       } catch (tweetApiError) {
         console.error('Tweet API call failed with error:', tweetApiError);
         console.error('Tweet API error details:', tweetApiError.message);
@@ -426,21 +428,16 @@ export const getClientFromToken = (accessToken) => {
   console.log('[Twitter] Creating client from stored access token');
   
   try {
-    // Log token type for debugging
-    console.log('[Twitter] Token type:', typeof accessToken);
     
     // Handle different token formats (string or object)
     let tokenToUse = accessToken;
     
     // If it's an object with token properties, use those
     if (typeof accessToken === 'object' && accessToken.token) {
-      console.log('[Twitter] Using token.token property');
       tokenToUse = accessToken.token;
     } else if (typeof accessToken === 'object' && typeof accessToken.token_type === 'string') {
-      console.log('[Twitter] Using token object directly');
       // It's already in the correct format
     } else if (typeof accessToken === 'string') {
-      console.log('[Twitter] Using string token');
     } else {
       console.log('[Twitter] Unknown token format, trying to use as-is');
       console.log('[Twitter] Token keys:', Object.keys(accessToken));

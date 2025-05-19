@@ -709,7 +709,9 @@ export async function generateImage(client, params, progressCallback) {
         return;
       }
       
-      console.log(`Job event for project ${projectId}: "${event.type}" payload:`, event);
+      if (event.type !== 'progress') {
+        console.log(`Job event for project ${projectId}: "${event.type}" payload:`, event);
+      }
       /* Example of each event we can expect:
       {
         type: 'initiating',

@@ -93,7 +93,7 @@ export const storeTwitterOAuthData = async (sessionId, oauthData, ttlSeconds = 9
   try {
     const key = `${TWITTER_OAUTH_PREFIX}${sessionId}`;
     await redisClient.set(key, JSON.stringify(oauthData), { EX: ttlSeconds });
-    console.log(`[Redis] Stored Twitter OAuth data for session ${sessionId} with TTL ${ttlSeconds}s`);
+    // console.log(`[Redis] Stored Twitter OAuth data for session ${sessionId} with TTL ${ttlSeconds}s`);
     
     if (VERBOSE_LOGGING) {
       console.log(`[Redis] OAuth data for ${sessionId}:`, {
