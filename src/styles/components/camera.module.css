@@ -822,12 +822,3 @@
     opacity: 0;
   }
 }
-
-.polaroidFrame .imageWrapper > img,
-.polaroidFrame .imageWrapper > video,
-.cameraView > video,
-:global(.film-frame img),
-:global(.film-frame.selected img) {
-  box-shadow: 0 2px 16px 0 rgba(0,0,0,0.22) inset, 0 1.5px 0 #e5e5e5 inset, 0 0.5px 2px #fff inset !important;
-  border-radius: 4px !important;
-} 

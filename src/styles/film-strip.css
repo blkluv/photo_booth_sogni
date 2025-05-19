@@ -391,15 +391,16 @@
   max-height: 82vh !important;
   object-fit: contain !important;
   aspect-ratio: auto !important;
-  border-radius: 2px !important; /* Less rounded corners */
+  border-radius: 2px !important;
   box-shadow: 0 8px 30px rgba(0,0,0,0.18) !important;
   border-left: 22px solid white !important;
   border-right: 22px solid white !important;
   border-top: 22px solid white !important;
-  border-bottom: 120px solid white !important; /* Increased bottom border */
+  border-bottom: 120px solid white !important;
   margin: 0 auto !important;
   display: block !important;
   transition: none !important;
+  background: white !important; /* Add white background to prevent black showing through */
 }
 
 /* Add responsive styles for selected photo view on mobile/portrait */
@@ -423,10 +424,12 @@
     border-left: 18px solid white !important;
     border-right: 18px solid white !important;
     border-top: 18px solid white !important;
-    border-bottom: 80px solid white !important; /* Adjusted for better portrait appearance */
-    max-width: 100% !important; /* Ensure it fits on mobile screens */
+    border-bottom: 80px solid white !important;
+    max-width: 100% !important;
     max-height: 80vh !important;
     width: 100% !important;
+    background: white !important; /* Add white background to prevent black showing through */
+    box-sizing: border-box !important; /* Ensure borders are included in width calculation */
   }
   
   /* Adjust button styling for mobile */
@@ -454,6 +457,16 @@
   }
   .back-to-camera-btn {
     z-index: 998 !important;
+  }
+}
+
+/* Chrome-specific fixes for mobile */
+@media (max-width: 768px) and (-webkit-min-device-pixel-ratio: 0) {
+  .film-frame.selected img {
+    width: 100% !important; /* Force full width in Chrome */
+    box-sizing: border-box !important;
+    background: white !important;
+    object-position: center !important; /* Keep image centered */
   }
 }
 
