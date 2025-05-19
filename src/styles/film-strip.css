@@ -157,37 +157,14 @@
   transition: opacity 100ms ease-in !important;
 }
 
-/* Make placeholder pulse animation VERY prominent and visible */
-.film-frame.loading .placeholder-image,
-.film-frame.loading[data-fadepolaroid="true"] .placeholder,
-.film-frame.loading .placeholder {
-  animation: none !important;
-  opacity: 0.2 !important;
-  will-change: opacity !important;
+.film-frame.loading.selected img {
+  opacity: 1 !important;
 }
 
 /* Prevent darkening during enhancement specifically */
 .film-frame.selected[data-enhancing="true"] img {
   opacity: 1 !important;
   filter: none !important;
-}
-
-/* Fix the loading animation for polaroids */
-.film-frame.loading[data-fadepolaroid="true"] .placeholder {
-  animation: placeholderPulse 3s ease-in-out infinite !important;
-}
-
-/* Replace the old polaroid fade animation with our new smoother one */
-@keyframes polaroidFadeInOut {
-  0% { opacity: 0.1; }
-  50% { opacity: 0.2; }
-  100% { opacity: 0.1; }
-}
-
-/* Hide REF label and stack count, we'll use photo-label instead */
-.film-frame .ref-label,
-.film-frame .stack-count {
-  display: none !important;
 }
 
 /* Add label for each photo in the polaroid white space */
@@ -334,60 +311,6 @@
   -webkit-backface-visibility: hidden !important;
 }
 
-/* Add scroll indicator */
-.scroll-indicator {
-  position: fixed;
-  bottom: 20px;
-  right: 20px; /* Position to bottom right since button is now bottom left */
-  width: 50px;
-  height: 50px;
-  background-color: rgba(255, 51, 102, 0.9);
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-  z-index: 1100;
-  cursor: pointer;
-  animation: bounce 2s infinite;
-  transition:
-    transform 0.2s ease,
-    background-color 0.2s ease;
-  transform: none; /* Reset transform */
-}
-
-.scroll-indicator:hover {
-  background-color: rgba(255, 51, 102, 1);
-  transform: scale(1.1);
-}
-
-.scroll-indicator:active {
-  transform: scale(0.95);
-}
-
-.scroll-indicator::before {
-  content: "↓";
-  color: white;
-  font-size: 30px;
-  font-weight: bold;
-}
-
-@keyframes bounce {
-  0%,
-  20%,
-  50%,
-  80%,
-  100% {
-    transform: translateY(0);
-  }
-  40% {
-    transform: translateY(-15px);
-  }
-  60% {
-    transform: translateY(-7px);
-  }
-}
-
 /* Remove the "hovered" class approach completely and use only pure CSS */
 .film-frame:hover {
   transform: translateY(-10px) translateZ(0) !important;
@@ -439,26 +362,6 @@
   margin: 0 auto !important;
 }
 
-/* Add a progress indicator */
-.film-frame.selected[data-enhancing="true"]::before {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #FF3366 0%, #ff5e8a 100%);
-  z-index: 100000;
-  animation: progressPulse 1.5s infinite;
-  width: var(--enhance-progress, 0%);
-  transition: width 0.5s ease;
-}
-
-@keyframes progressPulse {
-  0% { opacity: 0.7; }
-  50% { opacity: 1; }
-  100% { opacity: 0.7; }
-}
-
 /* Smooth grid rearrangement */
 .film-strip-content.has-selected .film-frame:not(.selected) {
   filter: blur(4px) brightness(0.7);
@@ -488,7 +391,6 @@
   max-height: 82vh !important;
   object-fit: contain !important;
   aspect-ratio: auto !important;
-  background: transparent !important;
   border-radius: 2px !important; /* Less rounded corners */
   box-shadow: 0 8px 30px rgba(0,0,0,0.18) !important;
   border-left: 22px solid white !important;
@@ -568,7 +470,7 @@
   visibility: hidden;
   transition: opacity 0.5s cubic-bezier(0.2, 0, 0.2, 1);
   pointer-events: none;
-  z-index: 9997;
+  z-index: 9990;
 }
 
 .film-strip-container.has-selected::before {
@@ -697,30 +599,9 @@
   }
 }
 
-/* Restore the placeholder animation, making sure it works */
-.film-frame.loading .placeholder-image,
-.film-frame.loading[data-fadepolaroid="true"] .placeholder,
-.film-frame.loading .placeholder {
-  animation: placeholderPulse 2s ease-in-out infinite !important;
-  opacity: 0.2 !important;
-  will-change: opacity !important;
-}
-
-/* Updated placeholder animation */
-@keyframes placeholderPulse {
-  0% { opacity: 0.05 !important; }
-  50% { opacity: 0.2 !important; }
-  100% { opacity: 0.05 !important; }
-}
-
 /* Add a fade-in animation for loaded images */
 .film-frame img:not(.placeholder) {
   transition: opacity 0.3s ease-in !important;
-}
-
-/* Ensure the placeholder has correct opacity without animation too */
-.placeholder {
-  opacity: 0.2 !important;
 }
 
 /* Add button click behavior */
@@ -767,23 +648,30 @@
 }
 
 /* Stagger the animation for each frame */
-.film-strip-container.visible .film-frame:nth-child(1) { animation-delay: 0.2s; }
-.film-strip-container.visible .film-frame:nth-child(2) { animation-delay: 0.25s; }
-.film-strip-container.visible .film-frame:nth-child(3) { animation-delay: 0.3s; }
-.film-strip-container.visible .film-frame:nth-child(4) { animation-delay: 0.35s; }
-.film-strip-container.visible .film-frame:nth-child(5) { animation-delay: 0.4s; }
-.film-strip-container.visible .film-frame:nth-child(6) { animation-delay: 0.45s; }
-.film-strip-container.visible .film-frame:nth-child(7) { animation-delay: 0.5s; }
-.film-strip-container.visible .film-frame:nth-child(8) { animation-delay: 0.55s; }
-.film-strip-container.visible .film-frame:nth-child(9) { animation-delay: 0.6s; }
-.film-strip-container.visible .film-frame:nth-child(10) { animation-delay: 0.65s; }
-.film-strip-container.visible .film-frame:nth-child(11) { animation-delay: 0.7s; }
-.film-strip-container.visible .film-frame:nth-child(12) { animation-delay: 0.75s; }
-.film-strip-container.visible .film-frame:nth-child(13) { animation-delay: 0.8s; }
-.film-strip-container.visible .film-frame:nth-child(14) { animation-delay: 0.85s; }
-.film-strip-container.visible .film-frame:nth-child(15) { animation-delay: 0.9s; }
-.film-strip-container.visible .film-frame:nth-child(16) { animation-delay: 0.95s; }
-.film-strip-container.visible .film-frame:nth-child(17) { animation-delay: 1s; }
+.film-strip-container.visible .film-frame:nth-child(1) { animation-delay: .25s; }
+.film-strip-container.visible .film-frame:nth-child(2) { animation-delay: .5s; }
+.film-strip-container.visible .film-frame:nth-child(3) { animation-delay: .75s; }
+.film-strip-container.visible .film-frame:nth-child(4) { animation-delay: 1s; }
+.film-strip-container.visible .film-frame:nth-child(5) { animation-delay: 1.25s; }
+.film-strip-container.visible .film-frame:nth-child(6) { animation-delay: 1.5s; }
+.film-strip-container.visible .film-frame:nth-child(7) { animation-delay: 1.75s; }
+.film-strip-container.visible .film-frame:nth-child(8) { animation-delay: 2s; }
+.film-strip-container.visible .film-frame:nth-child(9) { animation-delay: 2.25s; }
+.film-strip-container.visible .film-frame:nth-child(10) { animation-delay: 2.5s; }
+.film-strip-container.visible .film-frame:nth-child(11) { animation-delay: 2.75s; }
+.film-strip-container.visible .film-frame:nth-child(12) { animation-delay: 3s; }
+.film-strip-container.visible .film-frame:nth-child(13) { animation-delay: 3.25s; }
+.film-strip-container.visible .film-frame:nth-child(14) { animation-delay: 3.5s; }
+.film-strip-container.visible .film-frame:nth-child(15) { animation-delay: 3.75s; }
+.film-strip-container.visible .film-frame:nth-child(16) { animation-delay: 4s; }
+.film-strip-container.visible .film-frame:nth-child(17) { animation-delay: 4.25s; }
+.film-strip-container.visible .film-frame:nth-child(18) { animation-delay: 4.5s; }
+.film-strip-container.visible .film-frame:nth-child(19) { animation-delay: 4.75s; }
+.film-strip-container.visible .film-frame:nth-child(20) { animation-delay: 5s; }
+.film-strip-container.visible .film-frame:nth-child(21) { animation-delay: 5.25s; }
+.film-strip-container.visible .film-frame:nth-child(22) { animation-delay: 5.5s; }
+.film-strip-container.visible .film-frame:nth-child(23) { animation-delay: 5.75s; }
+.film-strip-container.visible .film-frame:nth-child(24) { animation-delay: 6s; }
 
 /* Add particle effect for the hiding transition */
 .film-strip-container.hiding::before {

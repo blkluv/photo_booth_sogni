@@ -613,15 +613,12 @@ const PhotoGallery = ({
               <div
                 key={photo.id}
                 className={`film-frame loading ${isSelected ? 'selected' : ''}`}
-                data-fadepolaroid={photo.loading && !photo.error ? 'true' : undefined}
                 data-enhancing={photo.enhancing ? 'true' : undefined}
                 data-error={photo.error ? 'true' : undefined}
                 data-enhanced={photo.enhanced ? 'true' : undefined}
-                data-progress={Math.floor(photo.progress) || 0}
                 onClick={() => isSelected ? setSelectedPhotoIndex(null) : setSelectedPhotoIndex(index)}
                 style={{
                   ...squareStyle,
-                  '--enhance-progress': photo.progress ? `${Math.floor(photo.progress)}%` : '0%',
                   position: 'relative',
                   borderRadius: '3px',
                   padding: '12px',
@@ -643,8 +640,7 @@ const PhotoGallery = ({
                         position: 'relative',
                         top: 0,
                         left: 0,
-                        opacity: 0.7,
-                        animation: photo.error ? '' : 'placeholderPulse 2s ease-in-out infinite',
+                        opacity: 0.25,
                         zIndex: 1
                       }}
                     />
@@ -672,7 +668,6 @@ const PhotoGallery = ({
               data-enhanced={photo.enhanced ? 'true' : undefined}
               style={{
                 ...squareStyle,
-                '--enhance-progress': photo.progress ? `${Math.floor(photo.progress)}%` : '0%',
                 position: 'relative',
                 borderRadius: '3px',
                 padding: '12px',

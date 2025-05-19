@@ -2589,29 +2589,13 @@ const App = () => {
           }
           
           .film-frame.loading img {
-            transition: opacity 0.5s;
-            opacity: 0.3 !important;
+            transition: opacity 5s;
           }
-          
-          /* Set opacity based on progress attribute */
-          .film-frame.loading[data-progress="0"] img { opacity: 0 !important; }
-          .film-frame.loading[data-progress="10"] img { opacity: 0.05 !important; }
-          .film-frame.loading[data-progress="20"] img { opacity: 0.10 !important; }
-          .film-frame.loading[data-progress="30"] img { opacity: 0.15 !important; }
-          .film-frame.loading[data-progress="40"] img { opacity: 0.20 !important; }
-          .film-frame.loading[data-progress="50"] img { opacity: 0.25 !important; }
-          .film-frame.loading[data-progress="60"] img { opacity: 0.30 !important; }
-          .film-frame.loading[data-progress="70"] img { opacity: 0.35 !important; }
-          .film-frame.loading[data-progress="80"] img { opacity: 0.40 !important; }
-          .film-frame.loading[data-progress="90"] img { opacity: 0.45 !important; }
-          .film-frame.loading[data-progress="100"] img { opacity: 0.50 !important; }
-          
+                    
           /* Fallback image styling */
           .film-frame[data-error="true"] img,
           .film-frame img.fallback {
-            opacity: 0.7 !important;
             filter: grayscale(20%) !important;
-            border-top: 2px solid #ff9800 !important;
           }
           
           /* ------- FIX 5: Slideshow Polaroid frame ------- */
@@ -2693,13 +2677,6 @@ const App = () => {
           }
           .fade-in {
             transition: opacity 0.5s !important;
-          }
-          
-          /* Add placeholder pulse animation */
-          @keyframes placeholderPulse {
-            0% { opacity: 0.05; }
-            50% { opacity: 0.2; }
-            100% { opacity: 0.05; }
           }
           
           /* Target image fade-in animation */
@@ -2817,13 +2794,6 @@ const App = () => {
             100% {
               background-position: 0% 0%, 0 0, 0 0;
             }
-          }
-          
-          /* Add animation for progress value changes */
-          @keyframes progressPulse {
-            0% { opacity: 0.2; }
-            50% { opacity: 1; }
-            100% { opacity: 0.2; }
           }
         `;
         
