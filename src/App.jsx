@@ -947,8 +947,15 @@ const App = () => {
       });
 
       // Project level events
-      project.on('progress', (progress) => {
-        console.log('Project progress:', progress);
+      project.on('progress', (progressEvent) => {
+        console.log(`Progress event for project ${project.id}:`, progressEvent);
+        
+        // Check if there's a mismatch between event project ID and current project ID
+        if (progressEvent.projectId && progressEvent.projectId !== project.id) {
+          console.warn(`Project ID mismatch! Event: ${progressEvent.projectId}, Current: ${project.id}`);
+        }
+        
+        // Rest of progress handling
       });
 
       project.on('completed', () => {
@@ -958,17 +965,33 @@ const App = () => {
 
       project.on('failed', (error) => {
         console.error('Project failed:', error);
-        activeProjectReference.current = null; // Clear active project reference when failed
         
-        // Update the state for photos that were part of this failed project
+        // Get the failed project's ID from the project or error object
+        const failedProjectId = project.id;
+        // Check if error has a projectId property that might override the project.id
+        const errorProjectId = error && typeof error === 'object' && 'projectId' in error ? 
+          error.projectId : null;
+        
+        // Use error's projectId if available, otherwise fallback to project.id
+        const effectiveProjectId = errorProjectId || failedProjectId;
+        
+        console.log(`Project failed with ID ${effectiveProjectId}`);
+        
+        // Only clear active project reference if it matches the failed project
+        if (activeProjectReference.current && activeProjectReference.current.id === effectiveProjectId) {
+          console.log(`Clearing active project reference for failed project ${effectiveProjectId}`);
+          activeProjectReference.current = null;
+        } else {
+          console.log(`Failed project ${effectiveProjectId} is not the active project, not clearing reference`);
+        }
+        
+        // Update the state for photos that belong to this failed project only
         setPhotos(prevPhotos => {
           return prevPhotos.map(photo => {
-            // Check if this photo was part of the project that just failed
-            // This is a bit tricky as the project 'failed' event doesn't carry job IDs.
-            // We'll assume any photo currently marked as 'generating' is part of the failed project.
-            // A more robust solution might involve tracking which photo IDs belong to which project ID.
-            if (photo.generating) {
-              console.log(`Marking photo ${photo.id} as failed due to project failure`);
+            // Only mark photos as failed if they belong to this specific project
+            // and are still in generating state
+            if (photo.generating && photo.projectId === effectiveProjectId) {
+              console.log(`Marking photo ${photo.id} as failed due to project ${effectiveProjectId} failure`);
               return {
                 ...photo,
                 generating: false,

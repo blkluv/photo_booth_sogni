@@ -583,7 +583,10 @@ export class BackendSogniClient {
               break;
               
             case 'failed': // Project level failure
-              project.emit('failed', new Error(event.error as string || 'Project failed'));
+              const failureError = new Error(event.error as string || 'Project failed');
+              // Attach the project ID to the error object for proper identification
+              (failureError as any).projectId = project.id;
+              project.emit('failed', failureError);
               break;
               
             // Ignore project-progress and connected types here, handled elsewhere or implicitly
@@ -594,9 +597,15 @@ export class BackendSogniClient {
             case 'error': // Handle error event from backend
               console.error(`Backend reported an error for project ${project.id}:`, event);
               const backendErrorMessage = event.message as string || 'Backend generation error';
-              // Emit a 'failed' event with the error message
-              project.emit('failed', new Error(backendErrorMessage));
-              // Also fail any pending jobs associated with this project
+              
+              // Create an error object that includes the project ID
+              const errorWithContext = new Error(backendErrorMessage);
+              (errorWithContext as any).projectId = project.id; // Add project ID to error object
+              
+              // Emit a 'failed' event with the error message and project context
+              project.emit('failed', errorWithContext);
+              
+              // Only fail jobs associated with this specific project
               project.jobs.forEach(job => {
                 if (!job.resultUrl && !job.error) {
                   project.failJob(job.id, backendErrorMessage);

@@ -51,7 +51,7 @@ export const enhancePhoto = async (options) => {
         enhancing: true,
         progress: 0,
         error: null, // Clear any previous errors
-        originalEnhancedImage: originalImage || updated[photoIndex].originalEnhancedImage // Store original for undo
+        originalEnhancedImage: originalImage || updated[photoIndex].originalEnhancedImage, // Store original for undo
       };
       return updated;
     });
@@ -79,6 +79,18 @@ export const enhancePhoto = async (options) => {
       // Track progress
       onSetActiveProject(project.id);
       console.log(`[ENHANCE] Project created with ID: ${project.id}`);
+      
+      // Now update with project ID after creation
+      setPhotos(prev => {
+        const updated = [...prev];
+        if (!updated[photoIndex]) return prev;
+        
+        updated[photoIndex] = {
+          ...updated[photoIndex],
+          projectId: project.id // Store the project ID for proper failure handling
+        };
+        return updated;
+      });
       
       // Set up listeners for the backend proxy client
       project.on('progress', (progress) => {
