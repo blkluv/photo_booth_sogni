@@ -28,7 +28,7 @@
     "start:prod": "node server/index.js & vite preview"
   },
   "dependencies": {
-    "@sogni-ai/sogni-client": "3.0.0-alpha.18",
+    "@sogni-ai/sogni-client": "3.0.0-alpha.28",
     "@types/uuid": "^10.0.0",
     "canvas": "^2.11.2",
     "concurrently": "^8.2.2",
