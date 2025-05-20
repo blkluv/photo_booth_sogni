@@ -684,13 +684,94 @@ export async function generateImage(client, params, progressCallback) {
           progressEvent = {
             type: 'completed',
           };
-          break;
+          
+          // Check if all expected jobs are completed
+          if (project) {
+            // Get the expected number of jobs from the project
+            const expectedJobs = project.numberOfImages || project.jobs?.length || 0;
+            
+            // Count how many jobs actually completed
+            let completedJobs = project.jobs?.filter(job => 
+              job.status === 'completed' || job.resultUrl
+            ).length || 0;
+            
+            // Initialize a set to track job IDs that completed outside REST data
+            if (!project._extraCompletedJobIds) {
+              project._extraCompletedJobIds = new Set();
+            }
+            
+            // Delay cleanup to allow any in-flight job completions to arrive
+            setTimeout(() => {
+              let completedJobs = project.jobs?.filter(job => 
+                job.status === 'completed' || job.resultUrl
+              ).length || 0;
+
+                // Log completion status
+              console.log(`Project ${projectId} completed: ${completedJobs}/${expectedJobs} jobs finished`);
+              
+              // If we're missing jobs, log a warning
+              if (completedJobs < expectedJobs) {
+                console.warn(`Project ${projectId} completed with missing jobs: ${completedJobs}/${expectedJobs}`);
+                progressEvent.missingJobs = {
+                  expected: expectedJobs,
+                  completed: completedJobs
+                };
+              }
+              
+              // Add the imageUrls to the completion event
+              const imageUrls = project.jobs
+                ?.filter(job => job.resultUrl)
+                .map(job => job.resultUrl) || [];
+              
+              if (imageUrls.length > 0) {
+                progressEvent.imageUrls = imageUrls;
+              }
+              
+              // Set a flag to indicate the project has received completion event
+              project._receivedCompletionEvent = true;
+
+              // Check if we've received any extra completed jobs after project completion
+              if (project._extraCompletedJobIds && project._extraCompletedJobIds.size > 0) {
+                console.log(`Received ${project._extraCompletedJobIds.size} additional job completions after project completed`);
+              }
+              
+              // Remove project-specific handlers
+              if (client._eventHandlers.projectHandlers.has(projectId)) {
+                const handler = client._eventHandlers.projectHandlers.get(projectId);
+                client.projects.off('project', handler);
+                client._eventHandlers.projectHandlers.delete(projectId);
+                console.log(`Cleaned up project event handler for ${projectId}`);
+              }
+              
+              if (client._eventHandlers.jobHandlers.has(projectId)) {
+                const handler = client._eventHandlers.jobHandlers.get(projectId);
+                client.projects.off('job', handler);
+                client._eventHandlers.jobHandlers.delete(projectId);
+                console.log(`Cleaned up job event handler for ${projectId}`);
+              }
+            }, completedJobs < expectedJobs ? 2000 : 0); // Longer delay to ensure any final events are processed
+          }
+          break;  
         case 'error':
         case 'failed':
           progressEvent = { 
             type: 'failed',
             error: event.message || event.error || 'Unknown job error'
           };
+          
+          // Add explicit tracking for expected vs actual job count
+          if (project && project.jobCount !== undefined) {
+            const actualJobsStarted = project.jobs ? project.jobs.length : 0;
+            if (actualJobsStarted < project.jobCount) {
+              console.warn(`Project ${projectId} failed with job count mismatch: ${actualJobsStarted}/${project.jobCount} jobs started`);
+              
+              // Include the job count mismatch in the error event
+              progressEvent.jobCountMismatch = {
+                expected: project.jobCount,
+                actual: actualJobsStarted
+              };
+            }
+          }
           break;  
         default:
           console.warn(`Unknown project event type: ${event.type}`);
@@ -778,6 +859,25 @@ export async function generateImage(client, params, progressCallback) {
             positivePrompt: event.positivePrompt,
             jobIndex: event.jobIndex
           };
+          
+          // Track job completion in the project
+          if (project) {
+            // First, check if this job is in the project's job list
+            const jobInList = project.jobs?.some(job => job.id === event.jobId);
+            
+            if (!jobInList) {
+              console.warn(`Job with id ${event.jobId} not found in the project data.`);
+              
+              // If the project has already received its completion event, track this as an extra
+              if (project._receivedCompletionEvent) {
+                if (!project._extraCompletedJobIds) {
+                  project._extraCompletedJobIds = new Set();
+                }
+                project._extraCompletedJobIds.add(event.jobId);
+                console.log(`Added job ${event.jobId} to extra completed jobs after project completion`);
+              }
+            }
+          }
           break;
         case 'failed':
         case 'error':
@@ -785,6 +885,20 @@ export async function generateImage(client, params, progressCallback) {
             type: 'jobFailed',
             error: event.message || event.error || 'Unknown job error'
           };
+          
+          // Add explicit tracking for expected vs actual job count
+          if (project && project.jobCount !== undefined) {
+            const actualJobsStarted = project.jobs ? project.jobs.length : 0;
+            if (actualJobsStarted < project.jobCount) {
+              console.warn(`Project ${projectId} failed with job count mismatch: ${actualJobsStarted}/${project.jobCount} jobs started`);
+              
+              // Include the job count mismatch in the error event
+              progressEvent.jobCountMismatch = {
+                expected: project.jobCount,
+                actual: actualJobsStarted
+              };
+            }
+          }
           break;
         default:
           console.warn(`Unknown job event type: ${event.type}`);

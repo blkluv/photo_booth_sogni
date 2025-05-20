@@ -526,8 +526,8 @@ export class BackendSogniClient {
               return; // Skip processing if no target job is found
           }
 
-          // Update the realJobId once we get it from a 'started' or 'jobCompleted' event
-          if (jobId && !targetJob.realJobId && (eventType === 'started' || eventType === 'jobCompleted' || eventType === 'progress')) {
+          // Update the realJobId once we get it from a 'started' or 'initiating' event
+          if (jobId && !targetJob.realJobId && (eventType === 'started' || eventType === 'initiating')) {
               targetJob.realJobId = jobId;
               console.log(`Assigned realJobId ${jobId} to placeholder job ${targetJob.id}`);
           }
