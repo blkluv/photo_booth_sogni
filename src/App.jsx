@@ -830,37 +830,6 @@ const App = () => {
       if (isIOS) {
         // ... (blob processing remains the same)
       }
-
-      // Helper to set up job progress handler
-      const setupJobProgress = (job) => { // <-- 'job' is the parameter
-        let jobIndex;
-        if (projectStateReference.current.jobMap.has(job.id)) {
-          jobIndex = projectStateReference.current.jobMap.get(job.id);
-        } else {
-          jobIndex = projectStateReference.current.jobMap.size;
-          projectStateReference.current.jobMap.set(job.id, jobIndex);
-        }
-        // Attach progress handler to the job object passed in
-        job.on('progress', (progress) => { // Use the 'job' parameter here
-          const offset = keepOriginalPhoto ? 1 : 0;
-          const photoIndex = jobIndex + offset;
-          setPhotos(previous => {
-            const updated = [...previous];
-            if (photoIndex >= updated.length) return previous;
-            const cachedWorkerName = updated[photoIndex].workerName || 'unknown';
-            const displayProgress = Math.round(progress * 100);
-            updated[photoIndex] = {
-              ...updated[photoIndex],
-              generating: true,
-              loading: true,
-              progress: displayProgress,
-              statusText: `${cachedWorkerName} creating... ${displayProgress}%`,
-              jobId: job.id // Use job.id from the parameter
-            };
-            return updated;
-          });
-        });
-      };
       
       const blobArrayBuffer = await processedBlob.arrayBuffer();
       
@@ -975,13 +944,6 @@ const App = () => {
           }
           return updated;
         });
-      });
-
-      // Watch for new jobs
-      project.on('updated', (keys) => {
-        if (keys.includes('jobs')) {
-          project.jobs.forEach(setupJobProgress);
-        }
       });
 
       // Project level events
