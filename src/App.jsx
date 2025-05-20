@@ -1957,6 +1957,15 @@ const App = () => {
   //   Generate more photos with the same settings
   // -------------------------
   const handleGenerateMorePhotos = async () => {
+    // Scroll the film-strip-content element to the top first thing
+    const filmStripContent = document.querySelector('.film-strip-container div');
+    if (filmStripContent) {
+      filmStripContent.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
+
     if (activeProjectReference.current || !lastPhotoData.blob) {
       return;
     }
@@ -1978,7 +1987,7 @@ const App = () => {
     
     // Use numImages from context state
     const numToGenerate = numImages; 
-
+    
     // Use keepOriginalPhoto from context state
     const existingOriginalPhoto = keepOriginalPhoto ? photos.find(p => p.isOriginal) : null; 
     
