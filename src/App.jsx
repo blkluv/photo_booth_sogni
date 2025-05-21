@@ -35,6 +35,40 @@ const App = () => {
   const cameraWindSoundReference = useRef(null);
   const slothicornReference = useRef(null);
 
+  useEffect(() => {
+    const unlockAudio = () => {
+      if (shutterSoundReference.current) {
+        const audio = shutterSoundReference.current;
+        audio.muted = true;
+        audio.play().then(() => {
+          audio.pause();
+          audio.currentTime = 0;
+          audio.muted = false; // Unmute for future real plays
+        }).catch(err => {
+          console.warn('Failed to unlock shutter sound:', err);
+        });
+      }
+    
+      if (cameraWindSoundReference.current) {
+        const audio = cameraWindSoundReference.current;
+        audio.muted = true;
+        audio.play().then(() => {
+          audio.pause();
+          audio.currentTime = 0;
+          audio.muted = false;
+        }).catch(err => {
+          console.warn('Failed to unlock wind sound:', err);
+        });
+      }
+  
+      window.removeEventListener("touchstart", unlockAudio);
+      window.removeEventListener("click", unlockAudio);
+    };
+  
+    window.addEventListener("touchstart", unlockAudio, { once: true });
+    window.addEventListener("click", unlockAudio, { once: true });
+  }, []);
+
   // --- Use AppContext for settings ---
   const { settings, updateSetting, resetSettings } = useApp();
   const { 
