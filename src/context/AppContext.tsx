@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useRef } from 'react';
-import { Photo, ProjectState, Settings } from '../types';
+import { Photo, ProjectState } from '../types/index';
+import { Settings } from '../types';
 import { DEFAULT_SETTINGS } from '../constants/settings';
 import { getSettingFromCookie, saveSettingsToCookies } from '../utils/cookies';
 

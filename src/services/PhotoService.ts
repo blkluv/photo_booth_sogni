@@ -1,5 +1,5 @@
 import { SogniClient } from "@sogni-ai/sogni-client";
-import { Photo, ProjectState, JobState } from "../types";
+import { Photo, ProjectState, JobState } from "../types/index";
 import { generateUUID } from "../utils";
 import type React from 'react';
 
