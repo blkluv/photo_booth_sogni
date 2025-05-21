@@ -108,16 +108,6 @@
     .film-strip-container.has-selected .back-to-camera-btn {
       display: none !important;
     }
-    
-    .film-frame.selected img {
-      position: relative !important;
-      border-left: 18px solid white !important;
-      border-right: 18px solid white !important;
-      border-top: 18px solid white !important;
-      border-bottom: 80px solid white !important;
-      margin: 0 auto !important;
-      display: block !important;
-    }
   }
 }
 

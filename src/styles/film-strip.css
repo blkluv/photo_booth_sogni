@@ -421,9 +421,9 @@
     margin: auto 0px !important;
   }
   .film-frame.selected img {
-    border-left: 18px solid white !important;
-    border-right: 18px solid white !important;
-    border-top: 18px solid white !important;
+    border-left: 15px solid white !important;
+    border-right: 15px solid white !important;
+    border-top: 15px solid white !important;
     border-bottom: 80px solid white !important;
     max-width: 100% !important;
     max-height: 80vh !important;
