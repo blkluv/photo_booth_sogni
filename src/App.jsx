@@ -1294,7 +1294,7 @@ const App = () => {
   // -------------------------
   //   Capture (webcam)
   // -------------------------
-  const handleTakePhoto = async () => {
+  const handleTakePhoto = async (e) => {
     if (!isSogniReady || isPhotoButtonCooldown) {
       return;
     }
@@ -1347,7 +1347,7 @@ const App = () => {
     }
     
     setCountdown(0);
-    triggerFlashAndCapture();
+    triggerFlashAndCapture(e);
     
     // Make slothicorn return more gradually, but only if front camera is active
     if (isFrontCamera) {
@@ -1368,17 +1368,23 @@ const App = () => {
     }
   };
 
-  const triggerFlashAndCapture = () => {
+  const triggerFlashAndCapture = (e) => {
     // Check if we're in countdown mode, and if so, abort
     if (countdown > 0) return;
     
     // Play camera shutter sound if enabled - immediate playback for iOS
-    if (soundEnabled && shutterSoundReference.current) {
-      // For iOS, we need to ensure play happens in the same call stack as the user gesture
-      const playPromise = shutterSoundReference.current.play();
+    if (soundEnabled && shutterSoundReference.current && e) {
+      // Reset to beginning to ensure sound plays every time
+      shutterSoundReference.current.currentTime = 0;
       
-      if (playPromise !== undefined) {
-        playPromise.catch(error => {
+      // Use the same pattern for both browsers
+      try {
+        // Use a synchronous play attempt first for Safari
+        shutterSoundReference.current.play();
+      } catch (error) {
+        console.warn("Initial play attempt failed, trying promise-based approach:", error);
+        // Fallback to promise for Chrome
+        shutterSoundReference.current.play().catch(error => {
           console.warn("Error playing shutter sound:", error);
         });
       }
