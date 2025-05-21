@@ -680,9 +680,8 @@ const PhotoGallery = ({
               <div style={{
                 position: 'relative',
                 width: '100%',
-                height: '100%'
               }}>
-                <img
+                <img 
                   src={thumbUrl}
                   alt={`Generated #${index}`}
                   onError={e => {
