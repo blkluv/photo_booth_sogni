@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import '../../styles/film-strip.css'; // Using film-strip.css which contains the gallery styles
 
@@ -166,6 +166,17 @@ const PhotoGallery = ({
   const getStyleHashtag = useCallback((photo) => {
     return photoHashtags[photo.id] || '';
   }, [photoHashtags]);
+
+  useEffect(() => {
+    if (selectedPhotoIndex !== null) {
+      document.body.classList.add('has-selected-photo');
+    } else {
+      document.body.classList.remove('has-selected-photo');
+    }
+    return () => {
+      document.body.classList.remove('has-selected-photo');
+    };
+  }, [selectedPhotoIndex]);
 
   return (
     <div className={`film-strip-container ${showPhotoGrid ? 'visible' : 'hiding'} ${selectedPhotoIndex === null ? '' : 'has-selected'}`}

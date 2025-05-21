@@ -143,6 +143,13 @@
     font-size: 12px !important;
     height: 30px !important; /* Fixed height for label */
   }
+
+  body.has-selected-photo .header-info-btn,
+  body.has-selected-photo .header-settings-btn,
+  body.has-selected-photo .top-left-style-selector {
+    opacity: 0 !important;
+    visibility: hidden !important;
+  }
 }
 
 .film-frame img {
