@@ -53,6 +53,14 @@ interface AdvancedSettingsProps {
   keepOriginalPhoto?: boolean;
   /** Handler for keep original photo change */
   onKeepOriginalPhotoChange?: (keep: boolean) => void;
+  /** Sound enabled state */
+  soundEnabled?: boolean;
+  /** Handler for sound enabled change */
+  onSoundEnabledChange?: (enabled: boolean) => void;
+  /** Slothicorn animation enabled state */
+  slothicornAnimationEnabled?: boolean;
+  /** Handler for slothicorn animation enabled change */
+  onSlothicornAnimationEnabledChange?: (enabled: boolean) => void;
   /** Handler for settings reset */
   onResetSettings?: () => void;
 }
@@ -86,6 +94,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
   onFlashEnabledChange,
   keepOriginalPhoto = false,
   onKeepOriginalPhotoChange,
+  soundEnabled = true,
+  onSoundEnabledChange,
+  slothicornAnimationEnabled = true,
+  onSlothicornAnimationEnabledChange,
   onResetSettings,
 }) => {
   return (
@@ -248,6 +260,28 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
             onChange={(e) => onKeepOriginalPhotoChange?.(e.target.checked)}
           />
           <label htmlFor="keep-original-toggle" className="control-label">Show Original Image</label>
+        </div>
+        
+        {/* Sound toggle */}
+        <div className="control-option checkbox">
+          <input
+            type="checkbox"
+            id="sound-toggle"
+            checked={soundEnabled}
+            onChange={(e) => onSoundEnabledChange?.(e.target.checked)}
+          />
+          <label htmlFor="sound-toggle" className="control-label">Sound Effects</label>
+        </div>
+        
+        {/* Slothicorn Animation toggle */}
+        <div className="control-option checkbox">
+          <input
+            type="checkbox"
+            id="slothicorn-toggle"
+            checked={slothicornAnimationEnabled}
+            onChange={(e) => onSlothicornAnimationEnabledChange?.(e.target.checked)}
+          />
+          <label htmlFor="slothicorn-toggle" className="control-label">Slothicorn Animation</label>
         </div>
         
         {/* Reset settings button */}
