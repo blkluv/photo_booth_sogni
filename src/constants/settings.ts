@@ -51,7 +51,7 @@ export const getValidModelValue = (selectedValue: string) => {
   return defaultValue;
 };
 
-export const DEFAULT_SETTINGS = {
+export const DEFAULT_SETTINGS: Settings = {
   selectedModel: "coreml-sogniXLturbo_alpha1_ad",
   numImages: 16,
   promptGuidance: 2,
@@ -64,6 +64,8 @@ export const DEFAULT_SETTINGS = {
   stylePrompt: '',
   negativePrompt: '',
   seed: '',
+  soundEnabled: true,
+  slothicornAnimationEnabled: true,
 };
 
 // Backend now handles all Sogni API communication, so we don't need these URLs in the frontend

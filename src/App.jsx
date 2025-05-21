@@ -25,7 +25,7 @@ import StyleDropdown from './components/shared/StyleDropdown';
 import AdvancedSettings from './components/shared/AdvancedSettings';
 import promptsData from './prompts.json';
 import PhotoGallery from './components/shared/PhotoGallery';
-import { useApp } from './context/AppContext';
+import { useApp } from './context/AppContext.tsx';
 import TwitterShareModal from './components/shared/TwitterShareModal';
 
 const App = () => {
@@ -49,7 +49,9 @@ const App = () => {
     positivePrompt,
     stylePrompt,
     negativePrompt,
-    seed
+    seed,
+    soundEnabled,
+    slothicornAnimationEnabled
   } = settings;
   // --- End context usage ---
 
@@ -1092,6 +1094,15 @@ const App = () => {
               console.log('All jobs completed, clearing active project');
               activeProjectReference.current = null;
             }
+            
+            // Play camera wind sound when images are loaded into the grid
+            if (soundEnabled && cameraWindSoundReference.current) {
+              cameraWindSoundReference.current.currentTime = 0;
+              cameraWindSoundReference.current.play().catch(error => {
+                console.warn("Error playing camera wind sound:", error);
+              });
+            }
+            
             return updated;
           });
         });
@@ -1361,8 +1372,8 @@ const App = () => {
     // Check if we're in countdown mode, and if so, abort
     if (countdown > 0) return;
     
-    // Play camera shutter sound
-    if (shutterSoundReference.current) {
+    // Play camera shutter sound if enabled
+    if (soundEnabled && shutterSoundReference.current) {
       shutterSoundReference.current.play().catch(error => {
         console.warn("Error playing shutter sound:", error);
       });
@@ -1374,7 +1385,7 @@ const App = () => {
       // Keep flash visible longer for better exposure compensation
       setTimeout(() => {
         setShowFlash(false);
-      }, 700); // Increased from the default 250ms to 700ms
+      }, 700); 
     }
     // Process the capture
     captureAndSend();
@@ -1734,6 +1745,16 @@ const App = () => {
             onKeepOriginalPhotoChange={(value) => {
               updateSetting('keepOriginalPhoto', value);
               saveSettingsToCookies({ keepOriginalPhoto: value });
+            }}
+            soundEnabled={soundEnabled}
+            onSoundEnabledChange={(value) => {
+              updateSetting('soundEnabled', value);
+              saveSettingsToCookies({ soundEnabled: value });
+            }}
+            slothicornAnimationEnabled={slothicornAnimationEnabled}
+            onSlothicornAnimationEnabledChange={(value) => {
+              updateSetting('slothicornAnimationEnabled', value);
+              saveSettingsToCookies({ slothicornAnimationEnabled: value });
             }}
             onResetSettings={resetSettings} // Pass context reset function
           />
@@ -2120,8 +2141,17 @@ const App = () => {
           onControlNetGuidanceEndChange={(value) => updateSetting('controlNetGuidanceEnd', value)}
           onFlashEnabledChange={(value) => updateSetting('flashEnabled', value)}
           onKeepOriginalPhotoChange={(value) => updateSetting('keepOriginalPhoto', value)}
-          // Reset handler from context
-          onResetSettings={resetSettings}
+          soundEnabled={soundEnabled}
+          onSoundEnabledChange={(value) => {
+            updateSetting('soundEnabled', value);
+            saveSettingsToCookies({ soundEnabled: value });
+          }}
+          slothicornAnimationEnabled={slothicornAnimationEnabled}
+          onSlothicornAnimationEnabledChange={(value) => {
+            updateSetting('slothicornAnimationEnabled', value);
+            saveSettingsToCookies({ slothicornAnimationEnabled: value });
+          }}
+          onResetSettings={resetSettings} // Pass context reset function
           // Props still using local state/logic
           cameraDevices={cameraDevices}
           selectedCameraDeviceId={selectedCameraDeviceId}
@@ -2287,6 +2317,7 @@ const App = () => {
           desiredHeight={desiredHeight}
           selectedSubIndex={selectedSubIndex}
           handleShareToX={handleShareToX}
+          slothicornAnimationEnabled={slothicornAnimationEnabled}
         />
           </div>
         )}
@@ -2294,27 +2325,27 @@ const App = () => {
         <canvas ref={canvasReference} className="hidden" />
 
         {/* Slothicorn mascot with direct DOM manipulation */}
-        {!showStartMenu && (
-        <div 
+        {!showStartMenu && slothicornAnimationEnabled && (
+          <div 
             ref={slothicornReference}
-          className="slothicorn-container"
-          style={{
-            position: 'fixed',
-            bottom: '-340px',
-            left: '50%',
-            transform: 'translateX(-50%) scale(1.5)',
-            width: '200px',
-            height: 'auto',
-            zIndex: 10,
-            pointerEvents: 'none'
-          }}
-        >
-          <img 
-            src={slothicornImage} 
-            alt="Slothicorn mascot" 
-            className="slothicorn-image" 
-          />
-        </div>
+            className="slothicorn-container"
+            style={{
+              position: 'fixed',
+              bottom: '-340px',
+              left: '50%',
+              transform: 'translateX(-50%) scale(1.5)',
+              width: '200px',
+              height: 'auto',
+              zIndex: 10,
+              pointerEvents: 'none'
+            }}
+          >
+            <img 
+              src={slothicornImage} 
+              alt="Slothicorn mascot" 
+              className="slothicorn-image" 
+            />
+          </div>
         )}
 
         {/* Camera shutter sound */}

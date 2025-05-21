@@ -29,6 +29,7 @@ const PhotoGallery = ({
   desiredHeight,
   selectedSubIndex = 0,
   handleShareToX,
+  slothicornAnimationEnabled,
 }) => {
   // Skip rendering if there are no photos or the grid is hidden
   if (photos.length === 0 || !showPhotoGrid) return null;
@@ -721,6 +722,12 @@ const PhotoGallery = ({
           );
         })}
       </div>
+      {/* Only render slothicorn if animation is enabled */}
+      {slothicornAnimationEnabled && (
+        <div className="slothicorn-container">
+          {/* Slothicorn content */}
+        </div>
+      )}
     </div>
   );
 };
@@ -752,6 +759,7 @@ PhotoGallery.propTypes = {
   desiredHeight: PropTypes.number.isRequired,
   selectedSubIndex: PropTypes.number,
   handleShareToX: PropTypes.func.isRequired,
+  slothicornAnimationEnabled: PropTypes.bool.isRequired,
 };
 
 export default React.memo(PhotoGallery); 
