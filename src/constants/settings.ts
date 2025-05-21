@@ -1,3 +1,5 @@
+import { Settings } from '../types';
+
 export const modelOptions = [
   {
     label: "🅂 Sogni.XLT 𝛂1 (SDXL Turbo)",

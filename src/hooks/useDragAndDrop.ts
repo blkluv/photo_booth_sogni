@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { PhotoService } from '../services/PhotoService';
-import type { Photo } from '../types';
+import { Photo } from '../types';
 
 interface UseDragAndDropProps {
   photoService: PhotoService;
