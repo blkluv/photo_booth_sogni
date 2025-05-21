@@ -1372,17 +1372,21 @@ const App = () => {
     // Check if we're in countdown mode, and if so, abort
     if (countdown > 0) return;
     
-    // Play camera shutter sound if enabled
+    // Play camera shutter sound if enabled - immediate playback for iOS
     if (soundEnabled && shutterSoundReference.current) {
-      shutterSoundReference.current.play().catch(error => {
-        console.warn("Error playing shutter sound:", error);
-      });
+      // For iOS, we need to ensure play happens in the same call stack as the user gesture
+      const playPromise = shutterSoundReference.current.play();
+      
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.warn("Error playing shutter sound:", error);
+        });
+      }
     }
     
-    // Count 3..2..1
+    // Rest of the function remains the same
     if (flashEnabled) {
       setShowFlash(true);
-      // Keep flash visible longer for better exposure compensation
       setTimeout(() => {
         setShowFlash(false);
       }, 700); 
