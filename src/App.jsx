@@ -2751,54 +2751,6 @@ const App = () => {
             text-overflow: ellipsis;
             max-width: 100%;
           }
-
-          /* ------- Responsive Polaroid Frame for Mobile ------- */
-          @media (max-width: 600px) {
-            .polaroid-frame {
-              max-width: 99vw !important;
-              border-radius: 4px !important;
-            }
-            .polaroid-frame > div:first-child {
-              height: 40px !important;
-              padding: 0 8px !important;
-            }
-            .polaroid-frame .photobooth-title {
-              font-size: 14px !important;
-            }
-            .polaroid-frame .header-style-select,
-            .polaroid-frame .header-config-btn {
-              font-size: 13px !important;
-              width: 24px !important;
-              height: 24px !important;
-              min-width: 24px !important;
-              min-height: 24px !important;
-            }
-            .polaroid-frame > div[style*='aspect-ratio'] {
-              border-left-width: 12px !important;
-              border-right-width: 12px !important;
-              border-top-width: 40px !important;
-              border-bottom-width: 40px !important;
-              border-radius: 0 0 8px 8px !important;
-            }
-            .polaroid-bottom-tab {
-              margin-top: -40px !important;
-              height: 40px !important;
-            }
-            .take-photo-polaroid-btn.camera-shutter-btn {
-              width: 40px !important;
-              height: 40px !important;
-              font-size: 13px !important;
-            }
-            .take-photo-polaroid-btn.camera-shutter-btn span {
-              width: 16px !important;
-              height: 16px !important;
-              font-size: 11px !important;
-            }
-            .take-photo-polaroid-btn.camera-shutter-btn span:last-child {
-              bottom: -14px !important;
-              font-size: 10px !important;
-            }
-          }
           
           /* ------- ADD: Psychedelic animation ------- */
           @keyframes psychedelic-shift {
