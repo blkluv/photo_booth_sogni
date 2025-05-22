@@ -780,3 +780,125 @@
     opacity: 0;
   }
 }
+
+/* Simplified button styles */
+.photo-action-buttons {
+  position: fixed;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  z-index: 99999;
+}
+
+.action-button {
+  background: #333;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  transition: all 0.2s ease;
+}
+
+.action-button:active {
+  transform: scale(0.95);
+}
+
+.action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-button svg,
+.action-button span {
+  margin-right: 4px;
+}
+
+/* Specific button colors */
+.twitter-btn {
+  background: #1da1f2;
+}
+
+.download-btn {
+  background: #4CAF50;
+}
+
+.download-raw-btn {
+  background: #FF9800;
+}
+
+.enhance-btn {
+  background: #72e3f2;
+}
+
+.enhance-btn.enhanced {
+  background: #4CAF50;
+}
+
+.more-btn {
+  background: #72e3f2;
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+}
+
+/* Mobile download button */
+.mobile-download-button {
+  position: fixed;
+  left: 50%;
+  bottom: 80px;
+  transform: translateX(-50%);
+  background: #FF9800;
+  color: white;
+  border: none;
+  padding: 14px 28px;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 16px;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: pulse-attention 1.5s infinite;
+}
+
+@keyframes pulse-attention {
+  0% {
+    transform: translateX(-50%) scale(1);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.05);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+  100% {
+    transform: translateX(-50%) scale(1);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  }
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .photo-action-buttons {
+    flex-wrap: wrap;
+    padding: 0 10px;
+    gap: 8px;
+  }
+  
+  .action-button {
+    flex: 1;
+    min-width: 60px;
+    font-size: 11px;
+    padding: 8px 10px;
+  }
+}

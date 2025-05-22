@@ -1,6 +1,7 @@
-import React, { useMemo, useCallback, useEffect } from 'react';
+import React, { useMemo, useCallback, useEffect, useState, useRef } from 'react';
 import PropTypes from 'prop-types';
 import '../../styles/film-strip.css'; // Using film-strip.css which contains the gallery styles
+import '../../styles/components/PhotoGallery.css';
 import { createPolaroidImage } from '../../utils/imageProcessing';
 import { getPhotoHashtag } from '../../services/TwitterShare';
 
@@ -180,6 +181,14 @@ const PhotoGallery = ({
     };
   }, [selectedPhotoIndex]);
 
+  // Add state for mobile download functionality
+  const [mobileDownloadData, setMobileDownloadData] = useState(null);
+  
+  // Mobile detection for iOS Chrome
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const isChrome = /CriOS|Chrome/i.test(navigator.userAgent);
+  const isMobileChrome = isIOS && isChrome;
+
   // Handle download photo with polaroid frame
   const handleDownloadPhoto = async (photoIndex) => {
     if (!photos[photoIndex] || !photos[photoIndex].images || photos[photoIndex].images.length === 0) {
@@ -231,16 +240,100 @@ const PhotoGallery = ({
       // Create polaroid image
       const polaroidUrl = await createPolaroidImage(imageUrl, photoLabel, options);
       
-      // Create download link
-      const downloadLink = document.createElement('a');
-      downloadLink.href = polaroidUrl;
-      downloadLink.download = filename;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
-      
+      // Handle mobile Chrome on iOS differently
+      if (isMobileChrome) {
+        // Store the data for the tap-to-download interaction
+        setMobileDownloadData({
+          imageUrl: polaroidUrl,
+          filename: filename
+        });
+        
+        console.log('Mobile Chrome detected: showing tap-to-download button');
+      } else {
+        // For desktop and other browsers, download immediately
+        const downloadLink = document.createElement('a');
+        downloadLink.href = polaroidUrl;
+        downloadLink.download = filename;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+      }
     } catch (error) {
       console.error('Error downloading photo:', error);
+    }
+  };
+
+  // Handle the tap-to-download interaction for mobile
+  const handleTapToDownload = () => {
+    if (!mobileDownloadData) return;
+    
+    try {
+      console.log('Processing mobile download tap');
+      
+      // iOS Chrome requires opening in a new tab for downloading
+      window.open(mobileDownloadData.imageUrl, '_blank');
+      
+      // Clean up
+      setTimeout(() => {
+        setMobileDownloadData(null); // Remove the button after download attempt
+      }, 1000);
+    } catch (error) {
+      console.error('Error handling mobile download:', error);
+    }
+  };
+
+  // Handle download raw photo without polaroid frame
+  const handleDownloadRawPhoto = async (photoIndex) => {
+    if (!photos[photoIndex] || !photos[photoIndex].images || photos[photoIndex].images.length === 0) {
+      return;
+    }
+
+    // Get the current image URL (handle enhanced images)
+    const currentSubIndex = photos[photoIndex].enhanced && photos[photoIndex].enhancedImageUrl 
+      ? -1 // Special case for enhanced images
+      : (selectedSubIndex || 0);
+      
+    const imageUrl = currentSubIndex === -1
+      ? photos[photoIndex].enhancedImageUrl
+      : photos[photoIndex].images[currentSubIndex];
+    
+    if (!imageUrl) return;
+    
+    try {
+      // Generate filename
+      const styleHashtag = getPhotoHashtag(photos[photoIndex]);
+      const cleanHashtag = styleHashtag ? styleHashtag.replace('#', '') : 'sogni';
+      const timestamp = new Date().getTime();
+      const filename = `${cleanHashtag}_raw_${timestamp}.png`;
+      
+      // Handle mobile Chrome on iOS differently
+      if (isMobileChrome) {
+        // For iOS Chrome, open in a new tab
+        window.open(imageUrl, '_blank');
+      } else {
+        // For desktop browsers, fetch the image and create a download blob
+        fetch(imageUrl)
+          .then(response => response.blob())
+          .then(blob => {
+            const blobUrl = URL.createObjectURL(blob);
+            const downloadLink = document.createElement('a');
+            downloadLink.href = blobUrl;
+            downloadLink.download = filename;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            
+            // Clean up
+            setTimeout(() => {
+              document.body.removeChild(downloadLink);
+              URL.revokeObjectURL(blobUrl);
+            }, 100);
+          })
+          .catch(error => {
+            console.error('Error creating download blob:', error);
+          });
+      }
+    } catch (error) {
+      console.error('Error downloading raw photo:', error);
     }
   };
 
@@ -452,197 +545,129 @@ const PhotoGallery = ({
           ×
         </button>
       )}
-      {/* Add enhance button when a photo is selected - replace the ::after pseudo element */}
-      {selectedPhotoIndex !== null && photos[selectedPhotoIndex] && (
+      {/* Add these buttons when a photo is selected */}
+      {selectedPhotoIndex !== null && photos[selectedPhotoIndex] && !mobileDownloadData && (
+        <div className="photo-action-buttons">
+          {/* Share to X Button */}
+          <button
+            className="action-button twitter-btn"
+            onClick={(e) => {
+              handleShareToX(selectedPhotoIndex);
+              e.stopPropagation();
+            }}
+            disabled={
+              photos[selectedPhotoIndex].loading || 
+              photos[selectedPhotoIndex].enhancing ||
+              photos[selectedPhotoIndex].error ||
+              !photos[selectedPhotoIndex].images ||
+              photos[selectedPhotoIndex].images.length === 0
+            }
+          >
+            <svg fill="currentColor" width="16" height="16" viewBox="0 0 24 24"><path d="M22.46 6c-.77.35-1.6.58-2.46.67.9-.53 1.59-1.37 1.92-2.38-.84.5-1.78.86-2.79 1.07C18.27 4.49 17.01 4 15.63 4c-2.38 0-4.31 1.94-4.31 4.31 0 .34.04.67.11.99C7.83 9.09 4.16 7.19 1.69 4.23-.07 6.29.63 8.43 2.49 9.58c-.71-.02-1.38-.22-1.97-.54v.05c0 2.09 1.49 3.83 3.45 4.23-.36.1-.74.15-1.14.15-.28 0-.55-.03-.81-.08.55 1.71 2.14 2.96 4.03 3-1.48 1.16-3.35 1.85-5.37 1.85-.35 0-.69-.02-1.03-.06 1.92 1.23 4.2 1.95 6.67 1.95 8.01 0 12.38-6.63 12.38-12.38 0-.19 0-.38-.01-.56.85-.61 1.58-1.37 2.16-2.24z"/></svg>
+            Share
+          </button>
+
+          {/* Download Polaroid Button - Hide on Mobile Chrome */}
+          {!isMobileChrome && (
+            <button
+              className="action-button download-btn"
+              onClick={(e) => {
+                handleDownloadPhoto(selectedPhotoIndex);
+                e.stopPropagation();
+              }}
+              disabled={
+                photos[selectedPhotoIndex].loading || 
+                photos[selectedPhotoIndex].enhancing ||
+                photos[selectedPhotoIndex].error ||
+                !photos[selectedPhotoIndex].images ||
+                photos[selectedPhotoIndex].images.length === 0
+              }
+            >
+              <span>💾</span>
+              Polaroid
+            </button>
+          )}
+
+          {/* Download Raw Button - Hide on Mobile Chrome */}
+          {!isMobileChrome && (
+            <button
+              className="action-button download-raw-btn"
+              onClick={(e) => {
+                handleDownloadRawPhoto(selectedPhotoIndex);
+                e.stopPropagation();
+              }}
+              disabled={
+                photos[selectedPhotoIndex].loading || 
+                photos[selectedPhotoIndex].enhancing ||
+                photos[selectedPhotoIndex].error ||
+                !photos[selectedPhotoIndex].images ||
+                photos[selectedPhotoIndex].images.length === 0
+              }
+            >
+              <span>📥</span>
+              Raw
+            </button>
+          )}
+
+          {/* Enhance Button - only show if canEnhance is true */}
+          {photos[selectedPhotoIndex].enhanced ? (
+            <button
+              className="action-button enhance-btn"
+              onClick={(e) => {
+                undoEnhancement({
+                  photoIndex: selectedPhotoIndex,
+                  subIndex: selectedSubIndex || 0,
+                  setPhotos
+                });
+                e.stopPropagation();
+              }}
+              disabled={photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error}
+            >
+              ↩️ Undo
+            </button>
+          ) : (
+            <button
+              className="action-button enhance-btn"
+              onClick={(e) => {
+                enhancePhoto({
+                  photo: photos[selectedPhotoIndex],
+                  photoIndex: selectedPhotoIndex,
+                  subIndex: selectedSubIndex || 0,
+                  width: desiredWidth,
+                  height: desiredHeight,
+                  sogniClient,
+                  setPhotos,
+                  onSetActiveProject: (projectId) => {
+                    activeProjectReference.current = projectId;
+                  }
+                });
+                e.stopPropagation();
+              }}
+              disabled={photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error}
+            >
+              ✨ Enhance
+            </button>
+          )}
+        </div>
+      )}
+      {/* Mobile tap-to-download button */}
+      {mobileDownloadData && (
         <button
-          className="enhance-photo-btn"
-          onClick={(e) => {
-            const currentPhoto = photos[selectedPhotoIndex];
-            // Handle undo enhance if already enhanced
-            if (currentPhoto.enhanced && !currentPhoto.loading && !currentPhoto.enhancing) {
-              undoEnhancement({
-                photoIndex: selectedPhotoIndex,
-                subIndex: selectedSubIndex,
-                setPhotos
-              });
-            } 
-            // Normal enhance flow
-            else if (!currentPhoto.loading && !currentPhoto.enhancing) {
-              enhancePhoto({
-                photo: currentPhoto,
-                photoIndex: selectedPhotoIndex,
-                subIndex: selectedSubIndex,
-                width: desiredWidth,
-                height: desiredHeight,
-                sogniClient,
-                setPhotos,
-                onSetActiveProject: (projectId) => {
-                  activeProjectReference.current = projectId;
-                }
-              });
-            }
-            e.stopPropagation();
-          }}
-          disabled={
-            photos[selectedPhotoIndex].loading || 
-            photos[selectedPhotoIndex].enhancing ||
-            photos[selectedPhotoIndex].error
-          }
-          style={{
-            position: 'fixed',
-            right: '20px',
-            bottom: '20px',
-            background: photos[selectedPhotoIndex].enhanced 
-              ? 'linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)' 
-              : photos[selectedPhotoIndex].enhancing 
-                ? '#cccccc'
-                : photos[selectedPhotoIndex].error
-                  ? 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)'
-                  : 'linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%)',
-            color: 'white',
-            border: 'none',
-            padding: '12px 24px',
-            borderRadius: '8px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            cursor: photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error
-              ? 'default'
-              : 'pointer',
-            fontWeight: 'bold',
-            fontSize: '12px',
-            zIndex: 99999,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseOver={e => {
-            if (!(photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error)) {
-              e.currentTarget.style.transform = 'scale(1.05)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
-            }
-          }}
-          onMouseOut={e => {
-            e.currentTarget.style.transform = 'scale(1)';
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
-          }}
-          onMouseDown={e => {
-            if (!(photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error)) {
-              e.currentTarget.style.transform = 'scale(0.95)';
-            }
-          }}
-          onMouseUp={e => {
-            if (!(photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error)) {
-              e.currentTarget.style.transform = 'scale(1.05)';
-            }
-          }}
+          className="mobile-download-button"
+          onClick={handleTapToDownload}
         >
-          {photos[selectedPhotoIndex].enhanced 
-            ? "↩️ Undo Enhance" 
-            : photos[selectedPhotoIndex].enhancing 
-              ? photos[selectedPhotoIndex].progress
-                ? `✨ Enhancing... ${Math.floor(photos[selectedPhotoIndex].progress * 100)}%`
-                : "✨ Enhancing..."
-              : photos[selectedPhotoIndex].error
-                ? "❌ Enhancement failed"
-                : "✨ Enhance"}
+          <span>📥</span>
+          Tap to Save
         </button>
       )}
-      {/* Add Share to X button when a photo is selected */}
-      {selectedPhotoIndex !== null && photos[selectedPhotoIndex] && (
+      {/* More Photos Button - when no photo is selected */}
+      {!isGenerating && selectedPhotoIndex === null && (
         <button
-          className="share-twitter-btn"
-          onClick={(e) => {
-            handleShareToX(selectedPhotoIndex);
-            e.stopPropagation();
-          }}
-          disabled={
-            photos[selectedPhotoIndex].loading || 
-            photos[selectedPhotoIndex].enhancing ||
-            photos[selectedPhotoIndex].error ||
-            !photos[selectedPhotoIndex].images ||
-            photos[selectedPhotoIndex].images.length === 0
-          }
-          onMouseOver={e => {
-            if (!(photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error || !photos[selectedPhotoIndex].images || photos[selectedPhotoIndex].images.length === 0)) {
-              e.currentTarget.style.transform = 'scale(1.05)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
-            }
-          }}
-          onMouseOut={e => {
-            e.currentTarget.style.transform = 'scale(1)';
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
-          }}
-          onMouseDown={e => {
-            if (!(photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error || !photos[selectedPhotoIndex].images || photos[selectedPhotoIndex].images.length === 0)) {
-              e.currentTarget.style.transform = 'scale(0.95)';
-            }
-          }}
-          onMouseUp={e => {
-            if (!(photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error || !photos[selectedPhotoIndex].images || photos[selectedPhotoIndex].images.length === 0)) {
-              e.currentTarget.style.transform = 'scale(1.05)';
-            }
-          }}
+          className="more-photos-btn"
+          onClick={handleGenerateMorePhotos}
+          disabled={activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob}
         >
-          <svg fill="white" width="16" height="16" viewBox="0 0 24 24"><path d="M22.46 6c-.77.35-1.6.58-2.46.67.9-.53 1.59-1.37 1.92-2.38-.84.5-1.78.86-2.79 1.07C18.27 4.49 17.01 4 15.63 4c-2.38 0-4.31 1.94-4.31 4.31 0 .34.04.67.11.99C7.83 9.09 4.16 7.19 1.69 4.23-.07 6.29.63 8.43 2.49 9.58c-.71-.02-1.38-.22-1.97-.54v.05c0 2.09 1.49 3.83 3.45 4.23-.36.1-.74.15-1.14.15-.28 0-.55-.03-.81-.08.55 1.71 2.14 2.96 4.03 3-1.48 1.16-3.35 1.85-5.37 1.85-.35 0-.69-.02-1.03-.06 1.92 1.23 4.2 1.95 6.67 1.95 8.01 0 12.38-6.63 12.38-12.38 0-.19 0-.38-.01-.56.85-.61 1.58-1.37 2.16-2.24z"/></svg>
-          Share on X
-        </button>
-      )}
-      {/* Add Download button when a photo is selected */}
-      {selectedPhotoIndex !== null && photos[selectedPhotoIndex] && (
-        <button
-          className="download-photo-btn"
-          onClick={(e) => {
-            handleDownloadPhoto(selectedPhotoIndex);
-            e.stopPropagation();
-          }}
-          disabled={
-            photos[selectedPhotoIndex].loading || 
-            photos[selectedPhotoIndex].enhancing ||
-            photos[selectedPhotoIndex].error ||
-            !photos[selectedPhotoIndex].images ||
-            photos[selectedPhotoIndex].images.length === 0
-          }
-          onMouseOver={e => {
-            if (!(photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error || !photos[selectedPhotoIndex].images || photos[selectedPhotoIndex].images.length === 0)) {
-              e.currentTarget.style.transform = 'scale(1.05)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
-            }
-          }}
-          onMouseOut={e => {
-            e.currentTarget.style.transform = 'scale(1)';
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
-          }}
-          onMouseDown={e => {
-            if (!(photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error || !photos[selectedPhotoIndex].images || photos[selectedPhotoIndex].images.length === 0)) {
-              e.currentTarget.style.transform = 'scale(0.95)';
-            }
-          }}
-          onMouseUp={e => {
-            if (!(photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error || !photos[selectedPhotoIndex].images || photos[selectedPhotoIndex].images.length === 0)) {
-              e.currentTarget.style.transform = 'scale(1.05)';
-            }
-          }}
-          style={{
-            position: 'fixed',
-            left: '160px',
-            bottom: '20px',
-            background: 'linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)',
-            color: 'white',
-            border: 'none',
-            padding: '12px 24px',
-            borderRadius: '8px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            cursor: photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error ? 'default' : 'pointer',
-            fontWeight: 'bold',
-            fontSize: '12px',
-            zIndex: 99999,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            transition: 'all 0.2s ease',
-          }}
-        >
-          💾 Download
+          More ✨
         </button>
       )}
       {/* Settings button when viewing a photo */}
