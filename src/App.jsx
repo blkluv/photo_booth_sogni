@@ -12,6 +12,7 @@ import { shareToTwitter } from './services/TwitterShare';
 import { trackPageView } from './utils/analytics';
 import clickSound from './click.mp3';
 import cameraWindSound from './camera-wind.mp3';
+import helloSound from './hello.mp3';
 import slothicornImage from './slothicorn-camera.png';
 import light1Image from './light1.png';
 import light2Image from './light2.png';
@@ -33,6 +34,7 @@ const App = () => {
   const canvasReference = useRef(null);
   const shutterSoundReference = useRef(null);
   const cameraWindSoundReference = useRef(null);
+  const helloSoundReference = useRef(null);
   const slothicornReference = useRef(null);
 
   useEffect(() => {
@@ -58,6 +60,18 @@ const App = () => {
           audio.muted = false;
         }).catch(err => {
           console.warn('Failed to unlock wind sound:', err);
+        });
+      }
+
+      if (helloSoundReference.current) {
+        const audio = helloSoundReference.current;
+        audio.muted = true;
+        audio.play().then(() => {
+          audio.pause();
+          audio.currentTime = 0;
+          audio.muted = false;
+        }).catch(err => {
+          console.warn('Failed to unlock hello sound:', err);
         });
       }
   
@@ -934,7 +948,7 @@ const App = () => {
           if (type === 'initiating') {
             updated[photoIndex] = {
               ...updated[photoIndex],
-              statusText: `${workerName || 'unknown'} loading model`,
+              statusText: `${workerName || 'unknown'} fetching art supplies`,
               workerName: workerName || 'unknown',
               jobId,
               jobIndex,
@@ -943,9 +957,16 @@ const App = () => {
               hashtag
             };
           } else if (type === 'started') {
+            // Play hello when a worker is initiating
+            if (soundEnabled && helloSoundReference.current) {
+              helloSoundReference.current.currentTime = 0;
+              helloSoundReference.current.play().catch(error => {
+                console.warn("Error playing hello sound:", error);
+              });
+            }
             updated[photoIndex] = {
               ...updated[photoIndex],
-              statusText: `${workerName || 'unknown'} starting job`,
+              statusText: `${workerName || 'unknown'} answering call`,
               workerName: workerName || 'unknown',
               jobId,
               jobIndex,
@@ -961,7 +982,7 @@ const App = () => {
               generating: true,
               loading: true,
               progress: displayProgress,
-              statusText: `${cachedWorkerName} processing... ${displayProgress}%`,
+              statusText: `${cachedWorkerName} making art... ${displayProgress}%`,
               jobId
             };
           } else if (type === 'queued') { // Handle the new 'queued' event
@@ -2401,6 +2422,12 @@ const App = () => {
         {/* Camera wind sound */}
         <audio ref={cameraWindSoundReference} preload="auto">
           <source src={cameraWindSound} type="audio/mpeg" />
+          Your browser does not support the audio element.
+        </audio>
+
+        {/* Hello sound */}
+        <audio ref={helloSoundReference} preload="auto">
+          <source src={helloSound} type="audio/mpeg" />
           Your browser does not support the audio element.
         </audio>
 

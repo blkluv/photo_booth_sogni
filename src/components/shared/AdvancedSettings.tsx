@@ -259,7 +259,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
             checked={keepOriginalPhoto}
             onChange={(e) => onKeepOriginalPhotoChange?.(e.target.checked)}
           />
-          <label htmlFor="keep-original-toggle" className="control-label">Show Original Image</label>
+          <label htmlFor="keep-original-toggle" className="control-label">Show Original Image In Gallery</label>
         </div>
         
         {/* Sound toggle */}
