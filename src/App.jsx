@@ -2614,73 +2614,7 @@ const App = () => {
             margin: 0 !important;
             transform: none !important;
           }
-          
-          /* ------- ADD: Enhance button styling ------- */
-          .enhance-photo-btn {
-            position: fixed !important;
-            right: 20px !important;
-            bottom: 20px !important;
-            background: linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%) !important;
-            color: white !important;
-            border: none !important;
-            padding: 10px 18px !important;
-            border-radius: 8px !important;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-            cursor: pointer !important;
-            font-weight: bold !important;
-            font-size: 14px !important;
-            z-index: 999999 !important;
-            display: flex !important;
-            align-items: center !important;
-            gap: 6px !important;
-            transition: all 0.2s ease !important;
-          }
-          
-          .enhance-photo-btn:hover {
-            transform: scale(1.05) !important;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.15) !important;
-          }
-          
-          .enhance-photo-btn:disabled {
-            background: rgba(230, 230, 230, 0.8) !important;
-            color: #999 !important;
-            cursor: default !important;
-            transform: none !important;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.05) !important;
-          }
-          
-          /* Selected photo container enhance button styling */
-          .selected-photo-container .enhance-photo-btn {
-            position: fixed !important;
-            right: 20px !important;
-            bottom: 20px !important;
-            background: linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%) !important;
-            color: white !important;
-            border: none !important;
-            padding: 12px 24px !important;
-            border-radius: 8px !important;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-            cursor: pointer !important;
-            font-weight: bold !important;
-            font-size: 16px !important;
-            z-index: 999999 !important;
-            display: flex !important;
-            align-items: center !important;
-            gap: 8px !important;
-          }
 
-          .selected-photo-container .enhance-photo-btn:hover {
-            transform: scale(1.05) !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
-          }
-
-          .selected-photo-container .enhance-photo-btn:disabled {
-            background: #cccccc !important;
-            cursor: default !important;
-            transform: none !important;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-          }
-          
           /* ------- FIX 4: Loading image fade effect ------- */
           .film-frame.loading {
             position: relative;
@@ -2709,33 +2643,7 @@ const App = () => {
             bottom: 0 !important;
             z-index: 99999 !important;
           }
-          
-          .selected-photo-container .enhance-photo-btn {
-            position: fixed !important;
-            right: 20px !important;
-            bottom: 20px !important;
-            background: linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%) !important;
-            color: white !important;
-            border: none !important;
-            padding: 12px 24px !important;
-            border-radius: 8px !important;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-            cursor: pointer !important;
-            font-weight: bold !important;
-            font-size: 16px !important;
-            z-index: 999999 !important;
-            display: flex !important;
-            align-items: center !important;
-            gap: 8px !important;
-          }
-=
-          .selected-photo-container .enhance-photo-btn:disabled {
-            background: #cccccc !important;
-            cursor: default !important;
-            transform: none !important;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-          }
-          
+                    
           .image-wrapper {
             background: white !important;
             padding: 16px 16px 60px 16px !important;
