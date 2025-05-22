@@ -259,6 +259,8 @@ const App = () => {
   // Update showThought function
   let thoughtInProgress = false;
   const showThought = useCallback(() => {
+    // don't show thought if Slothicorn is disabled
+    if (!slothicornAnimationEnabled) return;
     if (thoughtInProgress) return;
     thoughtInProgress = true;
     // Select thoughts based on whether there's an active project
