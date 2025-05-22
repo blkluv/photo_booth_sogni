@@ -547,7 +547,18 @@ const PhotoGallery = ({
       )}
       {/* Add these buttons when a photo is selected */}
       {selectedPhotoIndex !== null && photos[selectedPhotoIndex] && !mobileDownloadData && (
-        <div className="photo-action-buttons">
+        <div className="photo-action-buttons" style={{
+          display: 'flex',
+          gap: '12px',
+          justifyContent: 'center',
+          position: 'fixed',
+          bottom: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 99999,
+          width: 'auto',
+          maxWidth: '90%'
+        }}>
           {/* Share to X Button */}
           <button
             className="action-button twitter-btn"
@@ -658,16 +669,6 @@ const PhotoGallery = ({
         >
           <span>📥</span>
           Tap to Save
-        </button>
-      )}
-      {/* More Photos Button - when no photo is selected */}
-      {!isGenerating && selectedPhotoIndex === null && (
-        <button
-          className="more-photos-btn"
-          onClick={handleGenerateMorePhotos}
-          disabled={activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob}
-        >
-          More ✨
         </button>
       )}
       {/* Settings button when viewing a photo */}
