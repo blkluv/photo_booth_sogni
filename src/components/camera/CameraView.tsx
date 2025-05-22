@@ -81,7 +81,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
   modelOptions = [],
   selectedModel = '',
   onModelSelect,
-  numImages = 16,
+  numImages = 8,
   onNumImagesChange,
   promptGuidance = 2,
   onPromptGuidanceChange,
