@@ -1,6 +1,8 @@
 import React, { useMemo, useCallback, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import '../../styles/film-strip.css'; // Using film-strip.css which contains the gallery styles
+import { createPolaroidImage } from '../../utils/imageProcessing';
+import { getPhotoHashtag } from '../../services/TwitterShare';
 
 const PhotoGallery = ({
   photos,
@@ -177,6 +179,70 @@ const PhotoGallery = ({
       document.body.classList.remove('has-selected-photo');
     };
   }, [selectedPhotoIndex]);
+
+  // Handle download photo with polaroid frame
+  const handleDownloadPhoto = async (photoIndex) => {
+    if (!photos[photoIndex] || !photos[photoIndex].images || photos[photoIndex].images.length === 0) {
+      return;
+    }
+
+    // Get the current image URL (handle enhanced images)
+    const currentSubIndex = photos[photoIndex].enhanced && photos[photoIndex].enhancedImageUrl 
+      ? -1 // Special case for enhanced images
+      : (selectedSubIndex || 0);
+      
+    const imageUrl = currentSubIndex === -1
+      ? photos[photoIndex].enhancedImageUrl
+      : photos[photoIndex].images[currentSubIndex];
+    
+    if (!imageUrl) return;
+    
+    try {
+      // Get hashtag from photo data
+      const styleHashtag = getPhotoHashtag(photos[photoIndex]);
+      
+      // Determine photo label
+      const photoNumberLabel = photos[photoIndex]?.statusText?.split('#')[0]?.trim() || photos[photoIndex]?.label || '';
+      const photoLabel = photoNumberLabel + (styleHashtag ? ` ${styleHashtag}` : '');
+      
+      // Generate filename
+      const cleanHashtag = styleHashtag ? styleHashtag.replace('#', '') : 'sogni';
+      const timestamp = new Date().getTime();
+      const filename = `${cleanHashtag}_photo_${timestamp}.png`;
+      
+      // Generate polaroid image
+      const options = {
+        frameBottomWidth: 150,
+        labelFont: '34px "Permanent Marker", cursive',
+        labelColor: '#333333'
+      };
+      
+      // Ensure font is loaded
+      if (!document.querySelector('link[href*="Permanent+Marker"]')) {
+        const fontLink = document.createElement('link');
+        fontLink.href = 'https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap';
+        fontLink.rel = 'stylesheet';
+        document.head.appendChild(fontLink);
+      }
+      
+      // Wait for fonts to load
+      await document.fonts.ready;
+      
+      // Create polaroid image
+      const polaroidUrl = await createPolaroidImage(imageUrl, photoLabel, options);
+      
+      // Create download link
+      const downloadLink = document.createElement('a');
+      downloadLink.href = polaroidUrl;
+      downloadLink.download = filename;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      
+    } catch (error) {
+      console.error('Error downloading photo:', error);
+    }
+  };
 
   return (
     <div className={`film-strip-container ${showPhotoGrid ? 'visible' : 'hiding'} ${selectedPhotoIndex === null ? '' : 'has-selected'}`}
@@ -519,6 +585,64 @@ const PhotoGallery = ({
         >
           <svg fill="white" width="16" height="16" viewBox="0 0 24 24"><path d="M22.46 6c-.77.35-1.6.58-2.46.67.9-.53 1.59-1.37 1.92-2.38-.84.5-1.78.86-2.79 1.07C18.27 4.49 17.01 4 15.63 4c-2.38 0-4.31 1.94-4.31 4.31 0 .34.04.67.11.99C7.83 9.09 4.16 7.19 1.69 4.23-.07 6.29.63 8.43 2.49 9.58c-.71-.02-1.38-.22-1.97-.54v.05c0 2.09 1.49 3.83 3.45 4.23-.36.1-.74.15-1.14.15-.28 0-.55-.03-.81-.08.55 1.71 2.14 2.96 4.03 3-1.48 1.16-3.35 1.85-5.37 1.85-.35 0-.69-.02-1.03-.06 1.92 1.23 4.2 1.95 6.67 1.95 8.01 0 12.38-6.63 12.38-12.38 0-.19 0-.38-.01-.56.85-.61 1.58-1.37 2.16-2.24z"/></svg>
           Share on X
+        </button>
+      )}
+      {/* Add Download button when a photo is selected */}
+      {selectedPhotoIndex !== null && photos[selectedPhotoIndex] && (
+        <button
+          className="download-photo-btn"
+          onClick={(e) => {
+            handleDownloadPhoto(selectedPhotoIndex);
+            e.stopPropagation();
+          }}
+          disabled={
+            photos[selectedPhotoIndex].loading || 
+            photos[selectedPhotoIndex].enhancing ||
+            photos[selectedPhotoIndex].error ||
+            !photos[selectedPhotoIndex].images ||
+            photos[selectedPhotoIndex].images.length === 0
+          }
+          onMouseOver={e => {
+            if (!(photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error || !photos[selectedPhotoIndex].images || photos[selectedPhotoIndex].images.length === 0)) {
+              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+            }
+          }}
+          onMouseOut={e => {
+            e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+          }}
+          onMouseDown={e => {
+            if (!(photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error || !photos[selectedPhotoIndex].images || photos[selectedPhotoIndex].images.length === 0)) {
+              e.currentTarget.style.transform = 'scale(0.95)';
+            }
+          }}
+          onMouseUp={e => {
+            if (!(photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error || !photos[selectedPhotoIndex].images || photos[selectedPhotoIndex].images.length === 0)) {
+              e.currentTarget.style.transform = 'scale(1.05)';
+            }
+          }}
+          style={{
+            position: 'fixed',
+            left: '160px',
+            bottom: '20px',
+            background: 'linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)',
+            color: 'white',
+            border: 'none',
+            padding: '12px 24px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            cursor: photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error ? 'default' : 'pointer',
+            fontWeight: 'bold',
+            fontSize: '12px',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          💾 Download
         </button>
       )}
       {/* Settings button when viewing a photo */}

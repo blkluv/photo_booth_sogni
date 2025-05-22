@@ -968,7 +968,7 @@ const App = () => {
             }
             updated[photoIndex] = {
               ...updated[photoIndex],
-              statusText: `📞 ${workerName || 'unknown'} answering call`,
+              statusText: `📞 ${workerName || 'unknown'} answerin' call`,
               workerName: workerName || 'unknown',
               jobId,
               jobIndex,
@@ -984,7 +984,7 @@ const App = () => {
               generating: true,
               loading: true,
               progress: displayProgress,
-              statusText: `${cachedWorkerName} making art... ${displayProgress}%`,
+              statusText: `${cachedWorkerName} makin' art... ${displayProgress}%`,
               jobId
             };
           } else if (type === 'queued') { // Handle the new 'queued' event
