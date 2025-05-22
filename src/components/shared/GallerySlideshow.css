@@ -1,0 +1,145 @@
+.gallery-slideshow {
+  display: flex;
+  flex-direction: column;
+  width: 280px;
+  height: 394px; /* Adjusted for 944x1326 aspect ratio: 280 * (1326/944) = ~394 */
+  border-radius: 0px !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  background-color: #333;
+  position: fixed; /* Changed from absolute to fixed */
+  right: 20px;
+  bottom: 20px; /* Changed from top: 50% to bottom: 20px */
+  transform: none; /* Removed the translateY */
+  z-index: 9999; /* Increased z-index to ensure it's on top */
+  opacity: 0; /* Start invisible */
+  transition: opacity 0.3s ease;
+}
+
+@keyframes slideInFromBottom {
+  0% {
+    opacity: 0;
+    transform: translateY(80px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.slideshow-image-container {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.slideshow-image-container .slideshow-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* Changed from cover to contain to avoid clipping */
+  object-position: center;
+  transition: opacity 1.5s cubic-bezier(0.4, 0.0, 0.2, 1);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.slideshow-image-container .slideshow-image.active {
+  opacity: 1;
+  z-index: 2;
+}
+
+.slideshow-image-container .slideshow-image.prev {
+  opacity: 0;
+  z-index: 1;
+}
+
+/* Replace close button with a text label */
+.slideshow-close-btn {
+  position: absolute;
+  top: -30px; /* Position it above the slideshow */
+  right: 0;
+  color: white;
+  border: none;
+  padding: 6px 10px;
+  font-size: 10px;
+  cursor: pointer;
+  z-index: 10;
+  opacity: 0.9;
+  transition: background-color 0.3s, opacity 0.3s;
+  letter-spacing: 1px;
+}
+
+.slideshow-close-btn:hover {
+  opacity: 1;
+  color: rgba(255, 51, 102, 0.9);
+}
+
+/* Add fade-out animation for closing */
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+}
+
+.gallery-slideshow.closing {
+  animation: fadeOut 0.5s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+/* Mobile responsive styling */
+@media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
+  .gallery-slideshow {
+    width: 220px;
+    height: 310px; /* Maintain aspect ratio */
+    right: 10px;
+    bottom: 10px;
+  }
+  
+  /* Make close button more visible on mobile */
+  .slideshow-close-btn {
+    font-size: 10px;
+    top: -25px;
+    padding: 4px 8px;
+  }
+}
+
+/* Small screens in portrait mode like iPhone */
+@media (max-width: 420px) and (orientation: portrait) {
+  .gallery-slideshow {
+    width: 180px;
+    height: 253px;
+  }
+}
+
+/* Fix for Safari on iOS */
+@supports (-webkit-touch-callout: none) {
+  .gallery-slideshow {
+    /* Add extra bottom padding for iOS Safari */
+    bottom: env(safe-area-inset-bottom, 20px);
+    /* Ensure it's not too tall for the viewport */
+    max-height: 70vh;
+    /* Add a fallback if safe-area-inset isn't supported */
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 60px);
+  }
+  
+  /* Additional adjustment for smaller screens */
+  @media (max-width: 420px) and (orientation: portrait) {
+    .gallery-slideshow {
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
+      height: 220px; /* Slightly smaller for iOS mobile */
+    }
+  }
+}
+
+/* Add a class for when the slideshow becomes visible */
+.gallery-slideshow.visible {
+  animation: slideInFromBottom 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+} 
