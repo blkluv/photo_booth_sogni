@@ -527,11 +527,12 @@
 
 .film-strip-container.has-selected .photo-nav-btn:hover {
   background: rgba(255, 255, 255, 1);
-  transform: translateY(-50%) scale(1.1);
+  transform: translateY(-50%) scale(1.1) !important;
 }
 
 .film-strip-container.has-selected .photo-nav-btn:active {
-  transform: translateY(-50%) scale(1.3);
+  background: rgba(255, 255, 255, 1);
+  transform: translateY(-50%) scale(1.3) !important;
 }
 
 .film-strip-container.has-selected .photo-nav-btn.prev {
