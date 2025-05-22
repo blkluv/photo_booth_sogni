@@ -958,7 +958,7 @@ const App = () => {
             };
           } else if (type === 'started') {
             // Play hello when a worker is initiating
-            if (soundEnabled && helloSoundReference.current) {
+            if (soundEnabled && helloSoundReference.current && helloSoundReference.current.paused) {
               helloSoundReference.current.currentTime = 0;
               helloSoundReference.current.play().catch(error => {
                 console.warn("Error playing hello sound:", error);
