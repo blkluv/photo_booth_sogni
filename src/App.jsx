@@ -12,7 +12,7 @@ import { shareToTwitter } from './services/TwitterShare';
 import { trackPageView } from './utils/analytics';
 import clickSound from './click.mp3';
 import cameraWindSound from './camera-wind.mp3';
-import helloSound from './hello.mp3';
+// import helloSound from './hello.mp3';
 import slothicornImage from './slothicorn-camera.png';
 import light1Image from './light1.png';
 import light2Image from './light2.png';
@@ -34,7 +34,7 @@ const App = () => {
   const canvasReference = useRef(null);
   const shutterSoundReference = useRef(null);
   const cameraWindSoundReference = useRef(null);
-  const helloSoundReference = useRef(null);
+  // const helloSoundReference = useRef(null);
   const slothicornReference = useRef(null);
 
   useEffect(() => {
@@ -62,7 +62,7 @@ const App = () => {
           console.warn('Failed to unlock wind sound:', err);
         });
       }
-
+      /*
       if (helloSoundReference.current) {
         const audio = helloSoundReference.current;
         audio.muted = true;
@@ -74,6 +74,7 @@ const App = () => {
           console.warn('Failed to unlock hello sound:', err);
         });
       }
+      */
   
       window.removeEventListener("touchstart", unlockAudio);
       window.removeEventListener("click", unlockAudio);
@@ -960,12 +961,14 @@ const App = () => {
             };
           } else if (type === 'started') {
             // Play hello when a worker is initiating
+            /*
             if (soundEnabled && helloSoundReference.current && helloSoundReference.current.paused) {
               helloSoundReference.current.currentTime = 0;
               helloSoundReference.current.play().catch(error => {
                 console.warn("Error playing hello sound:", error);
               });
             }
+            */
             updated[photoIndex] = {
               ...updated[photoIndex],
               statusText: `📞 ${workerName || 'unknown'} answerin' call`,
@@ -2428,10 +2431,12 @@ const App = () => {
         </audio>
 
         {/* Hello sound */}
+        {/*
         <audio ref={helloSoundReference} preload="auto">
           <source src={helloSound} type="audio/mpeg" />
           Your browser does not support the audio element.
         </audio>
+        */}
 
         {/* Show photos button - only visible when we have photos and camera is shown */}
         {selectedPhotoIndex === null && !showPhotoGrid && photos.length > 0 && !showStartMenu && (
