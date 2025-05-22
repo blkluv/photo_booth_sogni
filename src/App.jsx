@@ -948,7 +948,7 @@ const App = () => {
           if (type === 'initiating') {
             updated[photoIndex] = {
               ...updated[photoIndex],
-              statusText: `${workerName || 'unknown'} fetching art supplies`,
+              statusText: `🎨 ${workerName || 'unknown'} fetching art supplies`,
               workerName: workerName || 'unknown',
               jobId,
               jobIndex,
