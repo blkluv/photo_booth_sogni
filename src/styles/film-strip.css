@@ -452,7 +452,7 @@
     position: relative !important;
   }
   .film-strip-container.has-selected .photo-nav-btn {
-    background: rgba(255, 255, 255, 0.5) !important;
+    background: none !important;
   }
   .film-strip-container.has-selected .photo-nav-btn.prev {
     position: fixed !important;
@@ -515,19 +515,19 @@
   position: fixed;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(255, 255, 255, 0.8);
-  color: #333;
+  background: none;
+  color: #FF69B4 !important;
   border: none;
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  font-size: 36px;
+  font-size: 48px;
   display: flex;
   justify-content: center;
   align-items: center;
   cursor: pointer;
   z-index: 9999;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: none;
   transition: all 0.2s ease;
 }
 
