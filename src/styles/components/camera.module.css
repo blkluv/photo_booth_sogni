@@ -70,7 +70,7 @@
 
 .polaroidHeader {
   position: absolute;
-  top: 18px;
+  top: 9px;
   left: 32px;
   right: 32px;
   display: flex;
@@ -101,7 +101,7 @@
   background: white;
   border-left: 32px solid white;
   border-right: 32px solid white;
-  border-top: 46px solid white;
+  border-top: 32px solid white;
   border-bottom: 120px solid white;
   border-radius: 8px;
   box-shadow: 0 2px 0 #e5e5e5, 0 8px 30px rgba(0,0,0,0.18);

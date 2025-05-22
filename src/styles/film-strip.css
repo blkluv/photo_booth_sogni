@@ -821,27 +821,6 @@
   margin-right: 4px;
 }
 
-/* Specific button colors */
-.twitter-btn {
-  background: #1da1f2;
-}
-
-.download-btn {
-  background: #4CAF50;
-}
-
-.download-raw-btn {
-  background: #FF9800;
-}
-
-.enhance-btn {
-  background: #72e3f2;
-}
-
-.enhance-btn.enhanced {
-  background: #4CAF50;
-}
-
 .more-btn {
   background: #72e3f2;
   position: fixed;

@@ -615,7 +615,7 @@ const PhotoGallery = ({
                 photos[selectedPhotoIndex].images.length === 0
               }
             >
-              <span>📥</span>
+              <span>💾</span>
               Raw
             </button>
           )}
