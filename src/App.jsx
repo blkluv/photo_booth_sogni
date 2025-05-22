@@ -971,7 +971,7 @@ const App = () => {
             */
             updated[photoIndex] = {
               ...updated[photoIndex],
-              statusText: `📞 ${workerName || 'unknown'} answerin' call`,
+              statusText: `${workerName || 'unknown'} staring job`,
               workerName: workerName || 'unknown',
               jobId,
               jobIndex,
