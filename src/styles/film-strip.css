@@ -795,7 +795,7 @@
 
 .action-button {
   border-radius: 0px;
-  background: #333;
+  background: none;
   color: white;
   border: none;
   padding: 8px 15px;
@@ -803,8 +803,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
   transition: all 0.2s ease;
+  background: none;
+  box-shadow: none;
 }
 
 .action-button:active {

@@ -556,8 +556,6 @@ const PhotoGallery = ({
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 99999,
-          width: 'auto',
-          maxWidth: '90%'
         }}>
           {/* Share to X Button */}
           <button
