@@ -173,27 +173,6 @@
   background-color: #333;
 }
 
-/* View Photos Link */
-.view-photos-link {
-  margin-top: 10px;
-}
-
-.view-photos-button {
-  background: none;
-  border: none;
-  color: #ff7eb3;
-  font-size: 1rem;
-  padding: 8px 16px;
-  cursor: pointer;
-  transition: all 0.2s;
-  border-radius: 20px;
-}
-
-.view-photos-button:hover {
-  background-color: rgba(255, 126, 179, 0.1);
-  text-decoration: underline;
-}
-
 /* Updated media query for mobile devices */
 @media (max-width: 600px), (orientation: portrait) and (max-device-width: 1024px) {
   .start-menu-content {
@@ -238,12 +217,6 @@
   /* Hide drag & drop option in portrait mode */
   .option-button.info-only {
     display: none;
-  }
-  
-  .view-photos-button {
-    font-size: 0.9rem;
-    padding: 6px 12px;
-    margin-top: 10px;
   }
 }
 

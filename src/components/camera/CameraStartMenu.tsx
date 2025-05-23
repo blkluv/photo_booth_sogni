@@ -94,19 +94,18 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
           </div>
         </div>
         
-        {hasPhotos && onViewPhotos && (
-          <div className="view-photos-link">
-            <button 
-              className="view-photos-button"
-              onClick={onViewPhotos}
-            >
-              Back to Photos
-            </button>
-          </div>
-        )}
-        
         <MetricsBar />
       </div>
+      
+      {/* Add corner button for Back to Photos */}
+      {hasPhotos && onViewPhotos && (
+        <button 
+          className="corner-btn"
+          onClick={onViewPhotos}
+        >
+          ← Photos
+        </button>
+      )}
       
       <input 
         type="file" 

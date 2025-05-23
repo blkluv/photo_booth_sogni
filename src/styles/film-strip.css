@@ -214,12 +214,12 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
   z-index: 9999;
   transition: transform 0.2s, box-shadow 0.2s;
   padding-bottom: 10px;
+  font-family: "Permanent Marker", cursive;
 }
 
 .corner-btn:hover {
-  transform: translateY(-2px) !important;
+  transform: scale(1.05) !important;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4) !important;
-  background: linear-gradient(135deg, #ff5e8a 0%, #ff3366 100%) !important;
 }
 
 @keyframes buttonAppear {
