@@ -933,6 +933,7 @@ const App = () => {
 
       if (!isMoreOperation) {
         setShowPhotoGrid(true);
+        setShowStartMenu(false);
       }
 
       let processedBlob = photoBlob;
@@ -1301,6 +1302,7 @@ const App = () => {
       });
       
       setShowPhotoGrid(true);
+      setShowStartMenu(false);
     }
   };
 
@@ -1807,19 +1809,32 @@ const App = () => {
       )}
 
       {showStartMenu ? (
-        <CameraStartMenu
-          onTakePhoto={handleTakePhotoOption}
-          onBrowsePhoto={handleBrowsePhotoOption}
-          onDragPhoto={handleDragPhotoOption}
-          isProcessing={!!activeProjectReference.current || isPhotoButtonCooldown}
-          hasPhotos={photos.length > 0}
-          onViewPhotos={() => {
-            // Pre-scroll to top for smooth transition
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            // Show photo grid
-            setShowPhotoGrid(true);
-          }}
-        />
+        <>
+          <CameraStartMenu
+            onTakePhoto={handleTakePhotoOption}
+            onBrowsePhoto={handleBrowsePhotoOption}
+            onDragPhoto={handleDragPhotoOption}
+            isProcessing={!!activeProjectReference.current || isPhotoButtonCooldown}
+            hasPhotos={photos.length > 0}
+            onViewPhotos={null} // Remove the onViewPhotos prop as we're moving the button out
+          />
+          
+          {/* Move the corner button outside of CameraStartMenu */}
+          {showStartMenu && photos.length > 0 && (
+            <button 
+              className="corner-btn photos-corner-btn"
+              onClick={() => {
+                // Pre-scroll to top for smooth transition
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                // Show photo grid
+                setShowPhotoGrid(true);
+                setShowStartMenu(false);
+              }}
+            >
+              ← Photos
+            </button>
+          )}
+        </>
       ) : (
         <>
           {/* Show camera view only when start menu is not shown */}
@@ -2588,6 +2603,7 @@ const App = () => {
               window.scrollTo(0, 0);
               // Clean transition - explicitly ensure camera is hidden first
               setShowPhotoGrid(true);
+              setShowStartMenu(false);
             }}
             className="view-photos-btn corner-btn"
           >

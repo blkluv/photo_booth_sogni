@@ -7,16 +7,12 @@ interface CameraStartMenuProps {
   onBrowsePhoto: (file: File) => void;
   onDragPhoto: () => void;
   isProcessing?: boolean;
-  hasPhotos?: boolean;
-  onViewPhotos?: () => void;
 }
 
 const CameraStartMenu: React.FC<CameraStartMenuProps> = ({ 
   onTakePhoto, 
   onBrowsePhoto,
-  isProcessing = false,
-  hasPhotos = false,
-  onViewPhotos
+  isProcessing = false
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -96,16 +92,6 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
         
         <MetricsBar />
       </div>
-      
-      {/* Add corner button for Back to Photos */}
-      {hasPhotos && onViewPhotos && (
-        <button 
-          className="corner-btn"
-          onClick={onViewPhotos}
-        >
-          ← Photos
-        </button>
-      )}
       
       <input 
         type="file" 
