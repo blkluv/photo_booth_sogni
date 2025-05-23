@@ -64,6 +64,58 @@ const ImageAdjuster = ({
     setPosition({ x: 0, y: 0 });
   };
   
+  // Add document-level event listeners for mouse drag operations
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDragging) return;
+      
+      const clientX = e.clientX;
+      const clientY = e.clientY;
+      
+      // Calculate new position without any restrictions
+      const newX = clientX - dragStart.x;
+      const newY = clientY - dragStart.y;
+      
+      setPosition({ x: newX, y: newY });
+    };
+    
+    const handleMouseUp = () => {
+      if (isDragging) {
+        setIsDragging(false);
+        
+        // Check if image is completely off-screen after drag
+        if (imageRef.current && containerRef.current) {
+          const image = imageRef.current.getBoundingClientRect();
+          const container = containerRef.current.getBoundingClientRect();
+          
+          // Check if image is completely outside the container
+          const isCompletelyOffScreen = 
+            image.right < container.left ||
+            image.left > container.right ||
+            image.bottom < container.top ||
+            image.top > container.bottom;
+          
+          // Reset position if completely off-screen
+          if (isCompletelyOffScreen) {
+            setPosition({ x: 0, y: 0 });
+          }
+        }
+      }
+    };
+    
+    // Add document-level event listeners when dragging starts
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+    
+    // Clean up event listeners
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, dragStart]);
+  
   // Handle mouse/touch down
   const handleDragStart = (e) => {
     if (e.type === 'touchstart') {
@@ -99,7 +151,7 @@ const ImageAdjuster = ({
     }
   };
   
-  // Handle mouse/touch move - allow unrestricted movement
+  // Handle touch move - used only for touch events
   const handleDrag = (e) => {
     if (e.type === 'touchmove') {
       // Handle pinch gesture
@@ -125,25 +177,32 @@ const ImageAdjuster = ({
       const newY = clientY - dragStart.y;
       
       setPosition({ x: newX, y: newY });
-    } else {
-      // Handle mouse drag
-      if (!isDragging) return;
-      
-      const clientX = e.clientX;
-      const clientY = e.clientY;
-      
-      // Calculate new position without any restrictions
-      const newX = clientX - dragStart.x;
-      const newY = clientY - dragStart.y;
-      
-      setPosition({ x: newX, y: newY });
     }
+    // Mouse move is now handled by the document-level event listener
   };
   
-  // Handle mouse/touch up
-  const handleDragEnd = () => {
+  // Handle touch end - used only for touch events
+  const handleTouchEnd = () => {
     setIsDragging(false);
     setIsPinching(false);
+    
+    // Check if image is completely off-screen after drag
+    if (imageRef.current && containerRef.current) {
+      const image = imageRef.current.getBoundingClientRect();
+      const container = containerRef.current.getBoundingClientRect();
+      
+      // Check if image is completely outside the container
+      const isCompletelyOffScreen = 
+        image.right < container.left ||
+        image.left > container.right ||
+        image.bottom < container.top ||
+        image.top > container.bottom;
+      
+      // Reset position if completely off-screen
+      if (isCompletelyOffScreen) {
+        setPosition({ x: 0, y: 0 });
+      }
+    }
   };
   
   // Handle zoom level change via slider
@@ -239,11 +298,8 @@ const ImageAdjuster = ({
             maxWidth: isPortrait ? '90vw' : '80vw',
             maxHeight: isPortrait ? '70vh' : '60vh'
           }}
-          onMouseMove={handleDrag}
-          onMouseUp={handleDragEnd}
-          onMouseLeave={handleDragEnd}
           onTouchMove={handleDrag}
-          onTouchEnd={handleDragEnd}
+          onTouchEnd={handleTouchEnd}
         >
           <div className="image-container">
             <img
