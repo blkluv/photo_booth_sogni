@@ -63,6 +63,8 @@ interface CameraViewProps {
   onResetSettings?: () => void;
   /** Whether the front camera is active */
   isFrontCamera?: boolean;
+  /** Handler for navigating back to main menu */
+  onBackToMenu?: () => void;
 }
 
 export const CameraView: React.FC<CameraViewProps> = ({
@@ -95,6 +97,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
   onKeepOriginalPhotoChange,
   onResetSettings,
   isFrontCamera = true,
+  onBackToMenu,
 }) => {
   // Check if device is mobile
   const [isMobile, setIsMobile] = useState(false);
@@ -165,6 +168,17 @@ export const CameraView: React.FC<CameraViewProps> = ({
       className={`${styles.cameraContainer} ${showPhotoGrid ? styles.slideOut : styles.slideIn}`}
       data-testid={testId || 'camera-container'}
     >
+      {/* Back to Menu Button */}
+      {onBackToMenu && (
+        <button className="back-to-camera-btn corner-btn"
+          onClick={onBackToMenu}
+          aria-label="Back to Main Menu"
+          data-testid="back-to-menu-button"
+        >
+          ←
+        </button>
+      )}
+      
       <div className={styles.polaroidFrame}>
         {/* Title and settings in the polaroid top border */}
         <div className={styles.polaroidHeader}>

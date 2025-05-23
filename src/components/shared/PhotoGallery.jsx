@@ -344,24 +344,8 @@ const PhotoGallery = ({
       }}
     >
       <button
-        className="back-to-camera-btn"
+        className="corner-btn"
         onClick={handleBackToCamera}
-        style={{
-          position: 'fixed',
-          left: '20px',
-          bottom: '20px',
-          background: 'linear-gradient(135deg, #ffb6e6 0%, #ff5e8a 100%)',
-          color: 'white',
-          border: 'none',
-          padding: '12px 24px',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-          cursor: 'pointer',
-          fontWeight: 'bold',
-          fontSize: '16px',
-          zIndex: 9999,
-          transition: 'transform 0.2s, box-shadow 0.2s',
-        }}
       >
         ← 📸
       </button>
@@ -408,45 +392,17 @@ const PhotoGallery = ({
       {/* More button - positioned on the right side */}
       {!isGenerating && selectedPhotoIndex === null && (
         <button
-          className="more-photos-btn"
+          className="more-photos-btn corner-btn"
           onClick={handleGenerateMorePhotos}
           disabled={activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob}
           style={{
             position: 'fixed',
             right: '20px',
             bottom: '20px',
-            background: 'linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%)',
-            color: 'white',
-            border: 'none',
-            padding: '12px 24px',
-            borderRadius: '8px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            left: 'auto',
             cursor: activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob ? 'not-allowed' : 'pointer',
-            fontWeight: 'bold',
-            fontSize: '12px',
             zIndex: 9999,
-            transition: 'all 0.2s ease',
             opacity: activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob ? 0.6 : 1,
-          }}
-          onMouseOver={e => {
-            if (!(activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob)) {
-              e.currentTarget.style.transform = 'scale(1.05)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
-            }
-          }}
-          onMouseOut={e => {
-            e.currentTarget.style.transform = 'scale(1)';
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
-          }}
-          onMouseDown={e => {
-            if (!(activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob)) {
-              e.currentTarget.style.transform = 'scale(0.95)';
-            }
-          }}
-          onMouseUp={e => {
-            if (!(activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob)) {
-              e.currentTarget.style.transform = 'scale(1.05)';
-            }
           }}
         >
           More ✨

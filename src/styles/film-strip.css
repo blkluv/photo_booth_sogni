@@ -199,31 +199,24 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
 }
 
 /* Back to Camera button - ensure it stays fixed */
-.back-to-camera-btn {
-  position: fixed !important;
-  bottom: 20px !important;
-  left: 20px !important;
-  background: linear-gradient(135deg, #ff3366 0%, #ff5e8a 100%) !important;
-  color: white !important;
-  padding: 12px 24px !important;
-  border: none !important;
-  border-radius: 25px !important;
-  font-weight: bold !important;
-  font-size: 16px !important;
-  cursor: pointer !important;
-  z-index: 99999 !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
-  transition: all 0.3s ease !important;
-  display: flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-  transform: none !important;
-  margin: 0 !important;
-  opacity: 0;
-  animation: buttonAppear 0.5s 0.3s cubic-bezier(0.2, 0, 0.2, 1) forwards;
+.corner-btn {
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  background: #ff5252 !important;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  cursor: pointer;
+  font-size: 16px;
+  z-index: 9999;
+  transition: transform 0.2s, box-shadow 0.2s;
+  padding-bottom: 10px;
 }
 
-.back-to-camera-btn:hover {
+.corner-btn:hover {
   transform: translateY(-2px) !important;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4) !important;
   background: linear-gradient(135deg, #ff5e8a 0%, #ff3366 100%) !important;
@@ -358,7 +351,7 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
     position: fixed !important;
     right: -23px !important;
   }
-  .back-to-camera-btn {
+  .corner-btn {
     z-index: 998 !important;
   }
 }
@@ -450,21 +443,12 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
   position: fixed;
   bottom: 20px;
   right: 20px;
+  left: auto !important;
   z-index: 100;
   background: linear-gradient(135deg, #ff5e8a 0%, #ff3366 100%);
-  color: #fff;
-  border: none;
-  border-radius: 25px;
-  padding: 14px 24px;
-  font-weight: bold;
-  font-size: 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
   gap: 8px;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
   transition: transform 0.2s, box-shadow 0.2s;
-  font-family: "Permanent Marker", cursive;
 }
 
 .view-photos-btn:hover {
@@ -485,11 +469,8 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
 /* Responsive styling for View Photos button on mobile */
 @media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
   .view-photos-btn {
-    padding: 10px 16px;
-    font-size: 14px;
     right: 10px;
     bottom: 10px;
-    border-radius: 20px;
   }
   
   .view-photos-icon {
@@ -510,13 +491,6 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
   
   .view-photos-icon {
     font-size: 14px;
-  }
-  
-  .view-photos-label {
-    max-width: 80px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 }
 

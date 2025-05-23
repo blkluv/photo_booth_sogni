@@ -602,6 +602,6 @@ html body .photobooth-app .photobooth-frame .photobooth-header .tips-ribbon {
 }
 
 /* Ensure back-to-camera button is hidden in selected photo view */
-.film-strip-container.has-selected .back-to-camera-btn {
+.film-strip-container.has-selected .corner-btn {
   display: none !important;
 } 

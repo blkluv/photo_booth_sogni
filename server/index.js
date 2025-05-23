@@ -72,7 +72,7 @@ app.use('/api', (req, res, next) => {
   console.log(`[API Debug] ${req.method} ${req.path} received`);
   const originalJson = res.json;
   res.json = function(data) {
-    console.log(`[API Debug] ${req.method} ${req.path} responding with JSON:`, typeof data);
+    //console.log(`[API Debug] ${req.method} ${req.path} responding with JSON:`, typeof data);
     return originalJson.call(this, data);
   };
   next();

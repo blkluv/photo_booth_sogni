@@ -12,6 +12,13 @@
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   overflow: hidden; /* Ensure slideshow doesn't cause scrolling */
+  transition: opacity 0.5s ease-out, backdrop-filter 0.5s ease-out;
+}
+
+.camera-start-menu.exiting {
+  opacity: 0;
+  -webkit-backdrop-filter: blur(0px);
+  backdrop-filter: blur(0px);
 }
 
 .start-menu-content {
@@ -27,6 +34,12 @@
   position: relative;
   margin-right: auto; /* Changed from 320px to auto for centering */
   margin-left: auto; /* Added for symmetrical centering */
+  transition: transform 0.5s cubic-bezier(0.17, 0.67, 0.83, 0.67), opacity 0.5s ease-out;
+}
+
+.camera-start-menu.exiting .start-menu-content {
+  transform: scale(0.9) translateY(20px);
+  opacity: 0;
 }
 
 .start-menu-title {

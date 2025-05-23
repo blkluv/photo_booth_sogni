@@ -712,26 +712,6 @@ const App = () => {
     };
     
     initializeAppOnMount();
-    
-    // Return cleanup function to disconnect Sogni client when component unmounts
-    return () => {
-      if (sogniClient) {
-        console.log('App component unmounting, disconnecting Sogni client');
-        
-        // Use the client's disconnect method directly
-        sogniClient.disconnect().catch(error => {
-          console.warn('Error during cleanup disconnect:', error);
-        });
-        
-        // Also attempt to disconnect all instances as a fallback
-        if (sogniClient.constructor && typeof sogniClient.constructor.disconnectAll === 'function') {
-          console.log('Calling disconnectAll for cleanup');
-          sogniClient.constructor.disconnectAll().catch(error => {
-            console.warn('Error during disconnectAll cleanup:', error);
-          });
-        }
-      }
-    };
   }, [listCameras, initializeSogni]);
   
   // Add an effect specifically for page unload/refresh cleanup
@@ -1908,7 +1888,8 @@ const App = () => {
               updateSetting('slothicornAnimationEnabled', value);
               saveSettingsToCookies({ slothicornAnimationEnabled: value });
             }}
-            onResetSettings={resetSettings} // Pass context reset function
+            onResetSettings={resetSettings}
+            onBackToMenu={handleBackToMenu}
           />
           
           {/* Other UI elements like canvas, flash effect, etc. */}
@@ -2020,6 +2001,15 @@ const App = () => {
   // The start menu state was moved to the top
   // Handler for the "Take Photo" option in start menu
   const handleTakePhotoOption = async () => {
+    // Add exit animation class
+    const startMenuElement = document.querySelector('.camera-start-menu');
+    if (startMenuElement) {
+      startMenuElement.classList.add('exiting');
+      
+      // Wait for animation to complete before hiding
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
     setShowStartMenu(false);
     // Start camera after user selects the option
     await startCamera(null);
@@ -2027,7 +2017,16 @@ const App = () => {
   };
 
   // Handler for the "Browse Photo" option in start menu
-  const handleBrowsePhotoOption = (file) => {
+  const handleBrowsePhotoOption = async (file) => {
+    // Add exit animation class
+    const startMenuElement = document.querySelector('.camera-start-menu');
+    if (startMenuElement) {
+      startMenuElement.classList.add('exiting');
+      
+      // Wait for animation to complete before hiding
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
     setShowStartMenu(false);
     
     // Make sure we have a valid file
@@ -2050,7 +2049,16 @@ const App = () => {
   };
 
   // Handler for the "Drag Photo" option in start menu
-  const handleDragPhotoOption = () => {
+  const handleDragPhotoOption = async () => {
+    // Add exit animation class
+    const startMenuElement = document.querySelector('.camera-start-menu');
+    if (startMenuElement) {
+      startMenuElement.classList.add('exiting');
+      
+      // Wait for animation to complete before hiding
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
     setShowStartMenu(false);
     // Show an overlay or instructions for drag and drop
     setDragActive(true);
@@ -2070,6 +2078,21 @@ const App = () => {
     if (videoReference.current) {
       videoReference.current.style.transform = !isFrontCamera ? 'scaleX(-1)' : 'scaleX(1)';
     }
+  };
+
+  // Function to handle going back from camera to start menu
+  const handleBackToMenu = () => {
+    // Scroll to top smoothly
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Hide slothicorn if visible
+    if (slothicornReference.current) {
+      slothicornReference.current.style.setProperty('bottom', '-360px', 'important');
+      slothicornReference.current.classList.remove('animating');
+    }
+    
+    // Show the start menu
+    setShowStartMenu(true);
   };
 
   // -------------------------
@@ -2566,9 +2589,9 @@ const App = () => {
               // Clean transition - explicitly ensure camera is hidden first
               setShowPhotoGrid(true);
             }}
-            className="view-photos-btn"
+            className="view-photos-btn corner-btn"
           >
-            <span className="view-photos-icon">📸</span>
+            <span className="view-photos-icon">📸 </span>
             <span className="view-photos-label">View Photos ({photos.length})</span>
           </button>
         )}
@@ -2720,23 +2743,6 @@ const App = () => {
           
           .header-take-photo-btn:hover {
             background: #ff7272 !important;
-          }
-          
-          /* ------- FIX 3: Back to Camera button positioning ------- */
-          .film-strip-container .back-to-camera-btn {
-            position: fixed !important;
-            left: 20px !important;
-            bottom: 20px !important;
-            top: auto !important;
-            right: auto !important;
-            background: #ff5252 !important;
-            color: white !important;
-            border: none !important;
-            padding: 10px 20px !important;
-            border-radius: 8px !important;
-            z-index: 9999 !important;
-            margin: 0 !important;
-            transform: none !important;
           }
 
           /* ------- FIX 4: Loading image fade effect ------- */

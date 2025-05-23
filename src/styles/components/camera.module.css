@@ -551,17 +551,17 @@
 }
 
 .cameraFlipButton:hover, .cameraFlipButton:active {
-  background: white;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  transform: scale(1.05);
+  background-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
 }
 
 .cameraFlipIcon {
-  width: 24px;
-  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 24px;
+  height: 24px;
+  width: 24px;
 }
 
 /* Add particle effect for transition */
