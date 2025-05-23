@@ -20,7 +20,7 @@
   border-radius: 16px;
   padding: 24px;
   max-width: 90%;
-  width: 500px;
+  width: 580px;
   color: white;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   display: flex;
@@ -33,11 +33,17 @@
 
 .image-adjuster-container h2 {
   font-size: 1.8rem;
-  margin: 0 0 5px 0;
   background: linear-gradient(90deg, #ff7eb3, #7868e6);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   font-weight: 700;
+}
+
+.image-adjuster-subtitle {
+  font-size: 0.9rem;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: -23px;
 }
 
 .image-frame {

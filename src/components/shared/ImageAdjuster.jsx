@@ -31,6 +31,20 @@ const ImageAdjuster = ({
   const [dimensions, setDimensions] = useState(getCustomDimensions());
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
   
+  // Check if device has touch capability
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  
+  // Check for touch device on component mount
+  useEffect(() => {
+    const checkTouchDevice = () => {
+      return 'ontouchstart' in window || 
+             navigator.maxTouchPoints > 0 || 
+             navigator.msMaxTouchPoints > 0;
+    };
+    
+    setIsTouchDevice(checkTouchDevice());
+  }, []);
+  
   // Handle window resize to update dimensions and orientation
   useEffect(() => {
     const handleResize = () => {
@@ -290,6 +304,7 @@ const ImageAdjuster = ({
     <div className="image-adjuster-overlay">
       <div className="image-adjuster-container">
         <h2>Adjust Your Image</h2>
+        <p className="image-adjuster-subtitle">Smaller faces can give more room for creativity.</p>
         <div 
           className="image-frame"
           ref={containerRef}
@@ -328,22 +343,26 @@ const ImageAdjuster = ({
         </div>
         
         <div className="image-adjustment-controls">
-          <div className="zoom-control">
-            <label htmlFor="zoom-slider">
-              <span role="img" aria-label="zoom">🔍</span> Size:
-            </label>
-            <input
-              id="zoom-slider"
-              type="range"
-              min="0.5"
-              max="3"
-              step="0.01"
-              value={scale}
-              onChange={handleZoomChange}
-            />
-          </div>
+          {!isTouchDevice && (
+            <div className="zoom-control">
+              <label htmlFor="zoom-slider">
+                <span role="img" aria-label="zoom">🔍</span> Size:
+              </label>
+              <input
+                id="zoom-slider"
+                type="range"
+                min="0.5"
+                max="3"
+                step="0.01"
+                value={scale}
+                onChange={handleZoomChange}
+              />
+            </div>
+          )}
           <div className="instruction-text">
-            Drag to position • Pinch to zoom • Use slider to resize
+            {isTouchDevice ? 
+              "Drag to position • Pinch to zoom" : 
+              "Drag to position • Use slider to resize"}
           </div>
         </div>
         
