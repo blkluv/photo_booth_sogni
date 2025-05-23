@@ -14,12 +14,6 @@
   html body #root div[class*="cameraView"] {
     width: 100% !important;
     aspect-ratio: 7/9 !important; /* Force portrait aspect ratio */
-    border-left: 24px solid white !important;
-    border-right: 24px solid white !important;
-    border-top: 50px solid white !important;
-    border-bottom: 70px solid white !important;
-    border-radius: 8px !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
     overflow: hidden !important;
     display: flex !important;
     align-items: center !important;

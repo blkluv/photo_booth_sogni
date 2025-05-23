@@ -601,14 +601,7 @@ html body .photobooth-app .photobooth-frame .photobooth-header .tips-ribbon {
   transform: scale(0.95) !important;
 }
 
-/* Override position only in selected photo view */
-.selected-photo-container .share-twitter-btn {
-  left: 20px !important;
-  right: auto !important;
-}
-
 /* Ensure back-to-camera button is hidden in selected photo view */
-.film-strip-container.has-selected .back-to-camera-btn,
-.selected-photo-container ~ .back-to-camera-btn {
+.film-strip-container.has-selected .back-to-camera-btn {
   display: none !important;
 } 

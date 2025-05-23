@@ -2700,39 +2700,6 @@ const App = () => {
             filter: grayscale(20%) !important;
           }
           
-          /* ------- FIX 5: Slideshow Polaroid frame ------- */
-          .selected-photo-container {
-            background: rgba(0,0,0,0.85);
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            bottom: 0 !important;
-            z-index: 99999 !important;
-          }
-                    
-          .image-wrapper {
-            background: white !important;
-            padding: 16px 16px 60px 16px !important;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3) !important;
-            border-radius: 4px !important;
-            margin: 20px auto !important;
-            position: relative !important;
-            max-width: 80% !important;
-            max-height: 80vh !important;
-          }
-          
-          .image-wrapper img {
-            width: 100% !important;
-            height: auto !important;
-            object-fit: cover !important;
-            display: block !important;
-            border-radius: 2px !important;
-          }
-          
           /* Set aspect ratio CSS variable based on orientation */
           :root {
             --current-aspect-ratio: ${window.innerHeight > window.innerWidth ? '896/1152' : '1152/896'};

@@ -772,9 +772,7 @@ const PhotoGallery = ({
                 style={{
                   ...squareStyle,
                   position: 'relative',
-                  borderRadius: '3px',
-                  padding: '12px',
-                  paddingBottom: '60px',
+                  borderRadius: '2px',
                   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
                   display: 'flex',
                   flexDirection: 'column'
@@ -798,7 +796,7 @@ const PhotoGallery = ({
                     />
                   )}
                 </div>
-                <div className="photo-label" style={{ color: photo.error ? '#d32f2f' : undefined, fontWeight: photo.error ? 700 : undefined }}>
+                <div className="photo-label">
                   {photo.error ? 
                     `${typeof photo.error === 'object' ? 'Generation failed' : photo.error}` 
                     : photo.loading || photo.generating ? 
@@ -825,9 +823,7 @@ const PhotoGallery = ({
               style={{
                 ...squareStyle,
                 position: 'relative',
-                borderRadius: '3px',
-                padding: '12px',
-                paddingBottom: '60px',
+                borderRadius: '2px',
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
                 display: 'flex',
                 flexDirection: 'column'

@@ -2,15 +2,6 @@
    Selected Photo Viewer / Film Capture
    -------------------------------------- */
 
-/* Enlarged photo when user taps a film frame */
-.photobooth-photo-viewer img {
-  border: 6px solid #fff;
-  border-radius: 10px;
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-  flex: 1;
-  max-height: calc(100% - 80px);
-}
-
 /* Button shown on viewer to return to camera */
 .back-to-camera-btn {
   position: absolute;

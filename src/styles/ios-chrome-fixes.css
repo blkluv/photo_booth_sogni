@@ -61,14 +61,6 @@
       display: block !important;
     }
     
-    /* Fix photo grid layout for iOS portrait */
-    .film-frame {
-      aspect-ratio: calc(896 / 1152) !important; /* Portrait aspect ratio for iOS */
-      padding: 8px 8px 40px 8px !important; /* Increase bottom padding */
-      display: flex !important;
-      flex-direction: column !important;
-    }
-    
     /* Fix for selected photo view in portrait */
     .film-frame.selected {
       position: fixed !important;
@@ -96,12 +88,6 @@
       font-size: 22px !important;
       width: 100% !important;
       padding-top: 40px;
-    }
-
-    .film-frame:not(.selected) .photo-label {
-      bottom: 20px !important;
-      font-size: 18px !important;
-
     }
     
     /* Hide back to camera button when a photo is selected */

@@ -70,7 +70,7 @@
 
 .polaroidHeader {
   position: absolute;
-  top: 9px;
+  top: 7px;
   left: 32px;
   right: 32px;
   display: flex;
@@ -85,7 +85,6 @@
   font-size: 20px;
   font-weight: bold;
   color: #ff5e8a;
-  text-shadow: 0 1px 0 #fff;
   letter-spacing: 1px;
   white-space: nowrap;
   overflow: hidden;
@@ -102,7 +101,7 @@
   border-left: 32px solid white;
   border-right: 32px solid white;
   border-top: 32px solid white;
-  border-bottom: 120px solid white;
+  border-bottom: 112px solid white;
   border-radius: 8px;
   box-shadow: 0 2px 0 #e5e5e5, 0 8px 30px rgba(0,0,0,0.18);
   overflow: hidden;
@@ -314,14 +313,13 @@
 /* Responsive styles */
 @media (max-width: 600px), (orientation: portrait) and (max-device-width: 1024px) {
   .polaroidFrame {
-    max-width: 96vw;
-    border-radius: 4px;
+    border-radius: 2px;
   }
   
   .cameraView {
-    border-left-width: 10px !important;
-    border-right-width: 10px !important;
-    border-top-width: 27px !important;
+    border-left-width: 20px !important;
+    border-right-width: 20px !important;
+    border-top-width: 22px !important;
     border-bottom-width: 70px !important;
   }
   
