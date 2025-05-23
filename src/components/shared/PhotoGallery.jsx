@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useEffect, useState, useRef } from 'react';
+import React, { useMemo, useCallback, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import '../../styles/film-strip.css'; // Using film-strip.css which contains the gallery styles
 import '../../styles/components/PhotoGallery.css';
@@ -219,13 +219,6 @@ const PhotoGallery = ({
       const timestamp = new Date().getTime();
       const filename = `${cleanHashtag}_photo_${timestamp}.png`;
       
-      // Generate polaroid image
-      const options = {
-        frameBottomWidth: 150,
-        labelFont: '34px "Permanent Marker", cursive',
-        labelColor: '#333333'
-      };
-      
       // Ensure font is loaded
       if (!document.querySelector('link[href*="Permanent+Marker"]')) {
         const fontLink = document.createElement('link');
@@ -238,7 +231,7 @@ const PhotoGallery = ({
       await document.fonts.ready;
       
       // Create polaroid image
-      const polaroidUrl = await createPolaroidImage(imageUrl, photoLabel, options);
+      const polaroidUrl = await createPolaroidImage(imageUrl, photoLabel);
       
       // Handle mobile Chrome on iOS differently
       if (isMobileChrome) {
@@ -817,10 +810,14 @@ const PhotoGallery = ({
           }
           // Show completed image
           const thumbUrl = photo.images[0] || '';
+          // Determine if photo is fully loaded with a hashtag/label
+          const isLoaded = (!photo.loading && !photo.generating && photo.images.length > 0 && 
+                           (photo.statusText || labelText));
+          
           return (
             <div 
               key={photo.id}
-              className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''}`}
+              className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''} ${isLoaded ? 'loaded' : ''}`}
               onClick={e => isSelected ? handlePhotoViewerClick(e) : handlePhotoSelect(index, e)}
               data-enhancing={photo.enhancing ? 'true' : undefined}
               data-error={photo.error ? 'true' : undefined}

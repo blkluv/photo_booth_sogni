@@ -144,6 +144,14 @@
     height: 30px !important; /* Fixed height for label */
   }
 
+  /* Larger font for loaded photos on mobile */
+  .film-frame.loaded .photo-label:not(:empty) {
+    font-size: 16px !important; /* Slightly smaller than desktop but still larger than base mobile */
+  }
+  body.has-selected-photo .film-frame.loaded .photo-label:not(:empty) {
+    font-size: 24px !important; /* Slightly smaller than desktop but still larger than base mobile */
+  }
+
   body.has-selected-photo .header-info-btn,
   body.has-selected-photo .header-settings-btn,
   body.has-selected-photo .top-left-style-selector {
@@ -192,6 +200,15 @@
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
   padding: 0 5px !important;
+}
+
+/* Larger font size for completed photos with hashtags */
+.film-frame.loaded .photo-label:not(:empty) {
+  font-size: 18px !important;
+  font-weight: 500 !important;
+}
+body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
+  font-size: 42px !important; /* Slightly smaller than desktop but still larger than base mobile */
 }
 
 /* Visible frame number badge at top-left of each photo */
@@ -400,9 +417,9 @@
   aspect-ratio: auto !important;
   border-radius: 2px !important;
   box-shadow: 0 8px 30px rgba(0,0,0,0.18) !important;
-  border-left: 22px solid white !important;
-  border-right: 22px solid white !important;
-  border-top: 22px solid white !important;
+  border-left: 34px solid white !important;
+  border-right: 34px solid white !important;
+  border-top: 34px solid white !important;
   border-bottom: 120px solid white !important;
   margin: 0 auto !important;
   display: block !important;

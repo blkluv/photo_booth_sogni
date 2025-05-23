@@ -54,16 +54,9 @@ const TwitterShareModal = ({
           // Make sure the font is loaded before generating the preview
           await document.fonts.ready;
           
-          // Custom options for better polaroid styling
-          const options = {
-            frameBottomWidth: 150, // Updated to match Twitter sharing settings
-            labelFont: '34px "Permanent Marker", cursive', // Explicit font styling
-            labelColor: '#333333' // Ensure visible text color
-          };
-          
           console.log(`Creating polaroid preview with label: "${photoLabel}"`);
           // Create and use polaroid data URL directly - avoid converting to Blob
-          const polaroidUrl = await createPolaroidImage(imageUrl, photoLabel, options);
+          const polaroidUrl = await createPolaroidImage(imageUrl, photoLabel);
           setPolaroidImageUrl(polaroidUrl);
         } catch (error) {
           console.error('Error creating polaroid preview:', error);
@@ -88,7 +81,7 @@ const TwitterShareModal = ({
     const currentUrl = window.location.href;
     if (isOpen) {
       const initialMessage = styleHashtag 
-        ? `${defaultMessage} ${styleHashtag} ${currentUrl}?prompt=${styleHashtag}`
+        ? `${defaultMessage} ${styleHashtag} ${currentUrl.split('?')[0]}?prompt=${styleHashtag.replace('#', '')}`
         : `${defaultMessage} ${currentUrl}`;
       
       setMessage(initialMessage);

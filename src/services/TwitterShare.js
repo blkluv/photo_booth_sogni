@@ -88,15 +88,8 @@ export const shareToTwitter = async ({
       console.warn('Could not manually load font, using system fallback:', fontError);
     }
     
-    // Generate a polaroid-framed version of the image with consistent styling
-    const polaroidOptions = {
-      frameBottomWidth: 150, // Larger bottom border for typical polaroid look
-      labelFont: '34px "Permanent Marker", cursive', // Explicit font styling
-      labelColor: '#333333' // Ensure visible text color
-    };
-    
     // Generate a polaroid-framed version of the image as a data URL
-    const polaroidImageDataUrl = await createPolaroidImage(originalImageUrl, label, polaroidOptions);
+    const polaroidImageDataUrl = await createPolaroidImage(originalImageUrl, label);
     
     // Use the data URL directly instead of creating a blob URL
     // This ensures the server can access the image data directly

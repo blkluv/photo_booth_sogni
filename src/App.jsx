@@ -1036,7 +1036,7 @@ const App = () => {
             */
             updated[photoIndex] = {
               ...updated[photoIndex],
-              statusText: `${workerName || 'unknown'} staring job`,
+              statusText: `${workerName || 'unknown'} imagining... `,
               workerName: workerName || 'unknown',
               jobId,
               jobIndex,
@@ -2786,19 +2786,7 @@ const App = () => {
           .film-frame.animating-selection {
             transition: transform 0.5s cubic-bezier(0.2, 0, 0.2, 1) !important;
           }
-          
-          /* Improve photo label appearance */
-          .photo-label {
-            padding: 8px 0;
-            text-align: center;
-            font-size: 14px;
-            color: #333;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 100%;
-          }
-          
+                    
           /* ------- ADD: Psychedelic animation ------- */
           @keyframes psychedelic-shift {
             0% {

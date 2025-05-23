@@ -50,11 +50,11 @@ export async function resizeDataUrl(dataUrl, width, height) {
 export async function createPolaroidImage(imageUrl, label, options = {}) {
   return new Promise((resolve, reject) => {
     const {
-      frameWidth = 24,
-      frameTopWidth = 24,
-      frameBottomWidth = 150, // Updated to match Twitter sharing settings (150px)
+      frameWidth = 56,
+      frameTopWidth = 56,
+      frameBottomWidth = 196, // Updated to match Twitter sharing settings (150px)
       frameColor = 'white',
-      labelFont = '34px "Permanent Marker", cursive',
+      labelFont = '72px "Permanent Marker", cursive',
       labelColor = '#333'
     } = options;
 
@@ -142,7 +142,7 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
         const labelY = polaroidHeight - (frameBottomWidth / 2);
         
         // Constrain label length if too long
-        const maxLabelWidth = polaroidWidth - 40; // Increased padding
+        const maxLabelWidth = polaroidWidth - 20; // Increased padding
         let displayLabel = textToDraw;
         
         if (ctx.measureText(textToDraw).width > maxLabelWidth) {
@@ -155,11 +155,6 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
             }
           }
         }
-        
-        // Add a subtle text shadow for better readability
-        ctx.shadowColor = 'rgba(0,0,0,0.2)'; // Increased shadow opacity for better visibility
-        ctx.shadowBlur = 1; // Increased blur for more noticeable shadow
-        ctx.shadowOffsetY = 1;
         
         ctx.fillText(displayLabel, polaroidWidth / 2, labelY);
         
