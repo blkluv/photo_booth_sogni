@@ -6,3 +6,4 @@ dist
 /ssl
 .DS_Store
 *.log
+.cursor/
