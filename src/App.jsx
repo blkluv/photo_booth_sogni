@@ -143,6 +143,7 @@ const App = () => {
   // Add state for image adjustment
   const [showImageAdjuster, setShowImageAdjuster] = useState(false);
   const [currentUploadedImageUrl, setCurrentUploadedImageUrl] = useState('');
+  const [currentUploadedSource, setCurrentUploadedSource] = useState('');
   
   // Add the start menu state here
   const [showStartMenu, setShowStartMenu] = useState(true);
@@ -1366,6 +1367,7 @@ const App = () => {
     // Create a temporary URL for the file
     const tempUrl = URL.createObjectURL(file);
     setCurrentUploadedImageUrl(tempUrl);
+    setCurrentUploadedSource('upload');
     
     // Show the image adjuster
     setShowImageAdjuster(true);
@@ -1446,6 +1448,114 @@ const App = () => {
         }
       }, 1200);
     }
+
+    // Custom canvas size and aspect ratio to match the model's expectations
+    const { width: canvasWidth, height: canvasHeight } = getCustomDimensions();
+    console.log(`Capturing at ${canvasWidth}x${canvasHeight}`);
+    
+    // Create a canvas for the capture
+    const canvas = document.createElement('canvas');
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+    const context = canvas.getContext('2d');
+    
+    // Get the video dimensions
+    const video = videoReference.current;
+    const videoAspect = video.videoWidth / video.videoHeight;
+    const canvasAspect = canvasWidth / canvasHeight;
+    
+    // Variables for source and destination
+    let sourceWidth = video.videoWidth;
+    let sourceHeight = video.videoHeight;
+    const destinationX = 0;
+    const destinationY = 0;
+    const destinationWidth = canvasWidth;
+    const destinationHeight = canvasHeight;
+    
+    // If front camera is active, apply mirroring
+    if (isFrontCamera) {
+      context.save();
+      context.scale(-1, 1);
+      context.translate(-canvas.width, 0);
+    }
+    
+    // Calculate source coordinates based on aspect ratios
+    if (videoAspect > canvasAspect) {
+      sourceWidth = video.videoHeight * canvasAspect;
+      const sourceX = (video.videoWidth - sourceWidth) / 2;
+      context.drawImage(video, 
+        sourceX, 0, sourceWidth, sourceHeight,
+        destinationX, destinationY, destinationWidth, destinationHeight
+      );
+    }
+    else {
+      sourceHeight = video.videoWidth / canvasAspect;
+      const sourceY = (video.videoHeight - sourceHeight) / 2;
+      context.drawImage(video, 
+        0, sourceY, sourceWidth, sourceHeight,
+        destinationX, destinationY, destinationWidth, destinationHeight
+      );
+    }
+    
+    // Restore canvas state if we applied mirroring
+    if (isFrontCamera) {
+      context.restore();
+    }
+
+    // For iOS, ensure we capture a good frame by drawing again after a small delay
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    if (isIOS) {
+      // Small delay to ensure the frame is fully captured before processing
+      await new Promise(resolve => setTimeout(resolve, 100));
+      // Redraw the frame with mirroring if needed
+      if (isFrontCamera) {
+        context.save();
+        context.scale(-1, 1);
+        context.translate(-canvas.width, 0);
+      }
+      
+      // Redraw the frame
+      if (videoAspect > canvasAspect) {
+        sourceWidth = video.videoHeight * canvasAspect;
+        const sourceX = (video.videoWidth - sourceWidth) / 2;
+        context.drawImage(video, 
+          sourceX, 0, sourceWidth, sourceHeight,
+          destinationX, destinationY, destinationWidth, destinationHeight
+        );
+      } else {
+        sourceHeight = video.videoWidth / canvasAspect;
+        const sourceY = (video.videoHeight - sourceHeight) / 2;
+        context.drawImage(video, 
+          0, sourceY, sourceWidth, sourceHeight,
+          destinationX, destinationY, destinationWidth, destinationHeight
+        );
+      }
+      
+      if (isFrontCamera) {
+        context.restore();
+      }
+    }
+
+    // Generate initial data URL and blob
+    const dataUrl = canvas.toDataURL('image/png', 1.0);
+    
+    // Use a quality of 1.0 and explicitly use the PNG MIME type for iOS
+    const blob = await new Promise(resolve => {
+      canvas.toBlob(resolve, 'image/png', 1.0);
+    });
+    
+    if (!blob) {
+      console.error('Failed to create blob from canvas');
+      return;
+    }
+
+    // Create a temporary URL for the blob and show the image adjuster
+    const tempUrl = URL.createObjectURL(blob);
+    setCurrentUploadedImageUrl(tempUrl);
+    setCurrentUploadedSource('camera');
+    
+    // Show the image adjuster
+    setShowImageAdjuster(true);
   };
 
   const triggerFlashAndCapture = (e) => {
@@ -1591,61 +1701,13 @@ const App = () => {
       return;
     }
 
-    // Create a new photo item with the sourceType
-    setPhotos(previous => {
-      return [
-        ...previous,
-        {
-          id: Date.now(),
-          generating: true,
-          images: [],
-          error: null,
-          originalDataUrl: null, // Will be updated with cropped version
-          newlyArrived: false,
-          generationCountdown: 10,
-          sourceType: 'camera' // Add sourceType for camera captures
-        }
-      ];
-    });
-
-    // For all devices, ensure the final image has the exact desired aspect ratio
-    // This prevents any issues with aspect ratio in the photo grid view
-    const { width: targetWidth, height: targetHeight } = getCustomDimensions();
-    console.log(`Enforcing aspect ratio ${targetWidth}:${targetHeight} for captured photo`);
+    // Create a temporary URL for the blob and show the image adjuster
+    const tempUrl = URL.createObjectURL(blob);
+    setCurrentUploadedImageUrl(tempUrl);
+    setCurrentUploadedSource('camera');
     
-    try {
-      // Use centerCropImage to ensure the final image has the correct aspect ratio
-      // This is important for consistency in the photo grid view
-      const croppedBlob = await centerCropImage(blob, targetWidth, targetHeight);
-      const croppedDataUrl = await blobToDataURL(croppedBlob);
-      
-      // For iOS Chrome, ensure the blob is fully ready by creating a new copy
-      if (isIOS) {
-        const reader = new FileReader();
-        reader.onload = async function() {
-          const arrayBuffer = this.result;
-          const newBlob = new Blob([arrayBuffer], {type: 'image/png'});
-          generateFromBlob(newBlob, photos.length, croppedDataUrl, false, 'camera');
-        };
-        reader.readAsArrayBuffer(croppedBlob);
-      } else {
-        generateFromBlob(croppedBlob, photos.length, croppedDataUrl, false, 'camera');
-      }
-    } catch (error) {
-      console.error('Error during image cropping, using original capture:', error);
-      // Fallback to original if cropping fails
-      if (isIOS) {
-        const reader = new FileReader();
-        reader.onload = async function() {
-          const arrayBuffer = this.result;
-          const newBlob = new Blob([arrayBuffer], {type: 'image/png'});
-          generateFromBlob(newBlob, photos.length, dataUrl, false, 'camera');
-        };
-        reader.readAsArrayBuffer(blob);
-      } else {
-        generateFromBlob(blob, photos.length, dataUrl, false, 'camera');
-      }
-    }
+    // Show the image adjuster
+    setShowImageAdjuster(true);
   };
 
   /**
@@ -1981,6 +2043,7 @@ const App = () => {
     // Create a temporary URL for the file
     const tempUrl = URL.createObjectURL(file);
     setCurrentUploadedImageUrl(tempUrl);
+    setCurrentUploadedSource('upload');
     
     // Show the image adjuster
     setShowImageAdjuster(true);
@@ -2132,7 +2195,7 @@ const App = () => {
       originalDataUrl: null, // Will be updated with adjusted version
       newlyArrived: false,
       generationCountdown: 10,
-      sourceType: 'upload' // Add sourceType for uploaded files
+      sourceType: currentUploadedSource === 'camera' ? 'camera' : 'upload' // Set source type based on current mode
     };
     
     setPhotos((previous) => [...previous, newPhoto]);
@@ -2156,7 +2219,7 @@ const App = () => {
       });
       
       // Use the adjusted blob for generation
-      generateFromBlob(adjustedBlob, newPhotoIndex, adjustedDataUrl, false, 'upload');
+      generateFromBlob(adjustedBlob, newPhotoIndex, adjustedDataUrl, false, currentUploadedSource === 'camera' ? 'camera' : 'upload');
     });
     reader.readAsDataURL(adjustedBlob);
   };
@@ -2175,6 +2238,22 @@ const App = () => {
     
     // Show the start menu again
     setShowStartMenu(true);
+  };
+
+  // Add this to the component state declarations at the top
+  const [lastCaptureData, setLastCaptureData] = useState(null);
+
+  // Add a function to handle camera snapshot adjustment cancellation
+  const handleCameraSnapshotCancel = () => {
+    setShowImageAdjuster(false);
+    
+    // Clean up the URL object to prevent memory leaks
+    if (currentUploadedImageUrl) {
+      URL.revokeObjectURL(currentUploadedImageUrl);
+    }
+    
+    // Reset the current image state
+    setCurrentUploadedImageUrl('');
   };
 
   // -------------------------
@@ -2779,7 +2858,7 @@ const App = () => {
         <ImageAdjuster
           imageUrl={currentUploadedImageUrl}
           onConfirm={handleAdjustedImage}
-          onCancel={handleCancelAdjusting}
+          onCancel={currentUploadedSource === 'camera' ? handleCameraSnapshotCancel : handleCancelAdjusting}
         />
       )}
     </>
