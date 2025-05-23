@@ -28,6 +28,7 @@ import promptsData from './prompts.json';
 import PhotoGallery from './components/shared/PhotoGallery';
 import { useApp } from './context/AppContext.tsx';
 import TwitterShareModal from './components/shared/TwitterShareModal';
+import SplashScreen from './components/shared/SplashScreen';
 
 // Helper function to update URL with prompt parameter
 const updateUrlWithPrompt = (promptKey) => {
@@ -262,6 +263,9 @@ const App = () => {
   // Add state for Twitter share modal
   const [showTwitterModal, setShowTwitterModal] = useState(false);
   const [twitterPhotoIndex, setTwitterPhotoIndex] = useState(null);
+
+  // Add state for splash screen
+  const [showSplashScreen, setShowSplashScreen] = useState(true);
 
   // Track page views when view changes
   useEffect(() => {
@@ -2215,6 +2219,11 @@ const App = () => {
   // -------------------------
   return (
     <>
+      {/* Splash Screen */}
+      {showSplashScreen && (
+        <SplashScreen onDismiss={() => setShowSplashScreen(false)} />
+      )}
+      
       {/* Twitter Share Modal */}
       <TwitterShareModal 
         isOpen={showTwitterModal}

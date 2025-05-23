@@ -1,6 +1,5 @@
 import React, { useRef, } from 'react';
 import MetricsBar from '../shared/MetricsBar';
-import GallerySlideshow from '../shared/GallerySlideshow';
 import './CameraStartMenu.css';
 
 interface CameraStartMenuProps {
@@ -108,9 +107,6 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
         
         <MetricsBar />
       </div>
-      
-      {/* Gallery slideshow component */}
-      <GallerySlideshow autoplaySpeed={1000} />
       
       <input 
         type="file" 

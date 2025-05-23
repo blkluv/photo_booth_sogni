@@ -21,34 +21,16 @@ const galleryImages = [
   "/gallery/108_woodcutInk_photo_1747905649730.jpg"
 ];
 
-// Local storage key for slideshow preference
-const SLIDESHOW_HIDDEN_KEY = 'sogni_slideshow_hidden';
-
 interface GallerySlideshowProps {
   autoplaySpeed?: number;
 }
 
 const GallerySlideshow: React.FC<GallerySlideshowProps> = ({
-  autoplaySpeed = 1000
+  autoplaySpeed = 1000,
 }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [prevImageIndex, setPrevImageIndex] = useState(-1);
-  const [isPaused, setIsPaused] = useState(false);
-  const [isHidden, setIsHidden] = useState(true); // Start hidden by default
-  const [isClosing, setIsClosing] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false); // Track whether we've checked localStorage
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Check localStorage on component mount to see if the slideshow should be hidden
-  useEffect(() => {
-    const slideshowHidden = localStorage.getItem(SLIDESHOW_HIDDEN_KEY);
-    // Only show the slideshow if the user hasn't explicitly hidden it
-    if (slideshowHidden !== 'true') {
-      setIsHidden(false);
-    }
-    // Mark as initialized after checking localStorage
-    setIsInitialized(true);
-  }, []);
 
   // Function to preload images for smoother transitions
   useEffect(() => {
@@ -60,72 +42,25 @@ const GallerySlideshow: React.FC<GallerySlideshowProps> = ({
 
   // Function to go to the next image with a smooth crossfade
   const goToNextImage = () => {
-    if (isPaused) return;
-    
     setPrevImageIndex(currentImageIndex);
     setCurrentImageIndex((prevIndex) => (prevIndex + 1) % galleryImages.length);
   };
 
-  // Function to close the slideshow and save preference
-  const handleClose = () => {
-    // Start closing animation
-    setIsClosing(true);
-    
-    // Save preference to localStorage
-    localStorage.setItem(SLIDESHOW_HIDDEN_KEY, 'true');
-    
-    // After animation completes, hide the slideshow
-    setTimeout(() => {
-      setIsHidden(true);
-    }, 500); // Match the animation duration
-  };
-
-  // Pause slideshow on hover
-  const handleMouseEnter = () => {
-    setIsPaused(true);
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  };
-
-  const handleMouseLeave = () => {
-    setIsPaused(false);
-  };
-
-  // Auto slideshow effect
+  // Auto slideshow effect - always active
   useEffect(() => {
-    if (isPaused || isHidden || isClosing) return;
-    
     timerRef.current = setInterval(goToNextImage, autoplaySpeed);
     
-    // Clean up the interval on component unmount or when paused
+    // Clean up the interval on component unmount
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
     };
-  }, [autoplaySpeed, isPaused, currentImageIndex, isHidden, isClosing]);
-
-  // If the slideshow is hidden or not yet initialized, don't render anything
-  if (isHidden || !isInitialized) {
-    return null;
-  }
+  }, [autoplaySpeed, currentImageIndex]);
 
   return (
-    <div 
-      className={`gallery-slideshow ${isClosing ? 'closing' : 'visible'}`}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
-      <button 
-        className="slideshow-close-btn" 
-        onClick={handleClose}
-        aria-label="Close demo gallery"
-      >
-        CLOSE
-      </button>
+    <div className="gallery-slideshow in-splash-screen">
       <div className="slideshow-image-container">
         {galleryImages.map((src, index) => (
           <img
