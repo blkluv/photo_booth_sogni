@@ -2607,7 +2607,6 @@ const App = () => {
             }}
             className="view-photos-btn corner-btn"
           >
-            <span className="view-photos-icon">📸 </span>
             <span className="view-photos-label">View Photos ({photos.length})</span>
           </button>
         )}

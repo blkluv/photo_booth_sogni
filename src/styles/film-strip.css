@@ -462,19 +462,11 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
-.view-photos-icon {
-  font-size: 20px;
-}
-
 /* Responsive styling for View Photos button on mobile */
 @media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
   .view-photos-btn {
     right: 10px;
     bottom: 10px;
-  }
-  
-  .view-photos-icon {
-    font-size: 16px;
   }
 }
 
@@ -487,10 +479,6 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
     bottom: 10px;
     border-radius: 16px;
     max-width: 120px;
-  }
-  
-  .view-photos-icon {
-    font-size: 14px;
   }
 }
 
