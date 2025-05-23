@@ -19,7 +19,7 @@ const TwitterShareModal = ({
   onClose, 
   onShare, 
   imageUrl, 
-  defaultMessage = "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨ https://photobooth.sogni.ai",
+  defaultMessage = "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨",
   photoData,
   maxLength = 280
 }) => {
@@ -84,10 +84,12 @@ const TwitterShareModal = ({
   
   useEffect(() => {
     // Initialize message with default and hashtag when modal opens
+    // get the current page url with deeplink
+    const currentUrl = window.location.href;
     if (isOpen) {
       const initialMessage = styleHashtag 
-        ? `${defaultMessage} ${styleHashtag}`
-        : defaultMessage;
+        ? `${defaultMessage} ${styleHashtag} ${currentUrl}?prompt=${styleHashtag}`
+        : `${defaultMessage} ${currentUrl}`;
       
       setMessage(initialMessage);
       

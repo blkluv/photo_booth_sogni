@@ -170,7 +170,7 @@ const getSessionId = (req, res, next) => {
 router.post('/start', getSessionId, async (req, res) => {
   try {
     // Check for required data
-    const { imageUrl, message } = req.body;
+    const { imageUrl, message, shareUrl } = req.body;
     if (!imageUrl) {
       return res.status(400).json({ message: 'No image URL provided' });
     }
@@ -234,8 +234,13 @@ router.post('/start', getSessionId, async (req, res) => {
           // Create Twitter client from the stored token
           const loggedUserClient = getClientFromToken(existingOAuthData.accessToken);
           
+          // Construct tweet text with custom message and shareUrl
+          const tweetText = shareUrl
+            ? `${message || "Created in #SogniPhotobooth"} ${shareUrl}`
+            : message || "Created in #SogniPhotobooth https://photobooth.sogni.ai";
+          
           // Attempt to share the image directly
-          await shareImageToX(loggedUserClient, imageUrl, message || "Created in #SogniPhotobooth https://photobooth.sogni.ai");
+          await shareImageToX(loggedUserClient, imageUrl, tweetText);
           
           // Update usage timestamps
           existingOAuthData.lastUsed = Date.now();
@@ -288,7 +293,8 @@ router.post('/start', getSessionId, async (req, res) => {
       codeVerifier,
       timestamp: Date.now(),
       pendingImageUrl: imageUrl,
-      pendingMessage: message
+      pendingMessage: message,
+      pendingShareUrl: shareUrl
     };
     
     if (redisReady()) {
@@ -342,7 +348,6 @@ router.get('/callback', async (req, res) => {
     
     // Try to get OAuth data from Redis first
     let oauthData = null;
-    let dataSource = 'none';
     
     if (redisReady()) {
       // console.log(`[Twitter OAuth] Attempting to retrieve OAuth data from Redis using session ID: ${sessionId}`);
@@ -350,14 +355,12 @@ router.get('/callback', async (req, res) => {
       
       if (oauthData) {
         // console.log('[Twitter OAuth] Found OAuth data directly in Redis with session ID');
-        dataSource = 'redis-direct';
       }
     } else {
       // Try in-memory storage as fallback
       oauthData = sessionOAuthData.get(sessionId);
       if (oauthData) {
         // console.log('[Twitter OAuth] Found OAuth data in in-memory storage');
-        dataSource = 'memory-direct';
       }
     }
     
@@ -419,8 +422,20 @@ router.get('/callback', async (req, res) => {
       // Log info before sharing
       console.log('[Twitter OAuth] Token exchange successful, attempting to share image');
       
+      // Extract the pending data
+      const shareUrl = oauthData.pendingShareUrl;
+      
+      if (!imageUrl) {
+        throw new Error('No pending image URL found in session data');
+      }
+      
+      // Construct tweet text with custom message and shareUrl
+      const tweetText = shareUrl
+        ? `${message || "Created in #SogniPhotobooth"} ${shareUrl}`
+        : message || "Created in #SogniPhotobooth https://photobooth.sogni.ai";
+      
       // Share the image on Twitter with the logged in user
-      const tweetResult = await shareImageToX(loggedUserClient, imageUrl, message);
+      const tweetResult = await shareImageToX(loggedUserClient, imageUrl, tweetText);
       
       // Add specific check for successful tweet result
       if (!tweetResult || !tweetResult.data || !tweetResult.data.id) {

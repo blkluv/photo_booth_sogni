@@ -32,6 +32,7 @@ export const getPhotoHashtag = (photo) => {
  * @param {Array} params.photos - Array of photo objects
  * @param {Function} params.setBackendError - Function to update backend error state
  * @param {string} [params.customMessage] - Optional custom message to include in the tweet
+ * @param {string} [params.shareUrl] - Optional URL to include in the tweet
  * @param {number} [params.maxRetries=2] - Maximum number of retries for network errors
  * @param {Function} [params.onSuccess] - Callback function for direct share success
  * @returns {Promise<void>}
@@ -41,6 +42,7 @@ export const shareToTwitter = async ({
   photos,
   setBackendError,
   customMessage,
+  shareUrl,
   maxRetries = 2,
   onSuccess = null,
 }) => {
@@ -116,7 +118,8 @@ export const shareToTwitter = async ({
           credentials: 'include', // Important! Ensures cookies are sent
           body: JSON.stringify({ 
             imageUrl: polaroidImageDataUrl, // Send the data URL directly instead of blob URL
-            message: customMessage // Include optional custom message
+            message: customMessage, // Include optional custom message
+            shareUrl: shareUrl // Include the share URL if provided
           }),
         });
 

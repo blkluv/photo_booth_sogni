@@ -29,6 +29,29 @@ import PhotoGallery from './components/shared/PhotoGallery';
 import { useApp } from './context/AppContext.tsx';
 import TwitterShareModal from './components/shared/TwitterShareModal';
 
+// Helper function to update URL with prompt parameter
+const updateUrlWithPrompt = (promptKey) => {
+  if (!promptKey || ['randomMix', 'random', 'custom'].includes(promptKey)) {
+    // Remove the parameter if randomMix or empty
+    const url = new URL(window.location.href);
+    url.searchParams.delete('prompt');
+    window.history.replaceState({}, '', url);
+  } else {
+    // Add/update the parameter
+    const url = new URL(window.location.href);
+    url.searchParams.set('prompt', promptKey);
+    window.history.replaceState({}, '', url);
+  }
+};
+
+// Helper function to get the hashtag for a style
+const getHashtagForStyle = (styleKey) => {
+  if (!styleKey || styleKey === 'custom' || styleKey === 'random' || styleKey === 'randomMix') {
+    return null;
+  }
+  return styleKey;
+};
+
 const App = () => {
   const videoReference = useRef(null);
   const canvasReference = useRef(null);
@@ -106,6 +129,9 @@ const App = () => {
 
   // Add state for style prompts instead of modifying the imported constant
   const [stylePrompts, setStylePrompts] = useState(initialStylePrompts);
+  
+  // Add state to track the current hashtag for sharing
+  const [currentHashtag, setCurrentHashtag] = useState(null);
 
   // Info modal state - adding back the missing state
   const [showInfoModal, setShowInfoModal] = useState(false);
@@ -156,6 +182,27 @@ const App = () => {
       }
     };
   }, [orientationHandler]);
+
+  // --- Handle URL parameters for deeplinks ---
+  useEffect(() => {
+    // Check for prompt parameter in URL
+    const url = new URL(window.location.href);
+    const promptParam = url.searchParams.get('prompt');
+    
+    if (promptParam && stylePrompts && promptParam !== selectedStyle) {
+      // If the prompt exists in our style prompts, select it
+      if (stylePrompts[promptParam] || Object.keys(promptsData).includes(promptParam)) {
+        console.log(`Setting style from URL parameter: ${promptParam}`);
+        updateSetting('selectedStyle', promptParam);
+        // If we have the prompt value, set it too
+        if (stylePrompts[promptParam]) {
+          updateSetting('positivePrompt', stylePrompts[promptParam]);
+        }
+        // Update current hashtag
+        setCurrentHashtag(promptParam);
+      }
+    }
+  }, [stylePrompts, updateSetting, selectedStyle, promptsData]);
 
   // Update the useEffect that loads prompts
   useEffect(() => {
@@ -235,7 +282,7 @@ const App = () => {
   }, [selectedPhotoIndex, showPhotoGrid, showStartMenu]);
 
   // --- Ensure handlers are defined here, before any JSX or usage ---
-  // Update handleUpdateStyle to use updateSetting
+  // Update handleUpdateStyle to use updateSetting and update URL
   const handleUpdateStyle = (style) => {
     updateSetting('selectedStyle', style); 
     if (style === 'custom') {
@@ -244,6 +291,12 @@ const App = () => {
       const prompt = stylePrompts[style] || '';
       updateSetting('positivePrompt', prompt); 
     }
+    
+    // Update the URL with the prompt parameter
+    updateUrlWithPrompt(style);
+    
+    // Update current hashtag for sharing
+    setCurrentHashtag(getHashtagForStyle(style));
   };
 
   // Update handlePositivePromptChange to use updateSetting
@@ -253,6 +306,9 @@ const App = () => {
       const currentPrompt = stylePrompts[selectedStyle] || '';
       if (value !== currentPrompt) {
         updateSetting('selectedStyle', 'custom'); 
+        // Clear the URL parameter when switching to custom
+        updateUrlWithPrompt(null);
+        setCurrentHashtag(null);
       }
     }
   };
@@ -402,12 +458,21 @@ const App = () => {
   
   // Add a handler for the actual sharing with custom message
   const handleTwitterShare = async (customMessage) => {
-    // Call the extracted Twitter sharing service with custom message
+    // Get the current URL with any hashtag parameter
+    const shareUrl = new URL(window.location.href);
+    
+    // If we have a hashtag and it's not from a custom prompt, add it to the URL
+    if (currentHashtag && selectedStyle !== 'custom') {
+      shareUrl.searchParams.set('prompt', currentHashtag);
+    }
+    
+    // Call the extracted Twitter sharing service with custom message and URL
     await shareToTwitter({
       photoIndex: twitterPhotoIndex,
       photos,
       setBackendError,
-      customMessage
+      customMessage,
+      shareUrl: shareUrl.toString() // Pass the full URL with parameters
     });
   };
 
@@ -951,7 +1016,7 @@ const App = () => {
           if (type === 'initiating') {
             updated[photoIndex] = {
               ...updated[photoIndex],
-              statusText: `🎨 ${workerName || 'unknown'} fetching art supplies`,
+              statusText: `${workerName || 'unknown'} loading model...`,
               workerName: workerName || 'unknown',
               jobId,
               jobIndex,
