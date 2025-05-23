@@ -195,10 +195,11 @@
 }
 
 /* Responsive styles */
-@media (max-width: 992px) {
+@media (max-width: 692px) {
   .splash-layout {
     flex-direction: column;
-    gap: 20px;
+    gap: 10px;
+    margin-bottom: 0px;
   }
   
   .polaroid-image {
@@ -249,6 +250,7 @@
 @media (max-width: 576px) {
   .polaroid-image {
     max-width: 180px;
+    overflow: visible;
   }
   
   .slideshow-container .gallery-slideshow {
