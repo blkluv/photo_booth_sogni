@@ -320,8 +320,8 @@ const App = () => {
   // Update showThought function
   let thoughtInProgress = false;
   const showThought = useCallback(() => {
-    // don't show thought if Slothicorn is disabled
-    if (!slothicornAnimationEnabled) return;
+    // don't show thought if Slothicorn is disabled or on splash/start screens
+    if (!slothicornAnimationEnabled || showSplashScreen || showStartMenu) return;
     if (thoughtInProgress) return;
     thoughtInProgress = true;
     // Select thoughts based on whether there's an active project
@@ -340,7 +340,7 @@ const App = () => {
       setCurrentThought(null);
       thoughtInProgress = false;
     }, 4500);
-  }, []);
+  }, [slothicornAnimationEnabled, showSplashScreen, showStartMenu]);
 
   // Update timing in useEffect
   useEffect(() => {
@@ -352,7 +352,7 @@ const App = () => {
 
     // Set up interval for random thoughts
     const interval = setInterval(() => {
-      if (selectedPhotoIndex === null) {
+      if (selectedPhotoIndex === null && !showSplashScreen && !showStartMenu) {
         showThought();
       }
     }, 18_000); // Fixed 18 second interval
@@ -361,7 +361,7 @@ const App = () => {
       clearTimeout(firstThought);
       clearInterval(interval);
     };
-  }, [showThought, selectedPhotoIndex]);
+  }, [showThought, selectedPhotoIndex, showSplashScreen, showStartMenu]);
 
   // Camera aspect ratio useEffect
   useEffect(() => {
@@ -2233,7 +2233,10 @@ const App = () => {
         photoData={twitterPhotoIndex !== null ? photos[twitterPhotoIndex] : null}
       />
       
-      {currentThought && (/iphone|ipad|ipod|android/i.test(navigator.userAgent) === false) && (
+      {currentThought && 
+        (/iphone|ipad|ipod|android/i.test(navigator.userAgent) === false) && 
+        !showSplashScreen && 
+        !showStartMenu && (
         <div style={{ 
           position: 'fixed', 
           bottom: '5px',
