@@ -2,6 +2,11 @@
    Global Base CSS
    ---------------- */
 
+html {
+  touch-action: manipulation;
+  -webkit-text-size-adjust: none;
+}
+
 body {
   @apply bg-gray-900 text-white;
   margin: 0;
@@ -9,6 +14,9 @@ body {
   box-sizing: border-box;
   min-height: 100% !important;
   overflow-x: hidden !important;
+  touch-action: pan-x pan-y;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
 }
 
 /* Generic helper to hide scrollbars but still allow scrolling */

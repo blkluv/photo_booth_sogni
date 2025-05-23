@@ -4,7 +4,25 @@
 
 @supports (-webkit-touch-callout: none) {
   /* Target all iOS devices, regardless of screen size */
-  body, html { overflow: hidden; height: 100%; }
+  body, html { 
+    overflow: hidden; 
+    height: 100%;
+    /* Prevent pinch zoom */
+    touch-action: manipulation;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+  }
+
+  /* Prevent zooming on specific interactive elements */
+  button, a, input, select, textarea, [role="button"] {
+    touch-action: manipulation;
+  }
+  
+  /* Prevent any zoom gestures on the entire application */
+  .photobooth-app, #root, .photobooth-frame {
+    touch-action: pan-x pan-y;
+    -ms-touch-action: pan-x pan-y;
+  }
 
   /* Force media query to apply on iPhone devices in portrait mode */
   @media (orientation: portrait) {

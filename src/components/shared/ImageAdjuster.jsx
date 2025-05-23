@@ -22,6 +22,11 @@ const ImageAdjuster = ({
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [imageLoaded, setImageLoaded] = useState(false);
   
+  // For pinch zoom gesture
+  const [isPinching, setIsPinching] = useState(false);
+  const [initialDistance, setInitialDistance] = useState(null);
+  const [initialScale, setInitialScale] = useState(1);
+  
   // For responsive layout
   const [dimensions, setDimensions] = useState(getCustomDimensions());
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
@@ -45,6 +50,13 @@ const ImageAdjuster = ({
     };
   }, []);
   
+  // Calculate distance between two touch points
+  const getDistance = (touch1, touch2) => {
+    const dx = touch1.clientX - touch2.clientX;
+    const dy = touch1.clientY - touch2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+  
   // Handle image load
   const handleImageLoad = () => {
     setImageLoaded(true);
@@ -54,51 +66,87 @@ const ImageAdjuster = ({
   
   // Handle mouse/touch down
   const handleDragStart = (e) => {
-    let clientX, clientY;
-    
     if (e.type === 'touchstart') {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
+      // Handle pinch zoom with two fingers
+      if (e.touches.length === 2) {
+        e.preventDefault(); // Prevent browser's default pinch zoom
+        setIsPinching(true);
+        setInitialDistance(getDistance(e.touches[0], e.touches[1]));
+        setInitialScale(scale);
+        return;
+      }
+      
+      // Handle drag with single finger
+      const clientX = e.touches[0].clientX;
+      const clientY = e.touches[0].clientY;
+      
+      setIsDragging(true);
+      setDragStart({ 
+        x: clientX - position.x, 
+        y: clientY - position.y 
+      });
     } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
+      // Handle mouse events
+      const clientX = e.clientX;
+      const clientY = e.clientY;
       e.preventDefault();
+      
+      setIsDragging(true);
+      setDragStart({ 
+        x: clientX - position.x, 
+        y: clientY - position.y 
+      });
     }
-    
-    setIsDragging(true);
-    setDragStart({ 
-      x: clientX - position.x, 
-      y: clientY - position.y 
-    });
   };
   
   // Handle mouse/touch move - allow unrestricted movement
   const handleDrag = (e) => {
-    if (!isDragging) return;
-    
-    let clientX, clientY;
-    
     if (e.type === 'touchmove') {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
+      // Handle pinch gesture
+      if (e.touches.length === 2 && isPinching) {
+        e.preventDefault(); // Prevent browser's default behavior
+        const currentDistance = getDistance(e.touches[0], e.touches[1]);
+        const scaleFactor = currentDistance / initialDistance;
+        
+        // Calculate new scale value with limits
+        const newScale = Math.min(Math.max(initialScale * scaleFactor, 0.5), 3);
+        setScale(newScale);
+        return;
+      }
+      
+      // Handle single finger drag
+      if (!isDragging) return;
+      
+      const clientX = e.touches[0].clientX;
+      const clientY = e.touches[0].clientY;
+      
+      // Calculate new position without any restrictions
+      const newX = clientX - dragStart.x;
+      const newY = clientY - dragStart.y;
+      
+      setPosition({ x: newX, y: newY });
     } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
+      // Handle mouse drag
+      if (!isDragging) return;
+      
+      const clientX = e.clientX;
+      const clientY = e.clientY;
+      
+      // Calculate new position without any restrictions
+      const newX = clientX - dragStart.x;
+      const newY = clientY - dragStart.y;
+      
+      setPosition({ x: newX, y: newY });
     }
-    
-    // Calculate new position without any restrictions
-    const newX = clientX - dragStart.x;
-    const newY = clientY - dragStart.y;
-    
-    setPosition({ x: newX, y: newY });
   };
   
   // Handle mouse/touch up
   const handleDragEnd = () => {
     setIsDragging(false);
+    setIsPinching(false);
   };
   
-  // Handle zoom level change
+  // Handle zoom level change via slider
   const handleZoomChange = (e) => {
     const newScale = parseFloat(e.target.value);
     setScale(newScale);
@@ -239,7 +287,7 @@ const ImageAdjuster = ({
             />
           </div>
           <div className="instruction-text">
-            Drag anywhere to position • Use slider to resize
+            Drag to position • Pinch to zoom • Use slider to resize
           </div>
         </div>
         

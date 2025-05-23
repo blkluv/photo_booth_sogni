@@ -5,6 +5,46 @@
     <link rel="icon" href="/favicon.ico" />
     <title>Sogni AI Photobooth</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    
+    <script>
+      // Prevent pinch zoom gesture except in image adjuster
+      document.addEventListener('touchmove', function(event) {
+        // Only prevent default if:
+        // 1. It's a multi-touch event (pinch)
+        // 2. And not happening inside the image adjuster component
+        if (event.touches.length > 1) {
+          // Check if the target or any of its parents have the image-adjuster-overlay class
+          let element = event.target;
+          let isImageAdjuster = false;
+          
+          while (element) {
+            if (element.classList && 
+                (element.classList.contains('image-adjuster-overlay') || 
+                 element.classList.contains('image-frame') ||
+                 element.classList.contains('image-container'))) {
+              isImageAdjuster = true;
+              break;
+            }
+            element = element.parentElement;
+          }
+          
+          // Only prevent default if NOT in image adjuster
+          if (!isImageAdjuster) {
+            event.preventDefault();
+          }
+        }
+      }, { passive: false });
+      
+      // Prevent double-tap to zoom
+      let lastTouchEnd = 0;
+      document.addEventListener('touchend', function(event) {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 300) {
+          event.preventDefault();
+        }
+        lastTouchEnd = now;
+      }, { passive: false });
+    </script>
 
     <!-- Open Graph / Facebook -->
     <meta property="og:title" content="Sogni AI Photobooth" />
