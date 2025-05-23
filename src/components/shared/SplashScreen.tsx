@@ -30,10 +30,11 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
     localStorage.setItem(SPLASH_HIDDEN_KEY, 'true');
     
     // Wait for animation to complete before calling onDismiss
+    // Add extra time to ensure animations complete fully
     setTimeout(() => {
       setIsVisible(false);
       onDismiss();
-    }, 1200); // Match the longer animation duration
+    }, 1600); // Extended from 1200ms to 1600ms to ensure animations complete
   };
 
   // Don't render anything until we've checked localStorage

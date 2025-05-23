@@ -14,7 +14,7 @@
 }
 
 .splash-screen.hiding {
-  animation: fadeBackgroundOut 1.2s ease-in-out forwards;
+  animation: fadeBackgroundOut 1.5s ease-in-out forwards;
 }
 
 @keyframes fadeBackgroundOut {
@@ -44,7 +44,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 60px;
+  gap: 40px;
   margin-bottom: 40px;
   width: 100%;
 }
@@ -57,7 +57,7 @@
 }
 
 .splash-screen.hiding .polaroid-splash-container {
-  animation: polaroidFlyLeft 1.2s cubic-bezier(0.65, 0.05, 0.36, 1) forwards;
+  animation: polaroidFlyLeft 1.5s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
 }
 
 @keyframes polaroidFlyLeft {
@@ -66,11 +66,11 @@
     opacity: 1;
   }
   60% {
-    transform: translateX(-80vw) rotate(-20deg);
+    transform: translateX(-100vw) rotate(-25deg);
     opacity: 0.4;
   }
   100% {
-    transform: translateX(-120vw) rotate(-45deg);
+    transform: translateX(-150vw) rotate(-45deg);
     opacity: 0;
   }
 }
@@ -93,7 +93,7 @@
 }
 
 .splash-screen.hiding .slideshow-container {
-  animation: slideshowFlyRight 1.2s cubic-bezier(0.65, 0.05, 0.36, 1) forwards;
+  animation: slideshowFlyRight 1.5s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
 }
 
 @keyframes slideshowFlyRight {
@@ -102,11 +102,11 @@
     opacity: 1;
   }
   60% {
-    transform: translateX(80vw) rotate(20deg);
+    transform: translateX(100vw) rotate(25deg);
     opacity: 0.4;
   }
   100% {
-    transform: translateX(120vw) rotate(45deg);
+    transform: translateX(150vw) rotate(45deg);
     opacity: 0;
   }
 }
@@ -122,8 +122,8 @@
   transform: none !important;
   opacity: 1;
   box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
-  width: 350px;
-  height: 485px; /* Adjusted for aspect ratio */
+  width: 330px;
+  height: 465px; /* Adjusted for aspect ratio */
 }
 
 .splash-tagline {
@@ -141,7 +141,7 @@
 }
 
 .splash-screen.hiding .splash-tagline {
-  animation: taglineFlyUp 0.8s cubic-bezier(0.65, 0.05, 0.36, 1) forwards;
+  animation: taglineFlyUp 1.5s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
 }
 
 @keyframes taglineFlyUp {
@@ -149,15 +149,18 @@
     transform: translateY(0) scale(1);
     opacity: 1;
   }
+  60% {
+    transform: translateY(-60vh) scale(1.4);
+    opacity: 0.4;
+  }
   100% {
-    transform: translateY(-100px) scale(1.2);
+    transform: translateY(-120vh) scale(1.8);
     opacity: 0;
   }
 }
 
 .splash-tagline:hover {
   transform: scale(1.05);
-  text-shadow: 0 0 10px rgba(255, 51, 102, 0.5);
 }
 
 .splash-tagline:active {
@@ -195,7 +198,7 @@
 }
 
 /* Responsive styles */
-@media (max-width: 720px) {
+@media (max-width: 692px) {
   .splash-layout {
     flex-direction: column;
     gap: 10px;
@@ -204,6 +207,7 @@
   
   .polaroid-image {
     max-width: 240px;
+    overflow: visible;
   }
   
   .slideshow-container .gallery-slideshow {
@@ -216,17 +220,18 @@
     margin: 15px 0;
   }
 
+  /* Mobile-specific animations that ensure elements move fully off screen */
   @keyframes polaroidFlyLeft {
     0% {
       transform: translateY(0) rotate(0deg);
       opacity: 1;
     }
     60% {
-      transform: translateY(50vh) translateX(-50vw) rotate(-20deg);
+      transform: translateY(60vh) translateX(-60vw) rotate(-30deg);
       opacity: 0.4;
     }
     100% {
-      transform: translateY(80vh) translateX(-100vw) rotate(-45deg);
+      transform: translateY(120vh) translateX(-120vw) rotate(-60deg);
       opacity: 0;
     }
   }
@@ -237,11 +242,22 @@
       opacity: 1;
     }
     60% {
-      transform: translateY(-50vh) translateX(50vw) rotate(20deg);
+      transform: translateY(-60vh) translateX(60vw) rotate(30deg);
       opacity: 0.4;
     }
     100% {
-      transform: translateY(-80vh) translateX(100vw) rotate(45deg);
+      transform: translateY(-120vh) translateX(120vw) rotate(60deg);
+      opacity: 0;
+    }
+  }
+  
+  @keyframes taglineFlyUp {
+    0% {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-150vh) scale(1.6);
       opacity: 0;
     }
   }
@@ -250,7 +266,6 @@
 @media (max-width: 576px) {
   .polaroid-image {
     max-width: 180px;
-    overflow: visible;
   }
   
   .slideshow-container .gallery-slideshow {
@@ -263,8 +278,34 @@
     margin: 10px 0;
   }
   
-  .splash-instruction {
-    font-size: 16px;
-    margin-top: 15px;
+  /* Even more extreme animations for small devices */
+  @keyframes polaroidFlyLeft {
+    0% {
+      transform: translateY(0) rotate(0deg);
+      opacity: 1;
+    }
+    60% {
+      transform: translateY(80vh) translateX(-80vw) rotate(-40deg);
+      opacity: 0.4;
+    }
+    100% {
+      transform: translateY(150vh) translateX(-150vw) rotate(-70deg);
+      opacity: 0;
+    }
+  }
+
+  @keyframes slideshowFlyRight {
+    0% {
+      transform: translateY(0) rotate(0deg);
+      opacity: 1;
+    }
+    60% {
+      transform: translateY(-80vh) translateX(80vw) rotate(40deg);
+      opacity: 0.4;
+    }
+    100% {
+      transform: translateY(-150vh) translateX(150vw) rotate(70deg);
+      opacity: 0;
+    }
   }
 } 
