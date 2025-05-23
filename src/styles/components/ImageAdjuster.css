@@ -1,0 +1,246 @@
+.image-adjuster-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.image-adjuster-container {
+  background-color: #222;
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 90%;
+  width: 500px;
+  color: white;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.image-adjuster-container h2 {
+  font-size: 1.8rem;
+  margin: 0 0 5px 0;
+  background: linear-gradient(90deg, #ff7eb3, #7868e6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 700;
+}
+
+.image-frame {
+  position: relative;
+  width: 100%;
+  background-color: black;
+  overflow: hidden;
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.image-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-frame img {
+  position: relative;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.image-frame-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  box-sizing: border-box;
+}
+
+.frame-corner {
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+}
+
+.top-left {
+  top: 0;
+  left: 0;
+  border-right: none;
+  border-bottom: none;
+}
+
+.top-right {
+  top: 0;
+  right: 0;
+  border-left: none;
+  border-bottom: none;
+}
+
+.bottom-left {
+  bottom: 0;
+  left: 0;
+  border-right: none;
+  border-top: none;
+}
+
+.bottom-right {
+  bottom: 0;
+  right: 0;
+  border-left: none;
+  border-top: none;
+}
+
+.image-adjustment-controls {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.zoom-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.zoom-control label {
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 70px;
+}
+
+.zoom-control input[type="range"] {
+  flex: 1;
+  -webkit-appearance: none;
+  height: 6px;
+  background: #444;
+  border-radius: 3px;
+  outline: none;
+}
+
+.zoom-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ff5e8a;
+  cursor: pointer;
+}
+
+.zoom-control input[type="range"]::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ff5e8a;
+  cursor: pointer;
+  border: none;
+}
+
+.instruction-text {
+  color: #aaa;
+  font-size: 14px;
+  text-align: center;
+}
+
+.image-adjustment-buttons {
+  display: flex;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.image-adjustment-buttons button {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.cancel-button {
+  background-color: #444;
+  color: white;
+}
+
+.cancel-button:hover {
+  background-color: #555;
+}
+
+.confirm-button {
+  background: linear-gradient(135deg, #ff7eb3, #ff5e8a);
+  color: white;
+}
+
+.confirm-button:hover {
+  background: linear-gradient(135deg, #ff8eba, #ff6e9a);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(255, 94, 138, 0.3);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 576px) {
+  .image-adjuster-container {
+    padding: 16px;
+    width: 95%;
+    gap: 15px;
+  }
+  
+  .image-adjuster-container h2 {
+    font-size: 1.5rem;
+  }
+  
+  .zoom-control label {
+    font-size: 14px;
+    min-width: 60px;
+  }
+  
+  .image-adjustment-buttons button {
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+  
+  .frame-corner {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+/* Handle iOS Safari viewport height issues */
+@supports (-webkit-touch-callout: none) {
+  .image-adjuster-overlay {
+    height: -webkit-fill-available;
+  }
+  
+  .image-frame {
+    max-height: 60vh; /* Smaller on iOS to help with viewport issues */
+  }
+} 

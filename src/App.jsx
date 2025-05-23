@@ -29,6 +29,8 @@ import PhotoGallery from './components/shared/PhotoGallery';
 import { useApp } from './context/AppContext.tsx';
 import TwitterShareModal from './components/shared/TwitterShareModal';
 import SplashScreen from './components/shared/SplashScreen';
+// Import the ImageAdjuster component
+import ImageAdjuster from './components/shared/ImageAdjuster';
 
 // Helper function to update URL with prompt parameter
 const updateUrlWithPrompt = (promptKey) => {
@@ -137,6 +139,10 @@ const App = () => {
   // Info modal state - adding back the missing state
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showPhotoGrid, setShowPhotoGrid] = useState(false);
+  
+  // Add state for image adjustment
+  const [showImageAdjuster, setShowImageAdjuster] = useState(false);
+  const [currentUploadedImageUrl, setCurrentUploadedImageUrl] = useState('');
   
   // Add the start menu state here
   const [showStartMenu, setShowStartMenu] = useState(true);
@@ -1357,67 +1363,12 @@ const App = () => {
     // Hide the start menu if it's visible
     setShowStartMenu(false);
 
-    // Create a new photo item with temporary placeholder
-    const newPhoto = {
-      id: Date.now(),
-      generating: true,
-      images: [],
-      error: null,
-      originalDataUrl: null, // Will be updated with cropped version
-      newlyArrived: false,
-      generationCountdown: 10,
-      sourceType: 'upload' // Add sourceType for uploaded files
-    };
+    // Create a temporary URL for the file
+    const tempUrl = URL.createObjectURL(file);
+    setCurrentUploadedImageUrl(tempUrl);
     
-    setPhotos((previous) => [...previous, newPhoto]);
-    const newPhotoIndex = photos.length;
-
-    // First save the original image for reference
-    const reader = new FileReader();
-    reader.addEventListener('load', async (event) => {
-      const originalDataUrl = event.target.result;
-      
-      // Get current dimensions based on orientation
-      const { width, height } = getCustomDimensions();
-      
-      try {
-        // Process the image to ensure consistent aspect ratio across all devices
-        const croppedBlob = await centerCropImage(file, width, height);
-        
-        // Create a data URL from the cropped blob to use as placeholder
-        const croppedDataUrl = await blobToDataURL(croppedBlob);
-        
-        // Update the photo with the cropped data URL as placeholder
-        setPhotos(prev => {
-          const updated = [...prev];
-          if (updated[newPhotoIndex]) {
-            updated[newPhotoIndex] = {
-              ...updated[newPhotoIndex],
-              originalDataUrl: croppedDataUrl // Use cropped version as placeholder
-            };
-          }
-          return updated;
-        });
-        
-        // Use the cropped blob for generation
-        generateFromBlob(croppedBlob, newPhotoIndex, croppedDataUrl, false, 'upload');
-      } catch (error) {
-        console.error('Error cropping image:', error);
-        // Fallback to original if cropping fails
-        setPhotos(prev => {
-          const updated = [...prev];
-          if (updated[newPhotoIndex]) {
-            updated[newPhotoIndex] = {
-              ...updated[newPhotoIndex],
-              originalDataUrl: originalDataUrl // Fall back to original as placeholder
-            };
-          }
-          return updated;
-        });
-        generateFromBlob(file, newPhotoIndex, originalDataUrl, false, 'upload');
-      }
-    });
-    reader.readAsDataURL(file);
+    // Show the image adjuster
+    setShowImageAdjuster(true);
   };
 
   // -------------------------
@@ -2027,67 +1978,12 @@ const App = () => {
       return;
     }
     
-    // Create a new photo item with temporary placeholder
-    const newPhoto = {
-      id: Date.now().toString(),
-      generating: true,
-      images: [],
-      error: null,
-      originalDataUrl: null, // Will be updated with cropped version
-      newlyArrived: false,
-      generationCountdown: 10,
-      sourceType: 'upload' // Add sourceType for uploaded files
-    };
+    // Create a temporary URL for the file
+    const tempUrl = URL.createObjectURL(file);
+    setCurrentUploadedImageUrl(tempUrl);
     
-    setPhotos((previous) => [...previous, newPhoto]);
-    const newPhotoIndex = photos.length;
-
-    // First save the original image for reference
-    const reader = new FileReader();
-    reader.addEventListener('load', async (event) => {
-      const originalDataUrl = event.target.result;
-      
-      // Get current dimensions based on orientation
-      const { width, height } = getCustomDimensions();
-      
-      try {
-        // Process the image to ensure consistent aspect ratio across all devices
-        const croppedBlob = await centerCropImage(file, width, height);
-        
-        // Create a data URL from the cropped blob to use as placeholder
-        const croppedDataUrl = await blobToDataURL(croppedBlob);
-        
-        // Update the photo with the cropped data URL as placeholder
-        setPhotos(prev => {
-          const updated = [...prev];
-          if (updated[newPhotoIndex]) {
-            updated[newPhotoIndex] = {
-              ...updated[newPhotoIndex],
-              originalDataUrl: croppedDataUrl // Use cropped version as placeholder
-            };
-          }
-          return updated;
-        });
-        
-        // Use the cropped blob for generation
-        generateFromBlob(croppedBlob, newPhotoIndex, croppedDataUrl, false, 'upload');
-      } catch (error) {
-        console.error('Error cropping image:', error);
-        // Fallback to original if cropping fails
-        setPhotos(prev => {
-          const updated = [...prev];
-          if (updated[newPhotoIndex]) {
-            updated[newPhotoIndex] = {
-              ...updated[newPhotoIndex],
-              originalDataUrl: originalDataUrl // Fall back to original as placeholder
-            };
-          }
-          return updated;
-        });
-        generateFromBlob(file, newPhotoIndex, originalDataUrl, false, 'upload');
-      }
-    });
-    reader.readAsDataURL(file);
+    // Show the image adjuster
+    setShowImageAdjuster(true);
   };
 
   // Handler for the "Drag Photo" option in start menu
@@ -2095,7 +1991,7 @@ const App = () => {
     setShowStartMenu(false);
     // Show an overlay or instructions for drag and drop
     setDragActive(true);
-    // This will use the existing drag and drop handlers
+    // This will use the existing drag and drop handlers which now use the image adjuster
   };
 
   // Handle toggling between front and rear camera
@@ -2212,6 +2108,73 @@ const App = () => {
         return newPhotos;
       });
     }
+  };
+
+  // Add this new function to handle the adjusted image after confirmation
+  const handleAdjustedImage = (adjustedBlob) => {
+    // Hide the adjuster
+    setShowImageAdjuster(false);
+    
+    // Clean up the URL object to prevent memory leaks
+    if (currentUploadedImageUrl) {
+      URL.revokeObjectURL(currentUploadedImageUrl);
+    }
+    
+    // Reset the current image state
+    setCurrentUploadedImageUrl('');
+    
+    // Create a new photo item with temporary placeholder
+    const newPhoto = {
+      id: Date.now().toString(),
+      generating: true,
+      images: [],
+      error: null,
+      originalDataUrl: null, // Will be updated with adjusted version
+      newlyArrived: false,
+      generationCountdown: 10,
+      sourceType: 'upload' // Add sourceType for uploaded files
+    };
+    
+    setPhotos((previous) => [...previous, newPhoto]);
+    const newPhotoIndex = photos.length;
+
+    // Create data URL from the adjusted blob
+    const reader = new FileReader();
+    reader.addEventListener('load', async (event) => {
+      const adjustedDataUrl = event.target.result;
+      
+      // Update the photo with the adjusted data URL as placeholder
+      setPhotos(prev => {
+        const updated = [...prev];
+        if (updated[newPhotoIndex]) {
+          updated[newPhotoIndex] = {
+            ...updated[newPhotoIndex],
+            originalDataUrl: adjustedDataUrl // Use adjusted version as placeholder
+          };
+        }
+        return updated;
+      });
+      
+      // Use the adjusted blob for generation
+      generateFromBlob(adjustedBlob, newPhotoIndex, adjustedDataUrl, false, 'upload');
+    });
+    reader.readAsDataURL(adjustedBlob);
+  };
+
+  // Add this new function to handle cancellation of image adjusting
+  const handleCancelAdjusting = () => {
+    setShowImageAdjuster(false);
+    
+    // Clean up the URL object
+    if (currentUploadedImageUrl) {
+      URL.revokeObjectURL(currentUploadedImageUrl);
+    }
+    
+    // Reset the current image state
+    setCurrentUploadedImageUrl('');
+    
+    // Show the start menu again
+    setShowStartMenu(true);
   };
 
   // -------------------------
@@ -2810,6 +2773,15 @@ const App = () => {
           }
         };
       }, [])}
+
+      {/* Add this section at the end, right before the closing tag */}
+      {showImageAdjuster && currentUploadedImageUrl && (
+        <ImageAdjuster
+          imageUrl={currentUploadedImageUrl}
+          onConfirm={handleAdjustedImage}
+          onCancel={handleCancelAdjusting}
+        />
+      )}
     </>
   );
 };
