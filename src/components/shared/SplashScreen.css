@@ -264,8 +264,8 @@
 }
 
 @media (max-width: 576px) {
-  .polaroid-image {
-    max-width: 180px;
+  .splash-layout {
+    gap: 0px;
   }
   
   .slideshow-container .gallery-slideshow {
