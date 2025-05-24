@@ -13,7 +13,6 @@ import { trackPageView } from './utils/analytics';
 import clickSound from './click.mp3';
 import cameraWindSound from './camera-wind.mp3';
 // import helloSound from './hello.mp3';
-import slothicornImage from './slothicorn-camera.png';
 import light1Image from './light1.png';
 import light2Image from './light2.png';
 import './App.css';
@@ -2591,7 +2590,7 @@ const App = () => {
             }}
           >
             <img 
-              src={slothicornImage} 
+              src="/slothicorn-camera.png" 
               alt="Slothicorn mascot" 
               className="slothicorn-image" 
             />
