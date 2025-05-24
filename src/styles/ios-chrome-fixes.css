@@ -29,6 +29,7 @@
     position: fixed !important;
     left: 20px !important;
     bottom: 20px !important;
+    bottom: max(20px, calc(env(safe-area-inset-bottom) + 5px)) !important;
   }
 
   /* Force media query to apply on iPhone devices in portrait mode */
@@ -119,6 +120,18 @@
     .film-strip-container.has-selected .back-to-camera-btn {
       display: none !important;
     }
+    
+    /* Fix View Photos button positioning for iOS bottom bar */
+    .view-photos-btn {
+      bottom: max(15px, calc(env(safe-area-inset-bottom) + 5px)) !important;
+      right: 15px !important;
+    }
+    
+    /* Fix Back To Menu button positioning for iOS bottom bar */
+    .back-to-menu-btn {
+      bottom: max(15px, calc(env(safe-area-inset-bottom) + 5px)) !important;
+      left: 15px !important;
+    }
   }
 }
 
@@ -132,5 +145,21 @@
   .photobooth-app {
     height: calc(var(--vh, 1vh) * 100);
     padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  /* Main content area fix to center properly with safe area insets */
+  .main-content-area {
+    height: calc(var(--vh, 1vh) * 100) !important;
+    padding-bottom: env(safe-area-inset-bottom);
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  
+  /* Fix for global photobooth frame centering */
+  .polaroidFrame, [class*="polaroidFrame"] {
+    margin: 0 auto !important;
+    max-height: calc((var(--vh, 1vh) * 85) - env(safe-area-inset-bottom)) !important;
+    transform: translateY(calc(env(safe-area-inset-bottom) / -2.5)) !important;
   }
 } 
