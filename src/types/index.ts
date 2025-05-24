@@ -37,6 +37,8 @@ export interface ModelOption {
   value: string;
 }
 
+export type AspectRatioOption = 'portrait' | 'landscape' | 'square';
+
 export interface Settings {
   selectedStyle: string;
   selectedModel: string;
@@ -50,4 +52,7 @@ export interface Settings {
   stylePrompt?: string;
   negativePrompt?: string;
   seed?: string;
+  soundEnabled: boolean;
+  slothicornAnimationEnabled: boolean;
+  aspectRatio: AspectRatioOption;
 } 

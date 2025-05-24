@@ -1,14 +1,32 @@
 /**
- * Returns 1280×720 (landscape) or 720×1280 (portrait)
- * so that Sogni returns images that match the orientation.
- * These must be integers between 256 and 2048.
+ * Returns dimensions based on the selected aspect ratio or device orientation.
+ * Supports portrait (896x1152), landscape (1152x896), and square (1024x1024).
+ * @param {string} aspectRatio - 'portrait', 'landscape', or 'square'
  */
-export function getCustomDimensions() {
+export function getCustomDimensions(aspectRatio) {
+  // If no aspectRatio is provided, determine based on screen orientation
   const isPortrait = window.innerHeight > window.innerWidth;
-  if (isPortrait) {
-    return { width: 896, height: 1152 }; // Portrait: 896:1152 (ratio ~0.778)
-  } else {
-    return { width: 1152, height: 896 }; // Landscape: 1152:896 (ratio ~1.286)
+  
+  // If no aspectRatio is provided, determine based on screen orientation
+  if (!aspectRatio) {
+    return isPortrait ? 
+      { width: 896, height: 1152 } : // Portrait: 896:1152 (ratio ~0.778)
+      { width: 1152, height: 896 }; // Landscape: 1152:896 (ratio ~1.286)
+  }
+  
+  // Otherwise use the explicitly provided aspectRatio
+  switch (aspectRatio) {
+    case 'portrait':
+      return { width: 896, height: 1152 }; // Portrait: 896:1152 (ratio ~0.778)
+    case 'landscape':
+      return { width: 1152, height: 896 }; // Landscape: 1152:896 (ratio ~1.286)
+    case 'square':
+      return { width: 1024, height: 1024 }; // Square: 1024x1024 (ratio 1:1)
+    default:
+      // Fallback to orientation-based default if invalid option provided
+      return isPortrait ? 
+        { width: 896, height: 1152 } : 
+        { width: 1152, height: 896 };
   }
 }
 

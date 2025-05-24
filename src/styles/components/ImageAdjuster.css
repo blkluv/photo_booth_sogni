@@ -19,8 +19,6 @@
   background-color: #222;
   border-radius: 16px;
   padding: 24px;
-  max-width: 90%;
-  width: 580px;
   color: white;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   display: flex;
@@ -48,13 +46,13 @@
 
 .image-frame {
   position: relative;
-  width: 100%;
   background-color: black;
   overflow: hidden;
   border-radius: 4px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   /* Allow manipulation but prevent browser zoom */
   touch-action: none;
+  height: 60vh;
 }
 
 .image-container {
@@ -252,10 +250,6 @@
 @supports (-webkit-touch-callout: none) {
   .image-adjuster-overlay {
     height: -webkit-fill-available;
-  }
-  
-  .image-frame {
-    max-height: 60vh; /* Smaller on iOS to help with viewport issues */
   }
 
   /* Enable component to handle pinch gestures for iOS */

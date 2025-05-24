@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { getCustomDimensions } from '../../utils/imageProcessing';
+import { useApp } from '../../context/AppContext.tsx';
 import '../../styles/components/ImageAdjuster.css';
 
 /**
@@ -12,6 +13,9 @@ const ImageAdjuster = ({
   onConfirm,
   onCancel
 }) => {
+  const { settings } = useApp();
+  const { aspectRatio } = settings;
+  
   const containerRef = useRef(null);
   const imageRef = useRef(null);
   
@@ -27,9 +31,15 @@ const ImageAdjuster = ({
   const [initialDistance, setInitialDistance] = useState(null);
   const [initialScale, setInitialScale] = useState(1);
   
-  // For responsive layout
-  const [dimensions, setDimensions] = useState(getCustomDimensions());
-  const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
+  // For responsive layout - use the selected aspect ratio from context
+  const [dimensions, setDimensions] = useState(getCustomDimensions(aspectRatio));
+  
+  // Add state for container dimensions that fit the viewport
+  const [containerStyle, setContainerStyle] = useState({
+    width: 'auto',
+    height: 'auto',
+    aspectRatio: '1'
+  });
   
   // Check if device has touch capability
   const [isTouchDevice, setIsTouchDevice] = useState(false);
@@ -45,15 +55,77 @@ const ImageAdjuster = ({
     setIsTouchDevice(checkTouchDevice());
   }, []);
   
+  // Calculate container dimensions that fit the viewport while maintaining aspect ratio
+  useEffect(() => {
+    const calculateContainerDimensions = () => {      
+      // Get aspect ratio based on current dimensions (which come from selected aspectRatio)
+      const currentAspectRatio = dimensions.width / dimensions.height;
+      // Get viewport dimensions (accounting for padding/margins)
+      const viewportWidth = window.innerWidth * 0.8; // 90% of viewport width
+      const viewportHeight = window.innerHeight * 0.75; // 80% of viewport height to account for header/buttons
+      
+      let containerWidth, containerHeight;
+      
+      // Determine sizing based on selected aspect ratio, not the isPortrait state
+      if (aspectRatio === 'portrait') {
+        // Portrait mode - prioritize height
+        containerHeight = Math.min(viewportHeight * 0.8, dimensions.height);
+        containerWidth = containerHeight * currentAspectRatio;
+        // Check if width exceeds viewport width
+        if (containerWidth > viewportWidth) {
+          containerWidth = viewportWidth;
+          containerHeight = containerWidth / currentAspectRatio;
+        }
+      } 
+      else if (aspectRatio === 'square') {
+        // Square mode - try to fit within viewport
+        const size = Math.min(viewportWidth, viewportHeight * 0.9);
+        containerWidth = size;
+        containerHeight = size;
+      }
+      else {
+        // Landscape mode - prioritize width
+        containerWidth = Math.min(viewportWidth, dimensions.width);
+        containerHeight = containerWidth / currentAspectRatio;
+      }
+      
+      // Final common constraints for all modes
+      if (containerWidth > viewportWidth) {
+        containerWidth = viewportWidth;
+        containerHeight = containerWidth / currentAspectRatio;
+      }
+      
+      if (containerHeight > viewportHeight * 0.75) {
+        containerHeight = viewportHeight * 0.75;
+        containerWidth = containerHeight * currentAspectRatio;
+      }
+      
+      setContainerStyle({
+        width: `${containerWidth}px`,
+        height: `${containerHeight}px`,
+        aspectRatio: `${dimensions.width}/${dimensions.height}`
+      });
+    };
+    
+    calculateContainerDimensions();
+    
+    // Recalculate on window resize
+    window.addEventListener('resize', calculateContainerDimensions);
+    
+    return () => {
+      window.removeEventListener('resize', calculateContainerDimensions);
+    };
+  }, [dimensions, aspectRatio]); // Add aspectRatio as dependency
+  
   // Handle window resize to update dimensions and orientation
   useEffect(() => {
     const handleResize = () => {
-      const newDimensions = getCustomDimensions();
-      const newIsPortrait = window.innerHeight > window.innerWidth;
-      
+      const newDimensions = getCustomDimensions(aspectRatio);
       setDimensions(newDimensions);
-      setIsPortrait(newIsPortrait);
     };
+    
+    // Initial setup with current aspectRatio
+    handleResize();
     
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleResize);
@@ -62,7 +134,7 @@ const ImageAdjuster = ({
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleResize);
     };
-  }, []);
+  }, [aspectRatio]); // Re-run when aspectRatio changes
   
   // Calculate distance between two touch points
   const getDistance = (touch1, touch2) => {
@@ -313,9 +385,9 @@ const ImageAdjuster = ({
           className="image-frame"
           ref={containerRef}
           style={{
-            aspectRatio: `${dimensions.width}/${dimensions.height}`,
-            maxWidth: isPortrait ? '90vw' : '80vw',
-            maxHeight: isPortrait ? '70vh' : '60vh'
+            ...containerStyle,
+            maxWidth: '100%',
+            maxHeight: '100%'
           }}
           onTouchMove={handleDrag}
           onTouchEnd={handleTouchEnd}

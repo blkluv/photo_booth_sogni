@@ -1,0 +1,77 @@
+.aspect-ratio-selector {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 20px;
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+.aspect-ratio-button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: none;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 8px;
+  position: relative;
+}
+
+.aspect-ratio-button:hover {
+  transform: scale(2);
+}
+
+.aspect-ratio-button.active {
+  border: 1px solid #ff5e8a;
+}
+
+/* Add tooltip with dimensions for buttons */
+.aspect-ratio-button:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  z-index: 1001;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .aspect-ratio-selector {
+    padding: 8px;
+  }
+  
+  .aspect-ratio-button {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+@media (max-width: 480px) {
+  .aspect-ratio-selector {
+    padding: 6px;
+    gap: 6px;
+  }
+  
+  .aspect-ratio-button {
+    width: 32px;
+    height: 32px;
+  }
+} 

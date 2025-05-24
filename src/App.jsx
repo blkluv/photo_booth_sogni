@@ -3,7 +3,7 @@ import { getModelOptions, defaultStylePrompts as initialStylePrompts } from './c
 import { photoThoughts, randomThoughts } from './constants/thoughts';
 import { saveSettingsToCookies } from './utils/cookies';
 import { styleIdToDisplay } from './utils';
-import { getCustomDimensions, centerCropImage, blobToDataURL } from './utils/imageProcessing';
+import { getCustomDimensions } from './utils/imageProcessing';
 import { goToPreviousPhoto, goToNextPhoto } from './utils/photoNavigation';
 import { loadPrompts, getRandomStyle, getRandomMixPrompts } from './services/prompts';
 import { initializeSogniClient } from './services/sogni';
@@ -31,6 +31,8 @@ import TwitterShareModal from './components/shared/TwitterShareModal';
 import SplashScreen from './components/shared/SplashScreen';
 // Import the ImageAdjuster component
 import ImageAdjuster from './components/shared/ImageAdjuster';
+// Import the AspectRatioSelector component
+import AspectRatioSelector from './components/shared/AspectRatioSelector';
 
 // Helper function to update URL with prompt parameter
 const updateUrlWithPrompt = (promptKey) => {
@@ -126,7 +128,8 @@ const App = () => {
     negativePrompt,
     seed,
     soundEnabled,
-    slothicornAnimationEnabled
+    slothicornAnimationEnabled,
+    aspectRatio
   } = settings;
   // --- End context usage ---
 
@@ -174,7 +177,7 @@ const App = () => {
   const [orientationHandler, setOrientationHandler] = useState(null);
 
   // Determine the desired dimensions for Sogni (and camera constraints)
-  const { width: desiredWidth, height: desiredHeight } = getCustomDimensions(); // Keep this
+  const { width: desiredWidth, height: desiredHeight } = getCustomDimensions(aspectRatio); // Pass aspectRatio here
 
   // Drag-and-drop state
   const [dragActive, setDragActive] = useState(false); // Keep this
@@ -558,8 +561,8 @@ const App = () => {
     let constraints;
     
     if (isMobile) {
-      // For mobile devices, use 9:7 aspect ratio or 7:9 for portrait
-      const aspectRatio = isPortrait ? 7/9 : 9/7;
+      // For mobile devices, use dimensions based on selected aspect ratio
+      const { width, height } = getCustomDimensions(aspectRatio);
       
       // On iOS, don't specify aspectRatio as it causes issues
       if (isIOS) {
@@ -568,39 +571,42 @@ const App = () => {
               video: {
                 deviceId,
                 facingMode: isFrontCamera ? 'user' : 'environment',
-                width: { ideal: isPortrait ? 896 : 1152 },
-                height: { ideal: isPortrait ? 1152 : 896 }
+                width: { ideal: isPortrait ? width : height },
+                height: { ideal: isPortrait ? height : width }
               }
             }
           : {
               video: {
                 facingMode: isFrontCamera ? 'user' : 'environment',
-                width: { ideal: isPortrait ? 896 : 1152 },
-                height: { ideal: isPortrait ? 1152 : 896 }
+                width: { ideal: isPortrait ? width : height },
+                height: { ideal: isPortrait ? height : width }
               }
             };
       } else {
+        // Calculate aspect ratio for non-iOS mobile devices
+        const desiredAspectRatio = isPortrait ? width / height : height / width;
+        
         constraints = deviceId
           ? {
               video: {
                 deviceId,
                 facingMode: isFrontCamera ? 'user' : 'environment',
-                width: { ideal: isPortrait ? 896 : 1152 },
-                height: { ideal: isPortrait ? 1152 : 896 },
-                aspectRatio: { ideal: aspectRatio }
+                width: { ideal: isPortrait ? width : height },
+                height: { ideal: isPortrait ? height : width },
+                aspectRatio: { ideal: desiredAspectRatio }
               }
             }
           : {
               video: {
                 facingMode: isFrontCamera ? 'user' : 'environment',
-                width: { ideal: isPortrait ? 896 : 1152 },
-                height: { ideal: isPortrait ? 1152 : 896 },
-                aspectRatio: { ideal: aspectRatio }
+                width: { ideal: isPortrait ? width : height },
+                height: { ideal: isPortrait ? height : width },
+                aspectRatio: { ideal: desiredAspectRatio }
               }
             };
       }
     } else {
-      // For desktop
+      // For desktop, use our custom dimensions directly
       constraints = deviceId
         ? {
             video: {
@@ -688,7 +694,7 @@ const App = () => {
     } catch (error) {
       console.error('Failed to get camera access', error);
     }
-  }, [desiredWidth, desiredHeight, isFrontCamera, videoReference, setOrientationHandler]);
+  }, [desiredWidth, desiredHeight, isFrontCamera, videoReference, setOrientationHandler, aspectRatio]); // Add aspectRatio to dependencies
 
   /**
    * Enumerate devices and store them in state.
@@ -950,8 +956,8 @@ const App = () => {
         negativePrompt: finalNegativePrompt,
         stylePrompt: finalStylePrompt,
         sizePreset: 'custom',
-        width: desiredWidth,
-        height: desiredHeight,
+        width: getCustomDimensions(aspectRatio).width,  // Use aspectRatio here
+        height: getCustomDimensions(aspectRatio).height, // Use aspectRatio here
         steps: 7,
         guidance: promptGuidance,
         numberOfImages: numImages, // Use context state
@@ -1432,7 +1438,7 @@ const App = () => {
     }
 
     // Custom canvas size and aspect ratio to match the model's expectations
-    const { width: canvasWidth, height: canvasHeight } = getCustomDimensions();
+    const { width: canvasWidth, height: canvasHeight } = getCustomDimensions(aspectRatio);
     console.log(`Capturing at ${canvasWidth}x${canvasHeight}`);
     
     // Create a canvas for the capture
@@ -1523,7 +1529,7 @@ const App = () => {
     }
 
     // Generate initial data URL and blob
-    const dataUrl = canvas.toDataURL('image/png', 1.0);
+    // const dataUrl = canvas.toDataURL('image/png', 1.0);
     
     // Use a quality of 1.0 and explicitly use the PNG MIME type for iOS
     const blob = await new Promise(resolve => {
@@ -1580,17 +1586,13 @@ const App = () => {
   const captureAndSend = async () => {
     const canvas = canvasReference.current;
     const video = videoReference.current;
-    const isPortrait = window.innerHeight > window.innerWidth;
     
-    // Set canvas dimensions to match the desired aspect ratio exactly
-    // Portrait: 896x1152 (7:9 ratio), Landscape: 1152x896 (9:7 ratio)
-    if (isPortrait) {
-      canvas.width = 896;
-      canvas.height = 1152;
-    } else {
-      canvas.width = 1152;
-      canvas.height = 896;
-    }
+    // Get the dimensions based on the selected aspect ratio
+    const { width, height } = getCustomDimensions(aspectRatio);
+    
+    // Set canvas dimensions to match the selected aspect ratio
+    canvas.width = width;
+    canvas.height = height;
     
     const context = canvas.getContext('2d');
     
@@ -1679,7 +1681,7 @@ const App = () => {
     }
 
     // Generate initial data URL and blob
-    const dataUrl = canvas.toDataURL('image/png', 1.0);
+    // const dataUrl = canvas.toDataURL('image/png', 1.0);
     
     // Use a quality of 1.0 and explicitly use the PNG MIME type for iOS
     const blob = await new Promise(resolve => {
@@ -1826,6 +1828,9 @@ const App = () => {
             hasPhotos={photos.length > 0}
             onViewPhotos={null} // Remove the onViewPhotos prop as we're moving the button out
           />
+          
+          {/* Add AspectRatioSelector to the main menu */}
+          <AspectRatioSelector visible={showStartMenu} />
           
           {/* Move the corner button outside of CameraStartMenu */}
           {showStartMenu && photos.length > 0 && (
@@ -2298,7 +2303,6 @@ const App = () => {
   };
 
   // Add this to the component state declarations at the top
-  const [lastCaptureData, setLastCaptureData] = useState(null);
 
   // Add a function to handle camera snapshot adjustment cancellation
   const handleCameraSnapshotCancel = () => {
@@ -2794,9 +2798,14 @@ const App = () => {
             filter: grayscale(20%) !important;
           }
           
-          /* Set aspect ratio CSS variable based on orientation */
+          /* Set aspect ratio CSS variable based on selected aspect ratio */
           :root {
-            --current-aspect-ratio: ${window.innerHeight > window.innerWidth ? '896/1152' : '1152/896'};
+            --current-aspect-ratio: ${
+              aspectRatio === 'portrait' ? '896/1152' : 
+              aspectRatio === 'square' ? '1024/1024' : 
+              aspectRatio === 'landscape' ? '1152/896' :
+              window.innerHeight > window.innerWidth ? '896/1152' : '1152/896'
+            };
           }
           
           /* Ensure images display properly */
@@ -2847,7 +2856,7 @@ const App = () => {
           .film-frame.animating-selection {
             transition: transform 0.5s cubic-bezier(0.2, 0, 0.2, 1) !important;
           }
-                    
+                
           /* ------- ADD: Psychedelic animation ------- */
           @keyframes psychedelic-shift {
             0% {
@@ -2872,17 +2881,29 @@ const App = () => {
         
         // Update aspect ratio when orientation changes
         const updateAspectRatio = () => {
-          const isPortrait = window.innerHeight > window.innerWidth;
-          document.documentElement.style.setProperty(
-            '--current-aspect-ratio', 
-            isPortrait ? '896/1152' : '1152/896'
-          );
+          // Only update if aspect ratio is not explicitly set by user
+          if (!aspectRatio || aspectRatio === 'auto') {
+            const isPortrait = window.innerHeight > window.innerWidth;
+            document.documentElement.style.setProperty(
+              '--current-aspect-ratio', 
+              isPortrait ? '896/1152' : '1152/896'
+            );
+          }
         };
         
-        // Set initial aspect ratio
-        updateAspectRatio();
+        // Set initial aspect ratio based on user selection or orientation
+        if (aspectRatio === 'portrait') {
+          document.documentElement.style.setProperty('--current-aspect-ratio', '896/1152');
+        } else if (aspectRatio === 'landscape') {
+          document.documentElement.style.setProperty('--current-aspect-ratio', '1152/896');
+        } else if (aspectRatio === 'square') {
+          document.documentElement.style.setProperty('--current-aspect-ratio', '1024/1024');
+        } else {
+          // Default to orientation-based
+          updateAspectRatio();
+        }
         
-        // Update on resize
+        // Update on resize only if not using explicit aspect ratio
         window.addEventListener('resize', updateAspectRatio);
         
         return () => {
@@ -2891,7 +2912,7 @@ const App = () => {
             styleElement.remove();
           }
         };
-      }, [])}
+      }, [aspectRatio])}
 
       {/* Add this section at the end, right before the closing tag */}
       {showImageAdjuster && currentUploadedImageUrl && (

@@ -1,4 +1,4 @@
-import { Settings } from '../types';
+import { Settings, AspectRatioOption } from '../types';
 
 export const modelOptions = [
   {
@@ -53,6 +53,12 @@ export const getValidModelValue = (selectedValue: string) => {
   return defaultValue;
 };
 
+// Helper function to determine default aspect ratio based on device
+export const getDefaultAspectRatio = (): AspectRatioOption => {
+  const isPortrait = window.innerHeight > window.innerWidth;
+  return isPortrait ? 'portrait' : 'landscape';
+};
+
 export const DEFAULT_SETTINGS: Settings = {
   selectedModel: "coreml-sogniXLturbo_alpha1_ad",
   numImages: 8,
@@ -68,6 +74,7 @@ export const DEFAULT_SETTINGS: Settings = {
   seed: '',
   soundEnabled: true,
   slothicornAnimationEnabled: true,
+  aspectRatio: getDefaultAspectRatio(),
 };
 
 // Backend now handles all Sogni API communication, so we don't need these URLs in the frontend

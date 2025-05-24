@@ -71,7 +71,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     negativePrompt: getSettingFromCookie('negativePrompt', DEFAULT_SETTINGS.negativePrompt),
     seed: getSettingFromCookie('seed', DEFAULT_SETTINGS.seed),
     soundEnabled: getSettingFromCookie('soundEnabled', DEFAULT_SETTINGS.soundEnabled || true),
-    slothicornAnimationEnabled: getSettingFromCookie('slothicornAnimationEnabled', DEFAULT_SETTINGS.slothicornAnimationEnabled || true)
+    slothicornAnimationEnabled: getSettingFromCookie('slothicornAnimationEnabled', DEFAULT_SETTINGS.slothicornAnimationEnabled || true),
+    aspectRatio: getSettingFromCookie('aspectRatio', DEFAULT_SETTINGS.aspectRatio)
   }));
   
   // Project state
