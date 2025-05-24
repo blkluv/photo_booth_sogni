@@ -31,6 +31,64 @@
     margin: 0 auto !important;
     max-height: 85vh !important;
     max-height: calc((var(--vh, 1vh) * 85) - env(safe-area-inset-bottom)) !important;
+    /* Ensure polaroid frame width is not too wide on mobile portrait */
+    max-width: 92vw !important;
+    width: auto !important;
+  }
+
+  /* Maintain proper polaroid border ratio (1:3.5 for sides to bottom) */
+  body #root [class*="cameraView"],
+  html body #root [class*="cameraView"] {
+    border-left: 23px solid white !important;
+    border-right: 23px solid white !important;
+    border-top: 23px solid white !important;
+    border-bottom: 80px solid white !important;
+  }
+
+  /* Adjust cameraViewInner for all aspect ratios */
+  body #root [class*="cameraViewInner"],
+  html body #root [class*="cameraViewInner"] {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 auto !important;
+  }
+
+  /* Portrait mode specific fixes */
+  body #root [class*="aspect-portrait"],
+  html body #root [class*="aspect-portrait"] {
+    width: 75vw !important;
+    max-width: 75vw !important;
+    height: auto !important;
+  }
+
+  /* Landscape mode specific fixes */
+  body #root [class*="aspect-landscape"],
+  html body #root [class*="aspect-landscape"] {
+    width: 85vw !important;
+    max-width: 85vw !important;
+    height: auto !important;
+  }
+
+  /* Square mode specific fixes */
+  body #root [class*="aspect-square"],
+  html body #root [class*="aspect-square"] {
+    width: 75vw !important;
+    max-width: 75vw !important;
+    height: auto !important;
+  }
+
+  /* Ensure video fits properly in its container */
+  body #root [class*="webcam"],
+  html body #root [class*="webcam"] {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important; /* Use cover to eliminate black bars */
+  }
+
+  /* Special treatment for landscape aspect ratio to avoid black bars */
+  body #root [class*="aspect-landscape"] [class*="webcam"],
+  html body #root [class*="aspect-landscape"] [class*="webcam"] {
+    object-fit: contain !important; /* Better for landscape mode */
   }
 
   /* Make sure shutter button is always visible */
