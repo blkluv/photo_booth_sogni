@@ -1,4 +1,4 @@
-import { Settings } from '../types';
+import { Settings } from '../types/index';
 
 export function getSettingFromCookie<T>(name: string, defaultValue: T): T {
   try {

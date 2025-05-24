@@ -1,4 +1,4 @@
-import { Settings, AspectRatioOption } from '../types';
+import { Settings, AspectRatioOption } from '../types/index';
 
 export const modelOptions = [
   {

@@ -102,8 +102,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
 }) => {
   // Get aspectRatio from context
   const { settings } = useApp();
-  // Access aspectRatio with a type assertion to ignore TypeScript errors
-  // @ts-expect-error - The Settings type in AppContext includes aspectRatio
   const aspectRatio = settings.aspectRatio;
   
   // Get dimensions based on selected aspect ratio
