@@ -29,6 +29,12 @@
   animation: slideInFromLeft 0.6s cubic-bezier(0.3, 0, 0.3, 1) forwards;
 }
 
+.loading {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .cameraContainer {
   display: flex;
   justify-content: center;

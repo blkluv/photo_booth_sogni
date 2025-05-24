@@ -110,6 +110,9 @@ export const CameraView: React.FC<CameraViewProps> = ({
   // Check if device is mobile
   const [isMobile, setIsMobile] = useState(false);
   
+  // Add state to track video loading
+  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+  
   useEffect(() => {
     const checkIfMobile = () => {
       const userAgent = navigator.userAgent || navigator.vendor || (window as { opera?: string }).opera || '';
@@ -121,6 +124,9 @@ export const CameraView: React.FC<CameraViewProps> = ({
   // Set the camera view dimensions based on the selected aspect ratio
   useEffect(() => {
     if (videoRef.current) {
+      // Reset video loaded state when aspect ratio changes
+      setIsVideoLoaded(false);
+      
       // Get both the video container and the polaroid frame
       const videoContainer = videoRef.current.parentElement;
       const polaroidFrame = document.querySelector(`.${styles.polaroidFrame}`) as HTMLElement;
@@ -212,6 +218,29 @@ export const CameraView: React.FC<CameraViewProps> = ({
     }
   }, [aspectRatio, videoRef, styles.polaroidFrame]);
 
+  // Add effect to track video loading events
+  useEffect(() => {
+    const handleVideoLoadedMetadata = () => {
+      console.log('Video metadata loaded, video is ready for display');
+      setIsVideoLoaded(true);
+    };
+
+    if (videoRef.current) {
+      videoRef.current.addEventListener('loadedmetadata', handleVideoLoadedMetadata);
+      
+      // If already loaded, set it now
+      if (videoRef.current.videoWidth && videoRef.current.videoHeight) {
+        handleVideoLoadedMetadata();
+      }
+    }
+
+    return () => {
+      if (videoRef.current) {
+        videoRef.current.removeEventListener('loadedmetadata', handleVideoLoadedMetadata);
+      }
+    };
+  }, [videoRef, aspectRatio]);
+
   // Calculate the best object-fit for the video based on aspect ratio
   const [videoObjectFit, setVideoObjectFit] = useState<'cover' | 'contain'>('cover');
   
@@ -240,6 +269,15 @@ export const CameraView: React.FC<CameraViewProps> = ({
       }
     };
   }, [videoRef, dimensions]);
+
+  // Determine animation class based on video loading state and showPhotoGrid
+  const getAnimationClass = () => {
+    if (!isVideoLoaded) {
+      // If video isn't loaded yet, hide the container completely
+      return styles.loading;
+    }
+    return showPhotoGrid ? styles.slideOut : styles.slideIn;
+  };
 
   const renderBottomControls = () => (
     <div className={styles.bottomControls}>
@@ -296,7 +334,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
 
   return (
     <div 
-      className={`${styles.cameraContainer} ${showPhotoGrid ? styles.slideOut : styles.slideIn}`}
+      className={`${styles.cameraContainer} ${getAnimationClass()}`}
       data-testid={testId || 'camera-container'}
     >
       <div className={styles.polaroidFrame}>
