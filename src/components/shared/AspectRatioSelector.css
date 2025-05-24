@@ -1,9 +1,9 @@
 .aspect-ratio-selector {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
-  gap: 10px;
-  padding: 10px;
+  width: 144px;
+  padding: 12px;
   border-radius: 20px;
   position: absolute;
   top: 20px;
@@ -17,23 +17,38 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  width: 44px;
+  height: 44px;
+  border-radius: 4px;
   border: none;
-  color: #555;
+  background: transparent;
   cursor: pointer;
   transition: all 0.2s ease;
-  padding: 8px;
+  padding: 4px;
   position: relative;
+  overflow: hidden;
+  margin: 0;
 }
 
 .aspect-ratio-button:hover {
-  transform: scale(2);
+  transform: scale(1.1);
 }
 
 .aspect-ratio-button.active {
-  border: 1px solid #ff5e8a;
+  background: transparent;
+}
+
+.aspect-ratio-button svg .polaroid-frame {
+  fill: white;
+}
+
+.aspect-ratio-button.active svg .polaroid-frame {
+  fill: #ff5e8a;
+}
+
+.aspect-ratio-button svg {
+  width: 100%;
+  height: 100%;
 }
 
 /* Add tooltip with dimensions for buttons */
@@ -56,22 +71,23 @@
 @media (max-width: 768px) {
   .aspect-ratio-selector {
     padding: 8px;
+    width: 132px;
   }
   
   .aspect-ratio-button {
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
   }
 }
 
 @media (max-width: 480px) {
   .aspect-ratio-selector {
     padding: 6px;
-    gap: 6px;
+    width: 120px;
   }
   
   .aspect-ratio-button {
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
   }
 } 
