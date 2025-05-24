@@ -24,11 +24,16 @@ export async function resizeDataUrl(dataUrl, width, height) {
       canvas.width = width;
       canvas.height = height;
       const context = canvas.getContext('2d');
+      
+      // Enable high-quality image resampling for best results
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = 'high';
+      
       // fill black to avoid any transparent edges
       context.fillStyle = 'black';
       context.fillRect(0, 0, width, height);
       context.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/png'));
+      resolve(canvas.toDataURL('image/png', 1.0));
     });
     img.src = dataUrl;
   });
@@ -109,6 +114,10 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
       
       const ctx = canvas.getContext('2d');
       
+      // Enable high-quality image resampling for best results
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      
       // Draw polaroid frame (white background)
       ctx.fillStyle = frameColor;
       ctx.fillRect(0, 0, polaroidWidth, polaroidHeight);
@@ -161,8 +170,8 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
         console.log(`Drew label: "${displayLabel}" at y=${labelY} with bottom width ${frameBottomWidth}`);
       }
       
-      // Convert to data URL
-      const dataUrl = canvas.toDataURL('image/png');
+      // Convert to data URL with maximum quality
+      const dataUrl = canvas.toDataURL('image/png', 1.0);
       
       // For debugging: display the image in the console
       console.log(`Generated polaroid with dimensions: ${polaroidWidth}x${polaroidHeight}`);
@@ -191,6 +200,10 @@ export async function centerCropImage(imageBlob, targetWidth, targetHeight) {
       canvas.width = targetWidth;
       canvas.height = targetHeight;
       const ctx = canvas.getContext('2d');
+      
+      // Enable high-quality image resampling for best results
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       
       // Fill with black background to avoid transparency
       ctx.fillStyle = 'black';
@@ -223,7 +236,7 @@ export async function centerCropImage(imageBlob, targetWidth, targetHeight) {
         0, 0, targetWidth, targetHeight
       );
       
-      // Convert to blob
+      // Convert to blob with maximum quality
       canvas.toBlob((blob) => {
         resolve(blob);
       }, 'image/png', 1.0);

@@ -1441,6 +1441,10 @@ const App = () => {
     canvas.height = canvasHeight;
     const context = canvas.getContext('2d');
     
+    // Enable high-quality image resampling for best results when resizing
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
+    
     // Get the video dimensions
     const video = videoReference.current;
     const videoAspect = video.videoWidth / video.videoHeight;
@@ -1589,6 +1593,10 @@ const App = () => {
     }
     
     const context = canvas.getContext('2d');
+    
+    // Enable high-quality image resampling for best results when resizing
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
     
     // Fill with black to prevent transparency
     context.fillStyle = 'black';

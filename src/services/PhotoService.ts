@@ -123,6 +123,10 @@ export class PhotoService {
     if (!ctx) {
       throw new Error("Could not get canvas context");
     }
+    
+    // Enable high-quality image resampling for best results
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
     ctx.drawImage(video, 0, 0);
     return new Promise((resolve) => {
@@ -134,7 +138,7 @@ export class PhotoService {
           blob,
           dataUrl: canvas.toDataURL("image/png"),
         });
-      }, "image/png");
+      }, "image/png", 1.0); // Use maximum quality (1.0)
     });
   }
 } 

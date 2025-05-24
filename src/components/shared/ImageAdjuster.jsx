@@ -238,6 +238,10 @@ const ImageAdjuster = ({
     canvas.height = dimensions.height;
     const ctx = canvas.getContext('2d');
     
+    // Enable high-quality image resampling for best results when resizing
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    
     // Fill with black background to ensure proper borders
     ctx.fillStyle = 'black';
     ctx.fillRect(0, 0, dimensions.width, dimensions.height);
@@ -285,7 +289,7 @@ const ImageAdjuster = ({
       drawHeight
     );
     
-    // Convert to blob and call the confirmation callback
+    // Convert to blob using maximum quality (1.0) to preserve details for Sogni SDK
     canvas.toBlob((blob) => {
       onConfirm(blob);
     }, 'image/png', 1.0);

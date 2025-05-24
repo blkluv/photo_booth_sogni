@@ -11,11 +11,16 @@ export async function resizeDataUrl(dataUrl: string, width: number, height: numb
       canvas.height = height;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
+      
+      // Enable high-quality image resampling for best results
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      
       // fill black to avoid any transparent edges
       ctx.fillStyle = "black";
       ctx.fillRect(0, 0, width, height);
       ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL("image/png"));
+      resolve(canvas.toDataURL("image/png", 1.0)); // Use maximum quality
     };
     img.src = dataUrl;
   });
