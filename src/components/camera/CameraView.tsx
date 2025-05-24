@@ -312,8 +312,12 @@ export const CameraView: React.FC<CameraViewProps> = ({
         {/* Camera view with custom aspect ratio */}
         <div className={styles.cameraView}>
           <div 
-            className={styles.cameraViewInner}
+            className={`${styles.cameraViewInner} ${aspectRatio === 'landscape' ? styles['aspect-landscape'] : aspectRatio === 'portrait' ? styles['aspect-portrait'] : styles['aspect-square']}`}
             id="camera-container"
+            style={{
+              // Apply direct aspect ratio for landscape mode
+              aspectRatio: aspectRatio === 'landscape' ? '1152/896' : undefined
+            }}
           >
             <video
               id="webcam"
