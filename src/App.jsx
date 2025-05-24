@@ -1910,6 +1910,17 @@ const App = () => {
           {/* Other UI elements like canvas, flash effect, etc. */}
           <canvas ref={canvasReference} style={{ display: 'none' }} />
           
+          {/* Back to Menu Button - moved outside of CameraView */}
+          {!showStartMenu && !showPhotoGrid && (
+            <button 
+              className="corner-btn back-to-menu-btn"
+              onClick={handleBackToMenu}
+              aria-label="Back to Main Menu"
+              data-testid="back-to-menu-button"
+            >
+              ← Menu
+            </button>
+          )}
         </>
       )}
     </div>
