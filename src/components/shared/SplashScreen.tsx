@@ -45,6 +45,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
   return (
     <div className={`splash-screen ${isHiding ? 'hiding' : ''}`}>
       <div className="splash-content">
+        
         <div className="splash-layout">
           <div className="polaroid-splash-container">
             <img 
@@ -52,6 +53,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
               alt="Polaroid Camera" 
               className="polaroid-image" 
             />
+            <div className="camera-bubble">ready 2 create magic? 📸</div>
           </div>
           
           <div className="slideshow-container">
@@ -59,7 +61,11 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
           </div>
         </div>
         
-        <h1 className="splash-tagline" onClick={handleDismiss}>Let&apos;s Gooo!</h1>
+        <div className="splash-cta-section">
+          <h2 className="splash-tagline" onClick={handleDismiss}>
+            Let&apos;s Gooo! 🚀
+          </h2>
+        </div>
       </div>
     </div>
   );

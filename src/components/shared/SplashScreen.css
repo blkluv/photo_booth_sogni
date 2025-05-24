@@ -4,13 +4,14 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: white;
+  background: linear-gradient(135deg, #FFED4E 0%, #FFD700 50%, #FFC700 100%);
   z-index: 10000; /* Higher than any other element */
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   opacity: 1; /* Start fully visible */
+  overflow: hidden;
 }
 
 .splash-screen.hiding {
@@ -20,15 +21,15 @@
 @keyframes fadeBackgroundOut {
   0% {
     opacity: 1;
-    background-color: white;
+    background: linear-gradient(135deg, #FFED4E 0%, #FFD700 50%, #FFC700 100%);
   }
   70% {
     opacity: 0.8;
-    background-color: rgba(255, 255, 255, 0.8);
+    background: linear-gradient(135deg, #FFED4E 0%, #FFD700 50%, #FFC700 100%);
   }
   100% {
     opacity: 0;
-    background-color: rgba(255, 255, 255, 0);
+    background: linear-gradient(135deg, #FFED4E 0%, #FFD700 50%, #FFC700 100%);
   }
 }
 
@@ -38,13 +39,48 @@
   align-items: center;
   width: 90%;
   max-width: 1200px;
+  text-align: center;
+}
+
+@keyframes bounceIn {
+  0% {
+    transform: scale(0.3) rotate(-15deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1) rotate(5deg);
+  }
+  70% {
+    transform: scale(0.9) rotate(-2deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes titleWiggle {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(1deg) scale(1.02); }
+  75% { transform: rotate(-1deg) scale(1.02); }
+}
+
+@keyframes slideInUp {
+  0% {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .splash-layout {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 40px;
+  gap: 60px;
   margin-bottom: 40px;
   width: 100%;
 }
@@ -54,10 +90,57 @@
   position: relative;
   animation: floatEffect 3s infinite ease-in-out;
   transform-origin: center center;
+  margin-top: 80px;
+}
+
+.camera-bubble {
+  position: absolute;
+  top: -50px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(26, 26, 26, 0.9);
+  color: #FFED4E;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-family: 'Helvetica', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  animation: bubbleBounce 2s infinite ease-in-out 0.5s;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.camera-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 8px solid transparent;
+  border-top-color: rgba(26, 26, 26, 0.9);
+}
+
+@keyframes bubbleBounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-5px); }
 }
 
 .splash-screen.hiding .polaroid-splash-container {
   animation: polaroidFlyLeft 1.5s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+}
+
+.splash-tagline {
+  font-family: 'Permanent Marker', cursive;
+  font-size: 60px;
+  color: #ff3366;
+  margin: 20px 0;
+  text-align: center;
+  position: relative;
+  animation: colorPulse 4s infinite;
+  cursor: pointer;
+  padding: 10px 25px;
+  border-radius: 10px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 @keyframes polaroidFlyLeft {
@@ -83,8 +166,9 @@
 .polaroid-image {
   max-width: 300px;
   height: auto;
-  filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.2));
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.3));
   overflow: visible;
+  border-radius: 15px;
 }
 
 .slideshow-container {
@@ -122,23 +206,23 @@
   margin: 0;
   transform: none !important;
   opacity: 1;
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
   width: 330px;
   height: 465px; /* Adjusted for aspect ratio */
+  border-radius: 20px;
+  overflow: hidden;
+  border: 4px solid rgba(255, 255, 255, 0.8);
 }
 
-.splash-tagline {
-  font-family: 'Permanent Marker', cursive;
-  font-size: 60px;
-  color: #ff3366;
-  margin: 20px 0;
-  text-align: center;
-  position: relative;
-  animation: colorPulse 4s infinite;
-  cursor: pointer;
-  padding: 10px 25px;
-  border-radius: 10px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+@keyframes textSlideIn {
+  0% {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 .splash-screen.hiding .splash-tagline {
@@ -161,31 +245,31 @@
 }
 
 .splash-tagline:hover {
-  transform: scale(1.05);
+  transform: scale(1.05) rotate(1deg);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
 
 .splash-tagline:active {
-  transform: scale(0.98);
+  transform: scale(0.98) rotate(-1deg);
 }
 
-@keyframes colorPulse {
+@keyframes rainbowPulse {
   0%, 100% { 
-    color: #ff3366;
+    color: #1a1a1a;
     transform: scale(1);
   }
-  50% { 
-    color: #ff5e8a;
-    transform: scale(1.05);
+  25% { 
+    color: #ff6b6b;
+    transform: scale(1.02);
   }
-}
-
-.splash-instruction {
-  font-family: Arial, sans-serif;
-  color: #666;
-  font-size: 18px;
-  margin-top: 30px;
-  animation: pulse 2s infinite;
-  opacity: 0.8;
+  50% { 
+    color: #4ecdc4;
+    transform: scale(1.04);
+  }
+  75% { 
+    color: #45b7d1;
+    transform: scale(1.02);
+  }
 }
 
 @keyframes pulse {
@@ -200,14 +284,20 @@
 
 /* Responsive styles */
 @media (max-width: 692px) {
+  
   .splash-layout {
     flex-direction: column;
-    gap: 10px;
-    margin-bottom: 0px;
+    gap: 1px;
+    margin-bottom: 30px;
   }
   
+  .camera-bubble {
+    top: -40px;
+    font-size: 12px;
+    padding: 6px 12px;
+  }
   .polaroid-image {
-    max-width: 240px;
+    max-width: 160px;
   }
   
   .slideshow-container .gallery-slideshow {
@@ -216,8 +306,9 @@
   }
   
   .splash-tagline {
-    font-size: 48px;
-    margin: 15px 0;
+    font-size: 3rem;
+    padding: 12px 25px;
+    margin: 0 0 8px 0;
   }
 
   /* Mobile-specific animations that ensure elements move fully off screen */
@@ -264,8 +355,15 @@
 }
 
 @media (max-width: 576px) {
+  
   .splash-layout {
-    gap: 0px;
+    gap: 1px;
+  }
+  
+  .camera-bubble {
+    font-size: 11px;
+    padding: 5px 10px;
+    top: -35px;
   }
   
   .slideshow-container .gallery-slideshow {
@@ -274,8 +372,9 @@
   }
   
   .splash-tagline {
-    font-size: 36px;
-    margin: 10px 0;
+    font-size: 2.5rem;
+    padding: 10px 20px;
+    margin: 0;
   }
   
   /* Even more extreme animations for small devices */
