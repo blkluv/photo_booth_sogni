@@ -80,7 +80,6 @@
   cursor: pointer;
   z-index: 100;
   transition: all 0.2s ease;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
   opacity: 0;
   transform: scale(0.8);
 }
@@ -88,7 +87,6 @@
 .control-overlay.visible .dismiss-overlay-btn {
   opacity: 1;
   transform: scale(1);
-  transition-delay: 0.3s;
 }
 
 .dismiss-overlay-btn:hover {
@@ -531,10 +529,84 @@
   border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+/* Aspect ratio controls in Advanced Settings */
+.aspect-ratio-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  margin-left: 10px;
+}
+
+.aspect-ratio-button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 4px;
+  position: relative;
+  overflow: hidden;
+  margin: 0;
+}
+
+.aspect-ratio-button:hover {
+  transform: scale(1.1);
+}
+
+.aspect-ratio-button.active {
+  background: transparent;
+}
+
+.aspect-ratio-button svg .polaroid-frame {
+  fill: white;
+}
+
+.aspect-ratio-button.active svg .polaroid-frame {
+  fill: #ff5e8a;
+}
+
+.aspect-ratio-button svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Add tooltip with dimensions for buttons */
+.aspect-ratio-button:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  z-index: 1001;
+}
+
 @media (max-width: 420px) and (orientation: portrait) {
   .version-info {
     font-size: 10px;
     margin-top: 10px;
     padding: 3px;
+  }
+  
+  /* Responsive styles for aspect ratio controls */
+  .aspect-ratio-controls {
+    gap: 6px;
+  }
+  
+  .aspect-ratio-button {
+    width: 36px;
+    height: 36px;
   }
 } 

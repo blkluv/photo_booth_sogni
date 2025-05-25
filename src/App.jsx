@@ -718,6 +718,23 @@ const App = () => {
     
     initializeAppOnMount();
   }, [listCameras, initializeSogni]);
+
+  // Effect to restart camera when aspect ratio changes (only if camera is already running)
+  useEffect(() => {
+    const restartCameraOnAspectRatioChange = async () => {
+      // Only restart if camera is already running and was manually started
+      if (videoReference.current && 
+          videoReference.current.srcObject && 
+          cameraManuallyStarted && 
+          !showStartMenu) {
+        console.log('Aspect ratio changed, restarting camera with new constraints...');
+        await startCamera(selectedCameraDeviceId);
+      }
+    };
+
+    // Restart camera when aspect ratio changes
+    restartCameraOnAspectRatioChange();
+  }, [aspectRatio, startCamera, selectedCameraDeviceId, cameraManuallyStarted, showStartMenu]);
   
   // Add an effect specifically for page unload/refresh cleanup
   useEffect(() => {
@@ -2377,6 +2394,7 @@ const App = () => {
           controlNetGuidanceEnd={controlNetGuidanceEnd}
           flashEnabled={flashEnabled}
           keepOriginalPhoto={keepOriginalPhoto}
+          aspectRatio={aspectRatio}
           // Handlers using updateSetting
           onPositivePromptChange={handlePositivePromptChange} 
           onStylePromptChange={(value) => updateSetting('stylePrompt', value)}
@@ -2390,6 +2408,10 @@ const App = () => {
           onControlNetGuidanceEndChange={(value) => updateSetting('controlNetGuidanceEnd', value)}
           onFlashEnabledChange={(value) => updateSetting('flashEnabled', value)}
           onKeepOriginalPhotoChange={(value) => updateSetting('keepOriginalPhoto', value)}
+          onAspectRatioChange={(value) => {
+            updateSetting('aspectRatio', value);
+            saveSettingsToCookies({ aspectRatio: value });
+          }}
           soundEnabled={soundEnabled}
           onSoundEnabledChange={(value) => {
             updateSetting('soundEnabled', value);

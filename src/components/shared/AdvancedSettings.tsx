@@ -1,4 +1,6 @@
 import React from 'react';
+import { useApp } from '../../context/AppContext';
+import { AspectRatioOption } from '../../types/index';
 
 interface AdvancedSettingsProps {
   /** Whether the settings overlay is visible */
@@ -63,6 +65,10 @@ interface AdvancedSettingsProps {
   onSlothicornAnimationEnabledChange?: (enabled: boolean) => void;
   /** Handler for settings reset */
   onResetSettings?: () => void;
+  /** Current aspect ratio */
+  aspectRatio?: AspectRatioOption;
+  /** Handler for aspect ratio change */
+  onAspectRatioChange?: (aspectRatio: AspectRatioOption) => void;
 }
 
 /**
@@ -99,7 +105,37 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
   slothicornAnimationEnabled = true,
   onSlothicornAnimationEnabledChange,
   onResetSettings,
+  aspectRatio,
+  onAspectRatioChange,
 }) => {
+  // Get current aspect ratio from context if not provided via props
+  const { settings, updateSetting } = useApp();
+  const currentAspectRatio = aspectRatio || settings.aspectRatio;
+
+  const handleAspectRatioChange = (newAspectRatio: AspectRatioOption) => {
+    // Use the provided handler or fallback to context
+    if (onAspectRatioChange) {
+      onAspectRatioChange(newAspectRatio);
+    } else {
+      updateSetting('aspectRatio', newAspectRatio);
+    }
+    
+    // Update CSS variables to match the new aspect ratio
+    switch (newAspectRatio) {
+      case 'portrait':
+        document.documentElement.style.setProperty('--current-aspect-ratio', '896/1152');
+        break;
+      case 'landscape':
+        document.documentElement.style.setProperty('--current-aspect-ratio', '1152/896');
+        break;
+      case 'square':
+        document.documentElement.style.setProperty('--current-aspect-ratio', '1024/1024');
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
     <div className={`control-overlay ${visible ? 'visible' : ''}`} style={{ position: 'fixed', zIndex: 99999 }}>
       <div className="control-overlay-content">
@@ -111,6 +147,46 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
         >
           ×
         </button>
+
+        {/* Aspect Ratio selector */}
+        <div className="control-option">
+          <label className="control-label">Aspect Ratio:</label>
+          <div className="aspect-ratio-controls">
+            <button 
+              className={`aspect-ratio-button ${currentAspectRatio === 'square' ? 'active' : ''}`}
+              onClick={() => handleAspectRatioChange('square')}
+              title="Square (1:1)"
+              aria-label="Set square aspect ratio"
+            >
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
+                <rect x="3.29" y="1" width="17.42" height="21.71" rx="0" fill="white" className="polaroid-frame" />
+                <rect x="5" y="2.71" width="14" height="14" fill="black" />
+              </svg>
+            </button>
+            <button 
+              className={`aspect-ratio-button ${currentAspectRatio === 'portrait' ? 'active' : ''}`}
+              onClick={() => handleAspectRatioChange('portrait')}
+              title="Portrait (7:9)"
+              aria-label="Set portrait aspect ratio"
+            >
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
+                <rect x="4.12" y="0" width="15.77" height="23.59" rx="0" fill="white" className="polaroid-frame" />
+                <rect x="5.83" y="1.71" width="12.35" height="15.88" fill="black" />
+              </svg>
+            </button>
+            <button 
+              className={`aspect-ratio-button ${currentAspectRatio === 'landscape' ? 'active' : ''}`}
+              onClick={() => handleAspectRatioChange('landscape')}
+              title="Landscape (9:7)"
+              aria-label="Set landscape aspect ratio"
+            >
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
+                <rect x="2.35" y="1.97" width="19.3" height="20.06" rx="0" fill="white" className="polaroid-frame" />
+                <rect x="4.06" y="3.68" width="15.88" height="12.35" fill="black" />
+              </svg>
+            </button>
+          </div>
+        </div>
 
         {/* Model selector */}
         {modelOptions.length > 0 && (

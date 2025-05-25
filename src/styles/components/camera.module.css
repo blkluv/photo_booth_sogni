@@ -173,6 +173,24 @@
   object-fit: contain !important;
 }
 
+/* Ensure video respects aspect ratio constraints and prevents black bars */
+.webcam {
+  transition: object-fit 0.3s ease, height 0.3s ease;
+}
+
+/* Override for mobile portrait to eliminate black bars */
+@media (orientation: portrait) and (max-width: 768px) {
+  .webcam {
+    object-fit: cover !important;
+  }
+  
+  /* Exception for landscape aspect ratio on mobile portrait */
+  .aspect-landscape .webcam {
+    object-fit: contain !important;
+    height: auto !important;
+  }
+}
+
 .bottomControls {
   position: absolute;
   bottom: 32px;
@@ -488,7 +506,6 @@
   cursor: pointer;
   z-index: 100;
   transition: all 0.2s ease;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
 }
 
 :global(.dismiss-overlay-btn:hover) {

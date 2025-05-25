@@ -205,15 +205,28 @@ export const CameraView: React.FC<CameraViewProps> = ({
         }
       }
       
-      // Force the video to refresh its dimensions
-      if (videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject;
-        videoRef.current.srcObject = null;
+      // Force the video to refresh its dimensions and adjust to new aspect ratio
+      if (videoRef.current && videoRef.current.srcObject) {
+        // Wait for the container size changes to take effect
         setTimeout(() => {
           if (videoRef.current) {
-            videoRef.current.srcObject = stream;
+            // Force video to recalculate its dimensions by triggering a reflow
+            const currentTransform = videoRef.current.style.transform;
+            videoRef.current.style.transform = 'scale(0.999)';
+            
+            // Reset the transform after the browser recalculates dimensions
+            requestAnimationFrame(() => {
+              if (videoRef.current) {
+                videoRef.current.style.transform = currentTransform;
+                
+                // Ensure the video is properly centered and sized
+                videoRef.current.style.width = '100%';
+                videoRef.current.style.height = aspectRatio === 'landscape' ? 'auto' : '100%';
+                videoRef.current.style.objectFit = aspectRatio === 'landscape' ? 'contain' : videoObjectFit;
+              }
+            });
           }
-        }, 50);
+        }, 100);
       }
     }
   }, [aspectRatio, videoRef, styles.polaroidFrame]);
@@ -250,14 +263,22 @@ export const CameraView: React.FC<CameraViewProps> = ({
         const videoAspect = videoRef.current.videoWidth / videoRef.current.videoHeight;
         const targetAspect = dimensions.width / dimensions.height;
         
-        // Use 'contain' if the aspects are very different to avoid extreme cropping
-        if (Math.abs(videoAspect - targetAspect) > 0.3) {
+        // For landscape mode, always use 'contain' to prevent black bars
+        if (aspectRatio === 'landscape') {
           setVideoObjectFit('contain');
         } else {
-          setVideoObjectFit('cover');
+          // Use 'contain' if the aspects are very different to avoid extreme cropping
+          if (Math.abs(videoAspect - targetAspect) > 0.3) {
+            setVideoObjectFit('contain');
+          } else {
+            setVideoObjectFit('cover');
+          }
         }
       }
     };
+    
+    // Update object fit when aspect ratio changes
+    updateObjectFit();
     
     if (videoRef.current) {
       videoRef.current.addEventListener('loadedmetadata', updateObjectFit);
@@ -268,7 +289,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
         videoRef.current.removeEventListener('loadedmetadata', updateObjectFit);
       }
     };
-  }, [videoRef, dimensions]);
+  }, [videoRef, dimensions, aspectRatio]); // Add aspectRatio to dependencies
 
   // Determine animation class based on video loading state and showPhotoGrid
   const getAnimationClass = () => {
@@ -403,6 +424,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
         keepOriginalPhoto={keepOriginalPhoto}
         onKeepOriginalPhotoChange={onKeepOriginalPhotoChange}
         onResetSettings={onResetSettings}
+        aspectRatio={aspectRatio}
       />
     </div>
   );
