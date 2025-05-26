@@ -129,16 +129,32 @@
 }
 
 /* Aspect ratio specific camera view styles */
+.aspect-ultranarrow {
+  aspect-ratio: 768/1344;
+}
+
+.aspect-narrow {
+  aspect-ratio: 832/1216;
+}
+
 .aspect-portrait {
   aspect-ratio: 896/1152;
+}
+
+.aspect-square {
+  aspect-ratio: 1024/1024;
 }
 
 .aspect-landscape {
   aspect-ratio: 1152/896;
 }
 
-.aspect-square {
-  aspect-ratio: 1024/1024;
+.aspect-wide {
+  aspect-ratio: 1216/832;
+}
+
+.aspect-ultrawide {
+  aspect-ratio: 1344/768;
 }
 
 .webcam {
@@ -152,13 +168,18 @@
 }
 
 /* Add aspect-specific webcam styles to properly handle different orientations */
-:global(.portrait-mode) {
-  aspect-ratio: 896/1152 !important;
+:global(.ultranarrow-mode) {
+  aspect-ratio: 768/1344 !important;
   overflow: hidden;
 }
 
-:global(.landscape-mode) {
-  aspect-ratio: 1152/896 !important;
+:global(.narrow-mode) {
+  aspect-ratio: 832/1216 !important;
+  overflow: hidden;
+}
+
+:global(.portrait-mode) {
+  aspect-ratio: 896/1152 !important;
   overflow: hidden;
 }
 
@@ -167,8 +188,25 @@
   overflow: hidden;
 }
 
-/* Add a specific style for landscape mode to ensure proper aspect ratio */
-:global(.landscape-webcam) {
+:global(.landscape-mode) {
+  aspect-ratio: 1152/896 !important;
+  overflow: hidden;
+}
+
+:global(.wide-mode) {
+  aspect-ratio: 1216/832 !important;
+  overflow: hidden;
+}
+
+:global(.ultrawide-mode) {
+  aspect-ratio: 1344/768 !important;
+  overflow: hidden;
+}
+
+/* Add a specific style for landscape-like modes to ensure proper aspect ratio */
+:global(.landscape-webcam), 
+:global(.wide-webcam), 
+:global(.ultrawide-webcam) {
   height: auto !important;
   object-fit: contain !important;
 }

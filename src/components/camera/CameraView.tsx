@@ -107,6 +107,35 @@ export const CameraView: React.FC<CameraViewProps> = ({
   // Get dimensions based on selected aspect ratio
   const dimensions = getCustomDimensions(aspectRatio);
   
+  // Helper function to get the appropriate CSS class for aspect ratio
+  const getAspectRatioClass = () => {
+    switch (aspectRatio) {
+      case 'ultranarrow':
+        return styles['aspect-ultranarrow'];
+      case 'narrow':
+        return styles['aspect-narrow'];
+      case 'portrait':
+        return styles['aspect-portrait'];
+      case 'square':
+        return styles['aspect-square'];
+      case 'landscape':
+        return styles['aspect-landscape'];
+      case 'wide':
+        return styles['aspect-wide'];
+      case 'ultrawide':
+        return styles['aspect-ultrawide'];
+      default:
+        return styles['aspect-square'];
+    }
+  };
+  
+  // Helper function to get the appropriate webcam class
+  const getWebcamClass = () => {
+    const targetAspect = dimensions.width / dimensions.height;
+    const isLandscapeLike = targetAspect > 1.1;
+    return isLandscapeLike ? 'landscape-webcam' : '';
+  };
+  
   // Check if device is mobile
   const [isMobile, setIsMobile] = useState(false);
   
@@ -143,12 +172,18 @@ export const CameraView: React.FC<CameraViewProps> = ({
         let containerHeight: number = viewportHeight;
         
         // Apply the selected aspect ratio
-        if (aspectRatio === 'portrait') {
-          // Portrait mode: 896:1152
-          const aspectRatioValue = 896 / 1152;
+        const { width: targetWidth, height: targetHeight } = dimensions;
+        const targetAspect = targetWidth / targetHeight;
+        
+        // Determine if this is a portrait-like or landscape-like ratio
+        const isPortraitLike = targetAspect < 1;
+        const isSquareLike = Math.abs(targetAspect - 1) < 0.1;
+        
+        if (isPortraitLike) {
+          // Portrait-like modes: ultranarrow, narrow, portrait
           // Calculate the ideal width for a portrait view
-          containerWidth = Math.min(viewportHeight * aspectRatioValue, viewportWidth * 0.7);
-          containerHeight = containerWidth / aspectRatioValue;
+          containerWidth = Math.min(viewportHeight * targetAspect, viewportWidth * 0.7);
+          containerHeight = containerWidth / targetAspect;
           
           // Adjust the polaroid frame width to match the content
           polaroidFrame.style.width = `${containerWidth + 64}px`; // Add border padding (32px each side)
@@ -158,22 +193,8 @@ export const CameraView: React.FC<CameraViewProps> = ({
           videoContainer.style.width = `${containerWidth}px`;
           videoContainer.style.height = `${containerHeight}px`;
           
-        } else if (aspectRatio === 'landscape') {
-          // Landscape mode: 1152:896
-          
-          // For landscape, calculate dimensions based on aspect ratio
-          containerWidth = Math.min(viewportWidth, 700); // Max width 700px
-          
-          // For landscape, set reasonable width
-          polaroidFrame.style.width = '100%';
-          polaroidFrame.style.maxWidth = 'min(98vw, 700px)';
-          
-          // For landscape mode, set width but use auto height
-          videoContainer.style.width = `${containerWidth}px`;
-          videoContainer.style.height = 'auto';
-          
-        } else if (aspectRatio === 'square') {
-          // Square mode: 1024:1024
+        } else if (isSquareLike) {
+          // Square mode
           containerWidth = Math.min(viewportWidth * 0.7, viewportHeight);
           containerHeight = containerWidth;
           
@@ -184,11 +205,25 @@ export const CameraView: React.FC<CameraViewProps> = ({
           // Set square-specific dimensions
           videoContainer.style.width = `${containerWidth}px`;
           videoContainer.style.height = `${containerHeight}px`;
+        } else {
+          // Landscape-like modes: landscape, wide, ultrawide
+          // For landscape, calculate dimensions based on aspect ratio
+          containerWidth = Math.min(viewportWidth, 700); // Max width 700px
+          
+          // For landscape, set reasonable width
+          polaroidFrame.style.width = '100%';
+          polaroidFrame.style.maxWidth = 'min(98vw, 700px)';
+          
+          // For landscape mode, set width but use auto height
+          videoContainer.style.width = `${containerWidth}px`;
+          videoContainer.style.height = 'auto';
         }
         
-        // Only apply these general settings for non-landscape aspects
-        if (aspectRatio !== 'landscape') {
-          // Constrain height if needed
+        // Only apply these general settings for non-landscape-like aspects
+        if (!isPortraitLike && !isSquareLike) {
+          // This is landscape-like, so don't constrain height
+        } else {
+          // Constrain height if needed for portrait and square
           const maxHeight = window.innerHeight * 0.7;
           if (containerHeight > maxHeight) {
             const ratio = maxHeight / containerHeight;
@@ -219,10 +254,14 @@ export const CameraView: React.FC<CameraViewProps> = ({
               if (videoRef.current) {
                 videoRef.current.style.transform = currentTransform;
                 
+                // Calculate target aspect for this specific use
+                const { width: targetWidth, height: targetHeight } = dimensions;
+                const targetAspect = targetWidth / targetHeight;
+                
                 // Ensure the video is properly centered and sized
                 videoRef.current.style.width = '100%';
-                videoRef.current.style.height = aspectRatio === 'landscape' ? 'auto' : '100%';
-                videoRef.current.style.objectFit = aspectRatio === 'landscape' ? 'contain' : videoObjectFit;
+                videoRef.current.style.height = targetAspect > 1.1 ? 'auto' : '100%';
+                videoRef.current.style.objectFit = targetAspect > 1.1 ? 'contain' : videoObjectFit;
               }
             });
           }
@@ -263,8 +302,11 @@ export const CameraView: React.FC<CameraViewProps> = ({
         const videoAspect = videoRef.current.videoWidth / videoRef.current.videoHeight;
         const targetAspect = dimensions.width / dimensions.height;
         
-        // For landscape mode, always use 'contain' to prevent black bars
-        if (aspectRatio === 'landscape') {
+        // Determine if this is a landscape-like ratio
+        const isLandscapeLike = targetAspect > 1.1;
+        
+        // For landscape-like modes, always use 'contain' to prevent black bars
+        if (isLandscapeLike) {
           setVideoObjectFit('contain');
         } else {
           // Use 'contain' if the aspects are very different to avoid extreme cropping
@@ -369,11 +411,11 @@ export const CameraView: React.FC<CameraViewProps> = ({
         {/* Camera view with custom aspect ratio */}
         <div className={styles.cameraView}>
           <div 
-            className={`${styles.cameraViewInner} ${aspectRatio === 'landscape' ? styles['aspect-landscape'] : aspectRatio === 'portrait' ? styles['aspect-portrait'] : styles['aspect-square']}`}
+            className={`${styles.cameraViewInner} ${getAspectRatioClass()}`}
             id="camera-container"
             style={{
-              // Apply direct aspect ratio for landscape mode
-              aspectRatio: aspectRatio === 'landscape' ? '1152/896' : undefined
+              // Apply direct aspect ratio for landscape-like modes
+              aspectRatio: dimensions.width / dimensions.height > 1.1 ? `${dimensions.width}/${dimensions.height}` : undefined
             }}
           >
             <video
@@ -382,12 +424,12 @@ export const CameraView: React.FC<CameraViewProps> = ({
               autoPlay
               playsInline
               muted
-              className={`${styles.webcam} ${aspectRatio === 'landscape' ? 'landscape-webcam' : ''}`}
+              className={`${styles.webcam} ${getWebcamClass()}`}
               data-testid="webcam-video"
               style={{
                 width: '100%',
-                height: aspectRatio === 'landscape' ? 'auto' : '100%',
-                objectFit: aspectRatio === 'landscape' ? 'contain' : videoObjectFit
+                height: dimensions.width / dimensions.height > 1.1 ? 'auto' : '100%',
+                objectFit: dimensions.width / dimensions.height > 1.1 ? 'contain' : videoObjectFit
               }}
             />
             

@@ -37,7 +37,7 @@ export interface ModelOption {
   value: string;
 }
 
-export type AspectRatioOption = 'portrait' | 'landscape' | 'square';
+export type AspectRatioOption = 'portrait' | 'landscape' | 'square' | 'narrow' | 'wide' | 'ultrawide' | 'ultranarrow';
 
 export interface Settings {
   selectedStyle: string;

@@ -534,25 +534,27 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   flex: 1;
+  flex-wrap: wrap;
 }
 
 .aspect-ratio-button {
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   border-radius: 4px;
   border: none;
   background: transparent;
   cursor: pointer;
   transition: all 0.2s ease;
-  padding: 4px;
+  padding: 2px;
   position: relative;
   overflow: hidden;
   margin: 0;
+  flex-shrink: 0;
 }
 
 .aspect-ratio-button:hover {
@@ -601,11 +603,12 @@
   
   /* Responsive styles for aspect ratio controls */
   .aspect-ratio-controls {
-    gap: 6px;
+    gap: 2px;
+    flex-wrap: wrap;
   }
   
   .aspect-ratio-button {
-    width: 36px;
-    height: 36px;
+    width: 28px;
+    height: 28px;
   }
 } 

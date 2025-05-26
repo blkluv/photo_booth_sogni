@@ -2829,9 +2829,13 @@ const App = () => {
           /* Set aspect ratio CSS variable based on selected aspect ratio */
           :root {
             --current-aspect-ratio: ${
+              aspectRatio === 'ultranarrow' ? '768/1344' :
+              aspectRatio === 'narrow' ? '832/1216' :
               aspectRatio === 'portrait' ? '896/1152' : 
               aspectRatio === 'square' ? '1024/1024' : 
               aspectRatio === 'landscape' ? '1152/896' :
+              aspectRatio === 'wide' ? '1216/832' :
+              aspectRatio === 'ultrawide' ? '1344/768' :
               window.innerHeight > window.innerWidth ? '896/1152' : '1152/896'
             };
           }
@@ -2920,15 +2924,32 @@ const App = () => {
         };
         
         // Set initial aspect ratio based on user selection or orientation
-        if (aspectRatio === 'portrait') {
-          document.documentElement.style.setProperty('--current-aspect-ratio', '896/1152');
-        } else if (aspectRatio === 'landscape') {
-          document.documentElement.style.setProperty('--current-aspect-ratio', '1152/896');
-        } else if (aspectRatio === 'square') {
-          document.documentElement.style.setProperty('--current-aspect-ratio', '1024/1024');
-        } else {
-          // Default to orientation-based
-          updateAspectRatio();
+        switch (aspectRatio) {
+          case 'ultranarrow':
+            document.documentElement.style.setProperty('--current-aspect-ratio', '768/1344');
+            break;
+          case 'narrow':
+            document.documentElement.style.setProperty('--current-aspect-ratio', '832/1216');
+            break;
+          case 'portrait':
+            document.documentElement.style.setProperty('--current-aspect-ratio', '896/1152');
+            break;
+          case 'square':
+            document.documentElement.style.setProperty('--current-aspect-ratio', '1024/1024');
+            break;
+          case 'landscape':
+            document.documentElement.style.setProperty('--current-aspect-ratio', '1152/896');
+            break;
+          case 'wide':
+            document.documentElement.style.setProperty('--current-aspect-ratio', '1216/832');
+            break;
+          case 'ultrawide':
+            document.documentElement.style.setProperty('--current-aspect-ratio', '1344/768');
+            break;
+          default:
+            // Default to orientation-based
+            updateAspectRatio();
+            break;
         }
         
         // Update on resize only if not using explicit aspect ratio

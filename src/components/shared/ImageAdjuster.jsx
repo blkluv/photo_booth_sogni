@@ -66,9 +66,12 @@ const ImageAdjuster = ({
       
       let containerWidth, containerHeight;
       
-      // Determine sizing based on selected aspect ratio, not the isPortrait state
-      if (aspectRatio === 'portrait') {
-        // Portrait mode - prioritize height
+      // Determine sizing based on aspect ratio dynamically
+      const isPortraitLike = currentAspectRatio < 1;
+      const isSquareLike = Math.abs(currentAspectRatio - 1) < 0.1;
+      
+      if (isPortraitLike) {
+        // Portrait-like modes (ultranarrow, narrow, portrait) - prioritize height
         containerHeight = Math.min(viewportHeight * 0.8, dimensions.height);
         containerWidth = containerHeight * currentAspectRatio;
         // Check if width exceeds viewport width
@@ -77,14 +80,14 @@ const ImageAdjuster = ({
           containerHeight = containerWidth / currentAspectRatio;
         }
       } 
-      else if (aspectRatio === 'square') {
+      else if (isSquareLike) {
         // Square mode - try to fit within viewport
         const size = Math.min(viewportWidth, viewportHeight * 0.9);
         containerWidth = size;
         containerHeight = size;
       }
       else {
-        // Landscape mode - prioritize width
+        // Landscape-like modes (landscape, wide, ultrawide) - prioritize width
         containerWidth = Math.min(viewportWidth, dimensions.width);
         containerHeight = containerWidth / currentAspectRatio;
       }

@@ -1,7 +1,14 @@
 /**
  * Returns dimensions based on the selected aspect ratio or device orientation.
- * Supports portrait (896x1152), landscape (1152x896), and square (1024x1024).
- * @param {string} aspectRatio - 'portrait', 'landscape', or 'square'
+ * Supports multiple aspect ratios:
+ * - portrait (896x1152) - 7:9 ratio
+ * - narrow (832x1216) - 13:19 ratio  
+ * - ultranarrow (768x1344) - 4:7 ratio
+ * - landscape (1152x896) - 9:7 ratio
+ * - wide (1216x832) - 19:13 ratio
+ * - ultrawide (1344x768) - 7:4 ratio
+ * - square (1024x1024) - 1:1 ratio
+ * @param {string} aspectRatio - 'portrait', 'narrow', 'ultranarrow', 'landscape', 'wide', 'ultrawide', or 'square'
  */
 export function getCustomDimensions(aspectRatio) {
   // If no aspectRatio is provided, determine based on screen orientation
@@ -17,9 +24,17 @@ export function getCustomDimensions(aspectRatio) {
   // Otherwise use the explicitly provided aspectRatio
   switch (aspectRatio) {
     case 'portrait':
-      return { width: 896, height: 1152 }; // Portrait: 896:1152 (ratio ~0.778)
+      return { width: 896, height: 1152 }; // Portrait: 896:1152 (7:9 ratio ~0.778)
+    case 'narrow':
+      return { width: 832, height: 1216 }; // Narrow: 832:1216 (13:19 ratio ~0.684)
+    case 'ultranarrow':
+      return { width: 768, height: 1344 }; // Ultra Narrow: 768:1344 (4:7 ratio ~0.571)
     case 'landscape':
-      return { width: 1152, height: 896 }; // Landscape: 1152:896 (ratio ~1.286)
+      return { width: 1152, height: 896 }; // Landscape: 1152:896 (9:7 ratio ~1.286)
+    case 'wide':
+      return { width: 1216, height: 832 }; // Wide: 1216:832 (19:13 ratio ~1.462)
+    case 'ultrawide':
+      return { width: 1344, height: 768 }; // Ultra Wide: 1344:768 (7:4 ratio ~1.75)
     case 'square':
       return { width: 1024, height: 1024 }; // Square: 1024x1024 (ratio 1:1)
     default:
