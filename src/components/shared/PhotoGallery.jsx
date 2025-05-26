@@ -708,7 +708,6 @@ const PhotoGallery = ({
                         e.stopPropagation();
                       }}
                       style={{
-                        width: '100%',
                         objectFit: 'cover',
                         position: 'relative',
                         top: 0,

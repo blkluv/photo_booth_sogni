@@ -383,7 +383,7 @@ const App = () => {
             '--camera-aspect-ratio', 
             `${videoWidth}/${videoHeight}`
           );
-          console.log(`Camera aspect ratio set to ${videoWidth}/${videoHeight}`);
+          console.log(`🎥 Camera resolution achieved: ${videoWidth}x${videoHeight} (aspect ratio: ${(videoWidth/videoHeight).toFixed(3)})`);
           
           // Apply mirror effect for front camera
           videoReference.current.style.transform = isFrontCamera ? 'scaleX(-1)' : 'scaleX(1)';
@@ -556,56 +556,25 @@ const App = () => {
     
     console.log(`Camera setup - isMobile: ${isMobile}, isIOS: ${isIOS}, isPortrait: ${isPortrait}`);
     
+    // Progressive resolution strategy - try highest first, fallback if needed
+    const resolutionTiers = isMobile ? [
+      // Tier 1: 4K resolution
+      { width: isPortrait ? 2160 : 3840, height: isPortrait ? 3840 : 2160 },
+      // Tier 2: 2K resolution  
+      { width: isPortrait ? 1440 : 2560, height: isPortrait ? 2560 : 1440 },
+      // Tier 3: 1080p resolution
+      { width: isPortrait ? 1080 : 1920, height: isPortrait ? 1920 : 1080 },
+    ] : [
+      // Desktop: use aspect ratio specific dimensions
+      { width: desiredWidth, height: desiredHeight }
+    ];
+    
     // Determine appropriate constraints based on device/orientation
     let constraints;
+    let stream = null;
     
-    if (isMobile) {
-      // For mobile devices, use dimensions based on selected aspect ratio
-      const { width, height } = getCustomDimensions(aspectRatio);
-      
-      // On iOS, don't specify aspectRatio as it causes issues
-      if (isIOS) {
-        constraints = deviceId
-          ? {
-              video: {
-                deviceId,
-                facingMode: isFrontCamera ? 'user' : 'environment',
-                width: { ideal: isPortrait ? width : height },
-                height: { ideal: isPortrait ? height : width }
-              }
-            }
-          : {
-              video: {
-                facingMode: isFrontCamera ? 'user' : 'environment',
-                width: { ideal: isPortrait ? width : height },
-                height: { ideal: isPortrait ? height : width }
-              }
-            };
-      } else {
-        // Calculate aspect ratio for non-iOS mobile devices
-        const desiredAspectRatio = isPortrait ? width / height : height / width;
-        
-        constraints = deviceId
-          ? {
-              video: {
-                deviceId,
-                facingMode: isFrontCamera ? 'user' : 'environment',
-                width: { ideal: isPortrait ? width : height },
-                height: { ideal: isPortrait ? height : width },
-                aspectRatio: { ideal: desiredAspectRatio }
-              }
-            }
-          : {
-              video: {
-                facingMode: isFrontCamera ? 'user' : 'environment',
-                width: { ideal: isPortrait ? width : height },
-                height: { ideal: isPortrait ? height : width },
-                aspectRatio: { ideal: desiredAspectRatio }
-              }
-            };
-      }
-    } else {
-      // For desktop, use our custom dimensions directly
+    // For desktop, set up constraints directly (mobile is handled in the tier loop above)
+    if (!isMobile) {
       constraints = deviceId
         ? {
             video: {
@@ -623,16 +592,86 @@ const App = () => {
           };
     }
     
-    try {
-      // Stop any existing stream first
-      if (videoReference.current && videoReference.current.srcObject) {
-        const stream = videoReference.current.srcObject;
-        const tracks = stream.getTracks();
-        tracks.forEach(track => track.stop());
+    // Try progressive resolution tiers for mobile, direct request for desktop
+    for (let tierIndex = 0; tierIndex < resolutionTiers.length; tierIndex++) {
+      const tier = resolutionTiers[tierIndex];
+      
+      // Update constraints for current tier
+      if (isMobile) {
+        const highResWidth = tier.width;
+        const highResHeight = tier.height;
+        
+        if (isIOS) {
+          constraints = deviceId
+            ? {
+                video: {
+                  deviceId,
+                  facingMode: isFrontCamera ? 'user' : 'environment',
+                  width: { ideal: highResWidth, max: 3840, min: 640 },
+                  height: { ideal: highResHeight, max: 2160, min: 480 }
+                }
+              }
+            : {
+                video: {
+                  facingMode: isFrontCamera ? 'user' : 'environment',
+                  width: { ideal: highResWidth, max: 3840, min: 640 },
+                  height: { ideal: highResHeight, max: 2160, min: 480 }
+                }
+              };
+        } else {
+          constraints = deviceId
+            ? {
+                video: {
+                  deviceId,
+                  facingMode: isFrontCamera ? 'user' : 'environment',
+                  width: { ideal: highResWidth, max: 3840, min: 640 },
+                  height: { ideal: highResHeight, max: 2160, min: 480 }
+                }
+              }
+            : {
+                video: {
+                  facingMode: isFrontCamera ? 'user' : 'environment',
+                  width: { ideal: highResWidth, max: 3840, min: 640 },
+                  height: { ideal: highResHeight, max: 2160, min: 480 }
+                }
+              };
+        }
       }
+      
+      try {
+        // Stop any existing stream first
+        if (videoReference.current && videoReference.current.srcObject) {
+          const existingStream = videoReference.current.srcObject;
+          const tracks = existingStream.getTracks();
+          tracks.forEach(track => track.stop());
+        }
 
-      // Request camera access with our constraints
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        // Request camera access with current tier constraints
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        
+        // If successful, break out of the tier loop
+        console.log(`✅ Successfully got camera stream with tier ${tierIndex + 1} (${tier.width}x${tier.height})`);
+        break;
+        
+      } catch (tierError) {
+        console.warn(`❌ Tier ${tierIndex + 1} (${tier.width}x${tier.height}) failed:`, tierError.message);
+        
+        // If this was the last tier, re-throw the error
+        if (tierIndex === resolutionTiers.length - 1) {
+          throw tierError;
+        }
+        // Otherwise, continue to next tier
+      }
+    }
+    
+    if (!stream) {
+      throw new Error('Failed to get camera stream with any resolution tier');
+    }
+
+    try {
+      
+      // Log successful camera stream acquisition
+      console.log('✅ Camera stream acquired successfully');
       
       // Add iOS-specific class if needed
       if (isIOS) {
@@ -1480,14 +1519,6 @@ const App = () => {
     const videoAspect = video.videoWidth / video.videoHeight;
     const canvasAspect = canvasWidth / canvasHeight;
     
-    // Variables for source and destination
-    let sourceWidth = video.videoWidth;
-    let sourceHeight = video.videoHeight;
-    const destinationX = 0;
-    const destinationY = 0;
-    const destinationWidth = canvasWidth;
-    const destinationHeight = canvasHeight;
-    
     // If front camera is active, apply mirroring
     if (isFrontCamera) {
       context.save();
@@ -1495,23 +1526,32 @@ const App = () => {
       context.translate(-canvas.width, 0);
     }
     
-    // Calculate source coordinates based on aspect ratios
+    // Calculate the maximum crop area that maintains the target aspect ratio
+    let sourceWidth, sourceHeight, sourceX, sourceY;
+    
+    console.log(`📐 Crop calculation - Video: ${video.videoWidth}x${video.videoHeight} (${videoAspect.toFixed(3)}), Canvas: ${canvas.width}x${canvas.height} (${canvasAspect.toFixed(3)})`);
+    
     if (videoAspect > canvasAspect) {
-      sourceWidth = video.videoHeight * canvasAspect;
-      const sourceX = (video.videoWidth - sourceWidth) / 2;
-      context.drawImage(video, 
-        sourceX, 0, sourceWidth, sourceHeight,
-        destinationX, destinationY, destinationWidth, destinationHeight
-      );
+      // Video is wider than target - use full height, crop width to maximize resolution
+      sourceHeight = video.videoHeight;
+      sourceWidth = sourceHeight * canvasAspect;
+      sourceX = (video.videoWidth - sourceWidth) / 2;
+      sourceY = 0;
+      console.log(`📐 Video wider than target: Using full height ${sourceHeight}px, cropping width to ${sourceWidth.toFixed(1)}px, offset X: ${sourceX.toFixed(1)}px`);
+    } else {
+      // Video is taller than target - use full width, crop height to maximize resolution
+      sourceWidth = video.videoWidth;
+      sourceHeight = sourceWidth / canvasAspect;
+      sourceX = 0;
+      sourceY = (video.videoHeight - sourceHeight) / 2;
+      console.log(`📐 Video taller than target: Using full width ${sourceWidth}px, cropping height to ${sourceHeight.toFixed(1)}px, offset Y: ${sourceY.toFixed(1)}px`);
     }
-    else {
-      sourceHeight = video.videoWidth / canvasAspect;
-      const sourceY = (video.videoHeight - sourceHeight) / 2;
-      context.drawImage(video, 
-        0, sourceY, sourceWidth, sourceHeight,
-        destinationX, destinationY, destinationWidth, destinationHeight
-      );
-    }
+    
+    // Draw the optimally cropped video frame
+    context.drawImage(video, 
+      sourceX, sourceY, sourceWidth, sourceHeight,
+      0, 0, canvas.width, canvas.height
+    );
     
     // Restore canvas state if we applied mirroring
     if (isFrontCamera) {
@@ -1530,22 +1570,23 @@ const App = () => {
         context.translate(-canvas.width, 0);
       }
       
-      // Redraw the frame
+      // Redraw the frame using the same optimized crop calculation
       if (videoAspect > canvasAspect) {
-        sourceWidth = video.videoHeight * canvasAspect;
-        const sourceX = (video.videoWidth - sourceWidth) / 2;
-        context.drawImage(video, 
-          sourceX, 0, sourceWidth, sourceHeight,
-          destinationX, destinationY, destinationWidth, destinationHeight
-        );
+        sourceHeight = video.videoHeight;
+        sourceWidth = sourceHeight * canvasAspect;
+        sourceX = (video.videoWidth - sourceWidth) / 2;
+        sourceY = 0;
       } else {
-        sourceHeight = video.videoWidth / canvasAspect;
-        const sourceY = (video.videoHeight - sourceHeight) / 2;
-        context.drawImage(video, 
-          0, sourceY, sourceWidth, sourceHeight,
-          destinationX, destinationY, destinationWidth, destinationHeight
-        );
+        sourceWidth = video.videoWidth;
+        sourceHeight = sourceWidth / canvasAspect;
+        sourceX = 0;
+        sourceY = (video.videoHeight - sourceHeight) / 2;
       }
+      
+      context.drawImage(video, 
+        sourceX, sourceY, sourceWidth, sourceHeight,
+        0, 0, canvas.width, canvas.height
+      );
       
       if (isFrontCamera) {
         context.restore();
@@ -1628,16 +1669,26 @@ const App = () => {
     context.fillStyle = 'black';
     context.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Calculate dimensions to maintain aspect ratio without stretching
+    // Calculate dimensions to maximize use of available video resolution
     const videoAspect = video.videoWidth / video.videoHeight;
     const canvasAspect = canvas.width / canvas.height;
     
-    let sourceWidth = video.videoWidth;
-    let sourceHeight = video.videoHeight;
-    let destinationX = 0;
-    let destinationY = 0;
-    let destinationWidth = canvas.width;
-    let destinationHeight = canvas.height;
+    // Calculate the maximum crop area that maintains the target aspect ratio
+    let sourceWidth, sourceHeight, sourceX, sourceY;
+    
+    if (videoAspect > canvasAspect) {
+      // Video is wider than target - use full height, crop width to maximize resolution
+      sourceHeight = video.videoHeight;
+      sourceWidth = sourceHeight * canvasAspect;
+      sourceX = (video.videoWidth - sourceWidth) / 2;
+      sourceY = 0;
+    } else {
+      // Video is taller than target - use full width, crop height to maximize resolution
+      sourceWidth = video.videoWidth;
+      sourceHeight = sourceWidth / canvasAspect;
+      sourceX = 0;
+      sourceY = (video.videoHeight - sourceHeight) / 2;
+    }
     
     // Apply the mirror effect for front camera
     if (isFrontCamera) {
@@ -1646,24 +1697,11 @@ const App = () => {
       context.translate(-canvas.width, 0);
     }
     
-    // If video aspect is wider than desired, crop width
-    if (videoAspect > canvasAspect) {
-      sourceWidth = video.videoHeight * canvasAspect;
-      const sourceX = (video.videoWidth - sourceWidth) / 2;
-      context.drawImage(video, 
-        sourceX, 0, sourceWidth, sourceHeight,
-        destinationX, destinationY, destinationWidth, destinationHeight
-      );
-    } 
-    // If video aspect is taller than desired, crop height
-    else {
-      sourceHeight = video.videoWidth / canvasAspect;
-      const sourceY = (video.videoHeight - sourceHeight) / 2;
-      context.drawImage(video, 
-        0, sourceY, sourceWidth, sourceHeight,
-        destinationX, destinationY, destinationWidth, destinationHeight
-      );
-    }
+    // Draw the optimally cropped video frame
+    context.drawImage(video, 
+      sourceX, sourceY, sourceWidth, sourceHeight,
+      0, 0, canvas.width, canvas.height
+    );
     
     // Restore canvas state if we applied mirroring
     if (isFrontCamera) {
@@ -1682,22 +1720,24 @@ const App = () => {
         context.translate(-canvas.width, 0);
       }
       
-      // Redraw the frame
+      // Redraw the frame using optimized crop calculation
+      let sourceX, sourceY;
       if (videoAspect > canvasAspect) {
-        sourceWidth = video.videoHeight * canvasAspect;
-        const sourceX = (video.videoWidth - sourceWidth) / 2;
-        context.drawImage(video, 
-          sourceX, 0, sourceWidth, sourceHeight,
-          destinationX, destinationY, destinationWidth, destinationHeight
-        );
+        sourceHeight = video.videoHeight;
+        sourceWidth = sourceHeight * canvasAspect;
+        sourceX = (video.videoWidth - sourceWidth) / 2;
+        sourceY = 0;
       } else {
-        sourceHeight = video.videoWidth / canvasAspect;
-        const sourceY = (video.videoHeight - sourceHeight) / 2;
-        context.drawImage(video, 
-          0, sourceY, sourceWidth, sourceHeight,
-          destinationX, destinationY, destinationWidth, destinationHeight
-        );
+        sourceWidth = video.videoWidth;
+        sourceHeight = sourceWidth / canvasAspect;
+        sourceX = 0;
+        sourceY = (video.videoHeight - sourceHeight) / 2;
       }
+      
+      context.drawImage(video, 
+        sourceX, sourceY, sourceWidth, sourceHeight,
+        0, 0, canvas.width, canvas.height
+      );
       
       if (isFrontCamera) {
         context.restore();

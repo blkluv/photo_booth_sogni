@@ -65,7 +65,6 @@
   padding: 0;
   width: 100%;
   max-width: min(98vw, 700px);
-  min-width: 380px;
   height: auto;
   max-height: 90vh;
   position: relative;
@@ -101,7 +100,6 @@
 }
 
 .cameraView {
-  width: 100%;
   position: relative;
   background: white;
   border-left: 32px solid white;
@@ -413,6 +411,8 @@
 @media (max-width: 600px), (orientation: portrait) and (max-device-width: 1024px) {
   .polaroidFrame {
     border-radius: 2px;
+    width: unset !important;
+    max-width: unset !important;
   }
   
   .cameraView {
