@@ -170,10 +170,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
               title="Ultra Narrow (4:7)"
               aria-label="Set ultra narrow aspect ratio"
             >
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
+              <svg viewBox="0 0 24 24" width="29" height="29" fill="none">
                 <rect x="5.7" y="0" width="12.7" height="24" rx="0" fill="white" className="polaroid-frame" />
                 <rect x="7.4" y="1.7" width="9.3" height="16.2" fill="black" />
-                <text x="12" y="10" fill="white" fontSize="4" textAnchor="middle" dominantBaseline="middle">4:7</text>
+                <text x="12" y="10" fill="white" fontSize="4.8" textAnchor="middle" dominantBaseline="middle">4:7</text>
               </svg>
             </button>
             <button 
@@ -182,10 +182,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
               title="Narrow (13:19)"
               aria-label="Set narrow aspect ratio"
             >
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
+              <svg viewBox="0 0 24 24" width="29" height="29" fill="none">
                 <rect x="4.7" y="0" width="14.6" height="24" rx="0" fill="white" className="polaroid-frame" />
                 <rect x="6.4" y="1.7" width="11.3" height="16.5" fill="black" />
-                <text x="12" y="10" fill="white" fontSize="4" textAnchor="middle" dominantBaseline="middle">13:19</text>
+                <text x="12" y="10" fill="white" fontSize="4.8" textAnchor="middle" dominantBaseline="middle">13:19</text>
               </svg>
             </button>
             <button 
@@ -194,10 +194,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
               title="Portrait (7:9)"
               aria-label="Set portrait aspect ratio"
             >
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
+              <svg viewBox="0 0 24 24" width="29" height="29" fill="none">
                 <rect x="4.12" y="0" width="15.77" height="23.59" rx="0" fill="white" className="polaroid-frame" />
                 <rect x="5.83" y="1.71" width="12.35" height="15.88" fill="black" />
-                <text x="12" y="10" fill="white" fontSize="5" textAnchor="middle" dominantBaseline="middle">7:9</text>
+                <text x="12" y="10" fill="white" fontSize="6" textAnchor="middle" dominantBaseline="middle">7:9</text>
               </svg>
             </button>
             <button 
@@ -206,10 +206,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
               title="Square (1:1)"
               aria-label="Set square aspect ratio"
             >
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
+              <svg viewBox="0 0 24 24" width="29" height="29" fill="none">
                 <rect x="3.29" y="1" width="17.42" height="21.71" rx="0" fill="white" className="polaroid-frame" />
                 <rect x="5" y="2.71" width="14" height="14" fill="black" />
-                <text x="12" y="10.5" fill="white" fontSize="5" textAnchor="middle" dominantBaseline="middle">1:1</text>
+                <text x="12" y="10.5" fill="white" fontSize="6" textAnchor="middle" dominantBaseline="middle">1:1</text>
               </svg>
             </button>
             <button 
@@ -218,10 +218,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
               title="Landscape (9:7)"
               aria-label="Set landscape aspect ratio"
             >
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
+              <svg viewBox="0 0 24 24" width="29" height="29" fill="none">
                 <rect x="2.35" y="1.97" width="19.3" height="20.06" rx="0" fill="white" className="polaroid-frame" />
                 <rect x="4.06" y="3.68" width="15.88" height="12.35" fill="black" />
-                <text x="12" y="10" fill="white" fontSize="5" textAnchor="middle" dominantBaseline="middle">9:7</text>
+                <text x="12" y="10" fill="white" fontSize="6" textAnchor="middle" dominantBaseline="middle">9:7</text>
               </svg>
             </button>
             <button 
@@ -230,10 +230,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
               title="Wide (19:13)"
               aria-label="Set wide aspect ratio"
             >
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
+              <svg viewBox="0 0 24 24" width="29" height="29" fill="none">
                 <rect x="1.8" y="2.4" width="20.4" height="19.3" rx="0" fill="white" className="polaroid-frame" />
                 <rect x="3.5" y="4.1" width="16.9" height="11.6" fill="black" />
-                <text x="12" y="10" fill="white" fontSize="4" textAnchor="middle" dominantBaseline="middle">19:13</text>
+                <text x="12" y="10" fill="white" fontSize="4.8" textAnchor="middle" dominantBaseline="middle">19:13</text>
               </svg>
             </button>
             <button 
@@ -242,10 +242,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
               title="Ultra Wide (7:4)"
               aria-label="Set ultra wide aspect ratio"
             >
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
+              <svg viewBox="0 0 24 24" width="29" height="29" fill="none">
                 <rect x="2.2" y="3.5" width="19.6" height="17" rx="0" fill="white" className="polaroid-frame" />
                 <rect x="3.9" y="5.2" width="16.2" height="9.3" fill="black" />
-                <text x="12" y="10" fill="white" fontSize="4" textAnchor="middle" dominantBaseline="middle">7:4</text>
+                <text x="12" y="10" fill="white" fontSize="4.8" textAnchor="middle" dominantBaseline="middle">7:4</text>
               </svg>
             </button>
           </div>

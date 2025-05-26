@@ -63,7 +63,7 @@ const AspectRatioSelector = ({ visible = true }) => {
         title="Ultra Narrow (4:7)"
         aria-label="Set ultra narrow aspect ratio"
       >
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
+        <svg viewBox="0 0 24 24" width="29" height="29" fill="none">
           {/* White polaroid frame for ultra narrow */}
           <rect x="8" y="0" width="8" height="24" rx="0" fill="white" className="polaroid-frame" />
           {/* Black picture area - 4:7 ratio */}
@@ -77,7 +77,7 @@ const AspectRatioSelector = ({ visible = true }) => {
         title="Narrow (13:19)"
         aria-label="Set narrow aspect ratio"
       >
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
+        <svg viewBox="0 0 24 24" width="29" height="29" fill="none">
           {/* White polaroid frame for narrow */}
           <rect x="6" y="0" width="12" height="24" rx="0" fill="white" className="polaroid-frame" />
           {/* Black picture area - 13:19 ratio */}
@@ -91,7 +91,7 @@ const AspectRatioSelector = ({ visible = true }) => {
         title="Portrait (7:9)"
         aria-label="Set portrait aspect ratio"
       >
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
+        <svg viewBox="0 0 24 24" width="29" height="29" fill="none">
           {/* White polaroid frame - border ratio 1:3.5 */}
           <rect x="4.12" y="0" width="15.77" height="23.59" rx="0" fill="white" className="polaroid-frame" />
           {/* Black picture area - 7:9 ratio, area = 196 */}

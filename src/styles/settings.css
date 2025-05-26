@@ -26,7 +26,7 @@
 }
 
 .control-overlay-content {
-  max-width: 600px;
+  max-width: 660px;
   margin: 0 auto;
   padding: 20px;
   background-color: rgba(255, 255, 255, 0.1);
@@ -543,9 +543,9 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 4px;
+  width: 42px;
+  height: 42px;
+  border-radius: 5px;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -582,14 +582,14 @@
 .aspect-ratio-button:hover::after {
   content: attr(title);
   position: absolute;
-  bottom: -30px;
+  bottom: -36px;
   left: 50%;
   transform: translateX(-50%);
   background-color: rgba(0, 0, 0, 0.7);
   color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 11px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 13px;
   white-space: nowrap;
   z-index: 1001;
 }
@@ -608,7 +608,7 @@
   }
   
   .aspect-ratio-button {
-    width: 28px;
-    height: 28px;
+    width: 41px;
+    height: 41px;
   }
 } 

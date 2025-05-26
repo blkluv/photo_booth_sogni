@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import styles from '../../styles/components/camera.module.css';
 import AdvancedSettings from '../shared/AdvancedSettings';
+import AspectRatioDropdown from '../shared/AspectRatioDropdown';
 import { useApp } from '../../context/AppContext';
 import { getCustomDimensions } from '../../utils/imageProcessing';
 
@@ -400,7 +401,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
       className={`${styles.cameraContainer} ${getAnimationClass()}`}
       data-testid={testId || 'camera-container'}
     >
-      <div className={styles.polaroidFrame}>
+      <div className={styles.polaroidFrame} style={{ position: 'relative' }}>
         {/* Title and settings in the polaroid top border */}
         <div className={styles.polaroidHeader}>
           <div className={styles.title}>
@@ -443,6 +444,12 @@ export const CameraView: React.FC<CameraViewProps> = ({
 
         {/* Bottom controls */}
         {renderBottomControls()}
+
+        {/* Aspect Ratio Dropdown - positioned inside polaroid frame */}
+        <AspectRatioDropdown 
+          visible={!showSettings}
+          position="bottom-right"
+        />
       </div>
 
       {/* Advanced Settings Overlay - Use the reusable component */}
