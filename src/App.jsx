@@ -1406,30 +1406,38 @@ const App = () => {
 
     console.log('handleTakePhoto called - device type:', /iphone|ipad|ipod|android/i.test(navigator.userAgent) ? 'mobile' : 'desktop');
     
-    // Start countdown without slothicorn initially
-    for (let index = 3; index > 0; index--) {
-      setCountdown(index);
-      
-      // Show slothicorn when countdown reaches 2, but only for front-facing camera
-      if (index === 2 && slothicornReference.current && isFrontCamera) {
-        // Force the slothicorn to be visible and animated
-        slothicornReference.current.style.position = 'fixed'; // Ensure it's fixed positioning
-        slothicornReference.current.style.zIndex = '999999'; // Very high z-index to appear above everything
-        slothicornReference.current.style.setProperty('bottom', '-360px', 'important');
-        slothicornReference.current.style.transition = 'none';
-        slothicornReference.current.classList.add('animating');
+    // Check if we should skip countdown (back camera on mobile)
+    const isMobileDevice = /iphone|ipad|ipod|android/i.test(navigator.userAgent);
+    const shouldSkipCountdown = isMobileDevice && !isFrontCamera;
+    
+    if (shouldSkipCountdown) {
+      console.log('Skipping countdown for back camera on mobile device');
+    } else {
+      // Start countdown without slothicorn initially
+      for (let index = 3; index > 0; index--) {
+        setCountdown(index);
         
-        // Force reflow
-        void slothicornReference.current.offsetHeight;
+        // Show slothicorn when countdown reaches 2, but only for front-facing camera
+        if (index === 2 && slothicornReference.current && isFrontCamera) {
+          // Force the slothicorn to be visible and animated
+          slothicornReference.current.style.position = 'fixed'; // Ensure it's fixed positioning
+          slothicornReference.current.style.zIndex = '999999'; // Very high z-index to appear above everything
+          slothicornReference.current.style.setProperty('bottom', '-360px', 'important');
+          slothicornReference.current.style.transition = 'none';
+          slothicornReference.current.classList.add('animating');
+          
+          // Force reflow
+          void slothicornReference.current.offsetHeight;
+          
+          // After a small delay, start the upward animation
+          setTimeout(() => {
+            slothicornReference.current.style.transition = 'bottom 0.8s cubic-bezier(0.34, 1.2, 0.64, 1)';
+            slothicornReference.current.style.setProperty('bottom', '0px', 'important');
+          }, 50);
+        }
         
-        // After a small delay, start the upward animation
-        setTimeout(() => {
-          slothicornReference.current.style.transition = 'bottom 0.8s cubic-bezier(0.34, 1.2, 0.64, 1)';
-          slothicornReference.current.style.setProperty('bottom', '0px', 'important');
-        }, 50);
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
-      
-      await new Promise(resolve => setTimeout(resolve, 1000));
     }
     
     setCountdown(0);
