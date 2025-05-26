@@ -7,16 +7,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     
     <script>
-      // Prevent pinch zoom gesture except in image adjuster
+      // Prevent pinch zoom gesture except in image adjuster or gallery images
       document.addEventListener('touchmove', function(event) {
         // Only prevent default if:
         // 1. It's a multi-touch event (pinch)
         // 2. And not happening inside the image adjuster component
+        // 3. And not happening on gallery images (for long press)
         if (event.touches.length > 1) {
           // Check if the target or any of its parents have the image-adjuster-overlay class
           let element = event.target;
           let isImageAdjuster = false;
+          let isGalleryImage = false;
           
+          // Check for image adjuster
           while (element) {
             if (element.classList && 
                 (element.classList.contains('image-adjuster-overlay') || 
@@ -28,19 +31,50 @@
             element = element.parentElement;
           }
           
-          // Only prevent default if NOT in image adjuster
-          if (!isImageAdjuster) {
+          // Check if this is a gallery image
+          if (event.target && event.target.tagName === 'IMG') {
+            let parent = event.target.parentElement;
+            while (parent) {
+              if (parent.classList && parent.classList.contains('film-frame')) {
+                isGalleryImage = true;
+                break;
+              }
+              parent = parent.parentElement;
+            }
+          }
+          
+          // Only prevent default if NOT in image adjuster AND NOT a gallery image
+          if (!isImageAdjuster && !isGalleryImage) {
             event.preventDefault();
           }
         }
       }, { passive: false });
       
-      // Prevent double-tap to zoom
+      // Prevent double-tap to zoom except on gallery images
       let lastTouchEnd = 0;
       document.addEventListener('touchend', function(event) {
         const now = Date.now();
         if (now - lastTouchEnd <= 300) {
-          event.preventDefault();
+          // Check if the target is an image in the photo gallery
+          let element = event.target;
+          let isGalleryImage = false;
+          
+          // Check if this is an image in a film-frame (gallery image)
+          if (element && element.tagName === 'IMG') {
+            let parent = element.parentElement;
+            while (parent) {
+              if (parent.classList && parent.classList.contains('film-frame')) {
+                isGalleryImage = true;
+                break;
+              }
+              parent = parent.parentElement;
+            }
+          }
+          
+          // Only prevent default if NOT a gallery image
+          if (!isGalleryImage) {
+            event.preventDefault();
+          }
         }
         lastTouchEnd = now;
       }, { passive: false });

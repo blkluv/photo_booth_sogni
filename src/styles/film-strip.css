@@ -157,6 +157,14 @@
   margin: 0 !important;
   padding: 0 !important;
   transition: opacity 100ms ease-in !important;
+  /* Enable native context menu and long press for image downloads */
+  -webkit-user-select: auto !important;
+  user-select: auto !important;
+  -webkit-touch-callout: default !important;
+  touch-action: auto !important;
+  -webkit-user-drag: auto !important;
+  user-drag: auto !important;
+  pointer-events: auto !important;
 }
 
 .film-frame.loading.selected img {
@@ -312,6 +320,14 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
   display: block !important;
   transition: none !important;
   background: white !important; /* Add white background to prevent black showing through */
+  /* Enable native context menu and long press for image downloads */
+  -webkit-user-select: auto !important;
+  user-select: auto !important;
+  -webkit-touch-callout: default !important;
+  touch-action: auto !important;
+  -webkit-user-drag: auto !important;
+  user-drag: auto !important;
+  pointer-events: auto !important;
 }
 
 /* Add responsive styles for selected photo view on mobile/portrait */
@@ -332,6 +348,14 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
     width: 100% !important;
     background: white !important; /* Add white background to prevent black showing through */
     box-sizing: border-box !important; /* Ensure borders are included in width calculation */
+    /* Enable native context menu and long press for image downloads on mobile */
+    -webkit-user-select: auto !important;
+    user-select: auto !important;
+    -webkit-touch-callout: default !important;
+    touch-action: auto !important;
+    -webkit-user-drag: auto !important;
+    user-drag: auto !important;
+    pointer-events: auto !important;
   }
   
   body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
@@ -361,6 +385,14 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
     box-sizing: border-box !important;
     background: white !important;
     object-position: center !important; /* Keep image centered */
+    /* Enable native context menu and long press for image downloads in Chrome mobile */
+    -webkit-user-select: auto !important;
+    user-select: auto !important;
+    -webkit-touch-callout: default !important;
+    touch-action: auto !important;
+    -webkit-user-drag: auto !important;
+    user-drag: auto !important;
+    pointer-events: auto !important;
   }
 }
 
@@ -483,6 +515,15 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
 /* Add a fade-in animation for loaded images */
 .film-frame img:not(.placeholder) {
   transition: opacity 0.3s ease-in !important;
+  /* Enable native context menu and long press for image downloads */
+  -webkit-user-select: auto !important;
+  user-select: auto !important;
+  -webkit-touch-callout: default !important;
+  touch-action: auto !important;
+  -webkit-user-drag: auto !important;
+  user-drag: auto !important;
+  /* Enable context menu specifically */
+  pointer-events: auto !important;
 }
 
 /* Add button click behavior */

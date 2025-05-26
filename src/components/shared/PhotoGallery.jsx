@@ -740,6 +740,10 @@ const PhotoGallery = ({
                       src={placeholderUrl}
                       alt="Original reference"
                       className="placeholder"
+                      onContextMenu={e => {
+                        // Allow native context menu for image downloads
+                        e.stopPropagation();
+                      }}
                       style={{
                         width: '100%',
                         objectFit: 'cover',
@@ -809,6 +813,10 @@ const PhotoGallery = ({
                         return updated;
                       });
                     }
+                  }}
+                  onContextMenu={e => {
+                    // Allow native context menu for image downloads
+                    e.stopPropagation();
                   }}
                   style={{
                     width: '100%',
