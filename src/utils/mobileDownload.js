@@ -200,8 +200,9 @@ export const enableMobileImageDownload = (imgElement) => {
     pointer-events: auto !important;
   `;
   
-  // Ensure crossorigin for CORS compliance
-  if (!imgElement.crossOrigin) {
+  // Only set crossOrigin if the image hasn't loaded yet to avoid triggering a reload
+  // Setting crossOrigin after load can cause mobile Chrome to re-evaluate and fail
+  if (!imgElement.crossOrigin && !imgElement.complete) {
     imgElement.crossOrigin = 'anonymous';
   }
 };
