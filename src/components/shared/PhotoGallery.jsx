@@ -4,6 +4,8 @@ import '../../styles/film-strip.css'; // Using film-strip.css which contains the
 import '../../styles/components/PhotoGallery.css';
 import { createPolaroidImage } from '../../utils/imageProcessing';
 import { getPhotoHashtag } from '../../services/TwitterShare';
+import { downloadImageMobile, enableMobileImageDownload } from '../../utils/mobileDownload';
+import { isMobile } from '../../utils/index';
 
 const PhotoGallery = ({
   photos,
@@ -184,8 +186,12 @@ const PhotoGallery = ({
   // Universal download function that works on all devices
   const downloadImage = async (imageUrl, filename) => {
     try {
-      // Create a download link and trigger it
-      // This approach works well for Photos app integration on mobile
+      // Use mobile-optimized download for mobile devices
+      if (isMobile()) {
+        return await downloadImageMobile(imageUrl, filename);
+      }
+      
+      // Standard desktop download
       const response = await fetch(imageUrl);
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -693,6 +699,10 @@ const PhotoGallery = ({
                       src={placeholderUrl}
                       alt="Original reference"
                       className="placeholder"
+                      onLoad={e => {
+                        // Enable mobile-optimized download functionality when image loads
+                        enableMobileImageDownload(e.target);
+                      }}
                       onContextMenu={e => {
                         // Allow native context menu for image downloads
                         e.stopPropagation();
@@ -749,6 +759,10 @@ const PhotoGallery = ({
                 <img 
                   src={thumbUrl}
                   alt={`Generated #${index}`}
+                  onLoad={e => {
+                    // Enable mobile-optimized download functionality when image loads
+                    enableMobileImageDownload(e.target);
+                  }}
                   onError={e => {
                     if (photo.originalDataUrl && e.target.src !== photo.originalDataUrl) {
                       e.target.src = photo.originalDataUrl;
@@ -760,7 +774,7 @@ const PhotoGallery = ({
                           updated[index] = {
                             ...updated[index],
                             loadError: true,
-                            statusText: `${updated[index].statusText || ''} (Using original)`
+                            statusText: `${updated[index].statusText || 'Whoops, image failed to load'}`
                           };
                         }
                         return updated;
