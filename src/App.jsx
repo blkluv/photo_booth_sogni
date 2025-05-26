@@ -558,14 +558,19 @@ const App = () => {
     
     // Progressive resolution strategy - try highest first, fallback if needed
     const resolutionTiers = isMobile ? [
-      // Tier 1: 4K resolution
+      // Mobile tiers: 4K -> 2K -> 1080p
       { width: isPortrait ? 2160 : 3840, height: isPortrait ? 3840 : 2160 },
-      // Tier 2: 2K resolution  
       { width: isPortrait ? 1440 : 2560, height: isPortrait ? 2560 : 1440 },
-      // Tier 3: 1080p resolution
       { width: isPortrait ? 1080 : 1920, height: isPortrait ? 1920 : 1080 },
     ] : [
-      // Desktop: use aspect ratio specific dimensions
+      // Desktop tiers: Request much higher resolution than output for zoom quality
+      // Tier 1: 4K for maximum quality and zoom headroom
+      { width: 3840, height: 2160 },
+      // Tier 2: 1440p for good quality and zoom headroom  
+      { width: 2560, height: 1440 },
+      // Tier 3: 1080p minimum for decent zoom quality
+      { width: 1920, height: 1080 },
+      // Tier 4: Fallback to exact output dimensions (original behavior)
       { width: desiredWidth, height: desiredHeight }
     ];
     
@@ -573,26 +578,9 @@ const App = () => {
     let constraints;
     let stream = null;
     
-    // For desktop, set up constraints directly (mobile is handled in the tier loop above)
-    if (!isMobile) {
-      constraints = deviceId
-        ? {
-            video: {
-              deviceId,
-              width: { ideal: desiredWidth },
-              height: { ideal: desiredHeight },
-            }
-          }
-        : {
-            video: {
-              facingMode: 'user',
-              width: { ideal: desiredWidth },
-              height: { ideal: desiredHeight },
-            }
-          };
-    }
+    // Progressive tier strategy now applies to both mobile and desktop
     
-    // Try progressive resolution tiers for mobile, direct request for desktop
+    // Try progressive resolution tiers for both mobile and desktop
     for (let tierIndex = 0; tierIndex < resolutionTiers.length; tierIndex++) {
       const tier = resolutionTiers[tierIndex];
       
@@ -636,6 +624,26 @@ const App = () => {
                 }
               };
         }
+      } else {
+        // Desktop constraints with high resolution for zoom quality
+        const highResWidth = tier.width;
+        const highResHeight = tier.height;
+        
+        constraints = deviceId
+          ? {
+              video: {
+                deviceId,
+                width: { ideal: highResWidth, max: 3840, min: 640 },
+                height: { ideal: highResHeight, max: 2160, min: 480 }
+              }
+            }
+          : {
+              video: {
+                facingMode: 'user',
+                width: { ideal: highResWidth, max: 3840, min: 640 },
+                height: { ideal: highResHeight, max: 2160, min: 480 }
+              }
+            };
       }
       
       try {
@@ -650,11 +658,13 @@ const App = () => {
         stream = await navigator.mediaDevices.getUserMedia(constraints);
         
         // If successful, break out of the tier loop
-        console.log(`✅ Successfully got camera stream with tier ${tierIndex + 1} (${tier.width}x${tier.height})`);
+        const deviceType = isMobile ? 'Mobile' : 'Desktop';
+        console.log(`✅ ${deviceType} camera stream acquired with tier ${tierIndex + 1} (${tier.width}x${tier.height})`);
         break;
         
       } catch (tierError) {
-        console.warn(`❌ Tier ${tierIndex + 1} (${tier.width}x${tier.height}) failed:`, tierError.message);
+        const deviceType = isMobile ? 'Mobile' : 'Desktop';
+        console.warn(`❌ ${deviceType} tier ${tierIndex + 1} (${tier.width}x${tier.height}) failed:`, tierError.message);
         
         // If this was the last tier, re-throw the error
         if (tierIndex === resolutionTiers.length - 1) {
