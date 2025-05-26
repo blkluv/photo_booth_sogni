@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useEffect, useState } from 'react';
+import React, { useMemo, useCallback, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import '../../styles/film-strip.css'; // Using film-strip.css which contains the gallery styles
 import '../../styles/components/PhotoGallery.css';
@@ -181,13 +181,39 @@ const PhotoGallery = ({
     };
   }, [selectedPhotoIndex]);
 
-  // Add state for mobile download functionality
-  const [mobileDownloadData, setMobileDownloadData] = useState(null);
-  
-  // Mobile detection for iOS Chrome
-  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const isChrome = /CriOS|Chrome/i.test(navigator.userAgent);
-  const isMobileChrome = isIOS && isChrome;
+  // Universal download function that works on all devices
+  const downloadImage = async (imageUrl, filename) => {
+    try {
+      // Create a download link and trigger it
+      // This approach works well for Photos app integration on mobile
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      
+      // Create a temporary link element
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      link.style.display = 'none';
+      
+      // Add to DOM, click, and remove
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up the blob URL
+      setTimeout(() => {
+        URL.revokeObjectURL(blobUrl);
+      }, 100);
+      
+      return true;
+    } catch (error) {
+      console.error('Download failed:', error);
+      // Fallback to opening in new tab
+      window.open(imageUrl, '_blank');
+      return false;
+    }
+  };
 
   // Handle download photo with polaroid frame
   const handleDownloadPhoto = async (photoIndex) => {
@@ -233,45 +259,10 @@ const PhotoGallery = ({
       // Create polaroid image
       const polaroidUrl = await createPolaroidImage(imageUrl, photoLabel);
       
-      // Handle mobile Chrome on iOS differently
-      if (isMobileChrome) {
-        // Store the data for the tap-to-download interaction
-        setMobileDownloadData({
-          imageUrl: polaroidUrl,
-          filename: filename
-        });
-        
-        console.log('Mobile Chrome detected: showing tap-to-download button');
-      } else {
-        // For desktop and other browsers, download immediately
-        const downloadLink = document.createElement('a');
-        downloadLink.href = polaroidUrl;
-        downloadLink.download = filename;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-      }
+             // Handle download
+       downloadImage(polaroidUrl, filename);
     } catch (error) {
       console.error('Error downloading photo:', error);
-    }
-  };
-
-  // Handle the tap-to-download interaction for mobile
-  const handleTapToDownload = () => {
-    if (!mobileDownloadData) return;
-    
-    try {
-      console.log('Processing mobile download tap');
-      
-      // iOS Chrome requires opening in a new tab for downloading
-      window.open(mobileDownloadData.imageUrl, '_blank');
-      
-      // Clean up
-      setTimeout(() => {
-        setMobileDownloadData(null); // Remove the button after download attempt
-      }, 1000);
-    } catch (error) {
-      console.error('Error handling mobile download:', error);
     }
   };
 
@@ -299,32 +290,8 @@ const PhotoGallery = ({
       const timestamp = new Date().getTime();
       const filename = `${cleanHashtag}_raw_${timestamp}.png`;
       
-      // Handle mobile Chrome on iOS differently
-      if (isMobileChrome) {
-        // For iOS Chrome, open in a new tab
-        window.open(imageUrl, '_blank');
-      } else {
-        // For desktop browsers, fetch the image and create a download blob
-        fetch(imageUrl)
-          .then(response => response.blob())
-          .then(blob => {
-            const blobUrl = URL.createObjectURL(blob);
-            const downloadLink = document.createElement('a');
-            downloadLink.href = blobUrl;
-            downloadLink.download = filename;
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
-            
-            // Clean up
-            setTimeout(() => {
-              document.body.removeChild(downloadLink);
-              URL.revokeObjectURL(blobUrl);
-            }, 100);
-          })
-          .catch(error => {
-            console.error('Error creating download blob:', error);
-          });
-      }
+             // Handle download
+       downloadImage(imageUrl, filename);
     } catch (error) {
       console.error('Error downloading raw photo:', error);
     }
@@ -495,7 +462,7 @@ const PhotoGallery = ({
         </button>
       )}
       {/* Add these buttons when a photo is selected */}
-      {selectedPhotoIndex !== null && photos[selectedPhotoIndex] && !mobileDownloadData && (
+      {selectedPhotoIndex !== null && photos[selectedPhotoIndex] && (
         <div className="photo-action-buttons" style={{
           display: 'flex',
           gap: '12px',
@@ -525,47 +492,43 @@ const PhotoGallery = ({
             Share
           </button>
 
-          {/* Download Polaroid Button - Hide on Mobile Chrome */}
-          {!isMobileChrome && (
-            <button
-              className="action-button download-btn"
-              onClick={(e) => {
-                handleDownloadPhoto(selectedPhotoIndex);
-                e.stopPropagation();
-              }}
-              disabled={
-                photos[selectedPhotoIndex].loading || 
-                photos[selectedPhotoIndex].enhancing ||
-                photos[selectedPhotoIndex].error ||
-                !photos[selectedPhotoIndex].images ||
-                photos[selectedPhotoIndex].images.length === 0
-              }
-            >
-              <span>💾</span>
-              Polaroid
-            </button>
-          )}
+          {/* Download Polaroid Button - Always show */}
+          <button
+            className="action-button download-btn"
+            onClick={(e) => {
+              handleDownloadPhoto(selectedPhotoIndex);
+              e.stopPropagation();
+            }}
+            disabled={
+              photos[selectedPhotoIndex].loading || 
+              photos[selectedPhotoIndex].enhancing ||
+              photos[selectedPhotoIndex].error ||
+              !photos[selectedPhotoIndex].images ||
+              photos[selectedPhotoIndex].images.length === 0
+            }
+          >
+            <span>💾</span>
+            Polaroid
+          </button>
 
-          {/* Download Raw Button - Hide on Mobile Chrome */}
-          {!isMobileChrome && (
-            <button
-              className="action-button download-raw-btn"
-              onClick={(e) => {
-                handleDownloadRawPhoto(selectedPhotoIndex);
-                e.stopPropagation();
-              }}
-              disabled={
-                photos[selectedPhotoIndex].loading || 
-                photos[selectedPhotoIndex].enhancing ||
-                photos[selectedPhotoIndex].error ||
-                !photos[selectedPhotoIndex].images ||
-                photos[selectedPhotoIndex].images.length === 0
-              }
-            >
-              <span>💾</span>
-              Raw
-            </button>
-          )}
+          {/* Download Raw Button - Always show */}
+          <button
+            className="action-button download-raw-btn"
+            onClick={(e) => {
+              handleDownloadRawPhoto(selectedPhotoIndex);
+              e.stopPropagation();
+            }}
+            disabled={
+              photos[selectedPhotoIndex].loading || 
+              photos[selectedPhotoIndex].enhancing ||
+              photos[selectedPhotoIndex].error ||
+              !photos[selectedPhotoIndex].images ||
+              photos[selectedPhotoIndex].images.length === 0
+            }
+          >
+            <span>💾</span>
+            Raw
+          </button>
 
           {/* Enhance Button - only show if canEnhance is true */}
           {photos[selectedPhotoIndex].enhanced ? (
@@ -607,16 +570,6 @@ const PhotoGallery = ({
             </button>
           )}
         </div>
-      )}
-      {/* Mobile tap-to-download button */}
-      {mobileDownloadData && (
-        <button
-          className="mobile-download-button"
-          onClick={handleTapToDownload}
-        >
-          <span>📥</span>
-          Tap to Save
-        </button>
       )}
       {/* Settings button when viewing a photo */}
       {selectedPhotoIndex !== null && (
