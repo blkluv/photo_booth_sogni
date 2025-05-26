@@ -161,6 +161,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
               <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
                 <rect x="3.29" y="1" width="17.42" height="21.71" rx="0" fill="white" className="polaroid-frame" />
                 <rect x="5" y="2.71" width="14" height="14" fill="black" />
+                <text x="12" y="10.5" fill="white" fontSize="5" textAnchor="middle" dominantBaseline="middle">1:1</text>
               </svg>
             </button>
             <button 
@@ -172,6 +173,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
               <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
                 <rect x="4.12" y="0" width="15.77" height="23.59" rx="0" fill="white" className="polaroid-frame" />
                 <rect x="5.83" y="1.71" width="12.35" height="15.88" fill="black" />
+                <text x="12" y="10" fill="white" fontSize="5" textAnchor="middle" dominantBaseline="middle">7:9</text>
               </svg>
             </button>
             <button 
@@ -183,6 +185,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
               <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
                 <rect x="2.35" y="1.97" width="19.3" height="20.06" rx="0" fill="white" className="polaroid-frame" />
                 <rect x="4.06" y="3.68" width="15.88" height="12.35" fill="black" />
+                <text x="12" y="10" fill="white" fontSize="5" textAnchor="middle" dominantBaseline="middle">9:7</text>
               </svg>
             </button>
           </div>

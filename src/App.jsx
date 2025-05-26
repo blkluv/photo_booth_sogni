@@ -30,8 +30,7 @@ import TwitterShareModal from './components/shared/TwitterShareModal';
 import SplashScreen from './components/shared/SplashScreen';
 // Import the ImageAdjuster component
 import ImageAdjuster from './components/shared/ImageAdjuster';
-// Import the AspectRatioSelector component
-import AspectRatioSelector from './components/shared/AspectRatioSelector';
+
 
 // Helper function to update URL with prompt parameter
 const updateUrlWithPrompt = (promptKey) => {
@@ -1845,8 +1844,7 @@ const App = () => {
             onViewPhotos={null} // Remove the onViewPhotos prop as we're moving the button out
           />
           
-          {/* Add AspectRatioSelector to the main menu */}
-          <AspectRatioSelector visible={showStartMenu} />
+
           
           {/* Move the corner button outside of CameraStartMenu */}
           {showStartMenu && photos.length > 0 && (
