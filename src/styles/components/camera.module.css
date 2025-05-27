@@ -63,9 +63,9 @@
   align-items: center;
   justify-content: flex-start;
   padding: 0;
-  max-width: min(98vw, 700px);
+  max-width: 98vw;
   height: auto;
-  max-height: 90vh;
+  max-height: 95vh;
   position: relative;
   overflow: visible;
   margin: 0 auto;

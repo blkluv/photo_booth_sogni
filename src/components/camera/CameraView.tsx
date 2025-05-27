@@ -182,7 +182,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
       }
       // Get viewport dimensions (accounting for header and controls)
       const viewportWidth = window.innerWidth * 0.9; // 90% of viewport width
-      const viewportHeight = window.innerHeight * 0.7; // 70% of viewport height to account for header/controls
+      const viewportHeight = window.innerHeight * 0.9; // 90% of viewport height to account for header/controls
       
       let containerWidth, containerHeight;
       
@@ -202,13 +202,13 @@ export const CameraView: React.FC<CameraViewProps> = ({
       } 
       else if (isSquareLike) {
         // Square mode - try to fit within viewport
-        const size = Math.min(viewportWidth, viewportHeight, 500);
+        const size = Math.min(viewportWidth, viewportHeight, 600);
         containerWidth = size;
         containerHeight = size;
       }
       else {
         // Landscape-like modes (landscape, wide, ultrawide) - prioritize width
-        containerWidth = Math.min(viewportWidth, 700);
+        containerWidth = Math.min(viewportWidth, 800);
         containerHeight = containerWidth / currentAspectRatio;
       }
       

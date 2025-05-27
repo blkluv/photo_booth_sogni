@@ -157,8 +157,8 @@
 @media (max-width: 768px) {
   .aspect-ratio-dropdown.bottom-right {
     bottom: 20px;
-    right: 16px;
-    transform: translateY(-50%);
+    right: 20px;
+    transform: translateY(0%);
   }
   
   .aspect-ratio-trigger {
