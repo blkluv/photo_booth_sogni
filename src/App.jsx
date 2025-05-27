@@ -385,6 +385,15 @@ const App = () => {
           );
           console.log(`🎥 Camera resolution achieved: ${videoWidth}x${videoHeight} (aspect ratio: ${(videoWidth/videoHeight).toFixed(3)})`);
           
+          // Check for iOS quirk during video loading (using last known request dimensions)
+          if (aspectRatio === 'square') {
+            detectIOSQuirk(2048, 2048, videoWidth, videoHeight, 'during video load');
+          } else if (['ultranarrow', 'narrow', 'portrait'].includes(aspectRatio)) {
+            detectIOSQuirk(1080, 1920, videoWidth, videoHeight, 'during video load');
+          } else {
+            detectIOSQuirk(1920, 1080, videoWidth, videoHeight, 'during video load');
+          }
+          
           // Apply mirror effect for front camera
           videoReference.current.style.transform = isFrontCamera ? 'scaleX(-1)' : 'scaleX(1)';
         }
@@ -551,6 +560,12 @@ const App = () => {
   const startCamera = useCallback(async (deviceId) => {
     const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
     
+    // Reset iOS quirk detection state for new camera session
+    setIosQuirkDetected(false);
+    setActualCameraDimensions(null);
+    setQuirkDetectionComplete(false);
+    console.log('🔄 Starting new camera session - reset iOS quirk detection state');
+    
     // Determine resolution based on aspect ratio
     let requestWidth, requestHeight;
     
@@ -559,13 +574,18 @@ const App = () => {
       requestWidth = 2048;
       requestHeight = 2048;
     } else if (['ultranarrow', 'narrow', 'portrait'].includes(aspectRatio)) {
-      // For portrait ratios - request 1080×1920
-      requestWidth = 1080;
-      requestHeight = 1920;
+      // For portrait ratios - request 1080×1920 (but swap on iOS)
+      requestWidth = isIOS ? 1920 : 1080;
+      requestHeight = isIOS ? 1080 : 1920;
     } else {
-      // For landscape ratios - request 1920×1080
-      requestWidth = 1920;
-      requestHeight = 1080;
+      // For landscape ratios - request 1920×1080 (but swap on iOS)
+      requestWidth = isIOS ? 1080 : 1920;
+      requestHeight = isIOS ? 1920 : 1080;
+    }
+    
+    if (isIOS) {
+      console.log(`🍎 iOS detected: Swapping dimensions to compensate for iOS behavior`);
+      console.log(`🍎 Portrait modes: requesting ${requestWidth}×${requestHeight} to get portrait feed`);
     }
     
     const constraints = deviceId
@@ -591,6 +611,14 @@ const App = () => {
         const existingStream = videoReference.current.srcObject;
         const tracks = existingStream.getTracks();
         tracks.forEach(track => track.stop());
+        
+        // On mobile devices, clear the srcObject and add a small delay for cleanup
+        const isMobileDevice = /iphone|ipad|ipod|android/i.test(navigator.userAgent);
+        if (isMobileDevice) {
+          videoReference.current.srcObject = null;
+          // Small delay to ensure stream is fully released on mobile
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
       }
 
       // Request camera access
@@ -598,12 +626,15 @@ const App = () => {
       
       console.log(`✅ Camera stream acquired - requested ${requestWidth}×${requestHeight} for ${aspectRatio} aspect ratio`);
       
-      // Get actual resolution for logging
+      // Get actual resolution for logging and iOS quirk detection
       if (stream.getVideoTracks().length > 0) {
         const track = stream.getVideoTracks()[0];
         const settings = track.getSettings();
         if (settings.width && settings.height) {
           console.log(`📐 Actual camera resolution: ${settings.width}x${settings.height}`);
+          
+          // Check for iOS dimension swap quirk using helper function
+          detectIOSQuirk(requestWidth, requestHeight, settings.width, settings.height, 'in startCamera');
         }
       }
       
@@ -694,8 +725,113 @@ const App = () => {
     initializeAppOnMount();
   }, [listCameras, initializeSogni]);
 
-  // Note: Removed camera restart on aspect ratio change since we now use CSS masking
-  // The camera stream stays at max resolution and we just crop the display
+  // Helper function to determine the resolution category for an aspect ratio
+  const getResolutionCategory = (aspectRatio) => {
+    if (aspectRatio === 'square') {
+      return 'square';
+    } else if (['ultranarrow', 'narrow', 'portrait'].includes(aspectRatio)) {
+      return 'portrait';
+    } else {
+      return 'landscape';
+    }
+  };
+
+  // State to track iOS dimension quirks
+  const [iosQuirkDetected, setIosQuirkDetected] = useState(false);
+  const [actualCameraDimensions, setActualCameraDimensions] = useState(null);
+  const [quirkDetectionComplete, setQuirkDetectionComplete] = useState(false);
+  // Track previous category to avoid unnecessary restarts
+  const [previousCategory, setPreviousCategory] = useState(null);
+
+  // Helper function to detect and log iOS dimension swap quirks
+  const detectIOSQuirk = (requestWidth, requestHeight, actualWidth, actualHeight, context = '') => {
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    
+    if (!isIOS || !actualWidth || !actualHeight) {
+      // Set detection complete for non-iOS devices
+      if (!isIOS) {
+        setQuirkDetectionComplete(true);
+        setIosQuirkDetected(false);
+        setActualCameraDimensions({ width: actualWidth || 1920, height: actualHeight || 1080 });
+      }
+      return false;
+    }
+    
+    const requestedLandscape = requestWidth > requestHeight;
+    const actualLandscape = actualWidth > actualHeight;
+    const isSquareRequest = requestWidth === requestHeight;
+    const isSquareActual = Math.abs(actualWidth - actualHeight) <= Math.max(actualWidth, actualHeight) * 0.1;
+    
+    // Skip detection for square requests/responses as they don't have orientation issues
+    if (isSquareRequest || isSquareActual) {
+      console.log(`✅ iOS square dimensions ${context}: ${actualWidth}x${actualHeight}`);
+      setIosQuirkDetected(false);
+      setActualCameraDimensions({ width: actualWidth, height: actualHeight });
+      setQuirkDetectionComplete(true);
+      return false;
+    }
+    
+    if (requestedLandscape !== actualLandscape) {
+      console.log(`🍎 iOS quirk detected ${context}: Requested ${requestedLandscape ? 'landscape' : 'portrait'} (${requestWidth}x${requestHeight}) but got ${actualLandscape ? 'landscape' : 'portrait'} (${actualWidth}x${actualHeight})`);
+      console.log(`🔄 This is normal iOS behavior - device orientation overrides requested dimensions`);
+      console.log(`📐 Updating display logic to use actual dimensions: ${actualWidth}x${actualHeight}`);
+      setIosQuirkDetected(true);
+      setActualCameraDimensions({ width: actualWidth, height: actualHeight });
+      setQuirkDetectionComplete(true);
+      return true;
+    } else {
+      console.log(`✅ iOS dimensions match request ${context}: ${requestedLandscape ? 'landscape' : 'portrait'} orientation (${actualWidth}x${actualHeight})`);
+      setIosQuirkDetected(false);
+      setActualCameraDimensions({ width: actualWidth, height: actualHeight });
+      setQuirkDetectionComplete(true);
+      return false;
+    }
+  };
+
+  // Restart camera when aspect ratio category changes (portrait/square/landscape)
+  useEffect(() => {
+    // Only restart if camera has been manually started and we're not showing start menu
+    if (cameraManuallyStarted && !showStartMenu && !showPhotoGrid && selectedPhotoIndex === null) {
+      console.log(`📐 Aspect ratio changed to ${aspectRatio}, checking if camera restart needed`);
+      
+      // Get current category
+      const currentCategory = getResolutionCategory(aspectRatio);
+      
+      // Only restart if the category actually changed
+      if (previousCategory !== null && previousCategory === currentCategory) {
+        console.log(`✅ Same resolution category (${currentCategory}), skipping camera restart`);
+        setPreviousCategory(currentCategory); // Update the previous category
+        return;
+      }
+      
+      console.log(`🔄 Category changed from ${previousCategory || 'none'} to ${currentCategory}, restarting camera`);
+      setPreviousCategory(currentCategory);
+      
+      // Restart camera to get optimal resolution for the new category
+      if (videoReference.current && videoReference.current.srcObject) {
+        console.log(`🔄 Restarting camera for ${currentCategory} category (${aspectRatio})`);
+        
+        // Detect mobile devices for special handling
+        const isMobileDevice = /iphone|ipad|ipod|android/i.test(navigator.userAgent);
+        const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+        
+        if (isMobileDevice) {
+          console.log(`📱 Mobile device detected (${isIOS ? 'iOS' : 'Android'}), using mobile-optimized restart`);
+          
+          // For mobile devices, add a small delay to ensure smooth transition
+          setTimeout(() => {
+            if (videoReference.current && videoReference.current.srcObject) {
+              startCamera(selectedCameraDeviceId);
+            }
+          }, isIOS ? 200 : 100); // iOS needs slightly more time
+        } else {
+          // Desktop can restart immediately
+          console.log(`💻 Desktop device detected, restarting camera immediately`);
+          startCamera(selectedCameraDeviceId);
+        }
+      }
+    }
+  }, [aspectRatio, cameraManuallyStarted, showStartMenu, showPhotoGrid, selectedPhotoIndex, startCamera, selectedCameraDeviceId, previousCategory]);
   
   // Add an effect specifically for page unload/refresh cleanup
   useEffect(() => {
@@ -1856,6 +1992,9 @@ const App = () => {
             onToggleCamera={handleToggleCamera}
             isFrontCamera={isFrontCamera}
             aspectRatio={aspectRatio}
+            iosQuirkDetected={iosQuirkDetected}
+            actualCameraDimensions={actualCameraDimensions}
+            quirkDetectionComplete={quirkDetectionComplete}
             modelOptions={getModelOptions()}
             selectedModel={selectedModel}
             onModelSelect={(value) => {

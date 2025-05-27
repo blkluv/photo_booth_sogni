@@ -70,6 +70,12 @@ interface CameraViewProps {
   onBackToMenu?: () => void;
   /** Current aspect ratio setting */
   aspectRatio?: AspectRatioOption;
+  /** Whether iOS dimension quirk has been detected */
+  iosQuirkDetected?: boolean;
+  /** Actual camera dimensions when iOS quirk is detected */
+  actualCameraDimensions?: { width: number; height: number } | null;
+  /** Whether iOS quirk detection has completed */
+  quirkDetectionComplete?: boolean;
 }
 
 export const CameraView: React.FC<CameraViewProps> = ({
@@ -103,6 +109,9 @@ export const CameraView: React.FC<CameraViewProps> = ({
   onResetSettings,
   isFrontCamera = true,
   aspectRatio = 'square' as AspectRatioOption,
+  iosQuirkDetected = false,
+  actualCameraDimensions = null,
+  quirkDetectionComplete = false,
 }) => {
   // Use aspectRatio prop instead of context
   
@@ -153,10 +162,24 @@ export const CameraView: React.FC<CameraViewProps> = ({
 
   // Calculate container dimensions that fit the viewport while maintaining aspect ratio
   useEffect(() => {
+    // Only calculate container dimensions after quirk detection is complete
+    if (!quirkDetectionComplete) {
+      console.log(`⏳ CameraView: Waiting for iOS quirk detection to complete...`);
+      return;
+    }
+
     const calculateContainerDimensions = () => {      
-      // Get dimensions based on selected aspect ratio (calculate inside useEffect to avoid infinite loops)
+      // Always use the requested aspect ratio for container dimensions
+      // CSS object-fit: cover will handle cropping from the actual camera feed
       const currentDimensions = getCustomDimensions(aspectRatio);
       const currentAspectRatio = currentDimensions.width / currentDimensions.height;
+      
+      if (iosQuirkDetected && actualCameraDimensions) {
+        console.log(`📐 CameraView: iOS quirk detected - camera provides ${actualCameraDimensions.width}x${actualCameraDimensions.height} but displaying as ${aspectRatio} (${currentDimensions.width}x${currentDimensions.height})`);
+        console.log(`📐 CSS object-fit: cover will crop the ${actualCameraDimensions.width > actualCameraDimensions.height ? 'landscape' : 'portrait'} camera feed to show ${aspectRatio} portion`);
+      } else {
+        console.log(`📐 CameraView: Using requested ${aspectRatio} dimensions ${currentDimensions.width}x${currentDimensions.height}`);
+      }
       // Get viewport dimensions (accounting for header and controls)
       const viewportWidth = window.innerWidth * 0.9; // 90% of viewport width
       const viewportHeight = window.innerHeight * 0.7; // 70% of viewport height to account for header/controls
@@ -215,7 +238,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
     return () => {
       window.removeEventListener('resize', calculateContainerDimensions);
     };
-  }, [aspectRatio]); // Only depend on aspectRatio to avoid infinite loops
+  }, [aspectRatio, iosQuirkDetected, actualCameraDimensions, quirkDetectionComplete]); // Add all quirk detection dependencies
 
   // Note: Removed complex video sizing logic since we now use simple CSS aspect ratio masking
   // The video container automatically handles the aspect ratio using CSS, video always stays at max resolution
