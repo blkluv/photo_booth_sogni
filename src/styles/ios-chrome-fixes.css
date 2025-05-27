@@ -26,9 +26,6 @@
 
   /* Position the photos corner button properly in iOS */
   .photos-corner-btn {
-    position: fixed !important;
-    left: 20px !important;
-    bottom: 20px !important;
     bottom: max(20px, calc(env(safe-area-inset-bottom) + 5px)) !important;
   }
 

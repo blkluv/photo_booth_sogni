@@ -1965,7 +1965,7 @@ const App = () => {
                 setShowStartMenu(false);
               }}
             >
-              ← Photos
+              Photos →
             </button>
           )}
         </>

@@ -225,6 +225,11 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
   font-family: "Permanent Marker", cursive;
 }
 
+.corner-btn.photos-corner-btn {
+  left: unset;
+  right: 20px;
+}
+
 .corner-btn:hover {
   transform: scale(1.05) !important;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4) !important;
