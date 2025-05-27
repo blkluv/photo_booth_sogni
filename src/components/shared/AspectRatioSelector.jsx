@@ -6,14 +6,7 @@ import './AspectRatioSelector.css';
 
 /**
  * Component for selecting image aspect ratio
- * Displays 7 buttons with icons representing different aspect ratios:
- * - Ultra Narrow (768x1344) - 4:7 ratio
- * - Narrow (832x1216) - 13:19 ratio
- * - Portrait (896x1152) - 7:9 ratio  
- * - Square (1024x1024) - 1:1 ratio
- * - Landscape (1152x896) - 9:7 ratio
- * - Wide (1216x832) - 19:13 ratio
- * - Ultra Wide (1344x768) - 7:4 ratio
+ * Displays 7 buttons with icons representing different aspect ratios
  * 
  * Each button shows a polaroid-style frame with appropriate aspect ratio
  */
@@ -60,13 +53,13 @@ const AspectRatioSelector = ({ visible = true }) => {
       <button 
         className={`aspect-ratio-button ${aspectRatio === 'ultranarrow' ? 'active' : ''}`}
         onClick={() => handleAspectRatioChange('ultranarrow')}
-        title="Ultra Narrow (4:7)"
+        title="Ultra Narrow (9:16)"
         aria-label="Set ultra narrow aspect ratio"
       >
         <svg viewBox="0 0 24 24" width="29" height="29" fill="none">
           {/* White polaroid frame for ultra narrow */}
           <rect x="8" y="0" width="8" height="24" rx="0" fill="white" className="polaroid-frame" />
-          {/* Black picture area - 4:7 ratio */}
+          {/* Black picture area - 9:16 ratio */}
           <rect x="8.5" y="1.5" width="7" height="21" fill="black" />
         </svg>
       </button>
@@ -74,13 +67,13 @@ const AspectRatioSelector = ({ visible = true }) => {
       <button 
         className={`aspect-ratio-button ${aspectRatio === 'narrow' ? 'active' : ''}`}
         onClick={() => handleAspectRatioChange('narrow')}
-        title="Narrow (13:19)"
+        title="Narrow (2:3)"
         aria-label="Set narrow aspect ratio"
       >
         <svg viewBox="0 0 24 24" width="29" height="29" fill="none">
           {/* White polaroid frame for narrow */}
           <rect x="6" y="0" width="12" height="24" rx="0" fill="white" className="polaroid-frame" />
-          {/* Black picture area - 13:19 ratio */}
+          {/* Black picture area - 2:3 ratio */}
           <rect x="7" y="1.5" width="10" height="21" fill="black" />
         </svg>
       </button>
@@ -88,13 +81,13 @@ const AspectRatioSelector = ({ visible = true }) => {
       <button 
         className={`aspect-ratio-button ${aspectRatio === 'portrait' ? 'active' : ''}`}
         onClick={() => handleAspectRatioChange('portrait')}
-        title="Portrait (7:9)"
+        title="Portrait (3:4)"
         aria-label="Set portrait aspect ratio"
       >
         <svg viewBox="0 0 24 24" width="29" height="29" fill="none">
           {/* White polaroid frame - border ratio 1:3.5 */}
           <rect x="4.12" y="0" width="15.77" height="23.59" rx="0" fill="white" className="polaroid-frame" />
-          {/* Black picture area - 7:9 ratio, area = 196 */}
+          {/* Black picture area - 3:4 ratio, area = 196 */}
           <rect x="5.83" y="1.71" width="12.35" height="15.88" fill="black" />
         </svg>
       </button>
@@ -116,13 +109,13 @@ const AspectRatioSelector = ({ visible = true }) => {
       <button 
         className={`aspect-ratio-button ${aspectRatio === 'landscape' ? 'active' : ''}`}
         onClick={() => handleAspectRatioChange('landscape')}
-        title="Landscape (9:7)"
+        title="Landscape (4:3)"
         aria-label="Set landscape aspect ratio"
       >
         <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
           {/* White polaroid frame - border ratio 1:3.5 */}
           <rect x="2.35" y="1.97" width="19.3" height="20.06" rx="0" fill="white" className="polaroid-frame" />
-          {/* Black picture area - 9:7 ratio, area = 196 */}
+          {/* Black picture area - 4:3 ratio, area = 196 */}
           <rect x="4.06" y="3.68" width="15.88" height="12.35" fill="black" />
         </svg>
       </button>
@@ -130,13 +123,13 @@ const AspectRatioSelector = ({ visible = true }) => {
       <button 
         className={`aspect-ratio-button ${aspectRatio === 'wide' ? 'active' : ''}`}
         onClick={() => handleAspectRatioChange('wide')}
-        title="Wide (19:13)"
+        title="Wide (3:2)"
         aria-label="Set wide aspect ratio"
       >
         <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
           {/* White polaroid frame for wide */}
           <rect x="0" y="6" width="24" height="12" rx="0" fill="white" className="polaroid-frame" />
-          {/* Black picture area - 19:13 ratio */}
+          {/* Black picture area - 3:2 ratio */}
           <rect x="1.5" y="7" width="21" height="10" fill="black" />
         </svg>
       </button>
@@ -144,13 +137,13 @@ const AspectRatioSelector = ({ visible = true }) => {
       <button 
         className={`aspect-ratio-button ${aspectRatio === 'ultrawide' ? 'active' : ''}`}
         onClick={() => handleAspectRatioChange('ultrawide')}
-        title="Ultra Wide (7:4)"
+        title="Ultra Wide (16:9)"
         aria-label="Set ultra wide aspect ratio"
       >
         <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
           {/* White polaroid frame for ultra wide */}
           <rect x="0" y="8" width="24" height="8" rx="0" fill="white" className="polaroid-frame" />
-          {/* Black picture area - 7:4 ratio */}
+          {/* Black picture area - 16:9 ratio */}
           <rect x="1.5" y="8.5" width="21" height="7" fill="black" />
         </svg>
       </button>

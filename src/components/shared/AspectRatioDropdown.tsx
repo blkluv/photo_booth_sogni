@@ -76,16 +76,8 @@ const AspectRatioDropdown: React.FC<AspectRatioDropdownProps> = ({
 
   // Get the current aspect ratio info
   const getCurrentAspectRatioInfo = () => {
-    const options = {
-      'ultranarrow': { label: 'Mobile', ratio: '4:7' },
-      'narrow': { label: '35mm', ratio: '13:19' },
-      'portrait': { label: 'Portrait', ratio: '7:9' },
-      'square': { label: 'Instant', ratio: '1:1' },
-      'landscape': { label: 'Landscape', ratio: '9:7' },
-      'wide': { label: 'Cinema', ratio: '19:13' },
-      'ultrawide': { label: 'Widescreen', ratio: '7:4' }
-    };
-    return options[aspectRatio] || options['square'];
+    // fallback to square
+    return aspectRatioOptions.find(arObject => arObject.key === aspectRatio) || aspectRatioOptions.find(arObject => arObject.key === 'square')
   };
 
   // Get the current aspect ratio SVG icon
@@ -151,13 +143,13 @@ const AspectRatioDropdown: React.FC<AspectRatioDropdownProps> = ({
   };
 
   const aspectRatioOptions = [
-    { key: 'ultranarrow', label: 'Mobile', ratio: '4:7' },
-    { key: 'narrow', label: '35mm', ratio: '13:19' },
-    { key: 'portrait', label: 'Portrait', ratio: '7:9' },
-    { key: 'square', label: 'Instant', ratio: '1:1' },
-    { key: 'landscape', label: 'Landscape', ratio: '9:7' },
-    { key: 'wide', label: 'Cinema', ratio: '19:13' },
-    { key: 'ultrawide', label: 'Widescreen', ratio: '7:4' },
+    { key: 'ultranarrow', label: 'Mobile', ratio: '4:7', ratioApprox: '9:16', width: 768, height: 1344 },
+    { key: 'narrow', label: '35mm', ratio: '13:19', ratioApprox: '2:3',  width: 832, height: 1216 },
+    { key: 'portrait', label: 'Portrait', ratio: '7:9', ratioApprox: '3:4', width: 896, height: 1152 },
+    { key: 'square', label: 'Square', ratio: '1:1', ratioApprox: '1:1', width: 1024, height: 1024 },
+    { key: 'landscape', label: 'Landscape', ratio: '9:7', ratioApprox: '4:3',  width: 1152, height: 896 },
+    { key: 'wide', label: 'Cinema', ratio: '19:13', ratioApprox: '3:2', width: 1216, height: 832 },
+    { key: 'ultrawide', label: 'Widescreen', ratio: '7:4', ratioApprox: '16:9', width: 1344, height: 768 },
   ];
 
   // Early return after all hooks are called
@@ -177,7 +169,7 @@ const AspectRatioDropdown: React.FC<AspectRatioDropdownProps> = ({
         {getCurrentIcon()}
         <div className="aspect-ratio-text">
           <span className="aspect-ratio-label">{getCurrentAspectRatioInfo().label}</span>
-          <span className="aspect-ratio-ratio">{getCurrentAspectRatioInfo().ratio}</span>
+          <span className="aspect-ratio-ratio">{getCurrentAspectRatioInfo().ratioApprox}</span>
         </div>
         <svg className="dropdown-arrow" width="12" height="12" viewBox="0 0 12 12" fill="none">
           <path d="M3 4.5L6 7.5L9 4.5" stroke="#333" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -191,7 +183,7 @@ const AspectRatioDropdown: React.FC<AspectRatioDropdownProps> = ({
               key={option.key}
               className={`aspect-ratio-option ${aspectRatio === option.key ? 'active' : ''}`}
               onClick={() => handleAspectRatioChange(option.key as AspectRatioOption)}
-              title={`${option.label} (${option.ratio})`}
+              title={`${option.label} (${option.ratioApprox})`}
             >
               <div className="option-icon">
                 {option.key === 'ultranarrow' && (
@@ -239,7 +231,7 @@ const AspectRatioDropdown: React.FC<AspectRatioDropdownProps> = ({
               </div>
               <div className="option-text">
                 <span className="option-label">{option.label}</span>
-                <span className="option-ratio">{option.ratio}</span>
+                <span className="option-ratio">{option.ratioApprox}</span>
               </div>
             </button>
           ))}
