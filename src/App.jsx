@@ -546,142 +546,66 @@ const App = () => {
 
   /**
    * Start the camera stream for a given deviceId or fallback.
-   * Try to capture at appropriate dimensions based on device and orientation.
+   * Request specific resolution based on desired aspect ratio.
    */
   const startCamera = useCallback(async (deviceId) => {
-    // Check if we're on mobile and iOS
-    const isMobile = /iphone|ipad|ipod|android/i.test(navigator.userAgent);
     const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    const isPortrait = window.matchMedia("(orientation: portrait)").matches || window.innerHeight > window.innerWidth;
     
-    console.log(`Camera setup - isMobile: ${isMobile}, isIOS: ${isIOS}, isPortrait: ${isPortrait}`);
+    // Determine resolution based on aspect ratio
+    let requestWidth, requestHeight;
     
-    // Progressive resolution strategy - try highest first, fallback if needed
-    const resolutionTiers = isMobile ? [
-      // Mobile tiers: 4K -> 2K -> 1080p
-      { width: isPortrait ? 2160 : 3840, height: isPortrait ? 3840 : 2160 },
-      { width: isPortrait ? 1440 : 2560, height: isPortrait ? 2560 : 1440 },
-      { width: isPortrait ? 1080 : 1920, height: isPortrait ? 1920 : 1080 },
-    ] : [
-      // Desktop tiers: Request much higher resolution than output for zoom quality
-      // Tier 1: 4K for maximum quality and zoom headroom
-      { width: 3840, height: 2160 },
-      // Tier 2: 1440p for good quality and zoom headroom  
-      { width: 2560, height: 1440 },
-      // Tier 3: 1080p minimum for decent zoom quality
-      { width: 1920, height: 1080 },
-      // Tier 4: Fallback to exact output dimensions (original behavior)
-      { width: desiredWidth, height: desiredHeight }
-    ];
-    
-    // Determine appropriate constraints based on device/orientation
-    let constraints;
-    let stream = null;
-    
-    // Progressive tier strategy now applies to both mobile and desktop
-    
-    // Try progressive resolution tiers for both mobile and desktop
-    for (let tierIndex = 0; tierIndex < resolutionTiers.length; tierIndex++) {
-      const tier = resolutionTiers[tierIndex];
-      
-      // Update constraints for current tier
-      if (isMobile) {
-        const highResWidth = tier.width;
-        const highResHeight = tier.height;
-        
-        if (isIOS) {
-          constraints = deviceId
-            ? {
-                video: {
-                  deviceId,
-                  facingMode: isFrontCamera ? 'user' : 'environment',
-                  width: { ideal: highResWidth, max: 3840, min: 640 },
-                  height: { ideal: highResHeight, max: 2160, min: 480 }
-                }
-              }
-            : {
-                video: {
-                  facingMode: isFrontCamera ? 'user' : 'environment',
-                  width: { ideal: highResWidth, max: 3840, min: 640 },
-                  height: { ideal: highResHeight, max: 2160, min: 480 }
-                }
-              };
-        } else {
-          constraints = deviceId
-            ? {
-                video: {
-                  deviceId,
-                  facingMode: isFrontCamera ? 'user' : 'environment',
-                  width: { ideal: highResWidth, max: 3840, min: 640 },
-                  height: { ideal: highResHeight, max: 2160, min: 480 }
-                }
-              }
-            : {
-                video: {
-                  facingMode: isFrontCamera ? 'user' : 'environment',
-                  width: { ideal: highResWidth, max: 3840, min: 640 },
-                  height: { ideal: highResHeight, max: 2160, min: 480 }
-                }
-              };
-        }
-      } else {
-        // Desktop constraints with high resolution for zoom quality
-        const highResWidth = tier.width;
-        const highResHeight = tier.height;
-        
-        constraints = deviceId
-          ? {
-              video: {
-                deviceId,
-                width: { ideal: highResWidth, max: 3840, min: 640 },
-                height: { ideal: highResHeight, max: 2160, min: 480 }
-              }
-            }
-          : {
-              video: {
-                facingMode: 'user',
-                width: { ideal: highResWidth, max: 3840, min: 640 },
-                height: { ideal: highResHeight, max: 2160, min: 480 }
-              }
-            };
-      }
-      
-      try {
-        // Stop any existing stream first
-        if (videoReference.current && videoReference.current.srcObject) {
-          const existingStream = videoReference.current.srcObject;
-          const tracks = existingStream.getTracks();
-          tracks.forEach(track => track.stop());
-        }
-
-        // Request camera access with current tier constraints
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-        
-        // If successful, break out of the tier loop
-        const deviceType = isMobile ? 'Mobile' : 'Desktop';
-        console.log(`✅ ${deviceType} camera stream acquired with tier ${tierIndex + 1} (${tier.width}x${tier.height})`);
-        break;
-        
-      } catch (tierError) {
-        const deviceType = isMobile ? 'Mobile' : 'Desktop';
-        console.warn(`❌ ${deviceType} tier ${tierIndex + 1} (${tier.width}x${tier.height}) failed:`, tierError.message);
-        
-        // If this was the last tier, re-throw the error
-        if (tierIndex === resolutionTiers.length - 1) {
-          throw tierError;
-        }
-        // Otherwise, continue to next tier
-      }
+    if (aspectRatio === 'square') {
+      // For 1:1 aspect ratio - request 2048×2048
+      requestWidth = 2048;
+      requestHeight = 2048;
+    } else if (['ultranarrow', 'narrow', 'portrait'].includes(aspectRatio)) {
+      // For portrait ratios - request 1080×1920
+      requestWidth = 1080;
+      requestHeight = 1920;
+    } else {
+      // For landscape ratios - request 1920×1080
+      requestWidth = 1920;
+      requestHeight = 1080;
     }
     
-    if (!stream) {
-      throw new Error('Failed to get camera stream with any resolution tier');
-    }
-
+    const constraints = deviceId
+      ? {
+          video: {
+            deviceId,
+            facingMode: isFrontCamera ? 'user' : 'environment',
+            width: { ideal: requestWidth },
+            height: { ideal: requestHeight }
+          }
+        }
+      : {
+          video: {
+            facingMode: isFrontCamera ? 'user' : 'environment',
+            width: { ideal: requestWidth },
+            height: { ideal: requestHeight }
+          }
+        };
+    
     try {
+      // Stop any existing stream first
+      if (videoReference.current && videoReference.current.srcObject) {
+        const existingStream = videoReference.current.srcObject;
+        const tracks = existingStream.getTracks();
+        tracks.forEach(track => track.stop());
+      }
+
+      // Request camera access
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       
-      // Log successful camera stream acquisition
-      console.log('✅ Camera stream acquired successfully');
+      console.log(`✅ Camera stream acquired - requested ${requestWidth}×${requestHeight} for ${aspectRatio} aspect ratio`);
+      
+      // Get actual resolution for logging
+      if (stream.getVideoTracks().length > 0) {
+        const track = stream.getVideoTracks()[0];
+        const settings = track.getSettings();
+        if (settings.width && settings.height) {
+          console.log(`📐 Actual camera resolution: ${settings.width}x${settings.height}`);
+        }
+      }
       
       // Add iOS-specific class if needed
       if (isIOS) {
@@ -691,7 +615,8 @@ const App = () => {
         setTimeout(() => {
           if (videoReference.current) {
             // Set proper classes for iOS orientation handling
-            if (isPortrait) {
+            const currentIsPortrait = window.matchMedia("(orientation: portrait)").matches || window.innerHeight > window.innerWidth;
+            if (currentIsPortrait) {
               videoReference.current.classList.add('ios-fix');
             } else {
               videoReference.current.classList.remove('ios-fix');
@@ -740,7 +665,8 @@ const App = () => {
       setOrientationHandler(() => handleOrientationChange);
       
     } catch (error) {
-      console.error('Failed to get camera access', error);
+      console.error('Failed to get camera access:', error);
+      throw error;
     }
   }, [desiredWidth, desiredHeight, isFrontCamera, videoReference, setOrientationHandler, aspectRatio]); // Add aspectRatio to dependencies
 
@@ -768,22 +694,8 @@ const App = () => {
     initializeAppOnMount();
   }, [listCameras, initializeSogni]);
 
-  // Effect to restart camera when aspect ratio changes (only if camera is already running)
-  useEffect(() => {
-    const restartCameraOnAspectRatioChange = async () => {
-      // Only restart if camera is already running and was manually started
-      if (videoReference.current && 
-          videoReference.current.srcObject && 
-          cameraManuallyStarted && 
-          !showStartMenu) {
-        console.log('Aspect ratio changed, restarting camera with new constraints...');
-        await startCamera(selectedCameraDeviceId);
-      }
-    };
-
-    // Restart camera when aspect ratio changes
-    restartCameraOnAspectRatioChange();
-  }, [aspectRatio, startCamera, selectedCameraDeviceId, cameraManuallyStarted, showStartMenu]);
+  // Note: Removed camera restart on aspect ratio change since we now use CSS masking
+  // The camera stream stays at max resolution and we just crop the display
   
   // Add an effect specifically for page unload/refresh cleanup
   useEffect(() => {
@@ -1943,6 +1855,7 @@ const App = () => {
             onCameraSelect={handleCameraSelection}
             onToggleCamera={handleToggleCamera}
             isFrontCamera={isFrontCamera}
+            aspectRatio={aspectRatio}
             modelOptions={getModelOptions()}
             selectedModel={selectedModel}
             onModelSelect={(value) => {

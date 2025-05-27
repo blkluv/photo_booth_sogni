@@ -63,7 +63,6 @@
   align-items: center;
   justify-content: flex-start;
   padding: 0;
-  width: 100%;
   max-width: min(98vw, 700px);
   height: auto;
   max-height: 90vh;
@@ -212,19 +211,6 @@
 /* Ensure video respects aspect ratio constraints and prevents black bars */
 .webcam {
   transition: object-fit 0.3s ease, height 0.3s ease;
-}
-
-/* Override for mobile portrait to eliminate black bars */
-@media (orientation: portrait) and (max-width: 768px) {
-  .webcam {
-    object-fit: cover !important;
-  }
-  
-  /* Exception for landscape aspect ratio on mobile portrait */
-  .aspect-landscape .webcam {
-    object-fit: contain !important;
-    height: auto !important;
-  }
 }
 
 .bottomControls {
@@ -409,11 +395,6 @@
 
 /* Responsive styles */
 @media (max-width: 600px), (orientation: portrait) and (max-device-width: 1024px) {
-  .polaroidFrame {
-    border-radius: 2px;
-    width: unset !important;
-    max-width: unset !important;
-  }
   
   .cameraView {
     border-left-width: 20px !important;

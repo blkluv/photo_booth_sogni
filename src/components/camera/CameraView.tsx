@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import styles from '../../styles/components/camera.module.css';
 import AdvancedSettings from '../shared/AdvancedSettings';
 import AspectRatioDropdown from '../shared/AspectRatioDropdown';
-import { useApp } from '../../context/AppContext';
 import { getCustomDimensions } from '../../utils/imageProcessing';
+import { AspectRatioOption } from '../../types/index';
 
 interface CameraViewProps {
   /** Video ref for the webcam stream */
@@ -68,6 +68,8 @@ interface CameraViewProps {
   isFrontCamera?: boolean;
   /** Handler for navigating back to main menu */
   onBackToMenu?: () => void;
+  /** Current aspect ratio setting */
+  aspectRatio?: AspectRatioOption;
 }
 
 export const CameraView: React.FC<CameraViewProps> = ({
@@ -100,13 +102,16 @@ export const CameraView: React.FC<CameraViewProps> = ({
   onKeepOriginalPhotoChange,
   onResetSettings,
   isFrontCamera = true,
+  aspectRatio = 'square' as AspectRatioOption,
 }) => {
-  // Get aspectRatio from context
-  const { settings } = useApp();
-  const aspectRatio = settings.aspectRatio;
+  // Use aspectRatio prop instead of context
   
-  // Get dimensions based on selected aspect ratio
-  const dimensions = getCustomDimensions(aspectRatio);
+  // Add state for responsive container sizing
+  const [containerStyle, setContainerStyle] = useState({
+    width: 'auto',
+    height: 'auto',
+    aspectRatio: '1'
+  });
   
   // Helper function to get the appropriate CSS class for aspect ratio
   const getAspectRatioClass = () => {
@@ -130,12 +135,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
     }
   };
   
-  // Helper function to get the appropriate webcam class
-  const getWebcamClass = () => {
-    const targetAspect = dimensions.width / dimensions.height;
-    const isLandscapeLike = targetAspect > 1.1;
-    return isLandscapeLike ? 'landscape-webcam' : '';
-  };
+  // Note: Removed getWebcamClass helper since we now use simple CSS masking
   
   // Check if device is mobile
   const [isMobile, setIsMobile] = useState(false);
@@ -151,125 +151,74 @@ export const CameraView: React.FC<CameraViewProps> = ({
     setIsMobile(checkIfMobile());
   }, []);
 
-  // Set the camera view dimensions based on the selected aspect ratio
+  // Calculate container dimensions that fit the viewport while maintaining aspect ratio
   useEffect(() => {
-    if (videoRef.current) {
-      // Reset video loaded state when aspect ratio changes
-      setIsVideoLoaded(false);
+    const calculateContainerDimensions = () => {      
+      // Get dimensions based on selected aspect ratio (calculate inside useEffect to avoid infinite loops)
+      const currentDimensions = getCustomDimensions(aspectRatio);
+      const currentAspectRatio = currentDimensions.width / currentDimensions.height;
+      // Get viewport dimensions (accounting for header and controls)
+      const viewportWidth = window.innerWidth * 0.9; // 90% of viewport width
+      const viewportHeight = window.innerHeight * 0.7; // 70% of viewport height to account for header/controls
       
-      // Get both the video container and the polaroid frame
-      const videoContainer = videoRef.current.parentElement;
-      const polaroidFrame = document.querySelector(`.${styles.polaroidFrame}`) as HTMLElement;
+      let containerWidth, containerHeight;
       
-      if (videoContainer && polaroidFrame) {
-        // Reset any previously set styles
-        videoContainer.style.width = '';
-        videoContainer.style.height = '';
-        
-        // Calculate appropriate dimensions based on the viewport
-        const viewportWidth = window.innerWidth * 0.8;
-        const viewportHeight = window.innerHeight * 0.7;
-        let containerWidth = viewportWidth;
-        let containerHeight: number = viewportHeight;
-        
-        // Apply the selected aspect ratio
-        const { width: targetWidth, height: targetHeight } = dimensions;
-        const targetAspect = targetWidth / targetHeight;
-        
-        // Determine if this is a portrait-like or landscape-like ratio
-        const isPortraitLike = targetAspect < 1;
-        const isSquareLike = Math.abs(targetAspect - 1) < 0.1;
-        
-        if (isPortraitLike) {
-          // Portrait-like modes: ultranarrow, narrow, portrait
-          // Calculate the ideal width for a portrait view
-          containerWidth = Math.min(viewportHeight * targetAspect, viewportWidth * 0.7);
-          containerHeight = containerWidth / targetAspect;
-          
-          // Adjust the polaroid frame width to match the content
-          polaroidFrame.style.width = `${containerWidth + 64}px`; // Add border padding (32px each side)
-          polaroidFrame.style.maxWidth = `${containerWidth + 64}px`;
-          
-          // Set portrait-specific dimensions
-          videoContainer.style.width = `${containerWidth}px`;
-          videoContainer.style.height = `${containerHeight}px`;
-          
-        } else if (isSquareLike) {
-          // Square mode
-          containerWidth = Math.min(viewportWidth * 0.7, viewportHeight);
-          containerHeight = containerWidth;
-          
-          // Adjust the polaroid frame width to match the square content
-          polaroidFrame.style.width = `${containerWidth + 64}px`; // Add border padding
-          polaroidFrame.style.maxWidth = `${containerWidth + 64}px`;
-          
-          // Set square-specific dimensions
-          videoContainer.style.width = `${containerWidth}px`;
-          videoContainer.style.height = `${containerHeight}px`;
-        } else {
-          // Landscape-like modes: landscape, wide, ultrawide
-          // For landscape, calculate dimensions based on aspect ratio
-          containerWidth = Math.min(viewportWidth, 700); // Max width 700px
-          
-          // For landscape, set reasonable width
-          polaroidFrame.style.width = '100%';
-          polaroidFrame.style.maxWidth = 'min(98vw, 700px)';
-          
-          // For landscape mode, set width but use auto height
-          videoContainer.style.width = `${containerWidth}px`;
-          videoContainer.style.height = 'auto';
+      // Determine sizing based on aspect ratio dynamically
+      const isPortraitLike = currentAspectRatio < 1;
+      const isSquareLike = Math.abs(currentAspectRatio - 1) < 0.1;
+      
+      if (isPortraitLike) {
+        // Portrait-like modes (ultranarrow, narrow, portrait) - prioritize height
+        containerHeight = Math.min(viewportHeight, 600);
+        containerWidth = containerHeight * currentAspectRatio;
+        // Check if width exceeds viewport width
+        if (containerWidth > viewportWidth) {
+          containerWidth = viewportWidth;
+          containerHeight = containerWidth / currentAspectRatio;
         }
-        
-        // Only apply these general settings for non-landscape-like aspects
-        if (!isPortraitLike && !isSquareLike) {
-          // This is landscape-like, so don't constrain height
-        } else {
-          // Constrain height if needed for portrait and square
-          const maxHeight = window.innerHeight * 0.7;
-          if (containerHeight > maxHeight) {
-            const ratio = maxHeight / containerHeight;
-            containerHeight = maxHeight;
-            containerWidth = containerWidth * ratio;
-            
-            videoContainer.style.width = `${containerWidth}px`;
-            videoContainer.style.height = `${containerHeight}px`;
-            
-            // Adjust the polaroid frame width again if needed
-            polaroidFrame.style.width = `${containerWidth + 64}px`;
-            polaroidFrame.style.maxWidth = `${containerWidth + 64}px`;
-          }
-        }
+      } 
+      else if (isSquareLike) {
+        // Square mode - try to fit within viewport
+        const size = Math.min(viewportWidth, viewportHeight, 500);
+        containerWidth = size;
+        containerHeight = size;
+      }
+      else {
+        // Landscape-like modes (landscape, wide, ultrawide) - prioritize width
+        containerWidth = Math.min(viewportWidth, 700);
+        containerHeight = containerWidth / currentAspectRatio;
       }
       
-      // Force the video to refresh its dimensions and adjust to new aspect ratio
-      if (videoRef.current && videoRef.current.srcObject) {
-        // Wait for the container size changes to take effect
-        setTimeout(() => {
-          if (videoRef.current) {
-            // Force video to recalculate its dimensions by triggering a reflow
-            const currentTransform = videoRef.current.style.transform;
-            videoRef.current.style.transform = 'scale(0.999)';
-            
-            // Reset the transform after the browser recalculates dimensions
-            requestAnimationFrame(() => {
-              if (videoRef.current) {
-                videoRef.current.style.transform = currentTransform;
-                
-                // Calculate target aspect for this specific use
-                const { width: targetWidth, height: targetHeight } = dimensions;
-                const targetAspect = targetWidth / targetHeight;
-                
-                // Ensure the video is properly centered and sized
-                videoRef.current.style.width = '100%';
-                videoRef.current.style.height = targetAspect > 1.1 ? 'auto' : '100%';
-                videoRef.current.style.objectFit = targetAspect > 1.1 ? 'contain' : videoObjectFit;
-              }
-            });
-          }
-        }, 100);
+      // Final common constraints for all modes
+      if (containerWidth > viewportWidth) {
+        containerWidth = viewportWidth;
+        containerHeight = containerWidth / currentAspectRatio;
       }
-    }
-  }, [aspectRatio, videoRef, styles.polaroidFrame]);
+      
+      if (containerHeight > viewportHeight) {
+        containerHeight = viewportHeight;
+        containerWidth = containerHeight * currentAspectRatio;
+      }
+      
+      setContainerStyle({
+        width: `${containerWidth}px`,
+        height: `${containerHeight}px`,
+        aspectRatio: `${currentDimensions.width}/${currentDimensions.height}`
+      });
+    };
+    
+    calculateContainerDimensions();
+    
+    // Recalculate on window resize
+    window.addEventListener('resize', calculateContainerDimensions);
+    
+    return () => {
+      window.removeEventListener('resize', calculateContainerDimensions);
+    };
+  }, [aspectRatio]); // Only depend on aspectRatio to avoid infinite loops
+
+  // Note: Removed complex video sizing logic since we now use simple CSS aspect ratio masking
+  // The video container automatically handles the aspect ratio using CSS, video always stays at max resolution
 
   // Add effect to track video loading events
   useEffect(() => {
@@ -294,45 +243,8 @@ export const CameraView: React.FC<CameraViewProps> = ({
     };
   }, [videoRef, aspectRatio]);
 
-  // Calculate the best object-fit for the video based on aspect ratio
-  const [videoObjectFit, setVideoObjectFit] = useState<'cover' | 'contain'>('cover');
-  
-  useEffect(() => {
-    const updateObjectFit = () => {
-      if (videoRef.current && videoRef.current.videoWidth && videoRef.current.videoHeight) {
-        const videoAspect = videoRef.current.videoWidth / videoRef.current.videoHeight;
-        const targetAspect = dimensions.width / dimensions.height;
-        
-        // Determine if this is a landscape-like ratio
-        const isLandscapeLike = targetAspect > 1.1;
-        
-        // For landscape-like modes, always use 'contain' to prevent black bars
-        if (isLandscapeLike) {
-          setVideoObjectFit('contain');
-        } else {
-          // Use 'contain' if the aspects are very different to avoid extreme cropping
-          if (Math.abs(videoAspect - targetAspect) > 0.3) {
-            setVideoObjectFit('contain');
-          } else {
-            setVideoObjectFit('cover');
-          }
-        }
-      }
-    };
-    
-    // Update object fit when aspect ratio changes
-    updateObjectFit();
-    
-    if (videoRef.current) {
-      videoRef.current.addEventListener('loadedmetadata', updateObjectFit);
-    }
-    
-    return () => {
-      if (videoRef.current) {
-        videoRef.current.removeEventListener('loadedmetadata', updateObjectFit);
-      }
-    };
-  }, [videoRef, dimensions, aspectRatio]); // Add aspectRatio to dependencies
+  // Note: Removed complex object-fit logic since we now use simple CSS masking
+  // Video stays at max resolution and we just crop the display using container overflow
 
   // Determine animation class based on video loading state and showPhotoGrid
   const getAnimationClass = () => {
@@ -411,26 +323,33 @@ export const CameraView: React.FC<CameraViewProps> = ({
         
         {/* Camera view with custom aspect ratio */}
         <div className={styles.cameraView}>
-          <div 
-            className={`${styles.cameraViewInner} ${getAspectRatioClass()}`}
-            id="camera-container"
-            style={{
-              // Apply direct aspect ratio for landscape-like modes
-              aspectRatio: dimensions.width / dimensions.height > 1.1 ? `${dimensions.width}/${dimensions.height}` : undefined
-            }}
-          >
+                  <div 
+          className={`${styles.cameraViewInner} ${getAspectRatioClass()}`}
+          id="camera-container"
+          style={{
+            // Use calculated responsive dimensions
+            ...containerStyle,
+            overflow: 'hidden', // Hide any parts of the video outside the aspect ratio
+            position: 'relative',
+            margin: '0 auto' // Center the container
+          }}
+        >
             <video
               id="webcam"
               ref={videoRef}
               autoPlay
               playsInline
               muted
-              className={`${styles.webcam} ${getWebcamClass()}`}
+              className={styles.webcam}
               data-testid="webcam-video"
               style={{
                 width: '100%',
-                height: dimensions.width / dimensions.height > 1.1 ? 'auto' : '100%',
-                objectFit: dimensions.width / dimensions.height > 1.1 ? 'contain' : videoObjectFit
+                height: '100%',
+                objectFit: 'cover', // Always cover to maintain max resolution from the center
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                zIndex: 1
               }}
             />
             

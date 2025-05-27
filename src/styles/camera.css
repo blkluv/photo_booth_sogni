@@ -34,10 +34,6 @@
 
 /* Mobile portrait optimization */
 @media (orientation: portrait) and (max-width: 768px) {
-  #camera-container {
-    height: unset !important;
-    width: unset !important;
-  }
   .photobooth-screen {
     width: 95% !important;
     max-width: 95% !important;
