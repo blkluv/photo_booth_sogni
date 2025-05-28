@@ -407,4 +407,104 @@
       opacity: 0;
     }
   }
+}
+
+/* Specific fixes for shorter iPhone screens (iPhone SE, iPhone 12 mini, etc.) */
+@media (max-width: 430px) and (max-height: 670px) and (orientation: portrait) {
+  .splash-content {
+    height: 100vh;
+    height: calc(var(--vh, 1vh) * 100);
+    display: flex;
+    justify-content: space-between;
+    padding: 20px 0;
+    box-sizing: border-box;
+    min-height: 500px; /* Ensure minimum usable space */
+  }
+  
+  .splash-layout {
+    margin-bottom: 15px;
+    gap: 5px;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    min-height: 0; /* Allow shrinking */
+  }
+  
+  .polaroid-splash-container {
+    margin-top: 0; /* Remove the large top margin */
+  }
+  
+  .polaroid-image {
+    max-width: 120px; /* Even smaller camera for short screens */
+  }
+  
+  .camera-bubble {
+    top: -30px;
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+  
+  .slideshow-container .gallery-slideshow {
+    width: 200px;
+    height: 280px;
+  }
+  
+  .splash-cta-section {
+    flex-shrink: 0;
+    margin-bottom: env(safe-area-inset-bottom, 10px);
+    margin-top: auto; /* Push to bottom when space is available */
+  }
+  
+  .splash-tagline {
+    font-size: 2rem; /* Smaller text for short screens */
+    padding: 8px 15px;
+    margin: 0;
+    line-height: 1.1;
+  }
+}
+
+/* Extra short screens (iPhone SE 1st gen, etc.) */
+@media (max-width: 375px) and (max-height: 600px) and (orientation: portrait) {
+  .splash-layout {
+    gap: 0;
+    margin-bottom: 10px;
+  }
+  
+  .polaroid-image {
+    max-width: 100px;
+  }
+  
+  .slideshow-container .gallery-slideshow {
+    width: 160px;
+    height: 225px;
+  }
+  
+  .splash-tagline {
+    font-size: 1.75rem;
+    padding: 6px 12px;
+  }
+  
+  .camera-bubble {
+    display: none; /* Hide bubble on very small screens to save space */
+  }
+}
+
+/* iOS Safari specific fixes for splash screen */
+@supports (-webkit-touch-callout: none) {
+  @media (orientation: portrait) and (max-height: 670px) {
+    .splash-screen {
+      height: 100vh;
+      height: calc(var(--vh, 1vh) * 100);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    
+    .splash-content {
+      max-height: calc(100vh - env(safe-area-inset-bottom, 0px));
+      max-height: calc((var(--vh, 1vh) * 100) - env(safe-area-inset-bottom, 0px));
+    }
+    
+    .splash-cta-section {
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+  }
 } 
