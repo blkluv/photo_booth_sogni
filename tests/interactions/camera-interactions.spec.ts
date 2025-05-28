@@ -2,7 +2,6 @@ import { test, expect } from '@playwright/test';
 import {
   waitForCamera,
   openSettings,
-  openStyleSelector,
   selectStyle,
   verifyVisible,
   mockCameraPermissions,

@@ -1,7 +1,7 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 
 // Helper to wait for animations to complete
-const waitForAnimations = async (page) => {
+const waitForAnimations = async (page: Page) => {
   await page.waitForTimeout(300); // Match our CSS animation durations
 };
 
