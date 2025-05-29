@@ -570,7 +570,7 @@ export async function generateImage(params: Record<string, unknown>, progressCal
             withCredentials: true 
           });
           
-          // Set a shorter initial connection timeout
+          // Set a longer initial connection timeout to prevent premature failures
           connectionTimeout = setTimeout(() => {
             console.error('EventSource connection timeout');
             safelyCloseEventSource();
@@ -583,7 +583,7 @@ export async function generateImage(params: Record<string, unknown>, progressCal
             } else {
               reject(new Error('EventSource connection failed after multiple attempts'));
             }
-          }, 7000); // Reduced from 15s to 7s for initial connection
+          }, 60000); // Increased from 7s to 60s to allow for slow Sogni API response
           
           // Successfully connected
           eventSource.onopen = () => {
