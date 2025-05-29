@@ -188,7 +188,12 @@ const PhotoGallery = ({
     try {
       // Use mobile-optimized download for mobile devices
       if (isMobile()) {
-        return await downloadImageMobile(imageUrl, filename);
+        const result = await downloadImageMobile(imageUrl, filename);
+        // If mobile download returns true (success or user cancellation), don't fallback
+        if (result) {
+          return true;
+        }
+        // Only fallback if mobile download explicitly failed (returned false)
       }
       
       // Standard desktop download
@@ -215,8 +220,10 @@ const PhotoGallery = ({
       return true;
     } catch (error) {
       console.error('Download failed:', error);
-      // Fallback to opening in new tab
-      window.open(imageUrl, '_blank');
+      // Only fallback to opening in new tab for non-mobile or when mobile explicitly fails
+      if (!isMobile()) {
+        window.open(imageUrl, '_blank');
+      }
       return false;
     }
   };

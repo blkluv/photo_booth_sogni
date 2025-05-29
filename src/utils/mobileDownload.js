@@ -61,12 +61,24 @@ export const downloadImageMobile = async (imageUrl, filename) => {
             await navigator.share({
               files: [file],
               title: 'Save Photo',
-              text: 'Save this photo to your device'
+              text: 'From my latest photoshoot in Sogni Photobooth! https://photobooth.sogni.ai'
             });
             return true;
           }
         } catch (shareError) {
-          console.log('Native share not supported, trying fallback methods');
+          // Check if the error is due to user cancellation
+          if (shareError.name === 'AbortError' || 
+              shareError.message.includes('abort') || 
+              shareError.message.includes('cancel') ||
+              shareError.message.includes('dismissed') ||
+              shareError.name === 'NotAllowedError') {
+            // User cancelled the share dialog - this is expected behavior, don't fallback
+            console.log('User cancelled share dialog');
+            return true; // Return true to indicate the operation completed (user chose to cancel)
+          }
+          
+          // Only fallback if it's a real error (not user cancellation)
+          console.log('Native share not supported, trying fallback methods:', shareError.message);
         }
       }
       
@@ -86,8 +98,7 @@ export const downloadImageMobile = async (imageUrl, filename) => {
     
   } catch (error) {
     console.error('Mobile download failed:', error);
-    // Final fallback - open in new tab
-    window.open(imageUrl, '_blank');
+    // Return false to indicate failure - let the calling code decide on fallback behavior
     return false;
   }
 };
