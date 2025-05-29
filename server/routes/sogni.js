@@ -349,6 +349,13 @@ router.post('/generate', ensureSessionId, async (req, res) => {
       await incrementPhotosUploadedViaBrowse();
       console.log(`[${localProjectId}] Tracked uploaded photo from sourceType parameter`);
     }
+
+    // Track if we've received the first event (queued/started)
+    let hasReceivedFirstEvent = false;
+    let firstEventResolve = null;
+    const firstEventPromise = new Promise((resolve) => {
+      firstEventResolve = resolve;
+    });
     
     // Track progress and send updates
     let lastProgressUpdate = Date.now();
@@ -357,6 +364,15 @@ router.post('/generate', ensureSessionId, async (req, res) => {
       // we don't currently care for the project 'complete' event as we listen to the job 'complete' events already
       if (eventData.type !== 'complete') {
         console.log(`[${localProjectId}] Received callback event:`, JSON.stringify(eventData));
+      }
+
+      // Signal that we've received the first event from Sogni
+      if (!hasReceivedFirstEvent && (eventData.type === 'queued' || eventData.type === 'started' || eventData.type === 'initiating')) {
+        hasReceivedFirstEvent = true;
+        if (firstEventResolve) {
+          firstEventResolve();
+          firstEventResolve = null;
+        }
       }
       
       // Throttle SSE updates
@@ -411,9 +427,9 @@ router.post('/generate', ensureSessionId, async (req, res) => {
     const client = await getSessionClient(req.sessionId, clientAppId);
     const params = req.body;
 
-    console.log(`DEBUG - ${new Date().toISOString()} - [${localProjectId}] About to call Sogni SDK generateImage function`);
+    // console.log(`DEBUG - ${new Date().toISOString()} - [${localProjectId}] Calling Sogni SDK (generateImage function) with params:`, Object.keys(params));
     
-    // Start the generation process in the background
+    // Start the generation process but don't wait for completion - just wait for first event
     generateImage(client, params, progressHandler)
       .then(sogniResult => {
         console.log(`DEBUG - ${new Date().toISOString()} - [${localProjectId}] Sogni SDK (generateImage function) promise resolved.`);
@@ -462,9 +478,28 @@ router.post('/generate', ensureSessionId, async (req, res) => {
             sendSSEMessage(client, errorEvent);
           });
         }
+        
+        // Signal completion of first event check even on error
+        if (!hasReceivedFirstEvent && firstEventResolve) {
+          firstEventResolve();
+          firstEventResolve = null;
+        }
       });
+
+    // Wait for either the first event or a timeout
+    try {
+      await Promise.race([
+        firstEventPromise,
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout waiting for generation to start')), 10000) // 10 second timeout
+        )
+      ]);
+      console.log(`[${localProjectId}] Received first event from Sogni, responding to client.`);
+    } catch (timeoutError) {
+      console.warn(`[${localProjectId}] Timeout waiting for first event, responding anyway:`, timeoutError.message);
+    }
     
-    // Immediately return the localProjectId for tracking this /generate request
+    // Respond to the initial POST request with the project ID
     console.log(`[${localProjectId}] Responding to initial POST request.`);
     res.json({ 
       status: 'processing',
