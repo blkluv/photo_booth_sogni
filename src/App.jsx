@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { getModelOptions, defaultStylePrompts as initialStylePrompts } from './constants/settings';
 import { photoThoughts, randomThoughts } from './constants/thoughts';
-import { saveSettingsToCookies } from './utils/cookies';
+import { saveSettingsToCookies, shouldShowPromoPopup, markPromoPopupShown } from './utils/cookies';
 import { styleIdToDisplay } from './utils';
 import { getCustomDimensions } from './utils/imageProcessing';
 import { goToPreviousPhoto, goToNextPhoto } from './utils/photoNavigation';
@@ -31,6 +31,7 @@ import TwitterShareModal from './components/shared/TwitterShareModal';
 import SplashScreen from './components/shared/SplashScreen';
 // Import the ImageAdjuster component
 import ImageAdjuster from './components/shared/ImageAdjuster';
+import PromoPopup from './components/shared/PromoPopup';
 
 
 // Helper function to update URL with prompt parameter
@@ -149,6 +150,25 @@ const App = () => {
   
   // Add the start menu state here
   const [showStartMenu, setShowStartMenu] = useState(true);
+  
+  // Add state for promotional popup
+  const [showPromoPopup, setShowPromoPopup] = useState(false);
+  
+  // Helper function to trigger promotional popup after batch completion
+  const triggerPromoPopupIfNeeded = () => {
+    if (shouldShowPromoPopup()) {
+      // Add a small delay to let the UI settle after batch completion
+      setTimeout(() => {
+        setShowPromoPopup(true);
+      }, 20000);
+    }
+  };
+  
+  // Handle promotional popup close
+  const handlePromoPopupClose = () => {
+    setShowPromoPopup(false);
+    markPromoPopupShown();
+  };
 
   // Photos array
   const [photos, setPhotos] = useState([]);
@@ -1329,6 +1349,9 @@ const App = () => {
               // All jobs are done, clear the active project
               console.log('All jobs completed, clearing active project');
               activeProjectReference.current = null;
+              
+              // Trigger promotional popup after batch completion
+              triggerPromoPopupIfNeeded();
             }
             
             // Play camera wind sound when images are loaded into the grid
@@ -1381,6 +1404,9 @@ const App = () => {
             // All photos are done, clear the active project
             console.log('All jobs failed or completed, clearing active project');
             activeProjectReference.current = null;
+            
+            // Trigger promotional popup after batch completion
+            triggerPromoPopupIfNeeded();
           }
           
           return updated;
@@ -3065,6 +3091,12 @@ const App = () => {
         };
       }, [aspectRatio])}
 
+      {/* Promotional Popup */}
+      <PromoPopup 
+        isOpen={showPromoPopup}
+        onClose={handlePromoPopupClose}
+      />
+      
       {/* Add this section at the end, right before the closing tag */}
       {showImageAdjuster && currentUploadedImageUrl && (
         <ImageAdjuster

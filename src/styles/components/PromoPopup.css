@@ -1,0 +1,307 @@
+/* Promotional Popup Styles */
+.promo-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.promo-modal {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  width: 90%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.4s ease-out;
+  position: relative;
+  color: white;
+}
+
+@keyframes slideIn {
+  from { transform: translateY(30px) scale(0.95); opacity: 0.7; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.promo-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  cursor: pointer;
+  z-index: 1;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+
+.promo-modal-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.promo-modal-header {
+  padding: 24px 24px 16px 24px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.promo-logo {
+  margin-bottom: 12px;
+}
+
+.sogni-logo {
+  font-size: 48px;
+  display: inline-block;
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+@keyframes sparkle {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.promo-modal-header h2 {
+  font-size: 24px;
+  margin: 0;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.promo-modal-content {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.promo-message h3 {
+  font-size: 20px;
+  margin: 0 0 16px 0;
+  font-weight: 700;
+  text-align: center;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.promo-message p {
+  font-size: 16px;
+  line-height: 1.5;
+  margin: 0 0 24px 0;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.promo-message strong {
+  color: #FFD700;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.promo-features {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease;
+}
+
+.feature-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+.feature-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.feature-item span:last-child {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.promo-modal-footer {
+  padding: 20px 24px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.promo-signup-btn {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  border: none;
+  color: #333;
+  padding: 16px 24px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+}
+
+.promo-signup-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 215, 0, 0.4);
+}
+
+.promo-signup-btn:active {
+  transform: translateY(0);
+}
+
+.signup-text {
+  flex: 1;
+}
+
+.signup-arrow {
+  font-size: 18px;
+  transition: transform 0.2s ease;
+}
+
+.promo-signup-btn:hover .signup-arrow {
+  transform: translateX(4px);
+}
+
+.promo-maybe-later {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.8);
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.promo-maybe-later:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+  .promo-modal {
+    width: 95%;
+    max-width: none;
+    margin: 0 16px;
+  }
+
+  .promo-modal-header {
+    padding: 20px 20px 12px 20px;
+  }
+
+  .promo-modal-header h2 {
+    font-size: 22px;
+  }
+
+  .promo-modal-content {
+    padding: 20px;
+  }
+
+  .promo-message h3 {
+    font-size: 18px;
+  }
+
+  .promo-message p {
+    font-size: 15px;
+  }
+
+  .promo-features {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .feature-item {
+    padding: 10px;
+  }
+
+  .feature-item span:last-child {
+    font-size: 13px;
+  }
+
+  .promo-modal-footer {
+    padding: 16px 20px 20px 20px;
+  }
+
+  .promo-signup-btn {
+    padding: 14px 20px;
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .promo-modal {
+    width: 100%;
+    margin: 0;
+    border-radius: 20px 20px 0 0;
+    position: fixed;
+    bottom: 0;
+    max-height: 85vh;
+  }
+
+  .promo-modal-close {
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    font-size: 20px;
+  }
+
+  .sogni-logo {
+    font-size: 40px;
+  }
+
+  .promo-modal-header h2 {
+    font-size: 20px;
+  }
+
+  .promo-message h3 {
+    font-size: 17px;
+  }
+
+  .promo-message p {
+    font-size: 14px;
+  }
+} 
