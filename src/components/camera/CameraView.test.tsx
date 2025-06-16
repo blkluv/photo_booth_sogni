@@ -1,14 +1,17 @@
-import React from 'react';
+/** @jsxImportSource react */
+import React, { createRef } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { CameraView } from './CameraView';
 
+// Use React in a way that TypeScript recognizes
+const { Fragment } = React;
+
 describe('CameraView', () => {
-  const mockVideoRef = React.createRef<HTMLVideoElement>();
+  const mockVideoRef = createRef<HTMLVideoElement>();
   
   const defaultProps = {
     videoRef: mockVideoRef,
     isReady: true,
-    countdown: 0,
     onTakePhoto: jest.fn(),
     selectedStyle: 'watercolor',
     onStyleSelect: jest.fn(),
@@ -17,7 +20,7 @@ describe('CameraView', () => {
   };
 
   it('renders correctly with all expected elements', () => {
-    render(<CameraView {...defaultProps} />);
+    render(<Fragment><CameraView {...defaultProps} /></Fragment>);
     
     // Check for key elements
     expect(screen.getByText('SOGNI PHOTOBOOTH')).toBeInTheDocument();
@@ -28,14 +31,14 @@ describe('CameraView', () => {
   });
 
   it('shows the correct prompt text with "Prompt:" prefix', () => {
-    render(<CameraView {...defaultProps} />);
+    render(<Fragment><CameraView {...defaultProps} /></Fragment>);
     
     const styleButton = screen.getByTestId('style-button');
     expect(styleButton.textContent).toContain('Prompt: Watercolor');
   });
 
   it('opens style dropdown when clicking the style button', () => {
-    render(<CameraView {...defaultProps} />);
+    render(<Fragment><CameraView {...defaultProps} /></Fragment>);
     
     const styleButton = screen.getByTestId('style-button');
     fireEvent.click(styleButton);
@@ -46,27 +49,20 @@ describe('CameraView', () => {
     expect(screen.getByText('Custom...')).toBeInTheDocument();
   });
 
-  it('shows countdown overlay when countdown > 0', () => {
-    render(<CameraView {...defaultProps} countdown={3} />);
-    
-    expect(screen.getByTestId('countdown')).toBeInTheDocument();
-    expect(screen.getByTestId('countdown').textContent).toBe('3');
-  });
-
   it('disables shutter button when isReady is false', () => {
-    render(<CameraView {...defaultProps} isReady={false} />);
+    render(<Fragment><CameraView {...defaultProps} isReady={false} /></Fragment>);
     
     expect(screen.getByTestId('shutter-button')).toBeDisabled();
   });
 
   it('disables shutter button when isDisabled is true', () => {
-    render(<CameraView {...defaultProps} isDisabled={true} />);
+    render(<Fragment><CameraView {...defaultProps} isDisabled={true} /></Fragment>);
     
     expect(screen.getByTestId('shutter-button')).toBeDisabled();
   });
 
   it('calls onTakePhoto when clicking the shutter button', () => {
-    render(<CameraView {...defaultProps} />);
+    render(<Fragment><CameraView {...defaultProps} /></Fragment>);
     
     const button = screen.getByTestId('shutter-button');
     fireEvent.click(button);
@@ -75,7 +71,7 @@ describe('CameraView', () => {
   });
 
   it('calls onToggleSettings when clicking the settings button', () => {
-    render(<CameraView {...defaultProps} />);
+    render(<Fragment><CameraView {...defaultProps} /></Fragment>);
     
     const button = screen.getByTestId('settings-button');
     fireEvent.click(button);
@@ -84,21 +80,21 @@ describe('CameraView', () => {
   });
 
   it('renders the settings button with ⚙️ icon when settings are closed', () => {
-    render(<CameraView {...defaultProps} showSettings={false} />);
+    render(<Fragment><CameraView {...defaultProps} showSettings={false} /></Fragment>);
     
     const settingsButton = screen.getByTestId('settings-button');
     expect(settingsButton.textContent).toBe('⚙️');
   });
 
   it('renders the settings button with ✕ icon when settings are open', () => {
-    render(<CameraView {...defaultProps} showSettings={true} />);
+    render(<Fragment><CameraView {...defaultProps} showSettings={true} /></Fragment>);
     
     const settingsButton = screen.getByTestId('settings-button');
     expect(settingsButton.textContent).toBe('✕');
   });
 
   it('calls onStyleSelect with correct style when clicking a style option', () => {
-    render(<CameraView {...defaultProps} />);
+    render(<Fragment><CameraView {...defaultProps} /></Fragment>);
     
     // Open the dropdown
     const styleButton = screen.getByTestId('style-button');
@@ -113,7 +109,7 @@ describe('CameraView', () => {
 
   // Test for layout - these are basic tests to ensure the structure is maintained
   it('has the polaroid header positioned in the top white border', () => {
-    const { container } = render(<CameraView {...defaultProps} />);
+    const { container } = render(<Fragment><CameraView {...defaultProps} /></Fragment>);
     
     // Get the polaroidHeader element
     const polaroidHeader = container.querySelector('[class^="polaroidHeader"]');
@@ -123,7 +119,7 @@ describe('CameraView', () => {
   });
 
   it('has the shutter button properly centered', () => {
-    const { container } = render(<CameraView {...defaultProps} />);
+    const { container } = render(<Fragment><CameraView {...defaultProps} /></Fragment>);
     
     // Get the shutterButton element
     const shutterButton = container.querySelector('[class^="shutterButton"]');

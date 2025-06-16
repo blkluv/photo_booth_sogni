@@ -70,7 +70,7 @@ test.describe('Camera Interactions', () => {
     await page.click('.camera-shutter-btn');
     
     // Verify countdown appears
-    await verifyVisible(page, '.countdown-overlay');
+    await verifyVisible(page, '.global-countdown-overlay');
     
     // Wait for countdown and flash
     await page.waitForTimeout(3500);

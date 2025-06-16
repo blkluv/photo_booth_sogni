@@ -51,7 +51,7 @@ test.describe('Camera View Visual Tests', () => {
 
   test('countdown overlay matches snapshot', async ({ page }) => {
     await page.click('.camera-shutter-btn');
-    await page.waitForSelector('.countdown-overlay', { state: 'visible' });
+    await page.waitForSelector('.global-countdown-overlay', { state: 'visible' });
     await waitForStableState(page);
     await expect(page).toHaveScreenshot('countdown-overlay.png', {
       animations: 'disabled',

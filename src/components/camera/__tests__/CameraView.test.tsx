@@ -1,7 +1,7 @@
+import { createRef } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import CameraView from '../CameraView';
-import { createRef } from 'react';
+import { CameraView } from '../CameraView';
 
 describe('CameraView', () => {
   // Create a proper ref with a non-null assertion to match the expected type
@@ -16,12 +16,8 @@ describe('CameraView', () => {
   const defaultProps = {
     videoRef: mockVideoRef,
     isReady: true,
-    countdown: 0,
-    isDisabled: false,
-    buttonLabel: 'Take Photo',
     onTakePhoto: jest.fn(),
-    showPhotoGrid: false,
-    selectedStyle: 'Classic',
+    selectedStyle: 'watercolor',
     onStyleSelect: jest.fn(),
     showSettings: false,
     onToggleSettings: jest.fn(),
@@ -32,9 +28,13 @@ describe('CameraView', () => {
     jest.clearAllMocks();
   });
 
-  it('renders the webcam video element', () => {
+  it('renders correctly with all expected elements', () => {
     render(<CameraView {...defaultProps} />);
-    expect(screen.getByTestId('camera-video')).toBeInTheDocument();
+    expect(screen.getByText('SOGNI PHOTOBOOTH')).toBeInTheDocument();
+    expect(screen.getByTestId('webcam-video')).toBeInTheDocument();
+    expect(screen.getByTestId('shutter-button')).toBeInTheDocument();
+    expect(screen.getByTestId('style-button')).toBeInTheDocument();
+    expect(screen.getByTestId('settings-button')).toBeInTheDocument();
   });
 
   it('renders the title', () => {
@@ -68,20 +68,20 @@ describe('CameraView', () => {
     expect(defaultProps.onStyleSelect).toHaveBeenCalled();
   });
 
-  it('shows countdown overlay when countdown is active', () => {
-    render(<CameraView {...defaultProps} countdown={3} />);
-    expect(screen.getByText('3')).toBeInTheDocument();
+  it('does not render a countdown overlay (countdown is now rendered in App)', () => {
+    render(<CameraView {...defaultProps} />);
+    expect(screen.queryByTestId('countdown')).not.toBeInTheDocument();
   });
 
   it('disables shutter button when isDisabled is true', () => {
     render(<CameraView {...defaultProps} isDisabled={true} />);
-    const shutterButton = screen.getByRole('button', { name: defaultProps.buttonLabel });
+    const shutterButton = screen.getByTestId('shutter-button');
     expect(shutterButton).toBeDisabled();
   });
 
   it('calls onTakePhoto when shutter button is clicked', () => {
     render(<CameraView {...defaultProps} />);
-    const shutterButton = screen.getByRole('button', { name: defaultProps.buttonLabel });
+    const shutterButton = screen.getByTestId('shutter-button');
     fireEvent.click(shutterButton);
     expect(defaultProps.onTakePhoto).toHaveBeenCalled();
   });

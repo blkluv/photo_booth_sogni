@@ -6,9 +6,9 @@
   100% { opacity: 0; }
 }
 
-/* Full-screen centered countdown number - no circle */
-.countdown-overlay {
-  position: absolute;
+/* Global Countdown Overlay (rendered as a direct child of App) – always above mascot and all UI */
+.global-countdown-overlay {
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
@@ -16,12 +16,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Impact', sans-serif;
+  font-family: 'Impact', 'Permanent Marker', 'Arial Black', sans-serif;
   font-size: 120px;
-  color: white;
-  text-shadow: 4px 4px 0 #ff3366, 8px 8px 0 rgba(0, 0, 0, 0.2);
+  color: #fff;
+  z-index: 100000;
+  pointer-events: none;
   animation: pulse 1s infinite;
-  z-index: 50; /* keep above video feed but below flash */
+  user-select: none;
 }
 
 @keyframes pulse {

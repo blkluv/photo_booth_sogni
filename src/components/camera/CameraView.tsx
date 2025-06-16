@@ -10,8 +10,6 @@ interface CameraViewProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   /** Whether the camera is ready to take photos */
   isReady: boolean;
-  /** Current countdown value (0 means no countdown) */
-  countdown: number;
   /** Whether the shutter button is disabled */
   isDisabled?: boolean;
   /** Label to show on the shutter button */
@@ -81,7 +79,6 @@ interface CameraViewProps {
 export const CameraView: React.FC<CameraViewProps> = ({
   videoRef,
   isReady,
-  countdown,
   isDisabled = false,
   buttonLabel = 'Take Photo',
   onTakePhoto,
@@ -375,12 +372,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
                 zIndex: 1
               }}
             />
-            
-            {countdown > 0 && (
-              <div className={styles.countdownOverlay} data-testid="countdown">
-                {countdown}
-              </div>
-            )}
           </div>
         </div>
 

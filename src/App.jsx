@@ -2486,6 +2486,13 @@ const App = () => {
         imageUrl={twitterPhotoIndex !== null && photos[twitterPhotoIndex] ? photos[twitterPhotoIndex].images[0] : null}
         photoData={twitterPhotoIndex !== null ? photos[twitterPhotoIndex] : null}
       />
+
+      {/* Global Countdown Overlay - always above mascot and all UI */}
+      {countdown > 0 && (
+        <div className="global-countdown-overlay" data-testid="global-countdown">
+          {countdown}
+        </div>
+      )}
       
       {currentThought && 
         (/iphone|ipad|ipod|android/i.test(navigator.userAgent) === false) && 
