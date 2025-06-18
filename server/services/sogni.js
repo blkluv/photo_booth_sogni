@@ -51,6 +51,15 @@ function recordClientActivity(clientId) {
   }
 }
 
+// Helper to clear invalid tokens
+export function clearInvalidTokens() {
+  console.log('[AUTH] Clearing invalid cached tokens');
+  sogniTokens = null;
+  if (createSogniClient._globalTokens) {
+    createSogniClient._globalTokens = null;
+  }
+}
+
 // Setup periodic check for idle connections
 export const checkIdleConnections = async () => {
   const now = Date.now();
@@ -297,20 +306,76 @@ async function createSogniClient(appIdPrefix, clientProvidedAppId) {
           await client.account.setToken(sogniUsername, sogniTokens);
           recordClientActivity(sogniAppId); // Record activity after token set
           
+          // Check if login was successful
           if (!client.account.isLoggedIn) {
+            console.log(`[AUTH] Token restoration failed for client ${sogniAppId}, performing fresh login`);
+            // Clear invalid tokens
+            sogniTokens = null;
+            createSogniClient._globalTokens = null;
+            // Fall through to fresh login
             await client.account.login(sogniUsername, password);
             recordClientActivity(sogniAppId); // Record activity after login
+          } else {
+            console.log(`[AUTH] Successfully restored session with cached tokens for client ${sogniAppId}`);
           }
         } else {
           // No tokens available, do a fresh login
-          await client.account.login(sogniUsername, password);
-          recordClientActivity(sogniAppId); // Record activity after login
+          console.log(`[AUTH] No cached tokens available, performing fresh login for client ${sogniAppId}`);
+          
+          try {
+            console.log(`[AUTH] Calling client.account.login() for client ${sogniAppId}...`);
+            await client.account.login(sogniUsername, password);
+            console.log(`[AUTH] Login call completed for client ${sogniAppId}, isLoggedIn: ${client.account.isLoggedIn}`);
+            
+            // Add a small delay to allow for async state updates
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            console.log(`[AUTH] After login - account state:`, {
+              isLoggedIn: client.account.isLoggedIn,
+              hasCurrentAccount: !!client.account.currentAccount,
+              hasToken: !!(client.account.currentAccount?.token),
+              hasRefreshToken: !!(client.account.currentAccount?.refreshToken)
+            });
+            recordClientActivity(sogniAppId); // Record activity after login
+          } catch (loginError) {
+            console.error(`[AUTH] Login call failed for client ${sogniAppId}:`, loginError);
+            throw loginError; // Re-throw to be caught by outer catch block
+          }
         }
       } catch (e) {
         // Login retry on failure, with minimal logging
-        await client.account.login(sogniUsername, password);
-        recordClientActivity(sogniAppId); // Record activity even after error recovery
+        console.log(`[AUTH] Login failed for client ${sogniAppId}, retrying:`, e.message);
+        console.log(`[AUTH] Error details:`, e);
+        // Clear any potentially invalid tokens
+        sogniTokens = null;
+        createSogniClient._globalTokens = null;
+        
+        try {
+          await client.account.login(sogniUsername, password);
+          console.log(`[AUTH] Retry login completed for client ${sogniAppId}, isLoggedIn: ${client.account.isLoggedIn}`);
+          recordClientActivity(sogniAppId); // Record activity even after error recovery
+        } catch (retryError) {
+          console.error(`[AUTH] Retry login also failed for client ${sogniAppId}:`, retryError);
+          throw retryError;
+        }
       }
+      
+      // Validate final authentication state
+      console.log(`[AUTH] Final validation for client ${sogniAppId}: isLoggedIn=${client.account.isLoggedIn}, hasAccount=${!!client.account.currentAccount}, hasToken=${!!(client.account.currentAccount?.token)}`);
+      
+      // Primary validation: if we got here without throwing an error, login was successful
+      // Secondary validation: check isLoggedIn flag and token presence
+      if (!client.account.isLoggedIn) {
+        console.warn(`[AUTH] Warning: isLoggedIn is false for client ${sogniAppId}, but login didn't throw an error`);
+        // Don't throw an error here - the login might still be valid
+      }
+      
+      if (!client.account.currentAccount || !client.account.currentAccount.token) {
+        console.error(`[AUTH] Final authentication validation failed for client ${sogniAppId}: no tokens available`);
+        throw new Error(`Failed to authenticate client ${sogniAppId}: no tokens available`);
+      }
+      
+      console.log(`[AUTH] Final authentication validation successful for client ${sogniAppId}`);
       
       // Save tokens for reuse
       if (client.account.currentAccount && client.account.currentAccount.token && client.account.currentAccount.refreshToken) {
@@ -322,6 +387,7 @@ async function createSogniClient(appIdPrefix, clientProvidedAppId) {
         // Store both in instance variable and static cache
         sogniTokens = tokens;
         createSogniClient._globalTokens = tokens;
+        console.log(`[AUTH] Saved tokens for client ${sogniAppId}`);
       }
       
       // Add event listeners to record activity on any client events
@@ -585,6 +651,7 @@ export async function generateImage(client, params, progressCallback) {
     recordClientActivity(client.appId);
     
     const isEnhancement = params.startingImage !== undefined;
+    
     const projectOptions = {
       modelId: params.selectedModel,
       positivePrompt: params.positivePrompt || '',
@@ -599,8 +666,36 @@ export async function generateImage(client, params, progressCallback) {
       // numberOfPreviews: params.numberPreviews || 1,
       scheduler: 'DPM Solver Multistep (DPM-Solver++)',
       timeStepSpacing: 'Karras',
+      disableNSFWFilter: true,
       ...(params.seed !== undefined ? { seed: params.seed } : {})
     };
+    
+    // Add image data BEFORE creating the project
+    if (isEnhancement) {
+      projectOptions.startingImage = params.startingImage instanceof Uint8Array 
+        ? params.startingImage 
+        : new Uint8Array(params.startingImage);
+      projectOptions.startingImageStrength = params.startingImageStrength || 0.85;
+    } else if (params.imageData) {
+      projectOptions.controlNet = {
+        name: 'instantid',
+        image: params.imageData instanceof Uint8Array 
+          ? params.imageData 
+          : new Uint8Array(params.imageData),
+        strength: params.controlNetStrength || 0.8,
+        mode: 'balanced',
+        guidanceStart: 0,
+        guidanceEnd: params.controlNetGuidanceEnd || 0.3,
+      };
+    } else {
+      console.warn("No starting image or controlNet image data provided.");
+    }
+    
+    // Create the project with all options including image data
+    const project = await client.projects.create(projectOptions);
+    const projectId = project.id;
+    
+    console.log(`Created project with ID: ${projectId}`);
 
     // Initialize event tracker object if it doesn't exist
     if (!client._eventHandlers) {
@@ -622,33 +717,7 @@ export async function generateImage(client, params, progressCallback) {
         client.on('*', client._eventHandlers.activityHandler);
       }
     }
-        
-    if (isEnhancement) {
-      projectOptions.startingImage = params.startingImage instanceof Uint8Array 
-        ? params.startingImage 
-        : new Uint8Array(params.startingImage);
-      projectOptions.startingImageStrength = params.startingImageStrength || 0.85;
-    } else if (params.imageData) {
-      projectOptions.controlNet = {
-        name: 'instantid',
-        image: params.imageData instanceof Uint8Array 
-          ? params.imageData 
-          : new Uint8Array(params.imageData),
-        strength: params.controlNetStrength || 0.8,
-        mode: 'balanced',
-        guidanceStart: 0,
-        guidanceEnd: params.controlNetGuidanceEnd || 0.3,
-      };
-    } else {
-      console.warn("No starting image or controlNet image data provided.");
-    }
 
-    // Create the project first to get its ID
-    const project = await client.projects.create(projectOptions);
-    const projectId = project.id;
-    
-    console.log(`Created project with ID: ${projectId}`);
-    
     // Now create project-specific handlers that filter by project ID
     const projectHandler = (event) => {
       // Only process events for this specific project
@@ -857,8 +926,18 @@ export async function generateImage(client, params, progressCallback) {
             type: 'jobCompleted',
             resultUrl: event.resultUrl,
             positivePrompt: event.positivePrompt,
-            jobIndex: event.jobIndex
+            jobIndex: event.jobIndex,
+            isNSFW: event.isNSFW,
+            seed: event.seed,
+            steps: event.steps
           };
+          
+          // Log NSFW filtering issues
+          if (event.isNSFW && !event.resultUrl) {
+            console.warn(`Job ${event.jobId} completed but was flagged as NSFW, resultUrl is null`);
+            console.warn(`Job details: seed=${event.seed}, steps=${event.steps}, project=${projectId}`);
+            progressEvent.nsfwFiltered = true;
+          }
           
           // Track job completion in the project
           if (project) {
@@ -866,7 +945,7 @@ export async function generateImage(client, params, progressCallback) {
             const jobInList = project.jobs?.some(job => job.id === event.jobId);
             
             if (!jobInList) {
-              console.warn(`Job with id ${event.jobId} not found in the project data.`);
+              console.warn(`Job with id ${event.jobId} not found in the REST project data`);
               
               // If the project has already received its completion event, track this as an extra
               if (project._receivedCompletionEvent) {
@@ -1097,26 +1176,58 @@ export async function getSessionClient(sessionId, clientAppId) {
   // Create a promise for this session request
   const clientPromise = (async () => {
     try {
+      // Helper function to validate client authentication
+      const validateClientAuth = async (client) => {
+        if (!client || !client.account) {
+          return false;
+        }
+        
+        // Check if client is logged in
+        if (!client.account.isLoggedIn) {
+          console.log(`[SESSION] Client ${client.appId} is not logged in`);
+          return false;
+        }
+        
+        // Check if we have valid tokens
+        if (!client.account.currentAccount || !client.account.currentAccount.token) {
+          console.log(`[SESSION] Client ${client.appId} has no valid tokens`);
+          return false;
+        }
+        
+        // For now, just trust the isLoggedIn flag and token presence
+        // The actual API call will fail if authentication is invalid
+        console.log(`[SESSION] Client ${client.appId} authentication appears valid (isLoggedIn: true, has tokens)`);
+        return true;
+      };
+      
       // If client app ID is provided and we already have this client
       if (clientAppId && activeConnections.has(clientAppId)) {
         const existingClient = activeConnections.get(clientAppId);
         
-        // Update the session mapping
-        if (sessionId && existingClient) {
-          const oldClientId = sessionClients.get(sessionId);
-          
-          // If this session was mapped to a different client, log it
-          if (oldClientId && oldClientId !== clientAppId) {
-            console.log(`[SESSION] Session ${sessionId} was previously mapped to ${oldClientId}, updating to ${clientAppId}`);
+        // Validate authentication before reusing
+        if (await validateClientAuth(existingClient)) {
+          // Update the session mapping
+          if (sessionId && existingClient) {
+            const oldClientId = sessionClients.get(sessionId);
+            
+            // If this session was mapped to a different client, log it
+            if (oldClientId && oldClientId !== clientAppId) {
+              console.log(`[SESSION] Session ${sessionId} was previously mapped to ${oldClientId}, updating to ${clientAppId}`);
+            }
+            
+            // Update the mapping
+            sessionClients.set(sessionId, clientAppId);
+            console.log(`[SESSION] Reusing client ${clientAppId} for session ${sessionId} (by app ID)`);
+            
+            // Record activity to keep the client active
+            recordClientActivity(clientAppId);
+            return existingClient;
           }
-          
-          // Update the mapping
-          sessionClients.set(sessionId, clientAppId);
-          console.log(`[SESSION] Reusing client ${clientAppId} for session ${sessionId} (by app ID)`);
-          
-          // Record activity to keep the client active
-          recordClientActivity(clientAppId);
-          return existingClient;
+        } else {
+          console.log(`[SESSION] Client ${clientAppId} authentication invalid, will create new client`);
+          // Remove the invalid client from tracking
+          activeConnections.delete(clientAppId);
+          connectionLastActivity.delete(clientAppId);
         }
       }
       
@@ -1126,12 +1237,17 @@ export async function getSessionClient(sessionId, clientAppId) {
         const existingClient = activeConnections.get(clientId);
         
         // If the client still exists and is valid
-        if (existingClient) {
+        if (existingClient && await validateClientAuth(existingClient)) {
           console.log(`[SESSION] Reusing existing client ${clientId} for session ${sessionId}`);
           recordClientActivity(clientId);
           return existingClient;
         } else {
-          console.log(`[SESSION] Client ${clientId} no longer exists for session ${sessionId}, creating new one`);
+          console.log(`[SESSION] Client ${clientId} no longer exists or authentication invalid for session ${sessionId}, creating new one`);
+          // Clean up invalid client
+          if (existingClient) {
+            activeConnections.delete(clientId);
+            connectionLastActivity.delete(clientId);
+          }
           sessionClients.delete(sessionId);
         }
       }

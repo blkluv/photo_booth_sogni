@@ -1,5 +1,5 @@
 import express from 'express';
-import { getClientInfo, generateImage, cleanupSogniClient, getSessionClient, disconnectSessionClient, getActiveConnectionsCount, checkIdleConnections, activeConnections, sessionClients } from '../services/sogni.js';
+import { getClientInfo, generateImage, cleanupSogniClient, getSessionClient, disconnectSessionClient, getActiveConnectionsCount, checkIdleConnections, activeConnections, sessionClients, clearInvalidTokens } from '../services/sogni.js';
 import { v4 as uuidv4 } from 'uuid';
 import { 
   incrementBatchesGenerated, 
@@ -8,6 +8,8 @@ import {
   incrementPhotosTakenViaCamera,
   incrementPhotosUploadedViaBrowse
 } from '../services/redisService.js';
+import process from 'process';
+import { Buffer } from 'buffer';
 
 const router = express.Router();
 
@@ -446,6 +448,9 @@ router.post('/generate', ensureSessionId, async (req, res) => {
         
         if (isAuthError) {
           console.log(`[${localProjectId}] Authentication error detected, will clean up client to force re-authentication on next request`);
+          
+          // Clear invalid cached tokens
+          clearInvalidTokens();
           
           // Get the client ID associated with this session
           const sessionId = req.sessionId;

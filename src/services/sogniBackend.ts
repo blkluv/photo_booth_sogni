@@ -484,10 +484,15 @@ export class BackendSogniClient {
           console.log(`Event ${eventType} with jobId: ${jobId}`);
           
           // Find the corresponding frontend job placeholder using the received jobId (SDK job.id/imgID)
-          const jobIndex = project.jobs.findIndex(j => 
-              j.realJobId === jobId || 
-              (!j.realJobId && !project.jobs.some(otherJob => otherJob.realJobId === jobId))
-          );
+          let jobIndex = project.jobs.findIndex(j => j.realJobId === jobId);
+          console.log(`[JOB ASSIGNMENT] Looking for job with realJobId=${jobId}, found index: ${jobIndex}`);
+          
+          // If no job has this realJobId yet, find the first available job without a realJobId
+          if (jobIndex === -1) {
+            jobIndex = project.jobs.findIndex(j => !j.realJobId);
+            console.log(`[JOB ASSIGNMENT] No existing job found, looking for available job without realJobId, found index: ${jobIndex}`);
+            console.log(`[JOB ASSIGNMENT] Current jobs state:`, project.jobs.map(j => ({ id: j.id, realJobId: j.realJobId })));
+          }
           
           let targetJob = jobIndex >= 0 ? project.jobs[jobIndex] : null;
 
@@ -526,10 +531,10 @@ export class BackendSogniClient {
               return; // Skip processing if no target job is found
           }
 
-          // Update the realJobId once we get it from a 'started' or 'initiating' event
-          if (jobId && !targetJob.realJobId && (eventType === 'started' || eventType === 'initiating')) {
+          // Update the realJobId once we get it from any event that has a jobId
+          if (jobId && !targetJob.realJobId) {
               targetJob.realJobId = jobId;
-              console.log(`Assigned realJobId ${jobId} to placeholder job ${targetJob.id}`);
+              console.log(`[JOB ASSIGNMENT] Assigned realJobId ${jobId} to placeholder job ${targetJob.id} from event ${eventType}`);
           }
           
           // Update worker name if available
@@ -564,11 +569,23 @@ export class BackendSogniClient {
               break;
               
             case 'jobCompleted':
-              if (targetJob && event.resultUrl) {
-                console.log(`Processing jobCompleted for placeholder ${targetJob.id} (real ID ${jobId})`);
-                project.completeJob(targetJob.id, event.resultUrl as string);
+              if (targetJob) {
+                const resultUrl = event.resultUrl as string;
+                const isNSFW = event.nsfwFiltered as boolean;
+                
+                if (resultUrl) {
+                  console.log(`Processing jobCompleted for placeholder ${targetJob.id} (real ID ${jobId})`);
+                  project.completeJob(targetJob.id, resultUrl);
+                } else if (isNSFW) {
+                  console.warn(`Job ${targetJob.id} (real ID ${jobId}) completed but was filtered due to NSFW content`);
+                  // Mark job as failed due to NSFW filtering
+                  project.failJob(targetJob.id, 'Content filtered due to NSFW detection');
+                } else {
+                  console.warn(`Job ${targetJob.id} (real ID ${jobId}) completed but resultUrl is missing`);
+                  project.failJob(targetJob.id, 'No result URL provided');
+                }
               } else {
-                console.warn(`jobCompleted event received for ${jobId}, but couldn't find target job or resultUrl.`);
+                console.warn(`jobCompleted event received for ${jobId}, but couldn't find target job.`);
               }
               break;
               
@@ -583,9 +600,9 @@ export class BackendSogniClient {
               break;
               
             case 'failed': // Project level failure
-              const failureError = new Error(event.error as string || 'Project failed');
+              const failureError = new Error(event.error as string || 'Project failed') as Error & { projectId: string };
               // Attach the project ID to the error object for proper identification
-              (failureError as any).projectId = project.id;
+              failureError.projectId = project.id;
               project.emit('failed', failureError);
               break;
               
@@ -599,8 +616,8 @@ export class BackendSogniClient {
               const backendErrorMessage = event.message as string || 'Backend generation error';
               
               // Create an error object that includes the project ID
-              const errorWithContext = new Error(backendErrorMessage);
-              (errorWithContext as any).projectId = project.id; // Add project ID to error object
+              const errorWithContext = new Error(backendErrorMessage) as Error & { projectId: string };
+              errorWithContext.projectId = project.id; // Add project ID to error object
               
               // Emit a 'failed' event with the error message and project context
               project.emit('failed', errorWithContext);
