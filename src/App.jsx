@@ -984,6 +984,117 @@ const App = () => {
   }, []);
 
   // -------------------------
+  //   Load image with download progress
+  // -------------------------
+  const loadImageWithProgress = (imageUrl, photoIndex, onComplete) => {
+    console.log(`Starting image download with progress tracking for photo ${photoIndex}`);
+    
+    // First, set loading status
+    setPhotos(previous => {
+      const updated = [...previous];
+      if (updated[photoIndex]) {
+        updated[photoIndex] = {
+          ...updated[photoIndex],
+          loading: true,
+          statusText: 'Loading artwork... 0%'
+        };
+      }
+      return updated;
+    });
+
+    // Use XMLHttpRequest to track download progress
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', imageUrl);
+    xhr.responseType = 'blob';
+    
+    // Track download progress
+    xhr.addEventListener('progress', (event) => {
+      if (event.lengthComputable) {
+        const downloadProgress = (event.loaded / event.total) * 100;
+        console.log(`Image download progress for photo ${photoIndex}: ${downloadProgress.toFixed(1)}%`);
+        
+        setPhotos(previous => {
+          const updated = [...previous];
+          if (updated[photoIndex]) {
+            updated[photoIndex] = {
+              ...updated[photoIndex],
+              loading: true,
+              statusText: `Loading artwork... ${Math.round(downloadProgress)}%`
+            };
+          }
+          return updated;
+        });
+      }
+    });
+    
+    // Handle download completion
+    xhr.addEventListener('load', () => {
+      if (xhr.status === 200) {
+        // Create object URL from blob for optimal performance
+        const blob = xhr.response;
+        const objectUrl = URL.createObjectURL(blob);
+        
+        // Create image to verify it loads
+        const img = new Image();
+        img.addEventListener('load', () => {
+          console.log(`Image loaded successfully for photo ${photoIndex}`);
+          onComplete(objectUrl);
+          // Clean up the original URL if it's different from objectUrl
+          if (objectUrl !== imageUrl) {
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+          }
+        });
+        
+        img.addEventListener('error', () => {
+          console.error(`Image load failed for photo ${photoIndex}`);
+          // Fallback to original URL
+          onComplete(imageUrl);
+          URL.revokeObjectURL(objectUrl);
+        });
+        
+        img.src = objectUrl;
+      } else {
+        console.error(`Download failed for photo ${photoIndex}: ${xhr.status}`);
+        // Update status to show error and fallback to simple image loading
+        setPhotos(previous => {
+          const updated = [...previous];
+          if (updated[photoIndex]) {
+            updated[photoIndex] = {
+              ...updated[photoIndex],
+              loading: false,
+              statusText: 'Loading artwork...'
+            };
+          }
+          return updated;
+        });
+        // Fallback to simple image loading
+        onComplete(imageUrl);
+      }
+    });
+    
+    // Handle download errors
+    xhr.addEventListener('error', () => {
+      console.error(`Download error for photo ${photoIndex}`);
+      // Update status to show error and fallback to simple image loading
+      setPhotos(previous => {
+        const updated = [...previous];
+        if (updated[photoIndex]) {
+          updated[photoIndex] = {
+            ...updated[photoIndex],
+            loading: false,
+            statusText: 'Loading artwork...'
+          };
+        }
+        return updated;
+      });
+      // Fallback to simple image loading
+      onComplete(imageUrl);
+    });
+    
+    xhr.send();
+  };
+
+  // -------------------------
   //   Shared logic for generating images from a Blob
   // -------------------------
   const generateFromBlob = async (photoBlob, newPhotoIndex, dataUrl, isMoreOperation = false, sourceType = 'upload') => {
@@ -1320,8 +1431,8 @@ const App = () => {
           }
         }
         
-        const img = new Image();
-        img.addEventListener('load', () => {
+        // Load image with download progress tracking
+        loadImageWithProgress(job.resultUrl, photoIndex, (loadedImageUrl) => {
           setPhotos(previous => {
             const updated = [...previous];
             if (!updated[photoIndex]) {
@@ -1355,7 +1466,7 @@ const App = () => {
               generating: false,
               loading: false,
               progress: 100,
-              images: [job.resultUrl],
+              images: [loadedImageUrl],
               newlyArrived: true,
               positivePrompt, // Ensure we keep the positivePrompt
               stylePrompt: stylePrompt.trim(), // Make sure stylePrompt is included
@@ -1392,7 +1503,6 @@ const App = () => {
             return updated;
           });
         });
-        img.src = job.resultUrl;
       });
 
       project.on('jobFailed', (job) => {
