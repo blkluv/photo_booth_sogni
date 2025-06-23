@@ -31,6 +31,8 @@ import TwitterShareModal from './components/shared/TwitterShareModal';
 import SplashScreen from './components/shared/SplashScreen';
 // Import the ImageAdjuster component
 import ImageAdjuster from './components/shared/ImageAdjuster';
+// Import the UploadProgress component
+import UploadProgress from './components/shared/UploadProgress';
 import PromoPopup from './components/shared/PromoPopup';
 
 
@@ -147,6 +149,11 @@ const App = () => {
   const [showImageAdjuster, setShowImageAdjuster] = useState(false);
   const [currentUploadedImageUrl, setCurrentUploadedImageUrl] = useState('');
   const [currentUploadedSource, setCurrentUploadedSource] = useState('');
+  
+  // Add state for upload progress
+  const [showUploadProgress, setShowUploadProgress] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatusText, setUploadStatusText] = useState('Uploading image...');
   
   // Add the start menu state here
   const [showStartMenu, setShowStartMenu] = useState(true);
@@ -1082,6 +1089,11 @@ const App = () => {
       
       const blobArrayBuffer = await processedBlob.arrayBuffer();
       
+      // Show upload progress
+      setShowUploadProgress(true);
+      setUploadProgress(0);
+      setUploadStatusText('Uploading your image...');
+      
       // Create project using context state for settings
       const project = await sogniClient.projects.create({ 
         modelId: selectedModel,
@@ -1111,6 +1123,21 @@ const App = () => {
       activeProjectReference.current = project.id;
       console.log('Project created:', project.id, 'with jobs:', project.jobs);
       console.log('Initializing job map for project', project.id);
+
+      // Set up upload progress listeners
+      project.on('uploadProgress', (progress) => {
+        setUploadProgress(progress);
+        if (progress < 100) {
+          setUploadStatusText(`Uploading your image... ${Math.round(progress)}%`);
+        } else {
+          setUploadStatusText('Processing on server...');
+        }
+      });
+
+      project.on('uploadComplete', () => {
+        setShowUploadProgress(false);
+        setUploadProgress(0);
+      });
 
       // Set up handlers for any jobs that exist immediately
       console.log('Project jobs to set up:', project.jobs);
@@ -1415,6 +1442,10 @@ const App = () => {
 
     } catch (error) {
       console.error('Generation failed:', error);
+      
+      // Hide upload progress on error
+      setShowUploadProgress(false);
+      setUploadProgress(0);
       
       if (error && error.code === 4015) {
         console.warn("Socket error (4015). Re-initializing Sogni.");
@@ -1931,6 +1962,13 @@ const App = () => {
           triggerButtonClass=".global-style-btn"
         />
       </div>
+
+      {/* Upload Progress Modal */}
+      <UploadProgress
+        progress={uploadProgress}
+        isVisible={showUploadProgress}
+        statusText={uploadStatusText}
+      />
 
       {/* Display backend error if present */}
       {backendError && (

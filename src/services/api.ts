@@ -485,26 +485,68 @@ export async function generateImage(params: Record<string, unknown>, progressCal
     // Debug log the final sourceType being sent to API
     console.log(`Final sourceType being sent to API: ${typeof requestParams.sourceType === 'string' ? requestParams.sourceType : 'unknown type'}`);
     
-    // Start the generation process
-    const response = await fetch(`${API_BASE_URL}/sogni/generate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'X-Client-App-ID': clientAppId, // Also add as header
-      },
-      credentials: 'include', // Include credentials for cross-origin requests
-      body: JSON.stringify(requestParams),
+    // Use XMLHttpRequest for real upload progress tracking
+    const { projectId, status } = await new Promise<{ projectId: string | undefined; status: string | undefined }>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      
+      // Track upload progress
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable && progressCallback) {
+          const uploadProgress = (event.loaded / event.total) * 100;
+          // console.log(`Real upload progress: ${uploadProgress.toFixed(1)}%`);
+          progressCallback({
+            type: 'uploadProgress',
+            progress: uploadProgress
+          });
+        }
+      });
+      
+      // Handle upload completion
+      xhr.upload.addEventListener('load', () => {
+        console.log('Upload completed, processing on server...');
+        if (progressCallback) {
+          progressCallback({
+            type: 'uploadComplete'
+          });
+        }
+      });
+      
+      // Handle response
+      xhr.addEventListener('load', () => {
+        try {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            const jsonRaw: unknown = JSON.parse(xhr.responseText);
+            const json: Record<string, unknown> = isObjectRecord(jsonRaw) ? jsonRaw : {};
+            resolve({
+              projectId: json.projectId as string | undefined,
+              status: json.status as string | undefined
+            });
+          } else {
+            reject(new Error(`HTTP error! status: ${xhr.status}`));
+          }
+                 } catch (error) {
+           reject(new Error(`Failed to parse response: ${error instanceof Error ? error.message : String(error)}`));
+         }
+      });
+      
+      // Handle errors
+      xhr.addEventListener('error', () => {
+        reject(new Error('Network error during upload'));
+      });
+      
+      xhr.addEventListener('abort', () => {
+        reject(new Error('Upload aborted'));
+      });
+      
+      // Configure and send request
+      xhr.open('POST', `${API_BASE_URL}/sogni/generate`);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.setRequestHeader('Accept', 'application/json');
+      xhr.setRequestHeader('X-Client-App-ID', clientAppId);
+      xhr.withCredentials = true; // Include credentials for cross-origin requests
+      
+      xhr.send(JSON.stringify(requestParams));
     });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const jsonRaw: unknown = await response.json();
-    const json: Record<string, unknown> = isObjectRecord(jsonRaw) ? jsonRaw : {};
-    const projectId = json.projectId as string | undefined;
-    const status = json.status as string | undefined;
     
     // Mark that we have successfully connected
     hasConnectedToSogni = true;

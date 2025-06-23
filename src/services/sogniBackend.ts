@@ -460,8 +460,29 @@ export class BackendSogniClient {
     // Start the backend generation process
     try {
       apiCreateProject(params, (progressEvent: unknown) => {
+        
         // Handle different event types from the server
-        console.log('ApiCreateProject progress callback received:', JSON.stringify(progressEvent));
+        // console.log('ApiCreateProject progress callback received:', JSON.stringify(progressEvent));
+        
+        // Handle upload progress events from XMLHttpRequest
+        if (progressEvent && typeof progressEvent === 'object') {
+          const event = progressEvent as Record<string, unknown>;
+          const eventType = event.type as string;
+          
+          if (eventType === 'uploadProgress') {
+            const uploadProgress = event.progress as number;
+            project.emit('uploadProgress', uploadProgress);
+            return; // Don't process as normal generation event
+          }
+          
+          if (eventType === 'uploadComplete') {
+            // Add a small delay for server-to-server Sogni upload
+            setTimeout(() => {
+              project.emit('uploadComplete');
+            }, 2000);
+            return; // Don't process as normal generation event
+          }
+        }
         
         // Handle numeric progress (simple case) - distribute to all jobs
         if (typeof progressEvent === 'number') {
@@ -642,6 +663,7 @@ export class BackendSogniClient {
         }
       }).catch((error: unknown) => {
         console.error('Backend generation process failed:', error);
+        project.emit('uploadComplete'); // Clean up upload progress
         const errorMsg = error && typeof error === 'object' && 'message' in error && typeof (error as { message: unknown }).message === 'string'
           ? (error as { message: string }).message
           : String(error);
@@ -651,6 +673,7 @@ export class BackendSogniClient {
       });
     } catch (error) {
       console.error('Error starting generation:', error);
+      project.emit('uploadComplete'); // Clean up upload progress
       const errorMsg = error && typeof error === 'object' && 'message' in error && typeof (error as { message: unknown }).message === 'string'
         ? (error as { message: string }).message
         : String(error);
