@@ -863,6 +863,17 @@ const App = () => {
   // Add an effect specifically for page unload/refresh cleanup
   useEffect(() => {
     const handleBeforeUnload = () => {
+      // Clean up blob URLs to prevent memory leaks
+      photos.forEach(photo => {
+        if (photo.images) {
+          photo.images.forEach(imageUrl => {
+            if (imageUrl && imageUrl.startsWith('blob:')) {
+              URL.revokeObjectURL(imageUrl);
+            }
+          });
+        }
+      });
+      
       if (sogniClient) {
         console.log('Page unloading, triggering final cleanup');
         
@@ -883,7 +894,7 @@ const App = () => {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload, { capture: true });
     };
-  }, [sogniClient]);
+  }, [sogniClient, photos]);
 
   // If we return to camera, ensure the video is playing
   useEffect(() => {
@@ -1039,10 +1050,8 @@ const App = () => {
         img.addEventListener('load', () => {
           console.log(`Image loaded successfully for photo ${photoIndex}`);
           onComplete(objectUrl);
-          // Clean up the original URL if it's different from objectUrl
-          if (objectUrl !== imageUrl) {
-            setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
-          }
+          // Don't immediately revoke blob URLs as they're needed for downloads
+          // The blob URLs will be cleaned up when the page unloads or photos are replaced
         });
         
         img.addEventListener('error', () => {
@@ -1142,6 +1151,17 @@ const App = () => {
       // Skip setting up photos state if this is a "more" operation
       if (!isMoreOperation) {
         setPhotos(previous => {
+          // Clean up blob URLs from previous photos to prevent memory leaks
+          previous.forEach(photo => {
+            if (photo.images) {
+              photo.images.forEach(imageUrl => {
+                if (imageUrl && imageUrl.startsWith('blob:')) {
+                  URL.revokeObjectURL(imageUrl);
+                }
+              });
+            }
+          });
+          
           const existingProcessingPhotos = previous.filter(photo => 
             photo.generating && photo.jobId && photo.progress
           );
