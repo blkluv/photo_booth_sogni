@@ -436,7 +436,7 @@ const App = () => {
         handleVideoLoaded();
       }
       
-      // Update mirror effect when front/back camera changes
+      // Always update mirror effect when front/back camera changes, regardless of video load state
       videoElement.style.transform = isFrontCamera ? 'scaleX(-1)' : 'scaleX(1)';
     }
 
@@ -446,7 +446,7 @@ const App = () => {
         videoElement.removeEventListener('loadedmetadata', handleVideoLoaded);
       }
     };
-  }, [videoReference.current, isFrontCamera]);
+  }, [videoReference.current, isFrontCamera, aspectRatio]);
 
   // Fix for iOS viewport height issues
   useEffect(() => {
@@ -687,6 +687,9 @@ const App = () => {
       if (videoReference.current) {
         videoReference.current.srcObject = stream;
         videoReference.current.muted = true;
+        
+        // Apply mirror effect immediately for front camera
+        videoReference.current.style.transform = isFrontCamera ? 'scaleX(-1)' : 'scaleX(1)';
         
         // Force play on video to ensure it starts on iOS
         const playPromise = videoReference.current.play();
@@ -2283,8 +2286,23 @@ const App = () => {
         slothicornReference.current.style.setProperty('bottom', '-360px', 'important');
         slothicornReference.current.classList.remove('animating');
       }
-      // Show the start menu again instead of the camera
-      setShowStartMenu(true);
+      
+      // Go directly back to camera view instead of start menu
+      setShowStartMenu(false);
+      
+      // Ensure camera is running and properly mirrored
+      if (cameraManuallyStarted && videoReference.current && videoReference.current.srcObject) {
+        // Camera stream exists, just ensure mirroring is correct
+        videoReference.current.style.transform = isFrontCamera ? 'scaleX(-1)' : 'scaleX(1)';
+        // Ensure video is playing
+        videoReference.current.play().catch(error => {
+          console.warn("Video re-play error:", error);
+        });
+      } else {
+        // Camera stream doesn't exist or hasn't been started, restart it
+        startCamera(selectedCameraDeviceId);
+        setCameraManuallyStarted(true);
+      }
       
       setTimeout(() => {
         // Remove the setStudioLightsHidden line - no studio lights animation needed
