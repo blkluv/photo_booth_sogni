@@ -250,7 +250,7 @@ const ImageAdjuster = ({
         const scaleFactor = currentDistance / initialDistance;
         
         // Calculate new scale value with limits
-        const newScale = Math.min(Math.max(initialScale * scaleFactor, 0.5), 3);
+        const newScale = Math.min(Math.max(initialScale * scaleFactor, 0.25), 3);
         setScale(newScale);
         return;
       }
@@ -430,7 +430,7 @@ const ImageAdjuster = ({
               <input
                 id="zoom-slider"
                 type="range"
-                min="0.5"
+                min="0.10"
                 max="3"
                 step="0.01"
                 value={scale}
