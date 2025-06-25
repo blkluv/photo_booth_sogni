@@ -275,7 +275,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
           <input
             type="range"
             min={1}
-            max={64}
+            max={32}
             step={1}
             value={numImages}
             onChange={(e) => onNumImagesChange?.(Number(e.target.value))}
