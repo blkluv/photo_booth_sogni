@@ -14,9 +14,8 @@ export const getPhotoHashtag = (photo) => {
   if (!photo) return null;
   let foundLabel = null;
   // If statusText contains a hashtag, use that
-  if (photo.statusText && photo.statusText.includes('#')) {
-    const hashtagMatch = photo.statusText.match(/#[a-zA-Z0-9]+/);
-    foundLabel = hashtagMatch ? hashtagMatch[0] : null;
+  if (photo.statusText && photo.statusText.length > 4 && photo.statusText.includes('#')) {
+    foundLabel = photo.statusText;
   }
 
   if (!foundLabel || foundLabel.length < 3) {

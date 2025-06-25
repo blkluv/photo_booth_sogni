@@ -217,7 +217,21 @@ const StyleDropdown = ({
       <div className="style-section regular">
         {Object.keys(defaultStylePrompts)
           .filter(key => key !== 'random' && key !== 'custom' && key !== 'randomMix')
-          .sort()
+          .sort((a, b) => {
+            const displayA = styleIdToDisplay(a);
+            const displayB = styleIdToDisplay(b);
+            
+            // Check if the first character of each display label is alphanumeric
+            const isAlphanumericA = /^[a-zA-Z0-9]/.test(displayA);
+            const isAlphanumericB = /^[a-zA-Z0-9]/.test(displayB);
+            
+            // If one starts with non-alphanumeric and the other doesn't, prioritize the non-alphanumeric
+            if (!isAlphanumericA && isAlphanumericB) return -1;
+            if (isAlphanumericA && !isAlphanumericB) return 1;
+            
+            // If both are the same type (both alphanumeric or both non-alphanumeric), sort alphabetically
+            return displayA.localeCompare(displayB);
+          })
           .map(styleKey => (
             <div 
               key={styleKey}
