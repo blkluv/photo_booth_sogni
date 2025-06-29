@@ -43,8 +43,11 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
   }
 
   return (
-    <div className={`splash-screen ${isHiding ? 'hiding' : ''}`}>
-      <div className="splash-content">
+    <div 
+      className={`splash-screen ${isHiding ? 'hiding' : ''}`}
+      onClick={handleDismiss}
+    >
+      <div className="splash-content" onClick={(e) => e.stopPropagation()}>
         
         <div className="splash-layout">
           <div className="polaroid-splash-container">
