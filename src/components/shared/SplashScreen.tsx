@@ -17,11 +17,11 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
   // Check localStorage on component mount
   useEffect(() => {
     const splashHidden = localStorage.getItem(SPLASH_HIDDEN_KEY);
-    if (splashHidden === 'true') {
+    if (splashHidden === 'true' && !isHiding) {
       onDismiss(); // Immediately dismiss if previously hidden
     }
     setHasCheckedStorage(true);
-  }, [onDismiss]);
+  }, []); // Remove onDismiss from dependency array to only run once
 
   // Handle dismissing the splash screen
   const handleDismiss = () => {
@@ -34,7 +34,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
     setTimeout(() => {
       setIsVisible(false);
       onDismiss();
-    }, 1600); // Extended from 1200ms to 1600ms to ensure animations complete
+    }, 2000);
   };
 
   // Don't render anything until we've checked localStorage
@@ -47,7 +47,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss }) => {
       className={`splash-screen ${isHiding ? 'hiding' : ''}`}
       onClick={handleDismiss}
     >
-      <div className="splash-content" onClick={(e) => e.stopPropagation()}>
+      <div className="splash-content">
         
         <div className="splash-layout">
           <div className="polaroid-splash-container">
