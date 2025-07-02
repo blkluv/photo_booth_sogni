@@ -510,10 +510,8 @@ const PhotoGallery = ({
       {selectedPhotoIndex !== null && photos[selectedPhotoIndex] && (
         <div className="photo-action-buttons" style={{
           display: 'flex',
-          gap: '12px',
           justifyContent: 'center',
           position: 'fixed',
-          bottom: '20px',
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 99999,

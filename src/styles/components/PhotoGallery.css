@@ -97,9 +97,7 @@
 /* Special styling for mobile layout */
 @media (max-width: 768px) {
   .photo-action-buttons {
-    gap: 8px;
-    padding: 0 10px;
-    bottom: 15px;
+    bottom: 0px !important;
   }
   
   .action-button {
