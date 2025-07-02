@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useEffect, useState } from 'react';
+import React, { useMemo, useCallback, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import '../../styles/film-strip.css'; // Using film-strip.css which contains the gallery styles
 import '../../styles/components/PhotoGallery.css';
@@ -341,9 +341,6 @@ const PhotoGallery = ({
       console.error('Error downloading raw photo:', error);
     }
   };
-
-  // Track which images have fully loaded
-  const [loadedImages, setLoadedImages] = useState(new Set());
 
   return (
     <div className={`film-strip-container ${showPhotoGrid ? 'visible' : 'hiding'} ${selectedPhotoIndex === null ? '' : 'has-selected'}`}
@@ -772,9 +769,8 @@ const PhotoGallery = ({
           }
           // Show completed image
           const thumbUrl = photo.images[0] || '';
-          // Determine if photo is fully loaded with a hashtag/label
-          const isLoaded = (!photo.loading && !photo.generating && photo.images.length > 0 && 
-                           (photo.statusText || labelText));
+          // Determine if photo is fully loaded - simplified condition for better theme switching
+          const isLoaded = (!photo.loading && !photo.generating && photo.images.length > 0 && thumbUrl);
           
           return (
             <div 
@@ -803,8 +799,6 @@ const PhotoGallery = ({
                   onLoad={e => {
                     // Enable mobile-optimized download functionality when image loads
                     enableMobileImageDownload(e.target);
-                    // Mark this image as loaded for TezDev overlay
-                    setLoadedImages(prev => new Set([...prev, thumbUrl]));
                   }}
                   onError={e => {
                     if (photo.originalDataUrl && e.target.src !== photo.originalDataUrl) {
@@ -838,7 +832,7 @@ const PhotoGallery = ({
                   }}
                 />
                 {/* TezDev Frame Overlay - only when image has actually loaded */}
-                {thumbUrl && loadedImages.has(thumbUrl) && !photo.loading && !photo.generating && tezdevTheme !== 'off' && aspectRatio === 'narrow' && !isSelected && (
+                {thumbUrl && isLoaded && tezdevTheme !== 'off' && aspectRatio === 'narrow' && !isSelected && (
                   <div
                     style={{
                       position: 'absolute',
