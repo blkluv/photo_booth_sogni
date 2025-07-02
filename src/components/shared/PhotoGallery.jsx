@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useEffect } from 'react';
+import React, { useMemo, useCallback, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import '../../styles/film-strip.css'; // Using film-strip.css which contains the gallery styles
 import '../../styles/components/PhotoGallery.css';
@@ -35,6 +35,8 @@ const PhotoGallery = ({
   selectedSubIndex = 0,
   handleShareToX,
   slothicornAnimationEnabled,
+  tezdevTheme = 'off',
+  aspectRatio = null,
 }) => {
   // Skip rendering if there are no photos or the grid is hidden
   if (photos.length === 0 || !showPhotoGrid) return null;
@@ -270,7 +272,10 @@ const PhotoGallery = ({
       await document.fonts.ready;
       
       // Create polaroid image
-      const polaroidUrl = await createPolaroidImage(imageUrl, photoLabel);
+      const polaroidUrl = await createPolaroidImage(imageUrl, photoLabel, {
+        tezdevTheme,
+        aspectRatio
+      });
       
              // Handle download
        downloadImage(polaroidUrl, filename);
@@ -279,7 +284,7 @@ const PhotoGallery = ({
     }
   };
 
-  // Handle download raw photo without polaroid frame
+  // Handle download raw photo with optional TezDev frame
   const handleDownloadRawPhoto = async (photoIndex) => {
     if (!photos[photoIndex] || !photos[photoIndex].images || photos[photoIndex].images.length === 0) {
       return;
@@ -303,12 +308,42 @@ const PhotoGallery = ({
       const timestamp = new Date().getTime();
       const filename = `${cleanHashtag}_raw_${timestamp}.png`;
       
-             // Handle download
-       downloadImage(imageUrl, filename);
+      // Apply TezDev frame if theme is enabled and aspect ratio is narrow
+      if (tezdevTheme !== 'off' && aspectRatio === 'narrow') {
+        // Ensure font is loaded
+        if (!document.querySelector('link[href*="Permanent+Marker"]')) {
+          const fontLink = document.createElement('link');
+          fontLink.href = 'https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap';
+          fontLink.rel = 'stylesheet';
+          document.head.appendChild(fontLink);
+        }
+        
+        // Wait for fonts to load
+        await document.fonts.ready;
+        
+        // Create image with TezDev frame (no polaroid frame, just the TezDev overlay)
+        const framedImageUrl = await createPolaroidImage(imageUrl, '', {
+          tezdevTheme,
+          aspectRatio,
+          frameWidth: 0,      // No polaroid frame
+          frameTopWidth: 0,   // No polaroid frame
+          frameBottomWidth: 0, // No polaroid frame
+          frameColor: 'transparent' // No polaroid background
+        });
+        
+        // Handle download
+        downloadImage(framedImageUrl, filename);
+      } else {
+        // Handle download without frame
+        downloadImage(imageUrl, filename);
+      }
     } catch (error) {
       console.error('Error downloading raw photo:', error);
     }
   };
+
+  // Track which images have fully loaded
+  const [loadedImages, setLoadedImages] = useState(new Set());
 
   return (
     <div className={`film-strip-container ${showPhotoGrid ? 'visible' : 'hiding'} ${selectedPhotoIndex === null ? '' : 'has-selected'}`}
@@ -502,7 +537,7 @@ const PhotoGallery = ({
             }
           >
             <svg fill="currentColor" width="16" height="16" viewBox="0 0 24 24"><path d="M22.46 6c-.77.35-1.6.58-2.46.67.9-.53 1.59-1.37 1.92-2.38-.84.5-1.78.86-2.79 1.07C18.27 4.49 17.01 4 15.63 4c-2.38 0-4.31 1.94-4.31 4.31 0 .34.04.67.11.99C7.83 9.09 4.16 7.19 1.69 4.23-.07 6.29.63 8.43 2.49 9.58c-.71-.02-1.38-.22-1.97-.54v.05c0 2.09 1.49 3.83 3.45 4.23-.36.1-.74.15-1.14.15-.28 0-.55-.03-.81-.08.55 1.71 2.14 2.96 4.03 3-1.48 1.16-3.35 1.85-5.37 1.85-.35 0-.69-.02-1.03-.06 1.92 1.23 4.2 1.95 6.67 1.95 8.01 0 12.38-6.63 12.38-12.38 0-.19 0-.38-.01-.56.85-.61 1.58-1.37 2.16-2.24z"/></svg>
-            Share
+            {tezdevTheme !== 'off' ? 'Get your print!' : 'Share'}
           </button>
 
           {/* Download Polaroid Button - Always show */}
@@ -768,6 +803,8 @@ const PhotoGallery = ({
                   onLoad={e => {
                     // Enable mobile-optimized download functionality when image loads
                     enableMobileImageDownload(e.target);
+                    // Mark this image as loaded for TezDev overlay
+                    setLoadedImages(prev => new Set([...prev, thumbUrl]));
                   }}
                   onError={e => {
                     if (photo.originalDataUrl && e.target.src !== photo.originalDataUrl) {
@@ -800,6 +837,24 @@ const PhotoGallery = ({
                     display: 'block'
                   }}
                 />
+                {/* TezDev Frame Overlay - only when image has actually loaded */}
+                {thumbUrl && loadedImages.has(thumbUrl) && !photo.loading && !photo.generating && tezdevTheme !== 'off' && aspectRatio === 'narrow' && !isSelected && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                      backgroundImage: `url(/tezos/tz_${tezdevTheme}_photoframe.png)`,
+                      backgroundSize: '100% 100%',
+                      backgroundPosition: 'center',
+                      backgroundRepeat: 'no-repeat',
+                      pointerEvents: 'none',
+                      zIndex: 2
+                    }}
+                  />
+                )}
               </div>
               <div className="photo-label">
                 {photo.loading || photo.generating ? 
@@ -848,6 +903,8 @@ PhotoGallery.propTypes = {
   selectedSubIndex: PropTypes.number,
   handleShareToX: PropTypes.func.isRequired,
   slothicornAnimationEnabled: PropTypes.bool.isRequired,
+  tezdevTheme: PropTypes.string,
+  aspectRatio: PropTypes.string,
 };
 
 export default React.memo(PhotoGallery); 

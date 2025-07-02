@@ -131,7 +131,8 @@ const App = () => {
     seed,
     soundEnabled,
     slothicornAnimationEnabled,
-    aspectRatio
+    aspectRatio,
+    tezdevTheme
   } = settings;
   // --- End context usage ---
 
@@ -521,7 +522,9 @@ const App = () => {
       photos,
       setBackendError,
       customMessage,
-      shareUrl: shareUrl.toString() // Pass the full URL with parameters
+      shareUrl: shareUrl.toString(), // Pass the full URL with parameters
+      tezdevTheme,
+      aspectRatio
     });
   };
 
@@ -2671,6 +2674,8 @@ const App = () => {
         onShare={handleTwitterShare}
         imageUrl={twitterPhotoIndex !== null && photos[twitterPhotoIndex] ? photos[twitterPhotoIndex].images[0] : null}
         photoData={twitterPhotoIndex !== null ? photos[twitterPhotoIndex] : null}
+        tezdevTheme={tezdevTheme}
+        aspectRatio={aspectRatio}
       />
 
       {/* Global Countdown Overlay - always above mascot and all UI */}
@@ -2723,6 +2728,7 @@ const App = () => {
           flashEnabled={flashEnabled}
           keepOriginalPhoto={keepOriginalPhoto}
           aspectRatio={aspectRatio}
+          tezdevTheme={tezdevTheme}
           // Handlers using updateSetting
           onPositivePromptChange={handlePositivePromptChange} 
           onStylePromptChange={(value) => updateSetting('stylePrompt', value)}
@@ -2739,6 +2745,10 @@ const App = () => {
           onAspectRatioChange={(value) => {
             updateSetting('aspectRatio', value);
             saveSettingsToCookies({ aspectRatio: value });
+          }}
+          onTezDevThemeChange={(value) => {
+            updateSetting('tezdevTheme', value);
+            saveSettingsToCookies({ tezdevTheme: value });
           }}
           soundEnabled={soundEnabled}
           onSoundEnabledChange={(value) => {
@@ -2917,6 +2927,8 @@ const App = () => {
           selectedSubIndex={selectedSubIndex}
           handleShareToX={handleShareToX}
           slothicornAnimationEnabled={slothicornAnimationEnabled}
+          tezdevTheme={tezdevTheme}
+          aspectRatio={aspectRatio}
         />
           </div>
         )}

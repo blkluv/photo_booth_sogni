@@ -53,10 +53,21 @@ export const getValidModelValue = (selectedValue: string) => {
   return defaultValue;
 };
 
-// Helper function to determine default aspect ratio based on device
+// Helper function to determine default aspect ratio - defaults to narrow (2:3) for new users
 export const getDefaultAspectRatio = (): AspectRatioOption => {
-  const isPortrait = window.innerHeight > window.innerWidth;
-  return isPortrait ? 'portrait' : 'landscape';
+  // Check if user has an existing aspect ratio preference in cookies
+  const savedAspectRatio = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('aspectRatio='))
+    ?.split('=')[1];
+    
+  // If user has a saved preference, respect it
+  if (savedAspectRatio && ['ultranarrow', 'narrow', 'portrait', 'square', 'landscape', 'wide', 'ultrawide'].includes(savedAspectRatio)) {
+    return savedAspectRatio as AspectRatioOption;
+  }
+  
+  // For new users, default to narrow (2:3) for optimal TezDev frame compatibility
+  return 'narrow';
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -75,6 +86,7 @@ export const DEFAULT_SETTINGS: Settings = {
   soundEnabled: true,
   slothicornAnimationEnabled: true,
   aspectRatio: getDefaultAspectRatio(),
+  tezdevTheme: 'pink' as const,
 };
 
 // Backend now handles all Sogni API communication, so we don't need these URLs in the frontend

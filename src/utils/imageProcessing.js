@@ -75,6 +75,8 @@ export async function resizeDataUrl(dataUrl, width, height) {
  * @param {string} options.frameColor - Color of the polaroid frame (default: white)
  * @param {string} options.labelFont - Font for the label (default: 16px "Permanent Marker", cursive)
  * @param {string} options.labelColor - Color for the label text (default: #333)
+ * @param {string} options.tezdevTheme - TezDev theme ('blue', 'pink', or 'off')
+ * @param {string} options.aspectRatio - Aspect ratio of the original image
  * @returns {Promise<string>} Data URL of the generated polaroid image
  */
 export async function createPolaroidImage(imageUrl, label, options = {}) {
@@ -85,7 +87,9 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
       frameBottomWidth = 196, // Updated to match Twitter sharing settings (150px)
       frameColor = 'white',
       labelFont = '72px "Permanent Marker", cursive',
-      labelColor = '#333'
+      labelColor = '#333',
+      tezdevTheme = 'off',
+      aspectRatio = null
     } = options;
 
     // Load the Permanent Marker font if it's not already loaded
@@ -111,7 +115,7 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
       const canvas = document.createElement('canvas');
       
       // Calculate dimensions to maintain aspect ratio
-      const aspectRatio = img.width / img.height;
+      const aspectRatioValue = img.width / img.height;
       
       // Set a reasonable max size for the polaroid
       const maxImageWidth = 1600;
@@ -122,11 +126,11 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
       if (img.width > img.height) {
         // Landscape orientation
         imageWidth = Math.min(img.width, maxImageWidth);
-        imageHeight = imageWidth / aspectRatio;
+        imageHeight = imageWidth / aspectRatioValue;
       } else {
         // Portrait or square orientation
         imageHeight = Math.min(img.height, maxImageHeight);
-        imageWidth = imageHeight * aspectRatio;
+        imageWidth = imageHeight * aspectRatioValue;
       }
       
       // Calculate full polaroid dimensions including frame
@@ -150,58 +154,74 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
       // Draw the image centered in the frame
       ctx.drawImage(img, frameWidth, frameTopWidth, imageWidth, imageHeight);
       
-      // Add subtle inner shadow to make it look more realistic
-      ctx.shadowColor = 'rgba(0,0,0,0.1)';
-      ctx.shadowBlur = 6;
-      ctx.shadowOffsetY = 1;
-      ctx.shadowOffsetX = 0;
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = 'rgba(0,0,0,0.08)';
-      ctx.strokeRect(frameWidth, frameTopWidth, imageWidth, imageHeight);
-      
-      // Reset shadow for text
-      ctx.shadowColor = 'transparent';
-      ctx.shadowBlur = 0;
-      ctx.shadowOffsetY = 0;
-      
-      // Add label if provided and not empty
-      if (textToDraw) {
-        // Set font with Permanent Marker
-        ctx.font = labelFont;
-        ctx.fillStyle = labelColor;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        
-        // Position label in the bottom white area, a bit higher from the bottom for better visual balance
-        const labelY = polaroidHeight - (frameBottomWidth / 2);
-        
-        // Constrain label length if too long
-        const maxLabelWidth = polaroidWidth - 20; // Increased padding
-        let displayLabel = textToDraw;
-        
-        if (ctx.measureText(textToDraw).width > maxLabelWidth) {
-          // Truncate and add ellipsis if too long
-          for (let i = textToDraw.length; i > 0; i--) {
-            const truncated = textToDraw.substring(0, i) + '...';
-            if (ctx.measureText(truncated).width <= maxLabelWidth) {
-              displayLabel = truncated;
-              break;
-            }
-          }
-        }
-        
-        ctx.fillText(displayLabel, polaroidWidth / 2, labelY);
-        
-        console.log(`Drew label: "${displayLabel}" at y=${labelY} with bottom width ${frameBottomWidth}`);
+      // Apply TezDev frame if enabled and aspect ratio is narrow (2:3)
+      if (tezdevTheme !== 'off' && aspectRatio === 'narrow') {
+        applyTezDevFrame(ctx, imageWidth, imageHeight, frameWidth, frameTopWidth, tezdevTheme)
+          .then(() => {
+            finalizePolaroid();
+          })
+          .catch((err) => {
+            console.warn('Failed to apply TezDev frame, continuing without it:', err);
+            finalizePolaroid();
+          });
+      } else {
+        finalizePolaroid();
       }
       
-      // Convert to data URL with maximum quality
-      const dataUrl = canvas.toDataURL('image/png', 1.0);
-      
-      // For debugging: display the image in the console
-      console.log(`Generated polaroid with dimensions: ${polaroidWidth}x${polaroidHeight}`);
-      
-      resolve(dataUrl);
+      function finalizePolaroid() {
+        // Add subtle inner shadow to make it look more realistic
+        ctx.shadowColor = 'rgba(0,0,0,0.1)';
+        ctx.shadowBlur = 6;
+        ctx.shadowOffsetY = 1;
+        ctx.shadowOffsetX = 0;
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+        ctx.strokeRect(frameWidth, frameTopWidth, imageWidth, imageHeight);
+        
+        // Reset shadow for text
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+        
+        // Add label if provided and not empty
+        if (textToDraw) {
+          // Set font with Permanent Marker
+          ctx.font = labelFont;
+          ctx.fillStyle = labelColor;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          
+          // Position label in the bottom white area, a bit higher from the bottom for better visual balance
+          const labelY = polaroidHeight - (frameBottomWidth / 2);
+          
+          // Constrain label length if too long
+          const maxLabelWidth = polaroidWidth - 20; // Increased padding
+          let displayLabel = textToDraw;
+          
+          if (ctx.measureText(textToDraw).width > maxLabelWidth) {
+            // Truncate and add ellipsis if too long
+            for (let i = textToDraw.length; i > 0; i--) {
+              const truncated = textToDraw.substring(0, i) + '...';
+              if (ctx.measureText(truncated).width <= maxLabelWidth) {
+                displayLabel = truncated;
+                break;
+              }
+            }
+          }
+          
+          ctx.fillText(displayLabel, polaroidWidth / 2, labelY);
+          
+          console.log(`Drew label: "${displayLabel}" at y=${labelY} with bottom width ${frameBottomWidth}`);
+        }
+        
+        // Convert to data URL with maximum quality
+        const dataUrl = canvas.toDataURL('image/png', 1.0);
+        
+        // For debugging: display the image in the console
+        console.log(`Generated polaroid with dimensions: ${polaroidWidth}x${polaroidHeight}`);
+        
+        resolve(dataUrl);
+      }
     };
     
     img.onerror = (err) => {
@@ -210,6 +230,39 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
     };
     
     img.src = imageUrl;
+  });
+}
+
+/**
+ * Applies TezDev frame overlay to a canvas context
+ * @param {CanvasRenderingContext2D} ctx - Canvas 2D context
+ * @param {number} imageWidth - Width of the image area
+ * @param {number} imageHeight - Height of the image area  
+ * @param {number} frameOffsetX - X offset of the image from canvas edge
+ * @param {number} frameOffsetY - Y offset of the image from canvas edge
+ * @param {string} theme - TezDev theme ('blue' or 'pink')
+ */
+async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, frameOffsetY, theme) {
+  return new Promise((resolve, reject) => {
+    const frameImage = new Image();
+    frameImage.crossOrigin = 'anonymous';
+    
+    frameImage.onload = () => {
+      // Draw the frame overlay on top of the image area
+      // Position it to cover the image area flush
+      ctx.drawImage(frameImage, frameOffsetX, frameOffsetY, imageWidth, imageHeight);
+      
+      console.log(`Applied TezDev ${theme} frame overlay`);
+      resolve();
+    };
+    
+    frameImage.onerror = (err) => {
+      console.error(`Failed to load TezDev ${theme} frame:`, err);
+      reject(err);
+    };
+    
+    // Load the appropriate frame based on theme
+    frameImage.src = `/tezos/tz_${theme}_photoframe.png`;
   });
 }
 

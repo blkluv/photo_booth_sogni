@@ -21,7 +21,9 @@ const TwitterShareModal = ({
   imageUrl, 
   defaultMessage = "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨",
   photoData,
-  maxLength = 280
+  maxLength = 280,
+  tezdevTheme = 'off',
+  aspectRatio = null
 }) => {
   const [message, setMessage] = useState('');
   const [isSharing, setIsSharing] = useState(false);
@@ -56,7 +58,10 @@ const TwitterShareModal = ({
           
           console.log(`Creating polaroid preview with label: "${photoLabel}"`);
           // Create and use polaroid data URL directly - avoid converting to Blob
-          const polaroidUrl = await createPolaroidImage(imageUrl, photoLabel);
+          const polaroidUrl = await createPolaroidImage(imageUrl, photoLabel, {
+            tezdevTheme,
+            aspectRatio
+          });
           setPolaroidImageUrl(polaroidUrl);
         } catch (error) {
           console.error('Error creating polaroid preview:', error);
@@ -73,16 +78,20 @@ const TwitterShareModal = ({
       // Cleanup function
       setPolaroidImageUrl(null);
     };
-  }, [isOpen, imageUrl, photoLabel]);
+  }, [isOpen, imageUrl, photoLabel, tezdevTheme, aspectRatio]);
   
   useEffect(() => {
     // Initialize message with default and hashtag when modal opens
     // get the current page url with deeplink
     const currentUrl = window.location.href;
     if (isOpen) {
+      // Add #TezDev hashtag when in Tezos mode
+      const tezDevHashtag = tezdevTheme !== 'off' ? ' #TezDev' : '';
+      const messageWithTezDev = defaultMessage.replace('✨', `✨${tezDevHashtag}`);
+      
       const initialMessage = styleHashtag 
-        ? `${defaultMessage} ${styleHashtag} ${currentUrl.split('?')[0]}?prompt=${styleHashtag.replace('#', '')}`
-        : `${defaultMessage} ${currentUrl}`;
+        ? `${messageWithTezDev} ${styleHashtag} ${currentUrl.split('?')[0]}?prompt=${styleHashtag.replace('#', '')}`
+        : `${messageWithTezDev} ${currentUrl}`;
       
       setMessage(initialMessage);
       
@@ -94,7 +103,7 @@ const TwitterShareModal = ({
         }
       }, 100);
     }
-  }, [isOpen, defaultMessage, styleHashtag]);
+  }, [isOpen, defaultMessage, styleHashtag, tezdevTheme]);
 
   // Handle click outside to close
   useEffect(() => {
@@ -211,7 +220,9 @@ TwitterShareModal.propTypes = {
   imageUrl: PropTypes.string,
   defaultMessage: PropTypes.string,
   photoData: PropTypes.object,
-  maxLength: PropTypes.number
+  maxLength: PropTypes.number,
+  tezdevTheme: PropTypes.string,
+  aspectRatio: PropTypes.string
 };
 
 export default TwitterShareModal; 

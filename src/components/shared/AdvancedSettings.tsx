@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { AspectRatioOption } from '../../types/index';
+import { AspectRatioOption, TezDevTheme } from '../../types/index';
 
 interface AdvancedSettingsProps {
   /** Whether the settings overlay is visible */
@@ -69,6 +69,10 @@ interface AdvancedSettingsProps {
   aspectRatio?: AspectRatioOption;
   /** Handler for aspect ratio change */
   onAspectRatioChange?: (aspectRatio: AspectRatioOption) => void;
+  /** Current TezDev theme */
+  tezdevTheme?: TezDevTheme;
+  /** Handler for TezDev theme change */
+  onTezDevThemeChange?: (theme: TezDevTheme) => void;
 }
 
 /**
@@ -107,10 +111,13 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
   onResetSettings,
   aspectRatio,
   onAspectRatioChange,
+  tezdevTheme,
+  onTezDevThemeChange,
 }) => {
   // Get current aspect ratio from context if not provided via props
   const { settings, updateSetting } = useApp();
   const currentAspectRatio = aspectRatio || settings.aspectRatio;
+  const currentTezDevTheme = tezdevTheme || settings.tezdevTheme;
 
   const handleAspectRatioChange = (newAspectRatio: AspectRatioOption) => {
     // Use the provided handler or fallback to context
@@ -145,6 +152,15 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
         break;
       default:
         break;
+    }
+  };
+
+  const handleTezDevThemeChange = (newTheme: TezDevTheme) => {
+    // Use the provided handler or fallback to context
+    if (onTezDevThemeChange) {
+      onTezDevThemeChange(newTheme);
+    } else {
+      updateSetting('tezdevTheme', newTheme);
     }
   };
 
@@ -249,6 +265,20 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
               </svg>
             </button>
           </div>
+        </div>
+
+        {/* TezDev Theme selector */}
+        <div className="control-option">
+          <label className="control-label">TezDev Theme:</label>
+          <select
+            className="model-select"
+            onChange={(e) => handleTezDevThemeChange(e.target.value as TezDevTheme)}
+            value={currentTezDevTheme}
+          >
+            <option value="blue">Blue</option>
+            <option value="pink">Pink</option>
+            <option value="off">Off</option>
+          </select>
         </div>
 
         {/* Model selector */}

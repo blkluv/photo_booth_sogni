@@ -34,6 +34,8 @@ export const getPhotoHashtag = (photo) => {
  * @param {string} [params.shareUrl] - Optional URL to include in the tweet
  * @param {number} [params.maxRetries=2] - Maximum number of retries for network errors
  * @param {Function} [params.onSuccess] - Callback function for direct share success
+ * @param {string} [params.tezdevTheme='off'] - TezDev theme ('blue', 'pink', or 'off')
+ * @param {string} [params.aspectRatio] - Aspect ratio of the image
  * @returns {Promise<void>}
  */
 export const shareToTwitter = async ({
@@ -44,6 +46,8 @@ export const shareToTwitter = async ({
   shareUrl,
   maxRetries = 2,
   onSuccess = null,
+  tezdevTheme = 'off',
+  aspectRatio = null,
 }) => {
   if (photoIndex === null || !photos[photoIndex] || !photos[photoIndex].images || !photos[photoIndex].images[0]) {
     console.error('No image selected or image URL is missing for sharing.');
@@ -88,7 +92,10 @@ export const shareToTwitter = async ({
     }
     
     // Generate a polaroid-framed version of the image as a data URL
-    const polaroidImageDataUrl = await createPolaroidImage(originalImageUrl, label);
+    const polaroidImageDataUrl = await createPolaroidImage(originalImageUrl, label, {
+      tezdevTheme,
+      aspectRatio
+    });
     
     // Use the data URL directly instead of creating a blob URL
     // This ensures the server can access the image data directly

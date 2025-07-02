@@ -39,6 +39,8 @@ export interface ModelOption {
 
 export type AspectRatioOption = 'portrait' | 'landscape' | 'square' | 'narrow' | 'wide' | 'ultrawide' | 'ultranarrow';
 
+export type TezDevTheme = 'blue' | 'pink' | 'off';
+
 export interface Settings {
   selectedStyle: string;
   selectedModel: string;
@@ -55,4 +57,5 @@ export interface Settings {
   soundEnabled: boolean;
   slothicornAnimationEnabled: boolean;
   aspectRatio: AspectRatioOption;
+  tezdevTheme: TezDevTheme;
 } 
