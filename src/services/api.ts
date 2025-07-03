@@ -486,7 +486,7 @@ export async function generateImage(params: Record<string, unknown>, progressCal
     console.log(`Final sourceType being sent to API: ${typeof requestParams.sourceType === 'string' ? requestParams.sourceType : 'unknown type'}`);
     
     // Use XMLHttpRequest for real upload progress tracking
-    const { projectId, status } = await new Promise<{ projectId: string | undefined; status: string | undefined }>((resolve, reject) => {
+    const { projectId, status, responseData } = await new Promise<{ projectId: string | undefined; status: string | undefined; responseData: Record<string, unknown> }>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       
       // Track upload progress
@@ -519,7 +519,8 @@ export async function generateImage(params: Record<string, unknown>, progressCal
             const json: Record<string, unknown> = isObjectRecord(jsonRaw) ? jsonRaw : {};
             resolve({
               projectId: json.projectId as string | undefined,
-              status: json.status as string | undefined
+              status: json.status as string | undefined,
+              responseData: json
             });
           } else {
             reject(new Error(`HTTP error! status: ${xhr.status}`));
@@ -555,9 +556,16 @@ export async function generateImage(params: Record<string, unknown>, progressCal
       throw new Error('Failed to start image generation');
     }
     
+    // Extract clientAppId from response if provided for better session tracking
+    let responseClientAppId = clientAppId;
+    if (responseData && typeof responseData === 'object' && 'clientAppId' in responseData && typeof responseData.clientAppId === 'string') {
+      responseClientAppId = responseData.clientAppId;
+      console.log(`Using backend-provided clientAppId: ${responseClientAppId}`);
+    }
+    
     // If no progress callback is provided, just return the project ID
     if (!progressCallback) {
-      return { projectId };
+      return { projectId, clientAppId: responseClientAppId };
     }
     
     // Set up SSE for progress tracking
@@ -603,7 +611,7 @@ export async function generateImage(params: Record<string, unknown>, progressCal
         
         // Add client app ID to the URL as a query parameter for more reliable passing 
         // through proxies and better debugging
-        const progressUrl = `${API_BASE_URL}/sogni/progress/${projectId}?clientAppId=${encodeURIComponent(clientAppId)}&_t=${Date.now()}`;
+        const progressUrl = `${API_BASE_URL}/sogni/progress/${projectId}?clientAppId=${encodeURIComponent(responseClientAppId)}&_t=${Date.now()}`;
         console.log(`Connecting to progress stream: ${progressUrl} (attempt ${retryCount + 1})`);
         
         // Create the EventSource with the with-credentials flag for CORS

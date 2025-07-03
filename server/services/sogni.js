@@ -256,6 +256,21 @@ process.on('unhandledRejection', (reason, promise) => {
     return;
   }
   
+  // Check if this is a token expiry error during generation
+  if (reason && (
+    (reason.status === 401) ||
+    (reason.payload && reason.payload.errorCode === 107) ||
+    (reason.message && reason.message.includes('Invalid token'))
+  )) {
+    console.error('[UNHANDLED REJECTION] Token expiry during generation - this should be caught and handled:', reason);
+    
+    // Clear invalid tokens to force re-authentication
+    clearInvalidTokens();
+    
+    // Don't crash the server for token issues
+    return;
+  }
+  
   // For any other unhandled rejection, log it
   console.error('Unhandled promise rejection:', reason);
   
@@ -699,6 +714,20 @@ export async function generateImage(client, params, progressCallback) {
     // Record activity for this client
     recordClientActivity(client.appId);
     
+    // Pre-validate client authentication before starting generation
+    try {
+      if (!client.account.currentAccount.isAuthenicated) {
+        console.warn(`[GENERATE] Client ${client.appId} is not authenticated, attempting to refresh...`);
+        await client.account.refreshBalance(); // This will trigger re-auth if needed
+      }
+    } catch (preValidationError) {
+      if (preValidationError.status === 401 || preValidationError.message?.includes('Invalid token')) {
+        console.error(`[GENERATE] Client ${client.appId} pre-validation failed with auth error, will attempt to continue but may fail`);
+      } else {
+        console.warn(`[GENERATE] Client ${client.appId} pre-validation failed with non-auth error: ${preValidationError.message}`);
+      }
+    }
+    
     const isEnhancement = params.startingImage !== undefined;
     
     const projectOptions = {
@@ -744,10 +773,30 @@ export async function generateImage(client, params, progressCallback) {
     // Log the tokenType being used for debugging
     console.log(`[TOKEN TYPE] Using tokenType: ${projectOptions.tokenType} for project creation`);
     
-    // Create the project with all options including image data
-    const project = await client.projects.create(projectOptions);
-    const projectId = project.id;
+    // Create the project with all options including image data, with better error handling
+    let project;
+    try {
+      project = await client.projects.create(projectOptions);
+    } catch (createError) {
+      // Check if this is a token expiry error during project creation
+      if (createError.status === 401 || 
+          (createError.payload && createError.payload.errorCode === 107) ||
+          createError.message?.includes('Invalid token')) {
+        
+        console.error(`[GENERATE] Token expired during project creation for client ${client.appId}, clearing tokens and rethrowing error`);
+        
+        // Clear invalid tokens to force re-authentication on next request
+        clearInvalidTokens();
+        
+        // Re-throw with better error message
+        throw new Error(`Authentication failed during image generation: ${createError.message}`);
+      }
+      
+      // For other errors, just re-throw
+      throw createError;
+    }
     
+    const projectId = project.id;
     console.log(`Created project with ID: ${projectId}`);
 
     // Initialize event tracker object if it doesn't exist

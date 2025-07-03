@@ -341,12 +341,18 @@ router.options('/generate', (req, res) => {
 
 // Generate image with project tracking
 router.post('/generate', ensureSessionId, async (req, res) => {
-  const localProjectId = `project-${Date.now()}`;
+  const localProjectId = `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   console.log(`[${localProjectId}] Starting image generation request for session ${req.sessionId}...`);
   
   try {
-    const clientAppId = req.headers['x-client-app-id'] || req.body.clientAppId || req.query.clientAppId;
-    console.log(`[${localProjectId}] Using client app ID: ${clientAppId || 'none provided'}`);
+    // Ensure each user gets a unique client app ID for better isolation
+    let clientAppId = req.headers['x-client-app-id'] || req.body.clientAppId || req.query.clientAppId;
+    if (!clientAppId) {
+      clientAppId = `user-${req.sessionId}-${Date.now()}`;
+      console.log(`[${localProjectId}] Generated unique client app ID for session: ${clientAppId}`);
+    } else {
+      console.log(`[${localProjectId}] Using provided client app ID: ${clientAppId}`);
+    }
     
     // Track a new batch being generated for metrics
     await incrementBatchesGenerated();
@@ -508,10 +514,11 @@ router.post('/generate', ensureSessionId, async (req, res) => {
         console.error(`ERROR - ${new Date().toISOString()} - [${localProjectId}] Sogni SDK (generateImage function) promise rejected:`, error);
         console.error(`[${localProjectId}] Sogni generation process failed:`, error);
         
-        // Check if this is an authentication error
+        // Check if this is an authentication error (including token expiry during generation)
         const isAuthError = error.status === 401 || 
                            (error.payload && error.payload.errorCode === 107) || 
-                           error.message?.includes('Invalid token');
+                           error.message?.includes('Invalid token') ||
+                           error.message?.includes('Authentication required');
         
         // Check if this is an insufficient funds error
         const isInsufficientFundsError = error.payload?.errorCode === 4024 || 
@@ -618,20 +625,30 @@ router.post('/generate', ensureSessionId, async (req, res) => {
       await Promise.race([
         firstEventPromise,
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout waiting for generation to start')), 10000) // 10 second timeout
+          setTimeout(() => reject(new Error('Timeout waiting for generation to start')), 15000) // Increased to 15 second timeout
         )
       ]);
       console.log(`[${localProjectId}] Received first event from Sogni, responding to client.`);
     } catch (timeoutError) {
       console.warn(`[${localProjectId}] Timeout waiting for first event, responding anyway:`, timeoutError.message);
+      
+      // Check if we have any stored errors for this project
+      if (globalThis.pendingProjectErrors && globalThis.pendingProjectErrors.has(localProjectId)) {
+        const errorEvent = globalThis.pendingProjectErrors.get(localProjectId);
+        console.log(`[${localProjectId}] Found stored error during timeout, will be delivered via SSE:`, JSON.stringify(errorEvent));
+      }
     }
+    
+    // Add a small delay to allow SSE connection to establish
+    await new Promise(resolve => setTimeout(resolve, 100));
     
     // Respond to the initial POST request with the project ID
     console.log(`[${localProjectId}] Responding to initial POST request.`);
     res.json({ 
       status: 'processing',
       projectId: localProjectId, // This is the ID the client uses to listen for SSE
-      message: 'Image generation request received and processing started.' 
+      message: 'Image generation request received and processing started.',
+      clientAppId: clientAppId // Include clientAppId for frontend tracking
     });
   } catch (error) {
     console.error(`ERROR - ${new Date().toISOString()} - [${localProjectId}] Uncaught error in POST /generate handler:`, error);
