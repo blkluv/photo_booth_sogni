@@ -268,13 +268,10 @@ async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, fram
     trCorner.crossOrigin = 'anonymous';
     
     trCorner.onload = () => {
-      // Calculate scaled dimensions - more generous sizing for better visibility
-      // Use 85% for square/wide images, 65% for tall images
-      const aspectRatio = imageWidth / imageHeight;
-      const maxPercent = aspectRatio >= 1.0 ? 0.85 : 0.65; // Smaller for tall images
-      
-      const maxWidth = imageWidth * maxPercent;
-      const maxHeight = imageHeight * maxPercent;
+      // Calculate scaled dimensions to match gallery view sizing
+      // Use consistent 75% to match gallery thumbnails
+      const maxWidth = imageWidth * 0.75;
+      const maxHeight = imageHeight * 0.75;
       
       const scaleX = maxWidth / trCorner.naturalWidth;
       const scaleY = maxHeight / trCorner.naturalHeight;
@@ -299,14 +296,10 @@ async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, fram
     blCorner.crossOrigin = 'anonymous';
     
     blCorner.onload = () => {
-      // Calculate scaled dimensions - bottom-left needs extra height for logo text
-      // Use 95% height for square/wide images, 65% for tall images
-      const aspectRatio = imageWidth / imageHeight;
-      const maxWidthPercent = aspectRatio >= 1.0 ? 0.85 : 0.65;
-      const maxHeightPercent = aspectRatio >= 1.0 ? 0.95 : 0.65; // Smaller for tall images
-      
-      const maxWidth = imageWidth * maxWidthPercent;
-      const maxHeight = imageHeight * maxHeightPercent;
+      // Calculate scaled dimensions to match gallery view sizing
+      // Use 75% width, 80% height to match gallery thumbnails
+      const maxWidth = imageWidth * 0.75;
+      const maxHeight = imageHeight * 0.80;
       
       const scaleX = maxWidth / blCorner.naturalWidth;
       const scaleY = maxHeight / blCorner.naturalHeight;
