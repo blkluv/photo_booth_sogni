@@ -168,58 +168,58 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
       }
       
       function finalizePolaroid() {
-        // Add subtle inner shadow to make it look more realistic
-        ctx.shadowColor = 'rgba(0,0,0,0.1)';
-        ctx.shadowBlur = 6;
-        ctx.shadowOffsetY = 1;
-        ctx.shadowOffsetX = 0;
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = 'rgba(0,0,0,0.08)';
-        ctx.strokeRect(frameWidth, frameTopWidth, imageWidth, imageHeight);
+      // Add subtle inner shadow to make it look more realistic
+      ctx.shadowColor = 'rgba(0,0,0,0.1)';
+      ctx.shadowBlur = 6;
+      ctx.shadowOffsetY = 1;
+      ctx.shadowOffsetX = 0;
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+      ctx.strokeRect(frameWidth, frameTopWidth, imageWidth, imageHeight);
+      
+      // Reset shadow for text
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+      
+      // Add label if provided and not empty
+      if (textToDraw) {
+        // Set font with Permanent Marker
+        ctx.font = labelFont;
+        ctx.fillStyle = labelColor;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         
-        // Reset shadow for text
-        ctx.shadowColor = 'transparent';
-        ctx.shadowBlur = 0;
-        ctx.shadowOffsetY = 0;
+        // Position label in the bottom white area, a bit higher from the bottom for better visual balance
+        const labelY = polaroidHeight - (frameBottomWidth / 2);
         
-        // Add label if provided and not empty
-        if (textToDraw) {
-          // Set font with Permanent Marker
-          ctx.font = labelFont;
-          ctx.fillStyle = labelColor;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          
-          // Position label in the bottom white area, a bit higher from the bottom for better visual balance
-          const labelY = polaroidHeight - (frameBottomWidth / 2);
-          
-          // Constrain label length if too long
-          const maxLabelWidth = polaroidWidth - 20; // Increased padding
-          let displayLabel = textToDraw;
-          
-          if (ctx.measureText(textToDraw).width > maxLabelWidth) {
-            // Truncate and add ellipsis if too long
-            for (let i = textToDraw.length; i > 0; i--) {
-              const truncated = textToDraw.substring(0, i) + '...';
-              if (ctx.measureText(truncated).width <= maxLabelWidth) {
-                displayLabel = truncated;
-                break;
-              }
+        // Constrain label length if too long
+        const maxLabelWidth = polaroidWidth - 20; // Increased padding
+        let displayLabel = textToDraw;
+        
+        if (ctx.measureText(textToDraw).width > maxLabelWidth) {
+          // Truncate and add ellipsis if too long
+          for (let i = textToDraw.length; i > 0; i--) {
+            const truncated = textToDraw.substring(0, i) + '...';
+            if (ctx.measureText(truncated).width <= maxLabelWidth) {
+              displayLabel = truncated;
+              break;
             }
           }
-          
-          ctx.fillText(displayLabel, polaroidWidth / 2, labelY);
-          
-          console.log(`Drew label: "${displayLabel}" at y=${labelY} with bottom width ${frameBottomWidth}`);
         }
         
-        // Convert to data URL with maximum quality
-        const dataUrl = canvas.toDataURL('image/png', 1.0);
+        ctx.fillText(displayLabel, polaroidWidth / 2, labelY);
         
-        // For debugging: display the image in the console
-        console.log(`Generated polaroid with dimensions: ${polaroidWidth}x${polaroidHeight}`);
-        
-        resolve(dataUrl);
+        console.log(`Drew label: "${displayLabel}" at y=${labelY} with bottom width ${frameBottomWidth}`);
+      }
+      
+      // Convert to data URL with maximum quality
+      const dataUrl = canvas.toDataURL('image/png', 1.0);
+      
+      // For debugging: display the image in the console
+      console.log(`Generated polaroid with dimensions: ${polaroidWidth}x${polaroidHeight}`);
+      
+      resolve(dataUrl);
       }
     };
     

@@ -55,7 +55,7 @@ export const shareToTwitter = async ({
     return;
   }
 
-  // Ensure Permanent Marker font is loaded for consistent polaroid styling
+  // Ensure Permanent Marker font is loaded for consistent styling
   if (!document.querySelector('link[href*="Permanent+Marker"]')) {
     const fontLink = document.createElement('link');
     fontLink.href = 'https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap';
@@ -65,7 +65,7 @@ export const shareToTwitter = async ({
     // Wait for font to load to ensure consistent text rendering
     try {
       await document.fonts.ready;
-      console.log('Permanent Marker font loaded for polaroid styling');
+      console.log('Permanent Marker font loaded for styling');
     } catch (err) {
       console.warn('Could not confirm font loading, continuing anyway:', err);
     }
@@ -74,11 +74,23 @@ export const shareToTwitter = async ({
   const photo = photos[photoIndex];
   const originalImageUrl = photo.images[0];
   
-  // Get the hashtag or style to use as the label
-  const hashtag = getPhotoHashtag(photo);
-  const label = hashtag || photo.label || photo.style || '';
+  // Determine the appropriate message format based on TezDev theme
+  let twitterMessage = customMessage;
   
-  console.log(`Creating polaroid image for sharing to X with label: "${label}"`);
+  if (tezdevTheme !== 'off') {
+    // Use TezDev-specific message format
+    const hashtag = getPhotoHashtag(photo);
+    const styleTag = hashtag ? hashtag.replace('#', '') : 'vaporwave';
+    
+    twitterMessage = `Just took my photo at the @Sogni_protocol photobooth at TezDev 2025! #SogniAtTezDev2025 #${styleTag}
+@tzapac @tezos @etherlink
+https://photobooth.sogni.ai/?prompt=${styleTag}`;
+  } else if (!twitterMessage) {
+    // Use default message for non-TezDev themes
+    twitterMessage = "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨";
+  }
+
+  console.log(`Creating image for sharing to X with TezDev theme: ${tezdevTheme}`);
   
   try {
     // Attempt to manually load the Permanent Marker font to ensure it's available
@@ -91,16 +103,35 @@ export const shareToTwitter = async ({
       console.warn('Could not manually load font, using system fallback:', fontError);
     }
     
-    // Generate a polaroid-framed version of the image as a data URL
-    const polaroidImageDataUrl = await createPolaroidImage(originalImageUrl, label, {
-      tezdevTheme,
-      aspectRatio
-    });
+    let imageDataUrl;
+    
+    if (tezdevTheme !== 'off') {
+      // For TezDev themes, create full frame version (no polaroid frame, just TezDev overlay)
+      console.log('Creating TezDev full frame version for sharing');
+      imageDataUrl = await createPolaroidImage(originalImageUrl, '', {
+        tezdevTheme,
+        aspectRatio,
+        frameWidth: 0,      // No polaroid frame
+        frameTopWidth: 0,   // No polaroid frame
+        frameBottomWidth: 0, // No polaroid frame
+        frameColor: 'transparent' // No polaroid background
+      });
+    } else {
+      // For non-TezDev themes, use traditional polaroid frame
+      const hashtag = getPhotoHashtag(photo);
+      const label = hashtag || photo.label || photo.style || '';
+      
+      console.log('Creating polaroid image for sharing');
+      imageDataUrl = await createPolaroidImage(originalImageUrl, label, {
+        tezdevTheme,
+        aspectRatio
+      });
+    }
     
     // Use the data URL directly instead of creating a blob URL
     // This ensures the server can access the image data directly
-    console.log('Successfully created polaroid image for X sharing');
-    console.log('Attempting to share polaroid image to X');
+    console.log('Successfully created image for X sharing');
+    console.log('Attempting to share image to X');
 
     let retries = 0;
     const attemptShare = async () => {
@@ -116,8 +147,8 @@ export const shareToTwitter = async ({
           },
           credentials: 'include', // Important! Ensures cookies are sent
           body: JSON.stringify({ 
-            imageUrl: polaroidImageDataUrl, // Send the data URL directly instead of blob URL
-            message: customMessage, // Include optional custom message
+            imageUrl: imageDataUrl, // Send the data URL directly instead of blob URL
+            message: twitterMessage, // Use the appropriate message format
             shareUrl: shareUrl // Include the share URL if provided
           }),
         });
@@ -307,7 +338,7 @@ export const shareToTwitter = async ({
     // Start the share process
     await attemptShare();
   } catch (error) {
-    console.error('Failed to create polaroid image for sharing:', error);
+    console.error('Failed to create image for sharing:', error);
     setBackendError(`Failed to prepare image for sharing: ${error.message}`);
   }
 };

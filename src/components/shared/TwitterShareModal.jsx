@@ -38,62 +38,30 @@ const TwitterShareModal = ({
   // Determine photo label - prefer status text if available, otherwise use a combination of number label and hashtag
   const photoNumberLabel = photoData?.statusText?.split('#')[0]?.trim() || photoData?.label || '';
   
-  // Combine the number label and hashtag
+  // Combine the number label and hashtag for polaroid display
   const photoLabel = photoNumberLabel + (styleHashtag ? ` ${styleHashtag}` : '');
   
-  // Ensure font is loaded when component mounts
+  // Initialize message with default and hashtag when modal opens
   useEffect(() => {
-    ensureFontLoaded();
-  }, []);
-  
-  // Create polaroid preview when modal opens and imageUrl changes
-  useEffect(() => {
-    if (isOpen && imageUrl) {
-      setIsLoadingPreview(true);
-      
-      const generatePolaroidPreview = async () => {
-        try {
-          // Make sure the font is loaded before generating the preview
-          await document.fonts.ready;
-          
-          console.log(`Creating polaroid preview with label: "${photoLabel}"`);
-          // Create and use polaroid data URL directly - avoid converting to Blob
-          const polaroidUrl = await createPolaroidImage(imageUrl, photoLabel, {
-            tezdevTheme,
-            aspectRatio
-          });
-          setPolaroidImageUrl(polaroidUrl);
-        } catch (error) {
-          console.error('Error creating polaroid preview:', error);
-          setPolaroidImageUrl(imageUrl); // Fallback to original image
-        } finally {
-          setIsLoadingPreview(false);
-        }
-      };
-      
-      generatePolaroidPreview();
-    }
-    
-    return () => {
-      // Cleanup function
-      setPolaroidImageUrl(null);
-    };
-  }, [isOpen, imageUrl, photoLabel, tezdevTheme, aspectRatio]);
-  
-  useEffect(() => {
-    // Initialize message with default and hashtag when modal opens
-    // get the current page url with deeplink
-    const currentUrl = window.location.href;
     if (isOpen) {
-      // Add #TezDev hashtag when in Tezos mode
-      const tezDevHashtag = tezdevTheme !== 'off' ? ' #TezDev' : '';
-      const messageWithTezDev = defaultMessage.replace('✨', `✨${tezDevHashtag}`);
-      
-      const initialMessage = styleHashtag 
-        ? `${messageWithTezDev} ${styleHashtag} ${currentUrl.split('?')[0]}?prompt=${styleHashtag.replace('#', '')}`
-        : `${messageWithTezDev} ${currentUrl}`;
-      
-      setMessage(initialMessage);
+      if (tezdevTheme !== 'off') {
+        // Use TezDev-specific message format
+        const styleTag = styleHashtag ? styleHashtag.replace('#', '') : '';
+        const tezdevMessage = `Just took my photo at the @Sogni_protocol photobooth at TezDev 2025! #SogniAtTezDev2025 #${styleTag}
+@tzapac @tezos @etherlink
+https://photobooth.sogni.ai/?prompt=${styleTag}`;
+        setMessage(tezdevMessage);
+      } else {
+        // Original behavior for non-TezDev themes
+        // get the current page url with deeplink
+        const currentUrl = window.location.href;
+        
+        const initialMessage = styleHashtag 
+          ? `${defaultMessage} ${styleHashtag} ${currentUrl.split('?')[0]}?prompt=${styleHashtag.replace('#', '')}`
+          : `${defaultMessage} ${currentUrl}`;
+        
+        setMessage(initialMessage);
+      }
       
       // Focus the textarea
       setTimeout(() => {
@@ -104,6 +72,61 @@ const TwitterShareModal = ({
       }, 100);
     }
   }, [isOpen, defaultMessage, styleHashtag, tezdevTheme]);
+
+  // Ensure font is loaded when component mounts
+  useEffect(() => {
+    ensureFontLoaded();
+  }, []);
+  
+  // Create preview when modal opens and imageUrl changes
+  useEffect(() => {
+    if (isOpen && imageUrl) {
+      setIsLoadingPreview(true);
+      
+      const generatePreview = async () => {
+        try {
+          // Make sure the font is loaded before generating the preview
+          await document.fonts.ready;
+          
+          let previewImageUrl;
+          
+          if (tezdevTheme !== 'off') {
+            // For TezDev themes, create full frame version (no polaroid frame, just TezDev overlay)
+            console.log('Creating TezDev full frame preview');
+            previewImageUrl = await createPolaroidImage(imageUrl, '', {
+              tezdevTheme,
+              aspectRatio,
+              frameWidth: 0,      // No polaroid frame
+              frameTopWidth: 0,   // No polaroid frame
+              frameBottomWidth: 0, // No polaroid frame
+              frameColor: 'transparent' // No polaroid background
+            });
+          } else {
+            // For non-TezDev themes, use traditional polaroid frame
+            console.log(`Creating polaroid preview with label: "${photoLabel}"`);
+            previewImageUrl = await createPolaroidImage(imageUrl, photoLabel, {
+              tezdevTheme,
+              aspectRatio
+            });
+          }
+          
+          setPolaroidImageUrl(previewImageUrl);
+        } catch (error) {
+          console.error('Error creating preview:', error);
+          setPolaroidImageUrl(imageUrl); // Fallback to original image
+        } finally {
+          setIsLoadingPreview(false);
+        }
+      };
+      
+      generatePreview();
+    }
+    
+    return () => {
+      // Cleanup function
+      setPolaroidImageUrl(null);
+    };
+  }, [isOpen, imageUrl, photoLabel, tezdevTheme, aspectRatio]);
 
   // Handle click outside to close
   useEffect(() => {
@@ -123,12 +146,14 @@ const TwitterShareModal = ({
   }, [isOpen, onClose]);
 
   const handleShare = async () => {
+    if (!message.trim()) return;
+    
     setIsSharing(true);
     try {
       await onShare(message);
       onClose();
     } catch (error) {
-      console.error('Error sharing to Twitter:', error);
+      console.error('Error sharing:', error);
     } finally {
       setIsSharing(false);
     }
@@ -167,14 +192,20 @@ const TwitterShareModal = ({
             {isLoadingPreview ? (
               <div className="twitter-image-loading">
                 <span className="loading-spinner"></span>
-                <p>Preparing polaroid image...</p>
+                <p>Preparing image...</p>
               </div>
             ) : polaroidImageUrl ? (
-              <div className="polaroid-container">
+              <div className="preview-container">
                 <img src={polaroidImageUrl} alt="Preview" />
-                {photoLabel && (
+                {!tezdevTheme || tezdevTheme === 'off' ? (
+                  photoLabel && (
+                    <div className="preview-label-debug">
+                      Using label: {photoLabel}
+                    </div>
+                  )
+                ) : (
                   <div className="preview-label-debug">
-                    Using label: {photoLabel}
+                    TezDev {tezdevTheme} frame (full version)
                   </div>
                 )}
               </div>

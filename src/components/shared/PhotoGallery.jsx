@@ -330,12 +330,12 @@ const PhotoGallery = ({
           frameBottomWidth: 0, // No polaroid frame
           frameColor: 'transparent' // No polaroid background
         });
-        
-        // Handle download
+      
+             // Handle download
         downloadImage(framedImageUrl, filename);
       } else {
         // Handle download without frame
-        downloadImage(imageUrl, filename);
+       downloadImage(imageUrl, filename);
       }
     } catch (error) {
       console.error('Error downloading raw photo:', error);
