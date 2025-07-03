@@ -756,11 +756,11 @@ const PhotoGallery = ({
                   )}
                 </div>
                 <div className="photo-label">
-                  {photo.error ? 
-                    `${typeof photo.error === 'object' ? 'Generation failed' : photo.error}` 
-                    : photo.loading || photo.generating ? 
-                      (photo.statusText || loadingLabel || labelText) 
-                      : (photo.statusText || labelText) + (photo.hashtag ? ` ${photo.hashtag}` : getStyleHashtag(photo) ? ` ${getStyleHashtag(photo)}` : '')}
+                                  {photo.error ? 
+                  `${typeof photo.error === 'object' ? 'GENERATION FAILED: unknown error' : photo.error}` 
+                  : photo.loading || photo.generating ? 
+                    (photo.statusText || loadingLabel || labelText) 
+                    : (photo.statusText || labelText) + (photo.hashtag ? ` ${photo.hashtag}` : getStyleHashtag(photo) ? ` ${getStyleHashtag(photo)}` : '')}
                 </div>
               </div>
             );

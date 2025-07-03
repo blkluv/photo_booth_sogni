@@ -167,7 +167,7 @@ export const enhancePhoto = async (options) => {
             ...updated[photoIndex],
             loading: false,
             enhancing: false,
-            error: 'Enhancement failed'
+            error: 'ENHANCEMENT FAILED: processing error'
           };
           return updated;
         });
@@ -185,7 +185,7 @@ export const enhancePhoto = async (options) => {
         ...updated[photoIndex],
         loading: false,
         enhancing: false,
-        error: error?.message || 'Enhancement failed'
+        error: error?.message && error.message.includes('Insufficient') ? 'ENHANCEMENT FAILED: replenish tokens' : 'ENHANCEMENT FAILED: processing error'
       };
       return updated;
     });

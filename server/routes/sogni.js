@@ -200,6 +200,28 @@ router.get('/progress/:projectId', ensureSessionId, (req, res) => {
   }
   activeProjects.get(projectId).add(res);
   
+  // Check for any pending errors for this project and send them immediately
+  console.log(`[${projectId}] Checking for pending errors. Available errors:`, 
+    globalThis.pendingProjectErrors ? Array.from(globalThis.pendingProjectErrors.keys()) : 'none');
+  
+  if (globalThis.pendingProjectErrors && globalThis.pendingProjectErrors.has(projectId)) {
+    const errorEvent = globalThis.pendingProjectErrors.get(projectId);
+    console.log(`[${projectId}] Sending stored error event to newly connected SSE client:`, JSON.stringify(errorEvent));
+    
+    try {
+      res.write(`data: ${JSON.stringify(errorEvent)}\n\n`);
+      res.flushHeaders();
+      console.log(`[${projectId}] Successfully sent pending error event`);
+    } catch (err) {
+      console.error(`Error sending pending error event: ${err.message}`);
+    }
+    
+    // Clean up the pending error
+    globalThis.pendingProjectErrors.delete(projectId);
+  } else {
+    console.log(`[${projectId}] No pending errors found for this project`);
+  }
+  
   // Cancel any pending cleanup since a user is now connected
   if (sogniCleanupTimer) {
     clearTimeout(sogniCleanupTimer);
@@ -422,6 +444,51 @@ router.post('/generate', ensureSessionId, async (req, res) => {
         });
       } else {
         console.log(`[${localProjectId}] No SSE clients found for this request.`);
+        
+        // Check if this is an error event that needs to be stored
+        if (eventData.type === 'failed' || eventData.type === 'error') {
+          console.log(`[${localProjectId}] Storing error event for later pickup:`, JSON.stringify(eventData));
+          
+          // Store the error event for immediate pickup when SSE connects
+          if (!globalThis.pendingProjectErrors) {
+            globalThis.pendingProjectErrors = new Map();
+          }
+          
+          // Check if this is an insufficient funds error
+          const isInsufficientFundsError = (eventData.error && eventData.error.code === 4024) || 
+                                         (eventData.error && eventData.error.message && eventData.error.message.includes('Insufficient funds')) ||
+                                         (eventData.error && eventData.error.message && eventData.error.message.includes('Debit Error'));
+          
+          let errorMessage = (eventData.error && eventData.error.message) || eventData.message || 'Image generation failed';
+          
+          // Provide a user-friendly message for insufficient funds
+          if (isInsufficientFundsError) {
+            errorMessage = 'Insufficient Sogni credits to generate images. Please add more credits to your account.';
+          }
+          
+          const errorEvent = { 
+            type: 'error', 
+            projectId: localProjectId,
+            message: errorMessage,
+            details: eventData.error ? JSON.stringify(eventData.error) : 'Unknown error',
+            errorCode: isInsufficientFundsError ? 'insufficient_funds' : 
+                     (eventData.error && eventData.error.code ? `api_error_${eventData.error.code}` : 'unknown_error'),
+            status: 500,
+            isInsufficientFunds: isInsufficientFundsError
+          };
+          
+          globalThis.pendingProjectErrors.set(localProjectId, errorEvent);
+          console.log(`[${localProjectId}] Error stored for project. Total pending errors: ${globalThis.pendingProjectErrors.size}`);
+          console.log(`[${localProjectId}] All pending error keys:`, Array.from(globalThis.pendingProjectErrors.keys()));
+          
+          // Clean up after 30 seconds
+          setTimeout(() => {
+            if (globalThis.pendingProjectErrors) {
+              console.log(`[${localProjectId}] Cleaning up pending error after timeout`);
+              globalThis.pendingProjectErrors.delete(localProjectId);
+            }
+          }, 30000);
+        }
       }
     };
     
@@ -446,6 +513,11 @@ router.post('/generate', ensureSessionId, async (req, res) => {
                            (error.payload && error.payload.errorCode === 107) || 
                            error.message?.includes('Invalid token');
         
+        // Check if this is an insufficient funds error
+        const isInsufficientFundsError = error.payload?.errorCode === 4024 || 
+                                       error.message?.includes('Insufficient funds') ||
+                                       error.message?.includes('Debit Error');
+        
         if (isAuthError) {
           console.log(`[${localProjectId}] Authentication error detected, will clean up client to force re-authentication on next request`);
           
@@ -468,20 +540,70 @@ router.post('/generate', ensureSessionId, async (req, res) => {
         
         if (activeProjects.has(localProjectId)) {
           const clients = activeProjects.get(localProjectId);
+          let errorMessage = error.message || 'Image generation failed';
+          
+          // Provide a user-friendly message for insufficient funds
+          if (isInsufficientFundsError) {
+            errorMessage = 'Insufficient Sogni credits to generate images. Please add more credits to your account.';
+          }
+          
           const errorEvent = { 
             type: 'error', 
             projectId: localProjectId,
-            message: error.message || 'Image generation failed',
+            message: errorMessage,
             details: error.toString(),
             errorCode: isAuthError ? 'auth_error' : 
+                     isInsufficientFundsError ? 'insufficient_funds' :
                      (error.payload?.errorCode ? `api_error_${error.payload.errorCode}` : 'unknown_error'),
             status: error.status || 500,
-            isAuthError: isAuthError
+            isAuthError: isAuthError,
+            isInsufficientFunds: isInsufficientFundsError
           };
           console.log(`[${localProjectId}] Sending 'error' event to ${clients.size} SSE client(s):`, JSON.stringify(errorEvent));
           clients.forEach((client) => {
             sendSSEMessage(client, errorEvent);
           });
+        } else {
+          // If no SSE clients are connected yet, we need to handle this differently
+          // Store the error so the SSE connection can pick it up immediately
+          console.log(`[${localProjectId}] No SSE clients found - storing error for immediate pickup`);
+          
+          // Store the error event for immediate pickup when SSE connects
+          if (!globalThis.pendingProjectErrors) {
+            globalThis.pendingProjectErrors = new Map();
+          }
+          
+          let errorMessage = error.message || 'Image generation failed';
+          
+          // Provide a user-friendly message for insufficient funds
+          if (isInsufficientFundsError) {
+            errorMessage = 'Insufficient Sogni credits to generate images. Please add more credits to your account.';
+          }
+          
+          const errorEvent = { 
+            type: 'error', 
+            projectId: localProjectId,
+            message: errorMessage,
+            details: error.toString(),
+            errorCode: isAuthError ? 'auth_error' : 
+                     isInsufficientFundsError ? 'insufficient_funds' :
+                     (error.payload?.errorCode ? `api_error_${error.payload.errorCode}` : 'unknown_error'),
+            status: error.status || 500,
+            isAuthError: isAuthError,
+            isInsufficientFunds: isInsufficientFundsError
+          };
+          
+          globalThis.pendingProjectErrors.set(localProjectId, errorEvent);
+          console.log(`[${localProjectId}] Error stored for project. Total pending errors: ${globalThis.pendingProjectErrors.size}`);
+          console.log(`[${localProjectId}] All pending error keys:`, Array.from(globalThis.pendingProjectErrors.keys()));
+          
+          // Clean up after 30 seconds
+          setTimeout(() => {
+            if (globalThis.pendingProjectErrors) {
+              console.log(`[${localProjectId}] Cleaning up pending error after timeout`);
+              globalThis.pendingProjectErrors.delete(localProjectId);
+            }
+          }, 30000);
         }
         
         // Signal completion of first event check even on error

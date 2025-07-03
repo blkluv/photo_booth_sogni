@@ -576,7 +576,7 @@ const App = () => {
       if (error.message && error.message.includes('Failed to fetch')) {
         setBackendError('The backend server is not running. Please start it using "npm run server:dev" in a separate terminal.');
       } else if (error.message && error.message.includes('401')) {
-        setBackendError('Authentication failed: Invalid Sogni credentials. Please update the server/.env file with valid credentials.');
+        setBackendError('AUTHENTICATION FAILED: Invalid Sogni credentials. Please update the server/.env file with valid credentials.');
       } else {
         setBackendError(`Error connecting to the Sogni service: ${error.message}`);
       }
@@ -1416,11 +1416,41 @@ const App = () => {
             // and are still in generating state
             if (photo.generating && photo.projectId === effectiveProjectId) {
               console.log(`Marking photo ${photo.id} as failed due to project ${effectiveProjectId} failure`);
+              // Extract specific error information for better user feedback
+              let errorMessage = 'GENERATION FAILED: unknown error';
+              
+              if (error && typeof error === 'object') {
+                if (error.isInsufficientFunds || error.errorCode === 'insufficient_funds') {
+                  errorMessage = 'GENERATION FAILED: replenish tokens';
+                } else if (error.isAuthError || error.errorCode === 'auth_error') {
+                  errorMessage = 'GENERATION FAILED: authentication failed';
+                } else if (error.message) {
+                  // Extract key info from error message
+                  if (error.message.includes('Insufficient') || error.message.includes('credits')) {
+                    errorMessage = 'GENERATION FAILED: replenish tokens';
+                  } else if (error.message.includes('auth') || error.message.includes('token')) {
+                    errorMessage = 'GENERATION FAILED: authentication failed';
+                  } else if (error.message.includes('network') || error.message.includes('connection')) {
+                    errorMessage = 'GENERATION FAILED: connection error';
+                  } else {
+                    errorMessage = 'GENERATION FAILED: request failed';
+                  }
+                }
+              } else if (typeof error === 'string') {
+                if (error.includes('Insufficient') || error.includes('credits')) {
+                  errorMessage = 'GENERATION FAILED: replenish tokens';
+                } else if (error.includes('auth') || error.includes('token')) {
+                  errorMessage = 'GENERATION FAILED: authentication failed';
+                } else {
+                  errorMessage = 'GENERATION FAILED: request failed';
+                }
+              }
+              
               return {
                 ...photo,
                 generating: false,
                 loading: false,
-                error: 'Whoops, request failed',
+                error: errorMessage,
                 permanentError: true, // Mark as permanent error
                 statusText: 'Failed' // Update status text
               };
@@ -1554,11 +1584,28 @@ const App = () => {
             return previous;
           }
           
+          // Extract specific error information for individual job failures
+          let errorMessage = 'GENERATION FAILED: unknown error';
+          
+          if (job.error) {
+            if (job.error.includes('Insufficient') || job.error.includes('credits') || job.error.includes('funds')) {
+              errorMessage = 'GENERATION FAILED: replenish tokens';
+            } else if (job.error.includes('NSFW') || job.error.includes('filtered')) {
+              errorMessage = 'GENERATION FAILED: content filtered';
+            } else if (job.error.includes('timeout') || job.error.includes('worker')) {
+              errorMessage = 'GENERATION FAILED: processing timeout';
+            } else if (job.error.includes('network') || job.error.includes('connection')) {
+              errorMessage = 'GENERATION FAILED: connection error';
+            } else {
+              errorMessage = 'GENERATION FAILED: processing error';
+            }
+          }
+          
           updated[photoIndex] = {
             ...updated[photoIndex],
             generating: false,
             loading: false,
-            error: 'Generation failed',
+            error: errorMessage,
             permanentError: true, // Mark as permanent so it won't be overwritten
             statusText: 'Failed'
           };
@@ -1602,12 +1649,30 @@ const App = () => {
         
         // Use numImages from context state
         for (let index = 0; index < numImages; index++) { 
+          // Extract specific error information for generation startup failures
+          let errorMessage = 'GENERATION FAILED: startup error';
+          
+          if (error) {
+            const errorText = error.message || error.toString();
+            if (errorText.includes('Insufficient') || errorText.includes('credits') || errorText.includes('funds')) {
+              errorMessage = 'GENERATION FAILED: replenish tokens';
+            } else if (errorText.includes('auth') || errorText.includes('token') || errorText.includes('401')) {
+              errorMessage = 'GENERATION FAILED: authentication failed';
+            } else if (errorText.includes('network') || errorText.includes('connection') || errorText.includes('fetch')) {
+              errorMessage = 'GENERATION FAILED: connection error';
+            } else if (errorText.includes('timeout')) {
+              errorMessage = 'GENERATION FAILED: timeout error';
+            } else {
+              errorMessage = 'GENERATION FAILED: startup error';
+            }
+          }
+          
           updated.push({
             id: Date.now() + index,
             generating: false,
             loading: false,
             images: [],
-            error: `Error: ${error.message || error}`,
+            error: errorMessage,
             originalDataUrl: dataUrl, // Use reference photo as placeholder
             permanentError: true // Add permanent error flag
           });

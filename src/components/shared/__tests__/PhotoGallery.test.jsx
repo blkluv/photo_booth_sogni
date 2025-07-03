@@ -43,7 +43,7 @@ const mockPhotos = [
   {
     id: 'error-photo',
     images: [],
-    error: 'Generation failed',
+    error: 'GENERATION FAILED: processing error',
     originalDataUrl: 'error-dataurl.jpg',
   }
 ];
@@ -107,7 +107,7 @@ describe('PhotoGallery Component', () => {
     expect(screen.getByText('45%')).toBeInTheDocument();
     
     // Check error photo renders with error message
-    expect(screen.getByText('Error: Generation failed')).toBeInTheDocument();
+    expect(screen.getByText('GENERATION FAILED: processing error')).toBeInTheDocument();
   });
 
   it('handles photo selection correctly', () => {
@@ -218,7 +218,7 @@ describe('PhotoGallery Component', () => {
     render(<PhotoGallery {...defaultProps} />);
     
     // Find error photo
-    const errorLabel = screen.getByText('Error: Generation failed');
+    const errorLabel = screen.getByText('GENERATION FAILED: processing error');
     const errorPhoto = errorLabel.closest('.film-frame');
     
     expect(errorPhoto).toHaveClass('loading');
