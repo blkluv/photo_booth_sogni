@@ -15,53 +15,142 @@
 
 .upload-progress-container {
   background: #fff;
-  border-radius: 16px;
-  padding: 32px;
-  max-width: 400px;
+  border-radius: 20px;
+  padding: 40px 32px;
+  max-width: 450px;
   width: 90%;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
   text-align: center;
   animation: slideUp 0.3s ease-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.upload-progress-camera {
+  position: relative;
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.camera-image {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 4px solid #72e3f2;
+  box-shadow: 0 8px 20px rgba(114, 227, 242, 0.3);
+  animation: cameraFloat 3s ease-in-out infinite;
+}
+
+.camera-flash {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, transparent 70%);
+  border-radius: 50%;
+  animation: flash 2s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .upload-progress-header h3 {
   margin: 0 0 8px 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: #333;
+  font-size: 24px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: titleGlow 2s ease-in-out infinite alternate;
 }
 
 .upload-progress-header p {
   margin: 0 0 24px 0;
-  font-size: 14px;
+  font-size: 16px;
   color: #666;
+  font-weight: 500;
+  animation: textFade 2s ease-in-out infinite alternate;
 }
 
 .upload-progress-bar-container {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .upload-progress-bar {
   width: 100%;
-  height: 8px;
+  height: 12px;
   background: #f0f0f0;
-  border-radius: 4px;
+  border-radius: 6px;
   overflow: hidden;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+  position: relative;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .upload-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #72e3f2 0%, #4bbbd3 100%);
-  border-radius: 4px;
-  transition: width 0.3s ease;
+  background: linear-gradient(
+    90deg,
+    #72e3f2 0%,
+    #4bbbd3 25%,
+    #72e3f2 50%,
+    #4bbbd3 75%,
+    #72e3f2 100%
+  );
+  background-size: 200px 100%;
+  border-radius: 6px;
+  transition: width 0.5s ease;
   animation: progressShimmer 2s infinite;
+  position: relative;
+}
+
+.upload-progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: progressGlow 1.5s ease-in-out infinite;
 }
 
 .upload-progress-text {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   color: #333;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.upload-progress-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.upload-progress-dots .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #72e3f2;
+  animation: dotBounce 1.4s ease-in-out infinite;
+}
+
+.upload-progress-dots .dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.upload-progress-dots .dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+.upload-progress-dots .dot:nth-child(3) {
+  animation-delay: 0s;
 }
 
 @keyframes fadeIn {
@@ -84,6 +173,42 @@
   }
 }
 
+@keyframes cameraFloat {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes flash {
+  0%, 100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes titleGlow {
+  0% {
+    text-shadow: 0 0 5px rgba(114, 227, 242, 0.5);
+  }
+  100% {
+    text-shadow: 0 0 20px rgba(114, 227, 242, 0.8);
+  }
+}
+
+@keyframes textFade {
+  0% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
 @keyframes progressShimmer {
   0% {
     background-position: -200px 0;
@@ -93,26 +218,52 @@
   }
 }
 
-.upload-progress-fill {
-  background: linear-gradient(
-    90deg,
-    #72e3f2 0%,
-    #4bbbd3 25%,
-    #72e3f2 50%,
-    #4bbbd3 75%,
-    #72e3f2 100%
-  );
-  background-size: 200px 100%;
+@keyframes progressGlow {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes dotBounce {
+  0%, 80%, 100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
 }
 
 /* Mobile styles */
 @media (max-width: 768px) {
   .upload-progress-container {
-    padding: 24px;
+    padding: 32px 24px;
     max-width: 320px;
   }
   
+  .camera-image {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .camera-flash {
+    width: 120px;
+    height: 120px;
+  }
+  
   .upload-progress-header h3 {
-    font-size: 18px;
+    font-size: 20px;
+  }
+  
+  .upload-progress-header p {
+    font-size: 14px;
+  }
+  
+  .upload-progress-text {
+    font-size: 16px;
   }
 } 

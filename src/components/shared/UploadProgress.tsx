@@ -16,8 +16,14 @@ const UploadProgress: React.FC<UploadProgressProps> = ({
   return (
     <div className="upload-progress-overlay">
       <div className="upload-progress-container">
+        <div className="upload-progress-camera">
+          <img src="/polaroid-camera2.jpg" alt="Polaroid Camera" className="camera-image" />
+          <div className="camera-flash"></div>
+        </div>
+        
         <div className="upload-progress-header">
-          <h3>Uploading Your Photo</h3>
+          <h3>📸 Developing Your Photo</h3>
+          <p>Creating magic with AI...</p>
         </div>
         
         <div className="upload-progress-bar-container">
@@ -30,6 +36,12 @@ const UploadProgress: React.FC<UploadProgressProps> = ({
           <div className="upload-progress-text">
             {Math.round(progress)}%
           </div>
+        </div>
+        
+        <div className="upload-progress-dots">
+          <div className="dot"></div>
+          <div className="dot"></div>
+          <div className="dot"></div>
         </div>
       </div>
     </div>
