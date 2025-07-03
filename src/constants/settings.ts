@@ -66,8 +66,8 @@ export const getDefaultAspectRatio = (): AspectRatioOption => {
     return savedAspectRatio as AspectRatioOption;
   }
   
-  // For new users, default to portrait (3:4)
-  return 'portrait';
+  // For new users, default to narrow (2:3) for optimal TezDev frame compatibility
+  return 'narrow';
 };
 
 export const DEFAULT_SETTINGS: Settings = {
