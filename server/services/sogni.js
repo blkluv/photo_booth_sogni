@@ -716,6 +716,7 @@ export async function generateImage(client, params, progressCallback) {
       scheduler: 'DPM Solver Multistep (DPM-Solver++)',
       timeStepSpacing: 'Karras',
       disableNSFWFilter: true,
+      tokenType: params.tokenType || 'spark', // Forward tokenType from frontend, default to 'spark'
       ...(params.seed !== undefined ? { seed: params.seed } : {})
     };
     
@@ -739,6 +740,9 @@ export async function generateImage(client, params, progressCallback) {
     } else {
       console.warn("No starting image or controlNet image data provided.");
     }
+    
+    // Log the tokenType being used for debugging
+    console.log(`[TOKEN TYPE] Using tokenType: ${projectOptions.tokenType} for project creation`);
     
     // Create the project with all options including image data
     const project = await client.projects.create(projectOptions);
