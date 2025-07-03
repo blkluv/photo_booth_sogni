@@ -308,8 +308,8 @@ const PhotoGallery = ({
       const timestamp = new Date().getTime();
       const filename = `${cleanHashtag}_raw_${timestamp}.png`;
       
-      // Apply TezDev frame if theme is enabled and aspect ratio is narrow
-      if (tezdevTheme !== 'off' && aspectRatio === 'narrow') {
+      // Apply TezDev frame if theme is enabled (works on all aspect ratios now)
+      if (tezdevTheme !== 'off') {
         // Ensure font is loaded
         if (!document.querySelector('link[href*="Permanent+Marker"]')) {
           const fontLink = document.createElement('link');
@@ -829,23 +829,42 @@ const PhotoGallery = ({
                     display: 'block'
                   }}
                 />
-                {/* TezDev Frame Overlay - only when image has actually loaded */}
-                {thumbUrl && isLoaded && tezdevTheme !== 'off' && aspectRatio === 'narrow' && !isSelected && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
-                      backgroundImage: `url(/tezos/tz_${tezdevTheme}_photoframe.png)`,
-                      backgroundSize: '100% 100%',
-                      backgroundPosition: 'center',
-                      backgroundRepeat: 'no-repeat',
-                      pointerEvents: 'none',
-                      zIndex: 2
-                    }}
-                  />
+                {/* TezDev Corner Frame Overlays - works on all aspect ratios */}
+                {thumbUrl && isLoaded && tezdevTheme !== 'off' && !isSelected && (
+                  <>
+                    {/* Top-Right Corner */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        right: 0,
+                        width: '75%',
+                        height: '75%',
+                        backgroundImage: `url(/tezos/tz_${tezdevTheme}_photoframe-TR.png)`,
+                        backgroundSize: 'contain',
+                        backgroundPosition: 'top right',
+                        backgroundRepeat: 'no-repeat',
+                        pointerEvents: 'none',
+                        zIndex: 2
+                      }}
+                    />
+                    {/* Bottom-Left Corner */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        width: '75%',
+                        height: '80%',
+                        backgroundImage: `url(/tezos/tz_${tezdevTheme}_photoframe-BL.png)`,
+                        backgroundSize: 'contain',
+                        backgroundPosition: 'bottom left',
+                        backgroundRepeat: 'no-repeat',
+                        pointerEvents: 'none',
+                        zIndex: 2
+                      }}
+                    />
+                  </>
                 )}
               </div>
               <div className="photo-label">

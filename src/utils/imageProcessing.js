@@ -88,8 +88,7 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
       frameColor = 'white',
       labelFont = '72px "Permanent Marker", cursive',
       labelColor = '#333',
-      tezdevTheme = 'off',
-      aspectRatio = null
+      tezdevTheme = 'off'
     } = options;
 
     // Load the Permanent Marker font if it's not already loaded
@@ -154,8 +153,8 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
       // Draw the image centered in the frame
       ctx.drawImage(img, frameWidth, frameTopWidth, imageWidth, imageHeight);
       
-      // Apply TezDev frame if enabled and aspect ratio is narrow (2:3)
-      if (tezdevTheme !== 'off' && aspectRatio === 'narrow') {
+      // Apply TezDev frame if enabled (works on all aspect ratios now)
+      if (tezdevTheme !== 'off') {
         applyTezDevFrame(ctx, imageWidth, imageHeight, frameWidth, frameTopWidth, tezdevTheme)
           .then(() => {
             finalizePolaroid();
@@ -234,7 +233,7 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
 }
 
 /**
- * Applies TezDev frame overlay to a canvas context
+ * Applies TezDev corner frame overlays to a canvas context
  * @param {CanvasRenderingContext2D} ctx - Canvas 2D context
  * @param {number} imageWidth - Width of the image area
  * @param {number} imageHeight - Height of the image area  
@@ -244,25 +243,88 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
  */
 async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, frameOffsetY, theme) {
   return new Promise((resolve, reject) => {
-    const frameImage = new Image();
-    frameImage.crossOrigin = 'anonymous';
+    let loadedImages = 0;
+    const totalImages = 2;
+    let hasError = false;
+
+    const onImageLoad = () => {
+      loadedImages++;
+      if (loadedImages === totalImages && !hasError) {
+        console.log(`Applied TezDev ${theme} corner frame overlays`);
+        resolve();
+      }
+    };
+
+    const onImageError = (err, position) => {
+      if (!hasError) {
+        hasError = true;
+        console.error(`Failed to load TezDev ${theme} ${position} corner frame:`, err);
+        reject(err);
+      }
+    };
+
+    // Load top-right corner piece
+    const trCorner = new Image();
+    trCorner.crossOrigin = 'anonymous';
     
-    frameImage.onload = () => {
-      // Draw the frame overlay on top of the image area
-      // Position it to cover the image area flush
-      ctx.drawImage(frameImage, frameOffsetX, frameOffsetY, imageWidth, imageHeight);
+    trCorner.onload = () => {
+      // Calculate scaled dimensions - more generous sizing for better visibility
+      // Use 85% for square/wide images, 65% for tall images
+      const aspectRatio = imageWidth / imageHeight;
+      const maxPercent = aspectRatio >= 1.0 ? 0.85 : 0.65; // Smaller for tall images
       
-      console.log(`Applied TezDev ${theme} frame overlay`);
-      resolve();
+      const maxWidth = imageWidth * maxPercent;
+      const maxHeight = imageHeight * maxPercent;
+      
+      const scaleX = maxWidth / trCorner.naturalWidth;
+      const scaleY = maxHeight / trCorner.naturalHeight;
+      const scale = Math.min(scaleX, scaleY);
+      
+      const scaledWidth = trCorner.naturalWidth * scale;
+      const scaledHeight = trCorner.naturalHeight * scale;
+      
+      // Position at top-right corner of image area
+      const trX = frameOffsetX + imageWidth - scaledWidth;
+      const trY = frameOffsetY;
+      
+      ctx.drawImage(trCorner, trX, trY, scaledWidth, scaledHeight);
+      onImageLoad();
     };
     
-    frameImage.onerror = (err) => {
-      console.error(`Failed to load TezDev ${theme} frame:`, err);
-      reject(err);
+    trCorner.onerror = (err) => onImageError(err, 'top-right');
+    trCorner.src = `/tezos/tz_${theme}_photoframe-TR.png`;
+
+    // Load bottom-left corner piece  
+    const blCorner = new Image();
+    blCorner.crossOrigin = 'anonymous';
+    
+    blCorner.onload = () => {
+      // Calculate scaled dimensions - bottom-left needs extra height for logo text
+      // Use 95% height for square/wide images, 65% for tall images
+      const aspectRatio = imageWidth / imageHeight;
+      const maxWidthPercent = aspectRatio >= 1.0 ? 0.85 : 0.65;
+      const maxHeightPercent = aspectRatio >= 1.0 ? 0.95 : 0.65; // Smaller for tall images
+      
+      const maxWidth = imageWidth * maxWidthPercent;
+      const maxHeight = imageHeight * maxHeightPercent;
+      
+      const scaleX = maxWidth / blCorner.naturalWidth;
+      const scaleY = maxHeight / blCorner.naturalHeight;
+      const scale = Math.min(scaleX, scaleY);
+      
+      const scaledWidth = blCorner.naturalWidth * scale;
+      const scaledHeight = blCorner.naturalHeight * scale;
+      
+      // Position at bottom-left corner of image area
+      const blX = frameOffsetX;
+      const blY = frameOffsetY + imageHeight - scaledHeight;
+      
+      ctx.drawImage(blCorner, blX, blY, scaledWidth, scaledHeight);
+      onImageLoad();
     };
     
-    // Load the appropriate frame based on theme
-    frameImage.src = `/tezos/tz_${theme}_photoframe.png`;
+    blCorner.onerror = (err) => onImageError(err, 'bottom-left');
+    blCorner.src = `/tezos/tz_${theme}_photoframe-BL.png`;
   });
 }
 
