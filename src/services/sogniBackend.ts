@@ -703,7 +703,7 @@ export function initializeSogniClient(): Promise<BackendSogniClient> {
     // Create a new client instance with a fixed app ID to prevent duplicates
     const client = BackendSogniClient.createInstance({
       appId: clientAppId || `photobooth-frontend-${Date.now()}`,
-      testnet: true,
+      testnet: false,
       network: "fast",
       logLevel: "debug"
     });

@@ -1233,6 +1233,7 @@ const App = () => {
       
       // Create project using context state for settings
       const project = await sogniClient.projects.create({ 
+        tokenType: 'spark',
         modelId: selectedModel,
         positivePrompt: finalPositivePrompt,
         negativePrompt: finalNegativePrompt,

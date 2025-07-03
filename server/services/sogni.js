@@ -281,7 +281,7 @@ async function createSogniClient(appIdPrefix, clientProvidedAppId) {
       // Optimized client creation with faster timeouts
       const client = await SogniClient.createInstance({
         appId: sogniAppId,
-        testnet: true,
+        testnet: false,
         network: "fast",
         logLevel: "info",
         restEndpoint: sogniUrls.api,

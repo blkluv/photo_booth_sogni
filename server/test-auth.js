@@ -80,7 +80,7 @@ async function testAuth() {
     
     const client = await SogniClient.createInstance({
       appId,
-      testnet: true,
+      testnet: false,
       network: "fast",
       logLevel: "debug",
       restEndpoint: sogniUrls.api,
