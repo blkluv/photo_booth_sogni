@@ -314,6 +314,7 @@ async function createSogniClient(appIdPrefix, clientProvidedAppId) {
             createSogniClient._globalTokens = null;
             // Fall through to fresh login
             await client.account.login(sogniUsername, password);
+            console.log('EIP712', client.account.eip712.EIP712Domain)
             recordClientActivity(sogniAppId); // Record activity after login
           } else {
             console.log(`[AUTH] Successfully restored session with cached tokens for client ${sogniAppId}`);
@@ -325,6 +326,7 @@ async function createSogniClient(appIdPrefix, clientProvidedAppId) {
           try {
             console.log(`[AUTH] Calling client.account.login() for client ${sogniAppId}...`);
             await client.account.login(sogniUsername, password);
+            console.log('EIP712', client.account.eip712.EIP712Domain)
             console.log(`[AUTH] Login call completed for client ${sogniAppId}, isLoggedIn: ${client.account.isLoggedIn}`);
             
             // Add a small delay to allow for async state updates
@@ -352,6 +354,7 @@ async function createSogniClient(appIdPrefix, clientProvidedAppId) {
         
         try {
           await client.account.login(sogniUsername, password);
+          console.log('EIP712', client.account.eip712.EIP712Domain)
           console.log(`[AUTH] Retry login completed for client ${sogniAppId}, isLoggedIn: ${client.account.isLoggedIn}`);
           recordClientActivity(sogniAppId); // Record activity even after error recovery
         } catch (retryError) {
