@@ -64,6 +64,8 @@ export const enhancePhoto = async (options) => {
     if (sogniClient.projects && typeof sogniClient.projects.create === 'function') {
       // Use the backend proxy client
       const project = await sogniClient.projects.create({
+        testnet: false,
+        tokenType: 'spark',
         modelId: "flux1-schnell-fp8",
         positivePrompt: `Detailed portrait, ${photo.positivePrompt || 'Portrait masterpiece'}`,
         sizePreset: 'custom',
