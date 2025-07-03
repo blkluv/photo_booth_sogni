@@ -60,6 +60,32 @@ export function clearInvalidTokens() {
   }
 }
 
+// Helper to force clear all cached tokens and restart authentication
+export async function forceAuthReset() {
+  console.log('[AUTH] Force clearing ALL cached tokens and clients');
+  
+  // Clear global token cache
+  sogniTokens = null;
+  if (createSogniClient._globalTokens) {
+    createSogniClient._globalTokens = null;
+  }
+  
+  // Clear pending client cache
+  if (createSogniClient._pendingClients) {
+    createSogniClient._pendingClients.clear();
+  }
+  
+  // Clear status check cache
+  if (recentStatusChecks) {
+    recentStatusChecks.clear();
+  }
+  
+  // Cleanup all active clients to force fresh authentication
+  await cleanupSogniClient({ logout: true, includeSessionClients: true });
+  
+  console.log('[AUTH] Force auth reset completed - all clients will re-authenticate on next request');
+}
+
 // Setup periodic check for idle connections
 export const checkIdleConnections = async () => {
   const now = Date.now();
@@ -306,8 +332,8 @@ async function createSogniClient(appIdPrefix, clientProvidedAppId) {
           await client.account.setToken(sogniUsername, sogniTokens);
           recordClientActivity(sogniAppId); // Record activity after token set
           
-          // Check if login was successful
-          if (!client.account.isLoggedIn) {
+          // Check if login was successful - use currentAccount.isAuthenicated
+          if (!client.account.currentAccount.isAuthenicated) {
             console.log(`[AUTH] Token restoration failed for client ${sogniAppId}, performing fresh login`);
             // Clear invalid tokens
             sogniTokens = null;
@@ -317,7 +343,27 @@ async function createSogniClient(appIdPrefix, clientProvidedAppId) {
             console.log('EIP712', client.account.eip712.EIP712Domain)
             recordClientActivity(sogniAppId); // Record activity after login
           } else {
-            console.log(`[AUTH] Successfully restored session with cached tokens for client ${sogniAppId}`);
+            // Validate that the restored tokens actually work
+            console.log(`[AUTH] Validating restored tokens for client ${sogniAppId}...`);
+            try {
+              await client.account.refreshBalance();
+              console.log(`[AUTH] Successfully restored and validated session with cached tokens for client ${sogniAppId}`);
+            } catch (tokenValidationError) {
+              if (tokenValidationError.status === 401 || (tokenValidationError.message && tokenValidationError.message.includes('Invalid token'))) {
+                console.log(`[AUTH] Cached tokens are invalid for client ${sogniAppId}, performing fresh login`);
+                // Clear invalid tokens
+                sogniTokens = null;
+                createSogniClient._globalTokens = null;
+                // Fall through to fresh login
+                await client.account.login(sogniUsername, password);
+                console.log('EIP712', client.account.eip712.EIP712Domain)
+                recordClientActivity(sogniAppId); // Record activity after login
+              } else {
+                // Non-auth error, assume tokens are valid but there's a network issue
+                console.warn(`[AUTH] Token validation failed with non-auth error for client ${sogniAppId}: ${tokenValidationError.message}`);
+                console.log(`[AUTH] Assuming tokens are valid despite validation error`);
+              }
+            }
           }
         } else {
           // No tokens available, do a fresh login
@@ -327,16 +373,16 @@ async function createSogniClient(appIdPrefix, clientProvidedAppId) {
             console.log(`[AUTH] Calling client.account.login() for client ${sogniAppId}...`);
             await client.account.login(sogniUsername, password);
             console.log('EIP712', client.account.eip712.EIP712Domain)
-            console.log(`[AUTH] Login call completed for client ${sogniAppId}, isLoggedIn: ${client.account.isLoggedIn}`);
+            console.log(`[AUTH] Login call completed for client ${sogniAppId}, isAuthenicated: ${client.account.currentAccount.isAuthenicated}`);
             
             // Add a small delay to allow for async state updates
             await new Promise(resolve => setTimeout(resolve, 100));
             
             console.log(`[AUTH] After login - account state:`, {
-              isLoggedIn: client.account.isLoggedIn,
+              isAuthenicated: client.account.currentAccount.isAuthenicated,
               hasCurrentAccount: !!client.account.currentAccount,
-              hasToken: !!(client.account.currentAccount?.token),
-              hasRefreshToken: !!(client.account.currentAccount?.refreshToken)
+              hasToken: !!client.account.currentAccount.token,
+              hasRefreshToken: !!client.account.currentAccount.refreshToken
             });
             recordClientActivity(sogniAppId); // Record activity after login
           } catch (loginError) {
@@ -355,7 +401,7 @@ async function createSogniClient(appIdPrefix, clientProvidedAppId) {
         try {
           await client.account.login(sogniUsername, password);
           console.log('EIP712', client.account.eip712.EIP712Domain)
-          console.log(`[AUTH] Retry login completed for client ${sogniAppId}, isLoggedIn: ${client.account.isLoggedIn}`);
+          console.log(`[AUTH] Retry login completed for client ${sogniAppId}, isAuthenicated: ${client.account.currentAccount.isAuthenicated}`);
           recordClientActivity(sogniAppId); // Record activity even after error recovery
         } catch (retryError) {
           console.error(`[AUTH] Retry login also failed for client ${sogniAppId}:`, retryError);
@@ -364,12 +410,12 @@ async function createSogniClient(appIdPrefix, clientProvidedAppId) {
       }
       
       // Validate final authentication state
-      console.log(`[AUTH] Final validation for client ${sogniAppId}: isLoggedIn=${client.account.isLoggedIn}, hasAccount=${!!client.account.currentAccount}, hasToken=${!!(client.account.currentAccount?.token)}`);
+      console.log(`[AUTH] Final validation for client ${sogniAppId}: isAuthenicated=${client.account.currentAccount.isAuthenicated}, hasAccount=${!!client.account.currentAccount}, hasToken=${!!client.account.currentAccount.token}`);
       
       // Primary validation: if we got here without throwing an error, login was successful
-      // Secondary validation: check isLoggedIn flag and token presence
-      if (!client.account.isLoggedIn) {
-        console.warn(`[AUTH] Warning: isLoggedIn is false for client ${sogniAppId}, but login didn't throw an error`);
+      // Secondary validation: check isAuthenicated flag and token presence
+      if (!client.account.currentAccount.isAuthenicated) {
+        console.warn(`[AUTH] Warning: isAuthenicated is false for client ${sogniAppId}, but login didn't throw an error`);
         // Don't throw an error here - the login might still be valid
       }
       
@@ -610,7 +656,7 @@ export async function getClientInfo(sessionId, clientAppId) {
         connected: true,
         appId: client.appId || tempClientId,
         network: client.network,
-        authenticated: client.account.isLoggedIn
+        authenticated: client.account.currentAccount.isAuthenicated
       };
       
       // If we have a sessionId, cache this result
@@ -1185,9 +1231,9 @@ export async function getSessionClient(sessionId, clientAppId) {
           return false;
         }
         
-        // Check if client is logged in
-        if (!client.account.isLoggedIn) {
-          console.log(`[SESSION] Client ${client.appId} is not logged in`);
+        // Check if client is logged in - use currentAccount.isAuthenicated
+        if (!client.account.currentAccount.isAuthenicated) {
+          console.log(`[SESSION] Client ${client.appId} is not authenticated`);
           return false;
         }
         
@@ -1197,10 +1243,30 @@ export async function getSessionClient(sessionId, clientAppId) {
           return false;
         }
         
-        // For now, just trust the isLoggedIn flag and token presence
-        // The actual API call will fail if authentication is invalid
-        console.log(`[SESSION] Client ${client.appId} authentication appears valid (isLoggedIn: true, has tokens)`);
-        return true;
+        // Actually test if the tokens are valid by making a simple API call
+        try {
+          console.log(`[SESSION] Testing token validity for client ${client.appId}...`);
+          // Use a lightweight API call to test token validity
+          await client.account.refreshBalance();
+          console.log(`[SESSION] Client ${client.appId} authentication appears valid (tokens tested successfully)`);
+          return true;
+        } catch (error) {
+          // If we get a 401 or auth error, the tokens are invalid
+          if (error.status === 401 || (error.message && error.message.includes('Invalid token'))) {
+            console.log(`[SESSION] Client ${client.appId} has invalid/expired tokens (${error.message})`);
+            // Clear the invalid tokens
+            try {
+              await client.account.logout();
+            } catch (logoutError) {
+              // Ignore logout errors - we just want to clear the state
+            }
+            return false;
+          } else {
+            // For other errors, log but assume tokens are valid (network issues, etc.)
+            console.warn(`[SESSION] Client ${client.appId} token validation failed with non-auth error: ${error.message}`);
+            return true;
+          }
+        }
       };
       
       // If client app ID is provided and we already have this client

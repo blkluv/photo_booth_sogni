@@ -5,7 +5,6 @@
 .svn/
 
 # ─── Dependency caches / vendor blobs ───────────────────────────────────
-node_modules/
 vendor/
 Pods/               # CocoaPods
 __pypackages__/

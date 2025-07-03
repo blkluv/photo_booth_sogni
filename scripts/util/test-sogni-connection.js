@@ -48,8 +48,8 @@ async function testSogniConnection() {
     // Step 4: Inspect client properties to see what's available
     console.log('\nInspecting client properties:');
     console.log('Client account:', {
-      isLoggedIn: client.account?.isLoggedIn,
-      username: client.account?.username
+      isAuthenicated: client.account?.currentAccount?.isAuthenicated,
+      username: client.account?.currentAccount?.username
     });
     
     // Step 5: Wait a bit to show the connection is stable
