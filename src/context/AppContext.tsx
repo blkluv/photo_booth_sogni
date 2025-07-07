@@ -3,6 +3,18 @@ import { Photo, ProjectState, Settings } from '../types/index';
 import { DEFAULT_SETTINGS } from '../constants/settings';
 import { getSettingFromCookie, saveSettingsToCookies } from '../utils/cookies';
 
+// Helper function to handle TezDev theme cookie migration
+const getTezDevThemeFromCookie = () => {
+  const savedTheme = getSettingFromCookie('tezdevTheme', DEFAULT_SETTINGS.tezdevTheme);
+  // Force existing users with 'pink' or 'blue' to default to 'off'
+  if (savedTheme === 'pink' || savedTheme === 'blue') {
+    // Save the new default and return it
+    saveSettingsToCookies({ tezdevTheme: 'off' });
+    return 'off';
+  }
+  return savedTheme;
+};
+
 interface LoadedImagesState {
   [key: string]: {
     ref?: boolean;
@@ -72,7 +84,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     soundEnabled: getSettingFromCookie('soundEnabled', DEFAULT_SETTINGS.soundEnabled || true),
     slothicornAnimationEnabled: getSettingFromCookie('slothicornAnimationEnabled', DEFAULT_SETTINGS.slothicornAnimationEnabled || true),
     aspectRatio: getSettingFromCookie('aspectRatio', DEFAULT_SETTINGS.aspectRatio),
-    tezdevTheme: getSettingFromCookie('tezdevTheme', DEFAULT_SETTINGS.tezdevTheme)
+    tezdevTheme: getTezDevThemeFromCookie()
   }));
   
   // Project state

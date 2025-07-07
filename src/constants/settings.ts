@@ -66,8 +66,8 @@ export const getDefaultAspectRatio = (): AspectRatioOption => {
     return savedAspectRatio as AspectRatioOption;
   }
   
-  // For new users, default to narrow (2:3) for optimal TezDev frame compatibility
-  return 'narrow';
+  // For new users, default to portrait (3:4) 
+  return 'portrait';
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -86,7 +86,7 @@ export const DEFAULT_SETTINGS: Settings = {
   soundEnabled: true,
   slothicornAnimationEnabled: true,
   aspectRatio: getDefaultAspectRatio(),
-  tezdevTheme: 'pink' as const,
+  tezdevTheme: 'off' as const,
 };
 
 // Backend now handles all Sogni API communication, so we don't need these URLs in the frontend

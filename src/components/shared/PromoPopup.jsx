@@ -63,7 +63,7 @@ const PromoPopup = ({ isOpen, onClose }) => {
             <h3>Unlock the Full Power of Sogni!</h3>
             <p>
               Take your creativity to the next level with our complete AI art platform.
-              Get <strong>100 FREE render credits</strong> when you sign up.
+              Get <strong>100 FREE render credits</strong> now.
             </p>
             
             <div className="promo-features">

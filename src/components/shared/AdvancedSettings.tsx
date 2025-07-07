@@ -267,20 +267,6 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
           </div>
         </div>
 
-        {/* TezDev Theme selector */}
-        <div className="control-option">
-          <label className="control-label">TezDev Theme:</label>
-          <select
-            className="model-select"
-            onChange={(e) => handleTezDevThemeChange(e.target.value as TezDevTheme)}
-            value={currentTezDevTheme}
-          >
-            <option value="blue">Blue</option>
-            <option value="pink">Pink</option>
-            <option value="off">Off</option>
-          </select>
-        </div>
-
         {/* Model selector */}
         {modelOptions.length > 0 && (
           <div className="control-option">
@@ -451,6 +437,20 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
             onChange={(e) => onSlothicornAnimationEnabledChange?.(e.target.checked)}
           />
           <label htmlFor="slothicorn-toggle" className="control-label">Slothicorn Animation</label>
+        </div>
+        
+        {/* TezDev Demo selector */}
+        <div className="control-option">
+          <label className="control-label">TezDev Demo:</label>
+          <select
+            className="model-select"
+            onChange={(e) => handleTezDevThemeChange(e.target.value as TezDevTheme)}
+            value={currentTezDevTheme}
+          >
+            <option value="blue">Blue</option>
+            <option value="pink">Pink</option>
+            <option value="off">Off</option>
+          </select>
         </div>
         
         {/* Reset settings button */}
