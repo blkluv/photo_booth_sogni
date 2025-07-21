@@ -25,7 +25,7 @@ const APP_VERSION = import.meta.env.VITE_APP_VERSION || '1.0.0';
  */
 export const initializeGA = () => {
   if (!GA_ENABLED || !GA_MEASUREMENT_ID) {
-    console.log('Google Analytics is disabled or measurement ID is not provided');
+    console.log('❌ Google Analytics is disabled or measurement ID is not provided');
     return;
   }
 
@@ -52,8 +52,6 @@ export const initializeGA = () => {
     script.async = true;
     script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
     document.head.appendChild(script);
-
-    console.log('Google Analytics initialized with ID:', GA_MEASUREMENT_ID);
   } catch (error) {
     console.error('Error initializing Google Analytics:', error);
   }
@@ -106,8 +104,15 @@ export const trackEvent = (category, action, label = null, value = null) => {
     }
 
     window.gtag('event', action, eventParams);
-    console.log(`📊 Event tracked: ${category} / ${action}`);
   } catch (error) {
     console.error('Error tracking event:', error);
   }
+};
+
+/**
+ * Check if Google Analytics is properly loaded and working
+ * @returns {boolean} Whether GA is functioning
+ */
+export const isGAWorking = () => {
+  return !!(GA_ENABLED && GA_MEASUREMENT_ID && window.gtag && window.dataLayer);
 }; 

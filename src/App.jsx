@@ -10,7 +10,7 @@ import { initializeSogniClient } from './services/sogni';
 import { isNetworkError } from './services/api';
 import { enhancePhoto, undoEnhancement } from './services/PhotoEnhancer';
 import { shareToTwitter } from './services/TwitterShare';
-import { trackPageView } from './utils/analytics';
+import { trackPageView, initializeGA, trackEvent } from './utils/analytics';
 import clickSound from './click.mp3';
 import cameraWindSound from './camera-wind.mp3';
 // import helloSound from './hello.mp3';
@@ -322,6 +322,11 @@ const App = () => {
     
     // Send page view to Google Analytics
     trackPageView(currentView);
+    
+    // Track view change events
+    if (currentView !== 'start-menu') {
+      trackEvent('Navigation', 'view_change', currentView);
+    }
   }, [selectedPhotoIndex, showPhotoGrid, showStartMenu]);
 
   // --- Ensure handlers are defined here, before any JSX or usage ---
@@ -752,6 +757,9 @@ const App = () => {
   // Modified useEffect to start camera automatically
   useEffect(() => {
     const initializeAppOnMount = async () => {
+      // Initialize Google Analytics first
+      initializeGA();
+      
       await listCameras();
       // Initialize Sogni, but do not start camera here
       await initializeSogni();
@@ -1264,6 +1272,9 @@ const App = () => {
       activeProjectReference.current = project.id;
       console.log('Project created:', project.id, 'with jobs:', project.jobs);
       console.log('Initializing job map for project', project.id);
+      
+      // Track image generation event
+      trackEvent('Generation', 'start', selectedStyle, numImages);
 
       // Set up upload progress listeners
       project.on('uploadProgress', (progress) => {
@@ -1387,6 +1398,9 @@ const App = () => {
       project.on('completed', () => {
         console.log('Project completed');
         activeProjectReference.current = null; // Clear active project reference when complete
+        
+        // Track successful generation completion
+        trackEvent('Generation', 'complete', selectedStyle);
       });
 
       project.on('failed', (error) => {
@@ -2011,6 +2025,9 @@ const App = () => {
     }
     // Process the capture
     captureAndSend();
+    
+    // Track photo capture event
+    trackEvent('Photo', 'capture', selectedStyle, 1);
   };
 
   const captureAndSend = async () => {
