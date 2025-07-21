@@ -1588,16 +1588,41 @@ const App = () => {
           let errorMessage = 'GENERATION FAILED: unknown error';
           
           if (job.error) {
-            if (job.error.includes('Insufficient') || job.error.includes('credits') || job.error.includes('funds')) {
-              errorMessage = 'GENERATION FAILED: replenish tokens';
-            } else if (job.error.includes('NSFW') || job.error.includes('filtered')) {
-              errorMessage = 'GENERATION FAILED: content filtered';
-            } else if (job.error.includes('timeout') || job.error.includes('worker')) {
-              errorMessage = 'GENERATION FAILED: processing timeout';
-            } else if (job.error.includes('network') || job.error.includes('connection')) {
-              errorMessage = 'GENERATION FAILED: connection error';
-            } else {
-              errorMessage = 'GENERATION FAILED: processing error';
+            if (typeof job.error === 'object') {
+              // Handle error object case
+              if (job.error.isInsufficientFunds || job.error.errorCode === 'insufficient_funds') {
+                errorMessage = 'GENERATION FAILED: replenish tokens';
+              } else if (job.error.isAuthError || job.error.errorCode === 'auth_error') {
+                errorMessage = 'GENERATION FAILED: authentication failed';
+              } else if (job.error.message) {
+                // Extract key info from error message
+                if (job.error.message.includes('Insufficient') || job.error.message.includes('credits') || job.error.message.includes('funds')) {
+                  errorMessage = 'GENERATION FAILED: replenish tokens';
+                } else if (job.error.message.includes('NSFW') || job.error.message.includes('filtered')) {
+                  errorMessage = 'GENERATION FAILED: content filtered';
+                } else if (job.error.message.includes('timeout') || job.error.message.includes('worker')) {
+                  errorMessage = 'GENERATION FAILED: processing timeout';
+                } else if (job.error.message.includes('network') || job.error.message.includes('connection')) {
+                  errorMessage = 'GENERATION FAILED: connection error';
+                } else {
+                  errorMessage = 'GENERATION FAILED: processing error';
+                }
+              } else {
+                errorMessage = 'GENERATION FAILED: processing error';
+              }
+            } else if (typeof job.error === 'string') {
+              // Handle string error case
+              if (job.error.includes('Insufficient') || job.error.includes('credits') || job.error.includes('funds')) {
+                errorMessage = 'GENERATION FAILED: replenish tokens';
+              } else if (job.error.includes('NSFW') || job.error.includes('filtered')) {
+                errorMessage = 'GENERATION FAILED: content filtered';
+              } else if (job.error.includes('timeout') || job.error.includes('worker')) {
+                errorMessage = 'GENERATION FAILED: processing timeout';
+              } else if (job.error.includes('network') || job.error.includes('connection')) {
+                errorMessage = 'GENERATION FAILED: connection error';
+              } else {
+                errorMessage = 'GENERATION FAILED: processing error';
+              }
             }
           }
           
