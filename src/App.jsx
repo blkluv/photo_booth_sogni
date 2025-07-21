@@ -7,6 +7,7 @@ import { getCustomDimensions } from './utils/imageProcessing';
 import { goToPreviousPhoto, goToNextPhoto } from './utils/photoNavigation';
 import { loadPrompts, getRandomStyle, getRandomMixPrompts } from './services/prompts';
 import { initializeSogniClient } from './services/sogni';
+import { isNetworkError } from './services/api';
 import { enhancePhoto, undoEnhancement } from './services/PhotoEnhancer';
 import { shareToTwitter } from './services/TwitterShare';
 import { trackPageView } from './utils/analytics';
@@ -34,6 +35,7 @@ import ImageAdjuster from './components/shared/ImageAdjuster';
 // Import the UploadProgress component
 import UploadProgress from './components/shared/UploadProgress';
 import PromoPopup from './components/shared/PromoPopup';
+import NetworkStatus from './components/shared/NetworkStatus';
 
 
 // Helper function to update URL with prompt parameter
@@ -1676,8 +1678,24 @@ const App = () => {
         for (let index = 0; index < numImages; index++) { 
           // Extract specific error information for generation startup failures
           let errorMessage = 'GENERATION FAILED: startup error';
+          let retryable = false;
           
-          if (error) {
+          if (isNetworkError(error)) {
+            // Handle NetworkError instances with better user messaging
+            if (error.isOffline) {
+              errorMessage = 'NETWORK OFFLINE: Check connection';
+              retryable = true;
+            } else if (error.isTimeout) {
+              errorMessage = 'CONNECTION TIMEOUT: Try again';
+              retryable = true;
+            } else if (error.retryable) {
+              errorMessage = 'NETWORK ERROR: Retry available';
+              retryable = true;
+            } else {
+              errorMessage = 'NETWORK ERROR: Connection failed';
+              retryable = false;
+            }
+          } else if (error) {
             const errorText = error.message || error.toString();
             if (errorText.includes('Insufficient') || errorText.includes('credits') || errorText.includes('funds')) {
               errorMessage = 'GENERATION FAILED: replenish tokens';
@@ -1685,8 +1703,10 @@ const App = () => {
               errorMessage = 'GENERATION FAILED: authentication failed';
             } else if (errorText.includes('network') || errorText.includes('connection') || errorText.includes('fetch')) {
               errorMessage = 'GENERATION FAILED: connection error';
+              retryable = true;
             } else if (errorText.includes('timeout')) {
               errorMessage = 'GENERATION FAILED: timeout error';
+              retryable = true;
             } else {
               errorMessage = 'GENERATION FAILED: startup error';
             }
@@ -1699,7 +1719,9 @@ const App = () => {
             images: [],
             error: errorMessage,
             originalDataUrl: dataUrl, // Use reference photo as placeholder
-            permanentError: true // Add permanent error flag
+            permanentError: !retryable, // Allow retry for network errors
+            retryable: retryable, // Add retryable flag
+            sourceType // Include sourceType for retry context
           });
         }
         return updated;
@@ -2652,18 +2674,155 @@ const App = () => {
       setPhotos(() => {
         const newPhotos = existingOriginalPhoto ? [existingOriginalPhoto] : [];
         for (let i = 0; i < numToGenerate; i++) {
+          // Handle NetworkError instances with better messaging
+          let errorMessage = `Error: ${error.message || error}`;
+          let retryable = false;
+          
+          if (isNetworkError(error)) {
+            if (error.isOffline) {
+              errorMessage = 'NETWORK OFFLINE: Check connection';
+              retryable = true;
+            } else if (error.isTimeout) {
+              errorMessage = 'CONNECTION TIMEOUT: Try again';  
+              retryable = true;
+            } else if (error.retryable) {
+              errorMessage = 'NETWORK ERROR: Retry available';
+              retryable = true;
+            } else {
+              errorMessage = 'NETWORK ERROR: Connection failed';
+              retryable = false;
+            }
+          } else if (error && error.message) {
+            const errorText = error.message;
+            if (errorText.includes('network') || errorText.includes('connection') || errorText.includes('timeout')) {
+              retryable = true;
+            }
+          }
+          
           newPhotos.push({
             id: Date.now() + i,
             generating: false,
             loading: false,
-            error: `Error: ${error.message || error}`,
+            error: errorMessage,
             originalDataUrl: lastPhotoData.dataUrl,
-            permanentError: true,
+            permanentError: !retryable,
+            retryable: retryable,
             sourceType: sourceType // Store sourceType in photo object
           });
         }
         return newPhotos;
       });
+    }
+  };
+
+  // Add retry mechanism for failed photos
+  const handleRetryPhoto = async (photoIndex) => {
+    console.log(`Retrying photo at index ${photoIndex}`);
+    
+    const photo = photos[photoIndex];
+    if (!photo || !photo.retryable || !lastPhotoData.blob) {
+      console.error('Cannot retry: photo not retryable or no source data available');
+      return;
+    }
+    
+    // Reset photo to generating state
+    setPhotos(prev => {
+      const updated = [...prev];
+      if (updated[photoIndex]) {
+        updated[photoIndex] = {
+          ...updated[photoIndex],
+          generating: true,
+          loading: true,
+          progress: 0,
+          error: null,
+          permanentError: false,
+          retryable: false,
+          statusText: 'Retrying...'
+        };
+      }
+      return updated;
+    });
+    
+    try {
+      // Use the same source data to retry generation
+      const { blob, dataUrl } = lastPhotoData;
+      const blobCopy = blob.slice(0, blob.size, blob.type);
+      
+      // Wait a bit before retrying to avoid hammering the server
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Retry the generation using the same approach as generateFromBlob 
+      const sourceType = photo.sourceType || 'upload';
+      await generateFromBlob(blobCopy, photoIndex, dataUrl, true, sourceType);
+      
+    } catch (error) {
+      console.error('Retry failed:', error);
+      
+      // Update photo with retry failure
+      setPhotos(prev => {
+        const updated = [...prev];
+        if (updated[photoIndex]) {
+          let errorMessage = 'RETRY FAILED: Try again later';
+          let retryable = false;
+          
+          if (isNetworkError(error)) {
+            if (error.isOffline) {
+              errorMessage = 'STILL OFFLINE: Check connection';
+              retryable = true;
+            } else if (error.retryable) {
+              errorMessage = 'RETRY FAILED: Network issue';
+              retryable = true;
+            }
+          } else if (error && error.message && 
+                     (error.message.includes('network') || 
+                      error.message.includes('connection') || 
+                      error.message.includes('timeout'))) {
+            retryable = true;
+          }
+          
+          updated[photoIndex] = {
+            ...updated[photoIndex],
+            generating: false,
+            loading: false,
+            error: errorMessage,
+            permanentError: !retryable,
+            retryable: retryable,
+            statusText: 'Retry Failed'
+          };
+        }
+        return updated;
+      });
+    }
+  };
+
+  // Add retry all function for network issues
+  const handleRetryAllPhotos = async () => {
+    console.log('Retrying all failed retryable photos');
+    
+    // Find all photos that can be retried
+    const retryablePhotos = photos
+      .map((photo, index) => ({ photo, index }))
+      .filter(({ photo }) => photo.error && photo.retryable && !photo.generating);
+    
+    if (retryablePhotos.length === 0) {
+      console.log('No retryable photos found');
+      return;
+    }
+    
+    // Retry each photo with a small delay between retries
+    for (let i = 0; i < retryablePhotos.length; i++) {
+      const { index } = retryablePhotos[i];
+      
+      // Add a delay between retries to avoid overwhelming the server
+      if (i > 0) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
+      try {
+        await handleRetryPhoto(index);
+      } catch (error) {
+        console.error(`Failed to retry photo ${index}:`, error);
+      }
     }
   };
 
@@ -3021,6 +3180,7 @@ const App = () => {
           slothicornAnimationEnabled={slothicornAnimationEnabled}
           tezdevTheme={tezdevTheme}
           aspectRatio={aspectRatio}
+          handleRetryPhoto={handleRetryPhoto}
         />
           </div>
         )}
@@ -3393,6 +3553,9 @@ const App = () => {
         isOpen={showPromoPopup}
         onClose={handlePromoPopupClose}
       />
+
+      {/* Network Status Notification */}
+      <NetworkStatus onRetryAll={handleRetryAllPhotos} />
       
       {/* Add this section at the end, right before the closing tag */}
       {showImageAdjuster && currentUploadedImageUrl && (

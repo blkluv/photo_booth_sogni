@@ -4,6 +4,70 @@
 import urls from '../config/urls';
 import { v4 as uuidv4 } from 'uuid';
 
+// Add network connectivity detection utilities at the top of the file after the imports
+let isOnline = navigator.onLine;
+let lastConnectionCheck = 0;
+let connectivityCheckInProgress = false;
+
+/**
+ * Check if the device is currently online by testing connectivity
+ */
+async function checkConnectivity(): Promise<boolean> {
+  // Avoid rapid successive checks
+  const now = Date.now();
+  if (connectivityCheckInProgress || (now - lastConnectionCheck < 2000)) {
+    return isOnline;
+  }
+  
+  connectivityCheckInProgress = true;
+  lastConnectionCheck = now;
+  
+  try {
+    // Test connectivity with a lightweight request
+    const response = await fetch(`${API_BASE_URL}/sogni/status`, {
+      method: 'HEAD',
+      cache: 'no-cache',
+      signal: AbortSignal.timeout(3000), // 3 second timeout
+    });
+    
+    isOnline = response.ok;
+    console.log(`Connectivity check: ${isOnline ? 'online' : 'offline'}`);
+  } catch (error) {
+    console.warn('Connectivity check failed:', error);
+    isOnline = false;
+  } finally {
+    connectivityCheckInProgress = false;
+  }
+  
+  return isOnline;
+}
+
+/**
+ * Network error with additional context for better user feedback
+ */
+class NetworkError extends Error {
+  constructor(
+    message: string, 
+    public isTimeout: boolean = false, 
+    public isOffline: boolean = false,
+    public retryable: boolean = true
+  ) {
+    super(message);
+    this.name = 'NetworkError';
+  }
+}
+
+// Listen for online/offline events
+window.addEventListener('online', () => {
+  console.log('Device came online');
+  isOnline = true;
+});
+
+window.addEventListener('offline', () => {
+  console.log('Device went offline');
+  isOnline = false;
+});
+
 // Use the configured API URL from the urls config
 const API_BASE_URL = urls.apiUrl;
 
@@ -475,6 +539,17 @@ export async function generateImage(params: Record<string, unknown>, progressCal
     // Debug log to track sourceType
     console.log(`generateImage received sourceType: ${typeof params.sourceType === 'string' ? params.sourceType : 'undefined'}`);
     
+    // Check network connectivity before starting
+    const isConnected = await checkConnectivity();
+    if (!isConnected) {
+      throw new NetworkError(
+        'No internet connection. Please check your network and try again.',
+        false,
+        true,
+        true
+      );
+    }
+    
     // Include client app ID in the params
     const requestParams = {
       ...params,
@@ -488,6 +563,29 @@ export async function generateImage(params: Record<string, unknown>, progressCal
     // Use XMLHttpRequest for real upload progress tracking
     const { projectId, status, responseData } = await new Promise<{ projectId: string | undefined; status: string | undefined; responseData: Record<string, unknown> }>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
+      
+      // Set timeout for the initial request (30 seconds for mobile)
+      const REQUEST_TIMEOUT = 30000; // 30 seconds
+      let requestTimer: NodeJS.Timeout | undefined;
+      
+      const cleanup = () => {
+        if (requestTimer) {
+          clearTimeout(requestTimer);
+          requestTimer = undefined;
+        }
+      };
+      
+      // Set up timeout
+      requestTimer = setTimeout(() => {
+        cleanup();
+        xhr.abort();
+        reject(new NetworkError(
+          'Request timed out. Please check your internet connection and try again.',
+          true,
+          false,
+          true
+        ));
+      }, REQUEST_TIMEOUT);
       
       // Track upload progress
       xhr.upload.addEventListener('progress', (event) => {
@@ -513,6 +611,7 @@ export async function generateImage(params: Record<string, unknown>, progressCal
       
       // Handle response
       xhr.addEventListener('load', () => {
+        cleanup();
         try {
           if (xhr.status >= 200 && xhr.status < 300) {
             const jsonRaw: unknown = JSON.parse(xhr.responseText);
@@ -523,20 +622,54 @@ export async function generateImage(params: Record<string, unknown>, progressCal
               responseData: json
             });
           } else {
-            reject(new Error(`HTTP error! status: ${xhr.status}`));
+            const errorMessage = xhr.status === 0 
+              ? 'Network connection lost. Please check your internet and try again.'
+              : `Server error (${xhr.status}). Please try again.`;
+            
+            reject(new NetworkError(
+              errorMessage,
+              false,
+              xhr.status === 0,
+              true
+            ));
           }
-                 } catch (error) {
-           reject(new Error(`Failed to parse response: ${error instanceof Error ? error.message : String(error)}`));
-         }
+        } catch (error) {
+          reject(new NetworkError(
+            `Network error: ${error instanceof Error ? error.message : String(error)}`,
+            false,
+            false,
+            true
+          ));
+        }
       });
       
       // Handle errors
       xhr.addEventListener('error', () => {
-        reject(new Error('Network error during upload'));
+        cleanup();
+        // Check connectivity and handle appropriately
+        checkConnectivity().then(isConnected => {
+          reject(new NetworkError(
+            isConnected 
+              ? 'Network error during upload. Please try again.'
+              : 'Internet connection lost. Please check your network and try again.',
+            false,
+            !isConnected,
+            true
+          ));
+        }).catch(() => {
+          // If connectivity check fails, assume network error
+          reject(new NetworkError(
+            'Network error during upload. Please check your connection and try again.',
+            false,
+            true,
+            true
+          ));
+        });
       });
       
       xhr.addEventListener('abort', () => {
-        reject(new Error('Upload aborted'));
+        cleanup();
+        reject(new NetworkError('Request was cancelled', false, false, false));
       });
       
       // Configure and send request
@@ -631,7 +764,12 @@ export async function generateImage(params: Record<string, unknown>, progressCal
               // Use exponential backoff
               reconnectionTimer = setTimeout(connectSSE, 1000 * Math.pow(1.5, retryCount));
             } else {
-              reject(new Error('EventSource connection failed after multiple attempts'));
+              reject(new NetworkError(
+                'Connection timeout. Please check your internet connection and try again.',
+                true,
+                false,
+                true
+              ));
             }
           }, 7000); // Reduced from 15s to 7s for initial connection
           
@@ -690,15 +828,47 @@ export async function generateImage(params: Record<string, unknown>, progressCal
               
               console.log(`EventSource connection error. Retrying (${retryCount}/${maxRetries})...`);
               
-              // Use shorter delay for network errors
-              const delay = isNetworkError ? 500 : 1000 * Math.pow(1.5, retryCount);
-              console.log(`Will retry in ${delay}ms`);
-              
-              reconnectionTimer = setTimeout(connectSSE, delay);
+              // Check network connectivity before retrying
+              checkConnectivity().then(isConnected => {
+                if (!isConnected) {
+                  console.log('Device is offline, will retry when connection is restored');
+                  // Longer delay when offline
+                  const delay = 5000; // 5 seconds when offline
+                  reconnectionTimer = setTimeout(connectSSE, delay);
+                } else {
+                  // Use shorter delay for network errors when online
+                  const delay = isNetworkError ? 500 : 1000 * Math.pow(1.5, retryCount);
+                  console.log(`Will retry in ${delay}ms`);
+                  reconnectionTimer = setTimeout(connectSSE, delay);
+                }
+              }).catch(() => {
+                // If connectivity check fails, use default retry logic
+                const delay = isNetworkError ? 500 : 1000 * Math.pow(1.5, retryCount);
+                console.log(`Will retry in ${delay}ms (connectivity check failed)`);
+                reconnectionTimer = setTimeout(connectSSE, delay);
+              });
             } else {
               console.error('EventSource connection failed permanently after retries.');
               safelyCloseEventSource();
-              reject(new Error('EventSource connection failed'));
+              
+              // Check connectivity to provide appropriate error message
+              checkConnectivity().then(isConnected => {
+                reject(new NetworkError(
+                  isConnected 
+                    ? 'Unable to connect to processing server. Please try again.'
+                    : 'Internet connection lost. Please check your network and try again.',
+                  false,
+                  !isConnected,
+                  true
+                ));
+              }).catch(() => {
+                reject(new NetworkError(
+                  'Connection failed. Please check your internet and try again.',
+                  false,
+                  true,
+                  true
+                ));
+              });
             }
           };
           
@@ -707,12 +877,22 @@ export async function generateImage(params: Record<string, unknown>, progressCal
             if (eventSource) {
               eventSource.close();
             }
-            reject(new Error('Generation timed out'));
+            reject(new NetworkError(
+              'Generation timed out. Please try again.',
+              true,
+              false,
+              true
+            ));
           }, 300000); // 5 minute timeout for the entire process
         } catch (error) {
           console.error('Error creating EventSource:', error);
           safelyCloseEventSource();
-          reject(new Error('EventSource connection failed'));
+          reject(new NetworkError(
+            'Failed to establish connection. Please check your network and try again.',
+            false,
+            false,
+            true
+          ));
         }
       };
       
@@ -721,6 +901,26 @@ export async function generateImage(params: Record<string, unknown>, progressCal
     });
   } catch (error: unknown) {
     console.error('Error generating image:', error);
-    throw error;
+    
+    // Re-throw NetworkErrors as-is for proper handling
+    if (error instanceof NetworkError) {
+      throw error;
+    }
+    
+    // Convert other errors to NetworkError for consistent handling
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new NetworkError(
+      `Unexpected error: ${errorMessage}. Please try again.`,
+      false,
+      false,
+      true
+    );
   }
+}
+
+/**
+ * Check if an error is a network-related error that can be retried
+ */
+export function isNetworkError(error: unknown): error is NetworkError {
+  return error instanceof NetworkError;
 } 

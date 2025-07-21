@@ -37,6 +37,7 @@ const PhotoGallery = ({
   slothicornAnimationEnabled,
   tezdevTheme = 'off',
   aspectRatio = null,
+  handleRetryPhoto,
 }) => {
   // Skip rendering if there are no photos or the grid is hidden
   if (photos.length === 0 || !showPhotoGrid) return null;
@@ -756,11 +757,45 @@ const PhotoGallery = ({
                   )}
                 </div>
                 <div className="photo-label">
-                                  {photo.error ? 
-                  `${typeof photo.error === 'object' ? 'GENERATION FAILED: unknown error' : photo.error}` 
-                  : photo.loading || photo.generating ? 
-                    (photo.statusText || loadingLabel || labelText) 
-                    : (photo.statusText || labelText) + (photo.hashtag ? ` ${photo.hashtag}` : getStyleHashtag(photo) ? ` ${getStyleHashtag(photo)}` : '')}
+                  {photo.error ? 
+                    <div>
+                      <div style={{ marginBottom: '8px' }}>
+                        {typeof photo.error === 'object' ? 'GENERATION FAILED: unknown error' : photo.error}
+                      </div>
+                      {photo.retryable && handleRetryPhoto && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRetryPhoto(index);
+                          }}
+                          style={{
+                            background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
+                            border: 'none',
+                            color: 'white',
+                            padding: '4px 12px',
+                            borderRadius: '12px',
+                            fontSize: '11px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.transform = 'scale(1.05)';
+                            e.currentTarget.style.boxShadow = '0 3px 6px rgba(0,0,0,0.15)';
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.transform = 'scale(1)';
+                            e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                          }}
+                        >
+                          🔄 Retry
+                        </button>
+                      )}
+                    </div>
+                    : photo.loading || photo.generating ? 
+                      (photo.statusText || loadingLabel || labelText) 
+                      : (photo.statusText || labelText) + (photo.hashtag ? ` ${photo.hashtag}` : getStyleHashtag(photo) ? ` ${getStyleHashtag(photo)}` : '')}
                 </div>
               </div>
             );
@@ -916,6 +951,7 @@ PhotoGallery.propTypes = {
   slothicornAnimationEnabled: PropTypes.bool.isRequired,
   tezdevTheme: PropTypes.string,
   aspectRatio: PropTypes.string,
+  handleRetryPhoto: PropTypes.func,
 };
 
 export default React.memo(PhotoGallery); 
