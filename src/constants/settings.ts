@@ -1,62 +1,41 @@
 import { Settings, AspectRatioOption } from '../types/index';
 
-export const modelOptions = [
-  {
-    label: "🅂 Sogni.XLT 𝛂1 (SDXL Turbo)",
-    value: "coreml-sogniXLturbo_alpha1_ad",
-  },
-  {
-    label: "DreamShaper v2.1 (SDXL Turbo)",
-    value: "coreml-dreamshaperXL_v21TurboDPMSDE",
-  },
-  {
-    label: "JuggernautXL 9 + RD Photo2 (SDXL Lightning)",
-    value: "coreml-juggernautXL_v9Rdphoto2Lightning",
-  },
-];
-
 // Helper function to safely get model options
 export const getModelOptions = () => {
-  // In case import fails or isn't available, return a fallback set
-  if (!Array.isArray(modelOptions) || modelOptions.length === 0) {
-    console.warn("Model options not loaded correctly, using fallbacks");
-    return [
-      {
-        label: "🅂 Sogni.XLT 𝛂1 (SDXL Turbo)",
-        value: "coreml-sogniXLturbo_alpha1_ad",
-      },
-      {
-        label: "DreamShaper v2.1 (SDXL Turbo)",
-        value: "coreml-dreamshaperXL_v21TurboDPMSDE",
-      },
-      {
-        label: "JuggernautXL 9 + RD Photo2 (SDXL Lightning)",
-        value: "coreml-juggernautXL_v9Rdphoto2Lightning",
-      },
-      {
-        label: "wildcardx XL (SDXL Lightning)",
-        value: "coreml-wildcardxXLLIGHTNING_wildcardxXL",
-      },
-      {
-        label: "RealVisXL v4 (SDXL Lightning)",
-        value: "coreml-realvisxlV40_v40LightningBakedvae",
-      },
-      {
-        label: "RealDream (SDXL Lightning)",
-        value: "coreml-realDream_sdxlLightning1",
-      },
-      {
-        label: "FenrisXL (SDXL Lightning)",
-        value: "coreml-fenrisxl_SDXLLightning",
-      },
-      {
-        label: "epiCRealism XL VXI (SDXL Lightning)",
-        value: "coreml-epicrealismXL_VXIAbeast4SLightning",
-      },
-    ];
-  }
-  
-  return modelOptions;
+  return [
+    {
+      label: "🅂 Sogni.XLT 𝛂1 (SDXL Turbo)",
+      value: "coreml-sogniXLturbo_alpha1_ad",
+    },
+    {
+      label: "DreamShaper v2.1 (SDXL Turbo)",
+      value: "coreml-dreamshaperXL_v21TurboDPMSDE",
+    },
+    {
+      label: "JuggernautXL 9 + RD Photo2 (SDXL Lightning)",
+      value: "coreml-juggernautXL_v9Rdphoto2Lightning",
+    },
+    {
+      label: "wildcardx XL (SDXL Lightning)",
+      value: "coreml-wildcardxXLLIGHTNING_wildcardxXL",
+    },
+    {
+      label: "RealVisXL v4 (SDXL Lightning)",
+      value: "coreml-realvisxlV40_v40LightningBakedvae",
+    },
+    {
+      label: "RealDream (SDXL Lightning)",
+      value: "coreml-realDream_sdxlLightning1",
+    },
+    {
+      label: "FenrisXL (SDXL Lightning)",
+      value: "coreml-fenrisxl_SDXLLightning",
+    },
+    {
+      label: "epiCRealism XL VXI (SDXL Lightning)",
+      value: "coreml-epicrealismXL_VXIAbeast4SLightning",
+    },
+  ];
 };
 
 // Helper function to get a valid model option value
