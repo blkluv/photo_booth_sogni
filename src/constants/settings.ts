@@ -33,6 +33,26 @@ export const getModelOptions = () => {
         label: "JuggernautXL 9 + RD Photo2 (SDXL Lightning)",
         value: "coreml-juggernautXL_v9Rdphoto2Lightning",
       },
+      {
+        label: "wildcardx XL (SDXL Lightning)",
+        value: "coreml-wildcardxXLLIGHTNING_wildcardxXL",
+      },
+      {
+        label: "RealVisXL v4 (SDXL Lightning)",
+        value: "coreml-realvisxlV40_v40LightningBakedvae",
+      },
+      {
+        label: "RealDream (SDXL Lightning)",
+        value: "coreml-realDream_sdxlLightning1",
+      },
+      {
+        label: "FenrisXL (SDXL Lightning)",
+        value: "coreml-fenrisxl_SDXLLightning",
+      },
+      {
+        label: "epiCRealism XL VXI (SDXL Lightning)",
+        value: "coreml-epicrealismXL_VXIAbeast4SLightning",
+      },
     ];
   }
   
