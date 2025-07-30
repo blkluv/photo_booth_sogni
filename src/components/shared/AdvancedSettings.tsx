@@ -162,6 +162,11 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
     } else {
       updateSetting('tezdevTheme', newTheme);
     }
+    
+    // Automatically switch to narrow (2:3) aspect ratio for GM Vietnam theme
+    if (newTheme === 'gmvietnam') {
+      handleAspectRatioChange('narrow');
+    }
   };
 
   return (
@@ -441,7 +446,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
         
         {/* TezDev Demo selector */}
         <div className="control-option">
-          <label className="control-label">TezDev Demo:</label>
+          <label className="control-label">TezDev Theme:</label>
           <select
             className="model-select"
             onChange={(e) => handleTezDevThemeChange(e.target.value as TezDevTheme)}
@@ -449,6 +454,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
           >
             <option value="blue">Blue</option>
             <option value="pink">Pink</option>
+            <option value="gmvietnam">GM Vietnam</option>
             <option value="off">Off</option>
           </select>
         </div>

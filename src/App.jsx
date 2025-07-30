@@ -3017,6 +3017,14 @@ const App = () => {
           onTezDevThemeChange={(value) => {
             updateSetting('tezdevTheme', value);
             saveSettingsToCookies({ tezdevTheme: value });
+            
+            // Automatically switch to narrow (2:3) aspect ratio for GM Vietnam theme
+            if (value === 'gmvietnam') {
+              updateSetting('aspectRatio', 'narrow');
+              saveSettingsToCookies({ aspectRatio: 'narrow' });
+              // Update CSS variables to match the new aspect ratio
+              document.documentElement.style.setProperty('--current-aspect-ratio', '832/1216');
+            }
           }}
           soundEnabled={soundEnabled}
           onSoundEnabledChange={(value) => {

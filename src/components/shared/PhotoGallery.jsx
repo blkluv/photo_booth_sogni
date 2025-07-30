@@ -42,11 +42,46 @@ const PhotoGallery = ({
   // Skip rendering if there are no photos or the grid is hidden
   if (photos.length === 0 || !showPhotoGrid) return null;
   
-  const squareStyle = {
-    width: '100%',
-    margin: '0 auto',
-    backgroundColor: 'white',
+  // Calculate proper aspect ratio style based on the selected aspect ratio
+  const getAspectRatioStyle = () => {
+    let aspectRatioValue = '1/1'; // Default to square
+    
+    switch (aspectRatio) {
+      case 'ultranarrow':
+        aspectRatioValue = '768/1344';
+        break;
+      case 'narrow':
+        aspectRatioValue = '832/1216';
+        break;
+      case 'portrait':
+        aspectRatioValue = '896/1152';
+        break;
+      case 'square':
+        aspectRatioValue = '1024/1024';
+        break;
+      case 'landscape':
+        aspectRatioValue = '1152/896';
+        break;
+      case 'wide':
+        aspectRatioValue = '1216/832';
+        break;
+      case 'ultrawide':
+        aspectRatioValue = '1344/768';
+        break;
+      default:
+        aspectRatioValue = '1024/1024';
+        break;
+    }
+    
+    return {
+      width: '100%',
+      aspectRatio: aspectRatioValue,
+      margin: '0 auto',
+      backgroundColor: 'white',
+    };
   };
+  
+  const dynamicStyle = getAspectRatioStyle();
   
   const handlePhotoSelect = useCallback((index, e) => {
     const element = e.currentTarget;
@@ -717,13 +752,14 @@ const PhotoGallery = ({
             return (
               <div
                 key={photo.id}
-                className={`film-frame loading ${isSelected ? 'selected' : ''}`}
+                className={`film-frame loading ${isSelected ? 'selected' : ''} ${isSelected && tezdevTheme === 'gmvietnam' ? 'gm-vietnam-theme' : ''}`}
                 data-enhancing={photo.enhancing ? 'true' : undefined}
                 data-error={photo.error ? 'true' : undefined}
                 data-enhanced={photo.enhanced ? 'true' : undefined}
+  
                 onClick={() => isSelected ? setSelectedPhotoIndex(null) : setSelectedPhotoIndex(index)}
-                style={{
-                  ...squareStyle,
+                                style={{
+                ...dynamicStyle,
                   position: 'relative',
                   borderRadius: '2px',
                   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
@@ -808,13 +844,14 @@ const PhotoGallery = ({
           return (
             <div 
               key={photo.id}
-              className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''} ${isLoaded ? 'loaded' : ''}`}
+              className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''} ${isLoaded ? 'loaded' : ''} ${isSelected && tezdevTheme === 'gmvietnam' ? 'gm-vietnam-theme' : ''}`}
               onClick={e => isSelected ? handlePhotoViewerClick(e) : handlePhotoSelect(index, e)}
               data-enhancing={photo.enhancing ? 'true' : undefined}
               data-error={photo.error ? 'true' : undefined}
               data-enhanced={photo.enhanced ? 'true' : undefined}
+
               style={{
-                ...squareStyle,
+                ...dynamicStyle,
                 position: 'relative',
                 borderRadius: '2px',
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
@@ -864,41 +901,84 @@ const PhotoGallery = ({
                     display: 'block'
                   }}
                 />
-                {/* TezDev Corner Frame Overlays - works on all aspect ratios */}
-                {thumbUrl && isLoaded && tezdevTheme !== 'off' && !isSelected && (
+                {/* TezDev Theme Overlays - Only show on selected (popup) view */}
+                {thumbUrl && isLoaded && isSelected && tezdevTheme !== 'off' && (
                   <>
-                    {/* Top-Right Corner */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        right: 0,
-                        width: '75%',
-                        height: '75%',
-                        backgroundImage: `url(/tezos/tz_${tezdevTheme}_photoframe-TR.png)`,
-                        backgroundSize: 'contain',
-                        backgroundPosition: 'top right',
-                        backgroundRepeat: 'no-repeat',
-                        pointerEvents: 'none',
-                        zIndex: 2
-                      }}
-                    />
-                    {/* Bottom-Left Corner */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        bottom: 0,
-                        left: 0,
-                        width: '75%',
-                        height: '80%',
-                        backgroundImage: `url(/tezos/tz_${tezdevTheme}_photoframe-BL.png)`,
-                        backgroundSize: 'contain',
-                        backgroundPosition: 'bottom left',
-                        backgroundRepeat: 'no-repeat',
-                        pointerEvents: 'none',
-                        zIndex: 2
-                      }}
-                    />
+                    {/* GM Vietnam Two-Piece Frame Overlay */}
+                    {tezdevTheme === 'gmvietnam' && (
+                      <>
+                        {/* Top Frame */}
+                        <img
+                          src="/tezos/GMVN-FRAME_TOP.png"
+                          alt=""
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: 'auto',
+                            objectFit: 'contain',
+                            objectPosition: 'top center',
+                            pointerEvents: 'none',
+                            zIndex: 2
+                          }}
+                        />
+                        {/* Bottom Frame */}
+                        <img
+                          src="/tezos/GMVN-FRAME_BOTTOM.png"
+                          alt=""
+                          style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            width: '100%',
+                            height: 'auto',
+                            objectFit: 'contain',
+                            objectPosition: 'bottom center',
+                            pointerEvents: 'none',
+                            zIndex: 2
+                          }}
+                        />
+                      </>
+                    )}
+                    
+                    {/* Blue/Pink Corner Frame Overlays */}
+                    {(tezdevTheme === 'blue' || tezdevTheme === 'pink') && (
+                      <>
+                        {/* Top-Right Corner */}
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            right: 0,
+                            width: '75%',
+                            height: '75%',
+                            backgroundImage: `url(/tezos/tz_${tezdevTheme}_photoframe-TR.png)`,
+                            backgroundSize: 'contain',
+                            backgroundPosition: 'top right',
+                            backgroundRepeat: 'no-repeat',
+                            pointerEvents: 'none',
+                            zIndex: 2
+                          }}
+                        />
+                        {/* Bottom-Left Corner */}
+                        <div
+                          style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            width: '75%',
+                            height: '80%',
+                            backgroundImage: `url(/tezos/tz_${tezdevTheme}_photoframe-BL.png)`,
+                            backgroundSize: 'contain',
+                            backgroundPosition: 'bottom left',
+                            backgroundRepeat: 'no-repeat',
+                            pointerEvents: 'none',
+                            zIndex: 2
+                          }}
+                        />
+                      </>
+                    )}
                   </>
                 )}
               </div>

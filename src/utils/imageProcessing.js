@@ -239,10 +239,77 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
  * @param {number} imageHeight - Height of the image area  
  * @param {number} frameOffsetX - X offset of the image from canvas edge
  * @param {number} frameOffsetY - Y offset of the image from canvas edge
- * @param {string} theme - TezDev theme ('blue' or 'pink')
+ * @param {string} theme - TezDev theme ('blue', 'pink', or 'gmvietnam')
  */
 async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, frameOffsetY, theme) {
   return new Promise((resolve, reject) => {
+    // Handle GM Vietnam theme with two-piece top/bottom frames
+    if (theme === 'gmvietnam') {
+      let loadedImages = 0;
+      const totalImages = 2;
+      let hasError = false;
+
+      const onImageLoad = () => {
+        loadedImages++;
+        if (loadedImages === totalImages && !hasError) {
+          console.log('Applied GM Vietnam two-piece frame overlay');
+          resolve();
+        }
+      };
+
+      const onImageError = (err, position) => {
+        if (!hasError) {
+          hasError = true;
+          console.error(`Failed to load GM Vietnam ${position} frame:`, err);
+          reject(err);
+        }
+      };
+
+      // Load top frame
+      const topFrame = new Image();
+      topFrame.crossOrigin = 'anonymous';
+      
+      topFrame.onload = () => {
+        // Calculate scaled dimensions to maintain aspect ratio while staying full width
+        const scaleX = imageWidth / topFrame.naturalWidth;
+        const scaledWidth = imageWidth;
+        const scaledHeight = topFrame.naturalHeight * scaleX;
+        
+        // Position at top of image area
+        const topX = frameOffsetX;
+        const topY = frameOffsetY;
+        
+        ctx.drawImage(topFrame, topX, topY, scaledWidth, scaledHeight);
+        onImageLoad();
+      };
+      
+      topFrame.onerror = (err) => onImageError(err, 'top');
+      topFrame.src = '/tezos/GMVN-FRAME_TOP.png';
+
+      // Load bottom frame
+      const bottomFrame = new Image();
+      bottomFrame.crossOrigin = 'anonymous';
+      
+      bottomFrame.onload = () => {
+        // Calculate scaled dimensions to maintain aspect ratio while staying full width
+        const scaleX = imageWidth / bottomFrame.naturalWidth;
+        const scaledWidth = imageWidth;
+        const scaledHeight = bottomFrame.naturalHeight * scaleX;
+        
+        // Position at bottom of image area
+        const bottomX = frameOffsetX;
+        const bottomY = frameOffsetY + imageHeight - scaledHeight;
+        
+        ctx.drawImage(bottomFrame, bottomX, bottomY, scaledWidth, scaledHeight);
+        onImageLoad();
+      };
+      
+      bottomFrame.onerror = (err) => onImageError(err, 'bottom');
+      bottomFrame.src = '/tezos/GMVN-FRAME_BOTTOM.png';
+      return;
+    }
+    
+    // Handle original blue/pink themes with corner pieces
     let loadedImages = 0;
     const totalImages = 2;
     let hasError = false;

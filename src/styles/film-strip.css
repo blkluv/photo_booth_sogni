@@ -191,7 +191,6 @@
   font-family: "Permanent Marker", cursive !important;
   font-size: 14px !important;
   color: #333 !important;
-  overflow: hidden !important;
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
   padding: 0 5px !important;
@@ -203,7 +202,7 @@
   font-weight: 500 !important;
 }
 body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
-  font-size: 42px !important; /* Slightly smaller than desktop but still larger than base mobile */
+  font-size: 38px !important; /* Slightly smaller than desktop but still larger than base mobile */
 }
 
 /* Back to Camera button - ensure it stays fixed */
@@ -302,6 +301,8 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
   margin: 0 auto !important;
 }
 
+
+
 /* Smooth grid rearrangement */
 .film-strip-content.has-selected .film-frame:not(.selected) {
   filter: blur(4px) brightness(0.7);
@@ -334,6 +335,19 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
   pointer-events: auto !important;
 }
 
+/* Remove white polaroid frame for GM Vietnam theme */
+.film-frame.selected.gm-vietnam-theme img {
+  border: none !important;
+  background: transparent !important;
+}
+
+/* Hide polaroid label for GM Vietnam theme */
+.film-frame.selected.gm-vietnam-theme .photo-label {
+  display: none !important;
+}
+
+
+
 /* Add responsive styles for selected photo view on mobile/portrait */
 @media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
   .film-frame.selected {
@@ -358,10 +372,25 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
     pointer-events: auto !important;
   }
   
+  /* Remove white polaroid frame for GM Vietnam theme on mobile */
+  .film-frame.selected.gm-vietnam-theme img {
+    border: none !important;
+    background: transparent !important;
+  }
+  
+  /* Hide polaroid label for GM Vietnam theme on mobile */
+  .film-frame.selected.gm-vietnam-theme .photo-label {
+    display: none !important;
+  }
+  
+
+  
   body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
     font-size: 30px !important;
     bottom: 57px !important;
   }
+  
+
   .film-strip-container.has-selected .photo-nav-btn {
     background: none !important;
   }
