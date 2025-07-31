@@ -568,8 +568,10 @@ async function disconnectClient(client) {
         console.log(`Logging out account for client: ${clientId}`);
         await client.account.logout();
       } catch (logoutErr) {
-        // Check specifically for authorization errors (401)
-        if (logoutErr.status === 401 || 
+        // Handle common logout errors gracefully
+        if (logoutErr.message && logoutErr.message.includes('WebSocket was closed before the connection was established')) {
+          console.log(`Ignored WebSocket connection race error: ${logoutErr.message}`);
+        } else if (logoutErr.status === 401 || 
             (logoutErr.message && logoutErr.message.includes('Authorization header required'))) {
           console.log(`Auth token already expired for ${clientId}, this is expected during cleanup`);
         } else {
@@ -646,6 +648,49 @@ export async function getClientInfo(sessionId, clientAppId) {
       }
     }
     
+    // OPTIMIZATION: If we have an existing session client with the same app ID, try to reuse it
+    if (sessionId && clientAppId && sessionClients.has(sessionId)) {
+      const existingClientId = sessionClients.get(sessionId);
+      const existingClient = activeConnections.get(existingClientId);
+      
+      if (existingClient && existingClient.appId === clientAppId) {
+        console.log(`[STATUS] Checking existing session client ${existingClientId} instead of creating temporary client`);
+        
+        try {
+          // Test if the existing client is still valid
+          await existingClient.account.refreshBalance();
+          
+          const info = {
+            connected: true,
+            appId: existingClient.appId,
+            network: existingClient.network,
+            authenticated: existingClient.account.currentAccount.isAuthenicated
+          };
+          
+          // Cache this result
+          if (sessionId) {
+            recentStatusChecks.set(sessionId, {
+              timestamp: Date.now(),
+              clientInfo: info
+            });
+            
+            setTimeout(() => {
+              recentStatusChecks.delete(sessionId);
+            }, STATUS_CHECK_TTL);
+          }
+          
+          // Record activity to keep client alive
+          recordClientActivity(existingClient.appId);
+          
+          console.log(`[STATUS] Successfully reused existing client ${existingClientId} for status check`);
+          return info;
+        } catch (error) {
+          // If existing client is invalid, log it but continue to create temporary client
+          console.log(`[STATUS] Existing client ${existingClientId} is invalid (${error.message}), creating temporary client`);
+        }
+      }
+    }
+    
     // Determine the app ID to use for this temporary client
     // If clientAppId is provided, use it directly instead of generating a temporary one
     // This makes tracking more consistent across status checks
@@ -681,7 +726,7 @@ export async function getClientInfo(sessionId, clientAppId) {
           clientInfo: info
         });
         
-        // Cleanup old entries every 10 minutes
+        // Cleanup old entries
         setTimeout(() => {
           recentStatusChecks.delete(sessionId);
         }, STATUS_CHECK_TTL);
@@ -690,13 +735,21 @@ export async function getClientInfo(sessionId, clientAppId) {
       return info;
     } finally {
       // Always disconnect this temporary client when done with getClientInfo
-      // But only if we don't want to keep it (when clientAppId is provided)
+      // Add delay to prevent WebSocket race conditions
       if (client) {
-        try {
-          await disconnectClient(client);
-        } catch (disconnectError) {
-          console.warn(`Non-critical error disconnecting temporary status client:`, disconnectError);
-        }
+        setTimeout(async () => {
+          try {
+            await disconnectClient(client);
+            console.log(`[STATUS] Delayed disconnect completed for temporary client ${client.appId || tempClientId}`);
+          } catch (disconnectError) {
+            // Ignore WebSocket race condition errors
+            if (disconnectError.message && disconnectError.message.includes('WebSocket was closed before the connection was established')) {
+              console.log(`[STATUS] Ignored WebSocket connection race error: ${disconnectError.message}`);
+            } else {
+              console.warn(`Non-critical error disconnecting temporary status client:`, disconnectError);
+            }
+          }
+        }, 1000); // 1 second delay to prevent race conditions
       }
     }
   } catch (error) {
@@ -1327,7 +1380,28 @@ export async function getSessionClient(sessionId, clientAppId) {
         const existingClient = activeConnections.get(clientAppId);
         
         // Validate authentication before reusing
-        if (await validateClientAuth(existingClient)) {
+        let authValid = false;
+        try {
+          authValid = await validateClientAuth(existingClient);
+        } catch (authError) {
+          console.log(`[SESSION] Auth validation failed for client ${clientAppId}: ${authError.message}`);
+          
+          // If it's a token error, try to refresh tokens before giving up
+          if (authError.status === 401 || (authError.message && authError.message.includes('Invalid token'))) {
+            console.log(`[SESSION] Attempting token refresh for client ${clientAppId}...`);
+            try {
+              // Try to login again to refresh tokens
+              await existingClient.account.login();
+              console.log(`[SESSION] Successfully refreshed tokens for client ${clientAppId}`);
+              authValid = true;
+            } catch (refreshError) {
+              console.log(`[SESSION] Token refresh failed for client ${clientAppId}: ${refreshError.message}`);
+              authValid = false;
+            }
+          }
+        }
+        
+        if (authValid) {
           // Update the session mapping
           if (sessionId && existingClient) {
             const oldClientId = sessionClients.get(sessionId);
@@ -1358,18 +1432,41 @@ export async function getSessionClient(sessionId, clientAppId) {
         const clientId = sessionClients.get(sessionId);
         const existingClient = activeConnections.get(clientId);
         
-        // If the client still exists and is valid
-        if (existingClient && await validateClientAuth(existingClient)) {
-          console.log(`[SESSION] Reusing existing client ${clientId} for session ${sessionId}`);
-          recordClientActivity(clientId);
-          return existingClient;
-        } else {
-          console.log(`[SESSION] Client ${clientId} no longer exists or authentication invalid for session ${sessionId}, creating new one`);
-          // Clean up invalid client
-          if (existingClient) {
+        // If the client still exists, validate and potentially refresh auth
+        if (existingClient) {
+          let authValid = false;
+          try {
+            authValid = await validateClientAuth(existingClient);
+          } catch (authError) {
+            console.log(`[SESSION] Auth validation failed for existing client ${clientId}: ${authError.message}`);
+            
+            // If it's a token error, try to refresh tokens before giving up
+            if (authError.status === 401 || (authError.message && authError.message.includes('Invalid token'))) {
+              console.log(`[SESSION] Attempting token refresh for existing client ${clientId}...`);
+              try {
+                await existingClient.account.login();
+                console.log(`[SESSION] Successfully refreshed tokens for existing client ${clientId}`);
+                authValid = true;
+              } catch (refreshError) {
+                console.log(`[SESSION] Token refresh failed for existing client ${clientId}: ${refreshError.message}`);
+                authValid = false;
+              }
+            }
+          }
+          
+          if (authValid) {
+            console.log(`[SESSION] Reusing existing client ${clientId} for session ${sessionId}`);
+            recordClientActivity(clientId);
+            return existingClient;
+          } else {
+            console.log(`[SESSION] Client ${clientId} authentication invalid and refresh failed for session ${sessionId}, creating new one`);
+            // Clean up invalid client
             activeConnections.delete(clientId);
             connectionLastActivity.delete(clientId);
+            sessionClients.delete(sessionId);
           }
+        } else {
+          console.log(`[SESSION] Client ${clientId} no longer exists for session ${sessionId}, creating new one`);
           sessionClients.delete(sessionId);
         }
       }
