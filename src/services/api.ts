@@ -813,11 +813,33 @@ export async function generateImage(params: Record<string, unknown>, progressCal
               }
               
               // Clear overall timeout if we receive a completion or error event
-              if (data.type === 'completed' || data.type === 'failed' || data.type === 'error') {
-                console.log(`Project completion/error event received for ${projectId}, clearing overall timeout`);
-                clearAllTimers();
+                        if (data.type === 'completed' || data.type === 'failed' || data.type === 'error') {
+            console.log(`Project completion/error event received for ${projectId}, clearing overall timeout`);
+            clearAllTimers();
+            
+            // Only delay EventSource close for successful completion with missing jobs
+            if (data.type === 'completed') {
+              const hasMissingJobs = data.missingJobs && data.missingJobs.expected > data.missingJobs.completed;
+              
+              if (hasMissingJobs) {
+                const missingCount = data.missingJobs.expected - data.missingJobs.completed;
+                console.log(`Project ${projectId} completed but ${missingCount} jobs still outstanding - delaying EventSource close`);
+                
+                // Wait longer for outstanding job completion events
+                setTimeout(() => {
+                  console.log(`Closing EventSource after waiting for outstanding jobs on project ${projectId}`);
+                  safelyCloseEventSource();
+                }, 5000); // 5 second delay for outstanding jobs
+              } else {
+                console.log(`All jobs completed for project ${projectId}, closing EventSource immediately`);
                 safelyCloseEventSource();
               }
+            } else {
+              // For failed/error events, close immediately - don't wait for remaining jobs
+              console.log(`Project ${projectId} failed/errored, closing EventSource immediately`);
+              safelyCloseEventSource();
+            }
+          }
             } catch (error) {
               console.error('Error parsing SSE message:', error, 'Original data:', event.data);
               // Continue listening, don't fail on a single parse error
