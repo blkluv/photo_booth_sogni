@@ -520,7 +520,35 @@ export class BackendSogniClient {
           
           console.log(`Event ${eventType} with jobId: ${jobId}`);
           
-          // Find the corresponding frontend job placeholder using the received jobId (SDK job.id/imgID)
+          // Handle project-level events first (these don't need a target job)
+          if (eventType === 'completed') {
+            console.log(`Project completion event received for ${project.id}`);
+            project.emit('completed', []);
+            return;
+          }
+          
+          if (eventType === 'failed') {
+            const failureError = new Error(event.error as string || 'Project failed') as Error & { projectId: string };
+            failureError.projectId = project.id;
+            project.emit('failed', failureError);
+            return;
+          }
+          
+          if (eventType === 'error') {
+            console.error(`Backend reported an error for project ${project.id}:`, event);
+            const backendErrorMessage = event.message as string || 'Backend generation error';
+            const errorWithContext = new Error(backendErrorMessage) as Error & { projectId: string };
+            errorWithContext.projectId = project.id;
+            project.emit('failed', errorWithContext);
+            project.jobs.forEach(job => {
+              if (!job.resultUrl && !job.error) {
+                project.failJob(job.id, backendErrorMessage);
+              }
+            });
+            return;
+          }
+          
+          // For job-level events, find the corresponding frontend job placeholder
           let jobIndex = project.jobs.findIndex(j => j.realJobId === jobId);
           console.log(`[JOB ASSIGNMENT] Looking for job with realJobId=${jobId}, found index: ${jobIndex}`);
           
@@ -636,36 +664,12 @@ export class BackendSogniClient {
               }
               break;
               
-            case 'failed': // Project level failure
-              const failureError = new Error(event.error as string || 'Project failed') as Error & { projectId: string };
-              // Attach the project ID to the error object for proper identification
-              failureError.projectId = project.id;
-              project.emit('failed', failureError);
-              break;
-              
             // Ignore project-progress and connected types here, handled elsewhere or implicitly
             case 'project-progress': 
             case 'connected':
               break;
               
-            case 'error': // Handle error event from backend
-              console.error(`Backend reported an error for project ${project.id}:`, event);
-              const backendErrorMessage = event.message as string || 'Backend generation error';
-              
-              // Create an error object that includes the project ID
-              const errorWithContext = new Error(backendErrorMessage) as Error & { projectId: string };
-              errorWithContext.projectId = project.id; // Add project ID to error object
-              
-              // Emit a 'failed' event with the error message and project context
-              project.emit('failed', errorWithContext);
-              
-              // Only fail jobs associated with this specific project
-              project.jobs.forEach(job => {
-                if (!job.resultUrl && !job.error) {
-                  project.failJob(job.id, backendErrorMessage);
-                }
-              });
-              break;
+            // Project-level events (failed, error, completed) are handled earlier before job lookup
               
             default:
               console.warn(`Unhandled event type in apiCreateProject callback: ${eventType}`);
