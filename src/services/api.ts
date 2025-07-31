@@ -708,6 +708,7 @@ export async function generateImage(params: Record<string, unknown>, progressCal
       const maxRetries = 5; // Increase from 3 to 5
       let eventSource: EventSource | null = null;
       let connectionTimeout: NodeJS.Timeout | undefined = undefined;
+      let overallTimeout: NodeJS.Timeout | undefined = undefined;
       
       // Keep track of reconnection timers
       let reconnectionTimer: NodeJS.Timeout | undefined = undefined;
@@ -721,6 +722,10 @@ export async function generateImage(params: Record<string, unknown>, progressCal
         if (reconnectionTimer !== undefined) {
           clearTimeout(reconnectionTimer);
           reconnectionTimer = undefined;
+        }
+        if (overallTimeout !== undefined) {
+          clearTimeout(overallTimeout);
+          overallTimeout = undefined;
         }
       };
       
@@ -764,6 +769,7 @@ export async function generateImage(params: Record<string, unknown>, progressCal
               // Use exponential backoff
               reconnectionTimer = setTimeout(connectSSE, 1000 * Math.pow(1.5, retryCount));
             } else {
+              clearAllTimers();
               reject(new NetworkError(
                 'Connection timeout. Please check your internet connection and try again.',
                 true,
@@ -804,6 +810,13 @@ export async function generateImage(params: Record<string, unknown>, progressCal
               // For all other events, just forward to the callback
               if (progressCallback) {
                 progressCallback(data);
+              }
+              
+              // Clear overall timeout if we receive a completion or error event
+              if (data.type === 'completed' || data.type === 'failed' || data.type === 'error') {
+                console.log(`Project completion/error event received for ${projectId}, clearing overall timeout`);
+                clearAllTimers();
+                safelyCloseEventSource();
               }
             } catch (error) {
               console.error('Error parsing SSE message:', error, 'Original data:', event.data);
@@ -849,6 +862,7 @@ export async function generateImage(params: Record<string, unknown>, progressCal
               });
             } else {
               console.error('EventSource connection failed permanently after retries.');
+              clearAllTimers();
               safelyCloseEventSource();
               
               // Check connectivity to provide appropriate error message
@@ -873,10 +887,10 @@ export async function generateImage(params: Record<string, unknown>, progressCal
           };
           
           // Add a timeout for the entire process
-          setTimeout(() => {
-            if (eventSource) {
-              eventSource.close();
-            }
+          overallTimeout = setTimeout(() => {
+            console.log(`Overall timeout reached for project ${projectId} after 5 minutes`);
+            clearAllTimers();
+            safelyCloseEventSource();
             reject(new NetworkError(
               'Generation timed out. Please try again.',
               true,
@@ -886,6 +900,7 @@ export async function generateImage(params: Record<string, unknown>, progressCal
           }, 300000); // 5 minute timeout for the entire process
         } catch (error) {
           console.error('Error creating EventSource:', error);
+          clearAllTimers();
           safelyCloseEventSource();
           reject(new NetworkError(
             'Failed to establish connection. Please check your network and try again.',

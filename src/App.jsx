@@ -1640,14 +1640,16 @@ const App = () => {
         // Use error's projectId if available, otherwise fallback to project.id
         const effectiveProjectId = errorProjectId || failedProjectId;
         
-        console.log(`Project failed with ID ${effectiveProjectId}`);
-        
         // Only clear active project reference if it matches the failed project
         if (activeProjectReference.current && activeProjectReference.current.id === effectiveProjectId) {
+          console.log(`Project failed with ID ${effectiveProjectId}`);
           console.log(`Clearing active project reference for failed project ${effectiveProjectId}`);
           activeProjectReference.current = null;
         } else {
-          console.log(`Failed project ${effectiveProjectId} is not the active project, not clearing reference`);
+          // This is an old project timing out, suppress the noisy error messages
+          console.log(`Old project ${effectiveProjectId} cleanup (not active project)`);
+          // Early return to avoid updating photos or showing error messages for old projects
+          return;
         }
         
         // Update the state for photos that belong to this failed project only

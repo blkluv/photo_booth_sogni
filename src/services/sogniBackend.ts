@@ -438,6 +438,22 @@ export class BackendSogniClient {
     // Debug log to track sourceType
     console.log(`BackendSogniClient.createProject called with sourceType: ${typeof params.sourceType === 'string' ? params.sourceType : 'undefined'}`);
     
+    // Clean up old projects to prevent timeout conflicts (for "more" functionality)
+    if (this.activeProjects.size > 0) {
+      console.log(`Cleaning up ${this.activeProjects.size} old projects before starting new one`);
+      for (const [oldProjectId, oldProject] of this.activeProjects.entries()) {
+        try {
+          // Emit cancelled event to clean up any timers
+          oldProject.emit('cancelled');
+          oldProject.emit('failed', new Error('Replaced by new project'));
+          console.log(`Cleaned up old project ${oldProjectId}`);
+        } catch (error) {
+          console.warn(`Error cleaning up old project ${oldProjectId}:`, error);
+        }
+      }
+      this.activeProjects.clear();
+    }
+    
     // Create a new project object to return to the caller
     const projectId = `backend-project-${Date.now()}`;
     const project = new BackendProject(projectId);
@@ -662,6 +678,14 @@ export class BackendSogniClient {
           project.emit('completed', imageUrls);
         }
       }).catch((error: unknown) => {
+        // Check if this project is still active (not replaced by a newer project)
+        const isStillActive = this.activeProjects.has(projectId);
+        
+        if (!isStillActive) {
+          console.log(`Ignoring error for old project ${projectId} (replaced by newer project):`, error);
+          return; // Don't emit failed event for old projects
+        }
+        
         console.error('Backend generation process failed:', error);
         project.emit('uploadComplete'); // Clean up upload progress
         const errorMsg = error && typeof error === 'object' && 'message' in error && typeof (error as { message: unknown }).message === 'string'
@@ -672,6 +696,14 @@ export class BackendSogniClient {
         this.activeProjects.delete(projectId);
       });
     } catch (error) {
+      // Check if this project is still active (not replaced by a newer project)
+      const isStillActive = this.activeProjects.has(projectId);
+      
+      if (!isStillActive) {
+        console.log(`Ignoring sync error for old project ${projectId} (replaced by newer project):`, error);
+        return Promise.resolve(project); // Don't emit failed event for old projects
+      }
+      
       console.error('Error starting generation:', error);
       project.emit('uploadComplete'); // Clean up upload progress
       const errorMsg = error && typeof error === 'object' && 'message' in error && typeof (error as { message: unknown }).message === 'string'
