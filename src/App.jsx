@@ -1630,7 +1630,16 @@ const App = () => {
         if (totalOutstanding > 0) {
           console.log(`Project completion received but ${totalOutstanding} jobs still outstanding (${outstandingPhotoJobs.length} in photos state, ${outstandingProjectJobs.length} in project state). Waiting 3 seconds for final job events...`);
           console.log('Outstanding photo jobs:', outstandingPhotoJobs.map(p => ({ id: p.id, progress: p.progress })));
-          console.log('Outstanding project jobs:', outstandingProjectJobs.map(j => ({ id: j.id, realJobId: j.realJobId, hasResult: !!j.resultUrl })));
+          console.log('Outstanding project jobs:', outstandingProjectJobs.map(j => ({ id: j.id, realJobId: j.realJobId, hasResult: !!j.resultUrl, hasError: !!j.error })));
+          
+          // Debug: Log all project jobs to see their state
+          console.log('ALL project jobs state:', project.jobs ? project.jobs.map(j => ({
+            id: j.id,
+            realJobId: j.realJobId,
+            hasResultUrl: !!j.resultUrl,
+            hasError: !!j.error,
+            resultUrl: j.resultUrl ? `${j.resultUrl.substring(0, 50)}...` : 'none'
+          })) : 'no jobs');
           
           // Wait a short time for any final job completion events to arrive
           setTimeout(() => {
@@ -1643,21 +1652,47 @@ const App = () => {
             const stillTotalOutstanding = Math.max(stillOutstandingPhotos.length, stillOutstandingProjects.length);
             
             if (stillTotalOutstanding > 0) {
-              console.log(`After 3 second delay, ${stillTotalOutstanding} jobs still outstanding (${stillOutstandingPhotos.length} photos, ${stillOutstandingProjects.length} project jobs). Proceeding with project completion.`);
+              console.log(`After 3 second delay, ${stillTotalOutstanding} jobs still outstanding (${stillOutstandingPhotos.length} photos, ${stillOutstandingProjects.length} project jobs). Trying longer delay...`);
               console.log('Still outstanding photo jobs:', stillOutstandingPhotos.map(p => ({ id: p.id, progress: p.progress })));
-              console.log('Still outstanding project jobs:', stillOutstandingProjects.map(j => ({ id: j.id, realJobId: j.realJobId })));
+              console.log('Still outstanding project jobs:', stillOutstandingProjects.map(j => ({ id: j.id, realJobId: j.realJobId, hasResult: !!j.resultUrl, hasError: !!j.error })));
+              
+              // Debug: Log all project jobs after delay to see their state
+              console.log('ALL project jobs state after delay:', project.jobs ? project.jobs.map(j => ({
+                id: j.id,
+                realJobId: j.realJobId,
+                hasResultUrl: !!j.resultUrl,
+                hasError: !!j.error,
+                resultUrl: j.resultUrl ? `${j.resultUrl.substring(0, 50)}...` : 'none'
+              })) : 'no jobs');
+              
+              // Try waiting longer for very delayed job completion events
+              setTimeout(() => {
+                const finalOutstandingProjects = project.jobs ? project.jobs.filter(job => !job.resultUrl && !job.error) : [];
+                
+                if (finalOutstandingProjects.length > 0) {
+                  console.log(`After 10 second total delay, ${finalOutstandingProjects.length} jobs still outstanding. Proceeding with project completion anyway.`);
+                  console.log('Final outstanding project jobs:', finalOutstandingProjects.map(j => ({ 
+                    id: j.id, 
+                    realJobId: j.realJobId, 
+                    hasResult: !!j.resultUrl, 
+                    hasError: !!j.error 
+                  })));
+                } else {
+                  console.log('All jobs finally completed after extended delay.');
+                }
+                
+                // Proceed with completion regardless
+                clearAllTimeouts();
+                activeProjectReference.current = null;
+                trackEvent('Generation', 'complete', selectedStyle);
+              }, 7000); // Additional 7 second delay (10 total)
             } else {
               console.log('All jobs completed after delay, proceeding with project completion.');
+              clearAllTimeouts();
+              activeProjectReference.current = null;
+              trackEvent('Generation', 'complete', selectedStyle);
             }
-            
-            // Clear all timeouts when project completes
-            clearAllTimeouts();
-            
-            activeProjectReference.current = null; // Clear active project reference when complete
-            
-            // Track successful generation completion
-            trackEvent('Generation', 'complete', selectedStyle);
-          }, 3000); // 3 second delay
+          }, 3000); // Initial 3 second delay
         } else {
           console.log('All jobs completed, proceeding immediately with project completion');
           

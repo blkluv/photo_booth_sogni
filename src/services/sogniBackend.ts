@@ -171,8 +171,17 @@ export class BackendProject implements SogniEventEmitter {
   completeJob(jobId: string, resultUrl: string) {
     const job = this.jobs.find(j => j.id === jobId);
     if (job) {
+      console.log(`BackendProject: Setting resultUrl for job ${jobId} to ${resultUrl ? 'provided' : 'MISSING'}`);
       job.resultUrl = resultUrl;
+      
+      // Debug: log remaining incomplete jobs
+      const incompleteJobs = this.jobs.filter(j => !j.resultUrl && !j.error);
+      console.log(`BackendProject: After completing ${jobId}, ${incompleteJobs.length} jobs still incomplete:`, 
+        incompleteJobs.map(j => ({ id: j.id, realJobId: j.realJobId })));
+      
       this.emit('jobCompleted', job);
+    } else {
+      console.warn(`BackendProject: Could not find job ${jobId} to complete`);
     }
   }
   
@@ -523,6 +532,12 @@ export class BackendSogniClient {
           // Handle project-level events first (these don't need a target job)
           if (eventType === 'completed') {
             console.log(`Project completion event received for ${project.id}`);
+            
+            // Debug: log project job states at completion
+            const incompleteJobs = project.jobs ? project.jobs.filter(j => !j.resultUrl && !j.error) : [];
+            console.log(`BackendProject: At project completion, ${incompleteJobs.length} jobs still incomplete:`,
+              incompleteJobs.map(j => ({ id: j.id, realJobId: j.realJobId })));
+            
             project.emit('completed', []);
             return;
           }
@@ -639,8 +654,14 @@ export class BackendSogniClient {
                 const isNSFW = event.nsfwFiltered as boolean;
                 
                 if (resultUrl) {
-                  console.log(`Processing jobCompleted for placeholder ${targetJob.id} (real ID ${jobId})`);
-                  project.completeJob(targetJob.id, resultUrl);
+                  console.log(`Processing jobCompleted for placeholder ${targetJob.id} (real ID ${jobId}) - URL: ${resultUrl.substring(0, 50)}...`);
+                  
+                  // Check if this job was already completed (race condition protection)
+                  if (targetJob.resultUrl) {
+                    console.log(`Job ${targetJob.id} was already completed, ignoring duplicate completion event`);
+                  } else {
+                    project.completeJob(targetJob.id, resultUrl);
+                  }
                 } else if (isNSFW) {
                   console.warn(`Job ${targetJob.id} (real ID ${jobId}) completed but was filtered due to NSFW content`);
                   // Mark job as failed due to NSFW filtering
@@ -650,7 +671,8 @@ export class BackendSogniClient {
                   project.failJob(targetJob.id, 'No result URL provided');
                 }
               } else {
-                console.warn(`jobCompleted event received for ${jobId}, but couldn't find target job.`);
+                console.warn(`jobCompleted event received for ${jobId}, but couldn't find target job. Available jobs:`, 
+                  project.jobs.map(j => ({ id: j.id, realJobId: j.realJobId })));
               }
               break;
               

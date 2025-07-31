@@ -873,6 +873,16 @@ export async function generateImage(client, params, progressCallback) {
       }
     }
 
+    // Track job completion events to prevent race conditions
+    const projectCompletionTracker = {
+      expectedJobs: 0,
+      sentJobCompletions: 0,
+      projectCompletionReceived: false,
+      projectCompletionTimeout: null,
+      projectCompletionEvent: null,
+      sendProjectCompletion: null
+    };
+    
     // Now create project-specific handlers that filter by project ID
     const projectHandler = (event) => {
       // Only process events for this specific project
@@ -905,16 +915,12 @@ export async function generateImage(client, params, progressCallback) {
           };
           break;
         case 'completed':
-          progressEvent = {
-            type: 'completed',
-          };
-          
-          // Check if all expected jobs are completed
+          // Store the completion event and wait for all job completions to be sent
           if (project) {
             // Get the expected number of jobs from the project
             const expectedJobs = project.numberOfImages || project.jobs?.length || 0;
             
-            // Count how many jobs actually completed
+            // Count how many jobs actually completed in REST data
             let completedJobs = project.jobs?.filter(job => 
               job.status === 'completed' || job.resultUrl
             ).length || 0;
@@ -924,32 +930,57 @@ export async function generateImage(client, params, progressCallback) {
               project._extraCompletedJobIds = new Set();
             }
             
-            // Delay cleanup to allow any in-flight job completions to arrive
-            setTimeout(() => {
-              let completedJobs = project.jobs?.filter(job => 
-                job.status === 'completed' || job.resultUrl
-              ).length || 0;
-
-                // Log completion status
-              console.log(`Project ${projectId} completed: ${completedJobs}/${expectedJobs} jobs finished`);
+            // Update the tracker with expected jobs count
+            projectCompletionTracker.expectedJobs = expectedJobs;
+            projectCompletionTracker.projectCompletionReceived = true;
+            
+            // Prepare the completion event
+            progressEvent = {
+              type: 'completed',
+            };
+            
+            // Add the imageUrls to the completion event
+            const imageUrls = project.jobs
+              ?.filter(job => job.resultUrl)
+              .map(job => job.resultUrl) || [];
+            
+            if (imageUrls.length > 0) {
+              progressEvent.imageUrls = imageUrls;
+            }
+            
+            // If we're missing jobs, log a warning
+            if (completedJobs < expectedJobs) {
+              console.warn(`Project ${projectId} completed with missing jobs: ${completedJobs}/${expectedJobs}`);
+              progressEvent.missingJobs = {
+                expected: expectedJobs,
+                completed: completedJobs
+              };
+            }
+            
+            // Store the completion event instead of sending it immediately
+            projectCompletionTracker.projectCompletionEvent = progressEvent;
+            
+            console.log(`Project ${projectId} completion received: ${completedJobs}/${expectedJobs} jobs finished, ${projectCompletionTracker.sentJobCompletions} job completions sent to frontend`);
+            
+            // Check if we can send the project completion immediately
+            if (projectCompletionTracker.sentJobCompletions >= expectedJobs) {
+              console.log(`All job completions already sent, sending project completion immediately`);
+              projectCompletionTracker.sendProjectCompletion();
+            } else {
+              console.log(`Waiting for ${expectedJobs - projectCompletionTracker.sentJobCompletions} more job completions before sending project completion`);
               
-              // If we're missing jobs, log a warning
-              if (completedJobs < expectedJobs) {
-                console.warn(`Project ${projectId} completed with missing jobs: ${completedJobs}/${expectedJobs}`);
-                progressEvent.missingJobs = {
-                  expected: expectedJobs,
-                  completed: completedJobs
-                };
-              }
+              // Set a failsafe timeout to send completion even if some job events are missing
+              projectCompletionTracker.projectCompletionTimeout = setTimeout(() => {
+                console.log(`Backend failsafe timeout reached, sending project completion (sent ${projectCompletionTracker.sentJobCompletions}/${expectedJobs} job completions)`);
+                projectCompletionTracker.sendProjectCompletion();
+              }, 3000); // 3 second failsafe
+            }
+            
+            // Function to send project completion and cleanup
+            projectCompletionTracker.sendProjectCompletion = function() {
+              if (!projectCompletionTracker.projectCompletionEvent) return;
               
-              // Add the imageUrls to the completion event
-              const imageUrls = project.jobs
-                ?.filter(job => job.resultUrl)
-                .map(job => job.resultUrl) || [];
-              
-              if (imageUrls.length > 0) {
-                progressEvent.imageUrls = imageUrls;
-              }
+              console.log(`Backend sending project completion for ${projectId} after ${projectCompletionTracker.sentJobCompletions}/${projectCompletionTracker.expectedJobs} job completions`);
               
               // Set a flag to indicate the project has received completion event
               project._receivedCompletionEvent = true;
@@ -959,21 +990,37 @@ export async function generateImage(client, params, progressCallback) {
                 console.log(`Received ${project._extraCompletedJobIds.size} additional job completions after project completed`);
               }
               
-              // Remove project-specific handlers
-              if (client._eventHandlers.projectHandlers.has(projectId)) {
-                const handler = client._eventHandlers.projectHandlers.get(projectId);
-                client.projects.off('project', handler);
-                client._eventHandlers.projectHandlers.delete(projectId);
-                console.log(`Cleaned up project event handler for ${projectId}`);
+              // Send the completion event via SSE
+              if (progressCallback) {
+                progressCallback(projectCompletionTracker.projectCompletionEvent);
               }
               
-              if (client._eventHandlers.jobHandlers.has(projectId)) {
-                const handler = client._eventHandlers.jobHandlers.get(projectId);
-                client.projects.off('job', handler);
-                client._eventHandlers.jobHandlers.delete(projectId);
-                console.log(`Cleaned up job event handler for ${projectId}`);
+              // Clear the timeout if it exists
+              if (projectCompletionTracker.projectCompletionTimeout) {
+                clearTimeout(projectCompletionTracker.projectCompletionTimeout);
+                projectCompletionTracker.projectCompletionTimeout = null;
               }
-            }, completedJobs < expectedJobs ? 2000 : 0); // Longer delay to ensure any final events are processed
+              
+              // Clean up handlers after a short delay to ensure completion event is processed
+              setTimeout(() => {
+                if (client._eventHandlers.projectHandlers.has(projectId)) {
+                  const handler = client._eventHandlers.projectHandlers.get(projectId);
+                  client.projects.off('project', handler);
+                  client._eventHandlers.projectHandlers.delete(projectId);
+                  console.log(`Cleaned up project event handler for ${projectId}`);
+                }
+                
+                if (client._eventHandlers.jobHandlers.has(projectId)) {
+                  const handler = client._eventHandlers.jobHandlers.get(projectId);
+                  client.projects.off('job', handler);
+                  client._eventHandlers.jobHandlers.delete(projectId);
+                  console.log(`Cleaned up job event handler for ${projectId}`);
+                }
+              }, 100); // Short delay to ensure completion event is processed
+            };
+            
+            // Don't send progressEvent immediately - it will be sent by sendProjectCompletion()
+            progressEvent = null;
           }
           break;  
         case 'error':
@@ -1109,6 +1156,27 @@ export async function generateImage(client, params, progressCallback) {
                 }
                 project._extraCompletedJobIds.add(event.jobId);
                 console.log(`Added job ${event.jobId} to extra completed jobs after project completion`);
+              }
+            }
+            
+            // Increment the sent job completions counter
+            projectCompletionTracker.sentJobCompletions++;
+            console.log(`Job completion sent for ${event.jobId} (${projectCompletionTracker.sentJobCompletions}/${projectCompletionTracker.expectedJobs || '?'})`);
+            
+            // Check if we can send the project completion now
+            if (projectCompletionTracker.projectCompletionReceived && 
+                projectCompletionTracker.sentJobCompletions >= projectCompletionTracker.expectedJobs) {
+              console.log(`All job completions sent (${projectCompletionTracker.sentJobCompletions}/${projectCompletionTracker.expectedJobs}), triggering project completion`);
+              
+              // Call the sendProjectCompletion function from the tracker
+              if (projectCompletionTracker.sendProjectCompletion) {
+                projectCompletionTracker.sendProjectCompletion();
+              } else {
+                // Fallback: send immediately if we lost the reference
+                console.log(`Sending project completion immediately (fallback)`);
+                if (progressCallback && projectCompletionTracker.projectCompletionEvent) {
+                  progressCallback(projectCompletionTracker.projectCompletionEvent);
+                }
               }
             }
           }
