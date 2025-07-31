@@ -47,8 +47,7 @@ const TwitterShareModal = ({
       if (tezdevTheme !== 'off') {
         // Use TezDev-specific message format
         const styleTag = styleHashtag ? styleHashtag.replace('#', '') : '';
-        const tezdevMessage = `Just took my photo at the @Sogni_protocol photobooth at TezDev 2025! #SogniAtTezDev2025 #${styleTag}
-@tzapac @tezos @etherlink
+        const tezdevMessage = `Just took my photo at the @sogni_protocol photobooth at GMVN 2025! #SogniAtGMVN2025 #${styleTag} @tzapac @tezos @etherlink
 https://photobooth.sogni.ai/?prompt=${styleTag}`;
         setMessage(tezdevMessage);
       } else {
