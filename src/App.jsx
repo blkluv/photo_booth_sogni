@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { getModelOptions, defaultStylePrompts as initialStylePrompts } from './constants/settings';
+import { getModelOptions, defaultStylePrompts as initialStylePrompts, TIMEOUT_CONFIG } from './constants/settings';
 import { photoThoughts, randomThoughts } from './constants/thoughts';
 import { saveSettingsToCookies, shouldShowPromoPopup, markPromoPopupShown } from './utils/cookies';
 import { styleIdToDisplay } from './utils';
@@ -292,6 +292,15 @@ const App = () => {
   const [isPhotoButtonCooldown, setIsPhotoButtonCooldown] = useState(false); // Keep this
   // Ref to track current project
   const activeProjectReference = useRef(null); // Keep this
+  
+  // Ref to track project timeouts and job state
+  const projectTimeoutRef = useRef({
+    overallTimer: null,
+    watchdogTimer: null,
+    jobTimers: new Map(),
+    projectStartTime: null,
+    lastProgressTime: null
+  });
 
   // Add state for current thought
   const [currentThought, setCurrentThought] = useState(null); // Keep this
@@ -305,6 +314,13 @@ const App = () => {
 
   // Add state for splash screen
   const [showSplashScreen, setShowSplashScreen] = useState(true);
+
+  // Cleanup timeouts when component unmounts
+  useEffect(() => {
+    return () => {
+      clearAllTimeouts();
+    };
+  }, []);
 
   // Track page views when view changes
   useEffect(() => {
@@ -1120,10 +1136,199 @@ const App = () => {
   };
 
   // -------------------------
+  //   Timeout Management Helper Functions
+  // -------------------------
+  
+  const clearAllTimeouts = () => {
+    const timeouts = projectTimeoutRef.current;
+    
+    // Clear overall project timeout
+    if (timeouts.overallTimer) {
+      clearTimeout(timeouts.overallTimer);
+      timeouts.overallTimer = null;
+    }
+    
+    // Clear watchdog timeout
+    if (timeouts.watchdogTimer) {
+      clearTimeout(timeouts.watchdogTimer);
+      timeouts.watchdogTimer = null;
+    }
+    
+    // Clear all job-specific timeouts
+    timeouts.jobTimers.forEach((timer) => {
+      clearTimeout(timer);
+    });
+    timeouts.jobTimers.clear();
+    
+    // Reset timing data
+    timeouts.projectStartTime = null;
+    timeouts.lastProgressTime = null;
+  };
+
+  const startProjectTimeouts = () => {
+    const timeouts = projectTimeoutRef.current;
+    const now = Date.now();
+    
+    timeouts.projectStartTime = now;
+    timeouts.lastProgressTime = now;
+
+    // Overall project timeout (5 minutes)
+    timeouts.overallTimer = setTimeout(() => {
+      console.error('Overall project timeout reached - canceling all jobs');
+      handleProjectTimeout('Overall project timeout reached');
+    }, TIMEOUT_CONFIG.OVERALL_PROJECT_TIMEOUT);
+
+    // Project watchdog timeout (2 minutes of no progress)
+    timeouts.watchdogTimer = setTimeout(() => {
+      console.error('Project watchdog timeout - no progress detected');
+      handleProjectTimeout('No progress detected for extended period');
+    }, TIMEOUT_CONFIG.PROJECT_WATCHDOG_TIMEOUT);
+  };
+
+  const updateWatchdogTimer = () => {
+    const timeouts = projectTimeoutRef.current;
+    
+    // Clear existing watchdog timer
+    if (timeouts.watchdogTimer) {
+      clearTimeout(timeouts.watchdogTimer);
+    }
+    
+    // Update last progress time
+    timeouts.lastProgressTime = Date.now();
+    
+    // Start new watchdog timer
+    timeouts.watchdogTimer = setTimeout(() => {
+      console.error('Project watchdog timeout - no progress detected');
+      handleProjectTimeout('No progress detected for extended period');
+    }, TIMEOUT_CONFIG.PROJECT_WATCHDOG_TIMEOUT);
+  };
+
+  const startJobTimeout = (jobId, photoIndex) => {
+    const timeouts = projectTimeoutRef.current;
+    
+    // Clear existing timer for this job if any
+    if (timeouts.jobTimers.has(jobId)) {
+      clearTimeout(timeouts.jobTimers.get(jobId));
+    }
+    
+    // Start new timer for this job
+    const timer = setTimeout(() => {
+      console.error(`Job timeout for jobId: ${jobId}, photoIndex: ${photoIndex}`);
+      handleJobTimeout(jobId, photoIndex);
+    }, TIMEOUT_CONFIG.PER_JOB_TIMEOUT);
+    
+    timeouts.jobTimers.set(jobId, timer);
+    
+    // Update photo with job start time
+    setPhotos(prev => {
+      const updated = [...prev];
+      if (updated[photoIndex]) {
+        updated[photoIndex] = {
+          ...updated[photoIndex],
+          jobStartTime: Date.now(),
+          lastProgressTime: Date.now()
+        };
+      }
+      return updated;
+    });
+  };
+
+  const clearJobTimeout = (jobId) => {
+    const timeouts = projectTimeoutRef.current;
+    
+    if (timeouts.jobTimers.has(jobId)) {
+      clearTimeout(timeouts.jobTimers.get(jobId));
+      timeouts.jobTimers.delete(jobId);
+    }
+  };
+
+  const handleJobTimeout = (jobId, photoIndex) => {
+    console.error(`Job ${jobId} at photo index ${photoIndex} timed out`);
+    
+    // Clear the specific job timeout
+    clearJobTimeout(jobId);
+    
+    // Mark the photo as timed out
+    setPhotos(prev => {
+      const updated = [...prev];
+      if (updated[photoIndex]) {
+        updated[photoIndex] = {
+          ...updated[photoIndex],
+          generating: false,
+          loading: false,
+          error: 'GENERATION TIMEOUT: Job took too long',
+          permanentError: true,
+          statusText: 'Timed Out',
+          timedOut: true
+        };
+      }
+      return updated;
+    });
+    
+    // Check if all jobs are done (completed, failed, or timed out)
+    setTimeout(() => {
+      setPhotos(prev => {
+        const stillGenerating = prev.some(photo => photo.generating);
+        if (!stillGenerating && activeProjectReference.current) {
+          console.log('All jobs finished (including timeouts), clearing active project');
+          activeProjectReference.current = null;
+          clearAllTimeouts();
+        }
+        return prev;
+      });
+    }, 100);
+  };
+
+  const handleProjectTimeout = (reason) => {
+    console.error(`Project timeout: ${reason}`);
+    
+    // Clear all timeouts
+    clearAllTimeouts();
+    
+    // Mark all generating photos as timed out
+    setPhotos(prev => {
+      const updated = [...prev];
+      let hasChanges = false;
+      
+      updated.forEach((photo, index) => {
+        if (photo.generating) {
+          updated[index] = {
+            ...photo,
+            generating: false,
+            loading: false,
+            error: `PROJECT TIMEOUT: ${reason}`,
+            permanentError: true,
+            statusText: 'Timed Out',
+            timedOut: true
+          };
+          hasChanges = true;
+        }
+      });
+      
+      if (hasChanges && activeProjectReference.current) {
+        // Try to cancel the project on the backend
+        if (sogniClient && activeProjectReference.current) {
+          sogniClient.cancelProject?.(activeProjectReference.current)
+            .catch(err => console.warn('Failed to cancel project on backend:', err));
+        }
+        
+        activeProjectReference.current = null;
+      }
+      
+      return updated;
+    });
+  };
+
+  // -------------------------
   //   Shared logic for generating images from a Blob
   // -------------------------
   const generateFromBlob = async (photoBlob, newPhotoIndex, dataUrl, isMoreOperation = false, sourceType = 'upload') => {
     try {
+      // Clear any existing timeouts before starting new generation
+      if (!isMoreOperation) {
+        clearAllTimeouts();
+      }
+      
       setLastPhotoData({ blob: photoBlob, dataUrl, sourceType });
       const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
       // Prompt logic: use context state
@@ -1273,6 +1478,10 @@ const App = () => {
       console.log('Project created:', project.id, 'with jobs:', project.jobs);
       console.log('Initializing job map for project', project.id);
       
+      // Start project timeout management
+      clearAllTimeouts(); // Clear any existing timeouts
+      startProjectTimeouts();
+      
       // Track image generation event
       trackEvent('Generation', 'start', selectedStyle, numImages);
 
@@ -1313,6 +1522,11 @@ const App = () => {
             return;
         }
 
+        // Update project watchdog timer on any meaningful progress
+        if (['initiating', 'started', 'progress'].includes(type)) {
+          updateWatchdogTimer();
+        }
+
         setPhotos(prev => {
           const updated = [...prev];
           if (photoIndex >= updated.length) return prev;
@@ -1335,6 +1549,9 @@ const App = () => {
               hashtag
             };
           } else if (type === 'started') {
+            // Start per-job timeout when job actually starts
+            startJobTimeout(jobId, photoIndex);
+            
             // Play hello when a worker is initiating
             /*
             if (soundEnabled && helloSoundReference.current && helloSoundReference.current.paused) {
@@ -1363,7 +1580,8 @@ const App = () => {
               loading: true,
               progress: displayProgress,
               statusText: `${cachedWorkerName} makin' art... ${displayProgress}%`,
-              jobId
+              jobId,
+              lastProgressTime: Date.now() // Update last progress time
             };
           } else if (type === 'queued') { // Handle the new 'queued' event
               const currentStatusText = updated[photoIndex].statusText || 'Calling Art Robot...';
@@ -1397,6 +1615,10 @@ const App = () => {
 
       project.on('completed', () => {
         console.log('Project completed');
+        
+        // Clear all timeouts when project completes
+        clearAllTimeouts();
+        
         activeProjectReference.current = null; // Clear active project reference when complete
         
         // Track successful generation completion
@@ -1405,6 +1627,9 @@ const App = () => {
 
       project.on('failed', (error) => {
         console.error('Project failed:', error);
+        
+        // Clear all timeouts when project fails
+        clearAllTimeouts();
         
         // Get the failed project's ID from the project or error object
         const failedProjectId = project.id;
@@ -1478,6 +1703,9 @@ const App = () => {
 
       // Individual job events
       project.on('jobCompleted', (job) => {
+        // Clear job timeout when it completes
+        clearJobTimeout(job.id);
+        
         if (!job.resultUrl) {
           console.error('Missing resultUrl for job:', job.id);
           return;
@@ -1555,11 +1783,12 @@ const App = () => {
               statusText: updated[photoIndex].statusText
             });
             
-            // Check if all photos are done generating
+            // Check if all photos are done generating  
             const stillGenerating = updated.some(photo => photo.generating);
             if (!stillGenerating && activeProjectReference.current) {
-              // All jobs are done, clear the active project
+              // All jobs are done, clear the active project and timeouts
               console.log('All jobs completed, clearing active project');
+              clearAllTimeouts();
               activeProjectReference.current = null;
               
               // Trigger promotional popup after batch completion
@@ -1580,6 +1809,9 @@ const App = () => {
       });
 
       project.on('jobFailed', (job) => {
+        // Clear job timeout when it fails
+        clearJobTimeout(job.id);
+        
         console.error('Job failed:', job.id, job.error);
         
         const jobIndex = projectStateReference.current.jobMap.get(job.id);
@@ -1654,8 +1886,9 @@ const App = () => {
           // Check if all photos are done generating
           const stillGenerating = updated.some(photo => photo.generating);
           if (!stillGenerating && activeProjectReference.current) {
-            // All photos are done, clear the active project
+            // All photos are done, clear the active project and timeouts
             console.log('All jobs failed or completed, clearing active project');
+            clearAllTimeouts();
             activeProjectReference.current = null;
             
             // Trigger promotional popup after batch completion

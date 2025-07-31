@@ -94,6 +94,24 @@ export const SOGNI_URLS = {
   socket: "", // We don't use WebSockets directly anymore
 };
 
+// Timeout configurations
+export const TIMEOUT_CONFIG = {
+  // Per-job timeout - how long to wait for a single job to complete after it starts progressing
+  PER_JOB_TIMEOUT: 4 * 60 * 1000, // 4 minutes
+  
+  // Project watchdog timeout - how long to wait for progress on ANY job before considering project stuck  
+  PROJECT_WATCHDOG_TIMEOUT: 2 * 60 * 1000, // 2 minutes
+  
+  // Initial connection timeout - how long to wait for first event from backend
+  INITIAL_CONNECTION_TIMEOUT: 30 * 1000, // 30 seconds
+  
+  // Overall project timeout - maximum time for entire batch (matches backend)
+  OVERALL_PROJECT_TIMEOUT: 5 * 60 * 1000, // 5 minutes
+  
+  // Progress stall timeout - how long without progress updates before considering a job stuck
+  PROGRESS_STALL_TIMEOUT: 90 * 1000, // 90 seconds
+} as const;
+
 export const defaultStylePrompts: { [key: string]: string } = {
   custom: "",
   photorealistic: "photorealistic, highly detailed, 8k uhd, high quality",
