@@ -819,10 +819,11 @@ export async function generateImage(params: Record<string, unknown>, progressCal
             
             // Only delay EventSource close for successful completion with missing jobs
             if (data.type === 'completed') {
-              const hasMissingJobs = data.missingJobs && data.missingJobs.expected > data.missingJobs.completed;
+              const missingJobs = data.missingJobs as { expected: number; completed: number } | undefined;
+              const hasMissingJobs = missingJobs && missingJobs.expected > missingJobs.completed;
               
               if (hasMissingJobs) {
-                const missingCount = data.missingJobs.expected - data.missingJobs.completed;
+                const missingCount = missingJobs.expected - missingJobs.completed;
                 console.log(`Project ${projectId} completed but ${missingCount} jobs still outstanding - delaying EventSource close`);
                 
                 // Wait longer for outstanding job completion events

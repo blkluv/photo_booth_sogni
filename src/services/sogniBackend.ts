@@ -576,6 +576,14 @@ export class BackendSogniClient {
           }
           
           if (eventType === 'failed') {
+            // Clean up any pending completion intervals on failure
+            if ((project as any)._completionCheckInterval) {
+              console.log(`Cleaning up completion interval for failed project ${project.id}`);
+              clearInterval((project as any)._completionCheckInterval);
+              delete (project as any)._completionCheckInterval;
+              delete (project as any)._pendingCompletion;
+            }
+            
             const failureError = new Error(event.error as string || 'Project failed') as Error & { projectId: string };
             failureError.projectId = project.id;
             project.emit('failed', failureError);
@@ -583,6 +591,14 @@ export class BackendSogniClient {
           }
           
           if (eventType === 'error') {
+            // Clean up any pending completion intervals on error
+            if ((project as any)._completionCheckInterval) {
+              console.log(`Cleaning up completion interval for errored project ${project.id}`);
+              clearInterval((project as any)._completionCheckInterval);
+              delete (project as any)._completionCheckInterval;
+              delete (project as any)._pendingCompletion;
+            }
+            
             console.error(`Backend reported an error for project ${project.id}:`, event);
             const backendErrorMessage = event.message as string || 'Backend generation error';
             const errorWithContext = new Error(backendErrorMessage) as Error & { projectId: string };
