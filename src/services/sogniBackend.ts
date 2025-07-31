@@ -538,7 +538,40 @@ export class BackendSogniClient {
             console.log(`BackendProject: At project completion, ${incompleteJobs.length} jobs still incomplete:`,
               incompleteJobs.map(j => ({ id: j.id, realJobId: j.realJobId })));
             
-            project.emit('completed', []);
+            // If there are still incomplete jobs, delay the completion event
+            if (incompleteJobs.length > 0) {
+              console.log(`Frontend delaying project completion - waiting for ${incompleteJobs.length} jobs to complete`);
+              
+              // Store the completion intent and wait for remaining job completions
+              (project as any)._pendingCompletion = true;
+              (project as any)._completionCheckInterval = setInterval(() => {
+                const stillIncomplete = project.jobs ? project.jobs.filter(j => !j.resultUrl && !j.error) : [];
+                if (stillIncomplete.length === 0) {
+                  console.log(`All jobs now complete, sending delayed project completion for ${project.id}`);
+                  clearInterval((project as any)._completionCheckInterval);
+                  delete (project as any)._completionCheckInterval;
+                  delete (project as any)._pendingCompletion;
+                  project.emit('completed', []);
+                } else {
+                  console.log(`Still waiting for ${stillIncomplete.length} jobs to complete`);
+                }
+              }, 100); // Check every 100ms
+              
+              // Failsafe timeout after 5 seconds
+              setTimeout(() => {
+                if ((project as any)._completionCheckInterval) {
+                  console.log(`Frontend failsafe timeout - sending project completion anyway`);
+                  clearInterval((project as any)._completionCheckInterval);
+                  delete (project as any)._completionCheckInterval;
+                  delete (project as any)._pendingCompletion;
+                  project.emit('completed', []);
+                }
+              }, 5000);
+            } else {
+              // All jobs already complete, send immediately
+              console.log(`All jobs already complete, sending project completion immediately`);
+              project.emit('completed', []);
+            }
             return;
           }
           
@@ -657,11 +690,25 @@ export class BackendSogniClient {
                   console.log(`Processing jobCompleted for placeholder ${targetJob.id} (real ID ${jobId}) - URL: ${resultUrl.substring(0, 50)}...`);
                   
                   // Check if this job was already completed (race condition protection)
-                  if (targetJob.resultUrl) {
-                    console.log(`Job ${targetJob.id} was already completed, ignoring duplicate completion event`);
-                  } else {
-                    project.completeJob(targetJob.id, resultUrl);
+                              if (targetJob.resultUrl) {
+              console.log(`Job ${targetJob.id} was already completed, ignoring duplicate completion event`);
+            } else {
+              project.completeJob(targetJob.id, resultUrl);
+              
+              // Check if we're waiting for project completion and all jobs are now done
+              if ((project as any)._pendingCompletion) {
+                const stillIncomplete = project.jobs ? project.jobs.filter(j => !j.resultUrl && !j.error) : [];
+                if (stillIncomplete.length === 0) {
+                  console.log(`Final job completed while waiting - triggering delayed project completion for ${project.id}`);
+                  if ((project as any)._completionCheckInterval) {
+                    clearInterval((project as any)._completionCheckInterval);
+                    delete (project as any)._completionCheckInterval;
                   }
+                  delete (project as any)._pendingCompletion;
+                  project.emit('completed', []);
+                }
+              }
+            }
                 } else if (isNSFW) {
                   console.warn(`Job ${targetJob.id} (real ID ${jobId}) completed but was filtered due to NSFW content`);
                   // Mark job as failed due to NSFW filtering
