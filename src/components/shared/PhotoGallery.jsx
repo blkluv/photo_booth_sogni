@@ -904,37 +904,37 @@ const PhotoGallery = ({
                 {/* TezDev Theme Overlays - Only show on selected (popup) view */}
                 {thumbUrl && isLoaded && isSelected && tezdevTheme !== 'off' && (
                   <>
-                    {/* GM Vietnam Two-Piece Frame Overlay */}
+                    {/* GM Vietnam Corner Frame Overlay */}
                     {tezdevTheme === 'gmvietnam' && (
                       <>
-                        {/* Top Frame */}
-                        <img
-                          src="/tezos/GMVN-FRAME_TOP.png"
-                          alt=""
+                        {/* Top-Left Corner */}
+                        <div
                           style={{
                             position: 'absolute',
                             top: 0,
                             left: 0,
-                            width: '100%',
-                            height: 'auto',
-                            objectFit: 'contain',
-                            objectPosition: 'top center',
+                            width: '75%',
+                            height: '75%',
+                            backgroundImage: `url(/tezos/GMVN-FRAME-TL.png)`,
+                            backgroundSize: 'contain',
+                            backgroundPosition: 'top left',
+                            backgroundRepeat: 'no-repeat',
                             pointerEvents: 'none',
                             zIndex: 2
                           }}
                         />
-                        {/* Bottom Frame */}
-                        <img
-                          src="/tezos/GMVN-FRAME_BOTTOM.png"
-                          alt=""
+                        {/* Bottom-Left Corner */}
+                        <div
                           style={{
                             position: 'absolute',
                             bottom: 0,
                             left: 0,
-                            width: '100%',
-                            height: 'auto',
-                            objectFit: 'contain',
-                            objectPosition: 'bottom center',
+                            width: '75%',
+                            height: '80%',
+                            backgroundImage: `url(/tezos/GMVN-FRAME-BL.png)`,
+                            backgroundSize: 'contain',
+                            backgroundPosition: 'bottom left',
+                            backgroundRepeat: 'no-repeat',
                             pointerEvents: 'none',
                             zIndex: 2
                           }}

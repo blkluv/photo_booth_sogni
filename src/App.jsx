@@ -2651,6 +2651,7 @@ const App = () => {
             iosQuirkDetected={iosQuirkDetected}
             actualCameraDimensions={actualCameraDimensions}
             quirkDetectionComplete={quirkDetectionComplete}
+            tezdevTheme={tezdevTheme}
             modelOptions={getModelOptions()}
             selectedModel={selectedModel}
             onModelSelect={(value) => {

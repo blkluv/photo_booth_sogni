@@ -243,7 +243,7 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
  */
 async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, frameOffsetY, theme) {
   return new Promise((resolve, reject) => {
-    // Handle GM Vietnam theme with two-piece top/bottom frames
+    // Handle GM Vietnam theme with corner frames
     if (theme === 'gmvietnam') {
       let loadedImages = 0;
       const totalImages = 2;
@@ -252,7 +252,7 @@ async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, fram
       const onImageLoad = () => {
         loadedImages++;
         if (loadedImages === totalImages && !hasError) {
-          console.log('Applied GM Vietnam two-piece frame overlay');
+          console.log('Applied GM Vietnam corner frame overlay');
           resolve();
         }
       };
@@ -265,47 +265,61 @@ async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, fram
         }
       };
 
-      // Load top frame
-      const topFrame = new Image();
-      topFrame.crossOrigin = 'anonymous';
+      // Load top-left corner frame
+      const tlCorner = new Image();
+      tlCorner.crossOrigin = 'anonymous';
       
-      topFrame.onload = () => {
-        // Calculate scaled dimensions to maintain aspect ratio while staying full width
-        const scaleX = imageWidth / topFrame.naturalWidth;
-        const scaledWidth = imageWidth;
-        const scaledHeight = topFrame.naturalHeight * scaleX;
+      tlCorner.onload = () => {
+        // Calculate scaled dimensions to match gallery view sizing
+        // Use consistent 75% to match gallery thumbnails
+        const maxWidth = imageWidth * 0.75;
+        const maxHeight = imageHeight * 0.75;
         
-        // Position at top of image area
-        const topX = frameOffsetX;
-        const topY = frameOffsetY;
+        const scaleX = maxWidth / tlCorner.naturalWidth;
+        const scaleY = maxHeight / tlCorner.naturalHeight;
+        const scale = Math.min(scaleX, scaleY);
         
-        ctx.drawImage(topFrame, topX, topY, scaledWidth, scaledHeight);
+        const scaledWidth = tlCorner.naturalWidth * scale;
+        const scaledHeight = tlCorner.naturalHeight * scale;
+        
+        // Position at top-left corner of image area
+        const tlX = frameOffsetX;
+        const tlY = frameOffsetY;
+        
+        ctx.drawImage(tlCorner, tlX, tlY, scaledWidth, scaledHeight);
         onImageLoad();
       };
       
-      topFrame.onerror = (err) => onImageError(err, 'top');
-      topFrame.src = '/tezos/GMVN-FRAME_TOP.png';
+      tlCorner.onerror = (err) => onImageError(err, 'top-left');
+      tlCorner.src = '/tezos/GMVN-FRAME-TL.png';
 
-      // Load bottom frame
-      const bottomFrame = new Image();
-      bottomFrame.crossOrigin = 'anonymous';
+      // Load bottom-left corner frame
+      const blCorner = new Image();
+      blCorner.crossOrigin = 'anonymous';
       
-      bottomFrame.onload = () => {
-        // Calculate scaled dimensions to maintain aspect ratio while staying full width
-        const scaleX = imageWidth / bottomFrame.naturalWidth;
-        const scaledWidth = imageWidth;
-        const scaledHeight = bottomFrame.naturalHeight * scaleX;
+      blCorner.onload = () => {
+        // Calculate scaled dimensions to match gallery view sizing
+        // Use 75% width, 80% height to match gallery thumbnails
+        const maxWidth = imageWidth * 0.75;
+        const maxHeight = imageHeight * 0.80;
         
-        // Position at bottom of image area
-        const bottomX = frameOffsetX;
-        const bottomY = frameOffsetY + imageHeight - scaledHeight;
+        const scaleX = maxWidth / blCorner.naturalWidth;
+        const scaleY = maxHeight / blCorner.naturalHeight;
+        const scale = Math.min(scaleX, scaleY);
         
-        ctx.drawImage(bottomFrame, bottomX, bottomY, scaledWidth, scaledHeight);
+        const scaledWidth = blCorner.naturalWidth * scale;
+        const scaledHeight = blCorner.naturalHeight * scale;
+        
+        // Position at bottom-left corner of image area
+        const blX = frameOffsetX;
+        const blY = frameOffsetY + imageHeight - scaledHeight;
+        
+        ctx.drawImage(blCorner, blX, blY, scaledWidth, scaledHeight);
         onImageLoad();
       };
       
-      bottomFrame.onerror = (err) => onImageError(err, 'bottom');
-      bottomFrame.src = '/tezos/GMVN-FRAME_BOTTOM.png';
+      blCorner.onerror = (err) => onImageError(err, 'bottom-left');
+      blCorner.src = '/tezos/GMVN-FRAME-BL.png';
       return;
     }
     

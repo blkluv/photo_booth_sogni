@@ -74,6 +74,8 @@ interface CameraViewProps {
   actualCameraDimensions?: { width: number; height: number } | null;
   /** Whether iOS quirk detection has completed */
   quirkDetectionComplete?: boolean;
+  /** TezDev theme for frame overlays */
+  tezdevTheme?: string;
 }
 
 export const CameraView: React.FC<CameraViewProps> = ({
@@ -109,6 +111,7 @@ export const CameraView: React.FC<CameraViewProps> = ({
   iosQuirkDetected = false,
   actualCameraDimensions = null,
   quirkDetectionComplete = false,
+  tezdevTheme = 'off',
 }) => {
   // Use aspectRatio prop instead of context
   
@@ -372,6 +375,44 @@ export const CameraView: React.FC<CameraViewProps> = ({
                 zIndex: 1
               }}
             />
+            
+            {/* GM Vietnam Frame Overlay for Camera Preview */}
+            {tezdevTheme === 'gmvietnam' && (
+              <>
+                {/* Top-Left Corner */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '75%',
+                    height: '75%',
+                    backgroundImage: `url(/tezos/GMVN-FRAME-TL.png)`,
+                    backgroundSize: 'contain',
+                    backgroundPosition: 'top left',
+                    backgroundRepeat: 'no-repeat',
+                    pointerEvents: 'none',
+                    zIndex: 2
+                  }}
+                />
+                {/* Bottom-Left Corner */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    width: '75%',
+                    height: '80%',
+                    backgroundImage: `url(/tezos/GMVN-FRAME-BL.png)`,
+                    backgroundSize: 'contain',
+                    backgroundPosition: 'bottom left',
+                    backgroundRepeat: 'no-repeat',
+                    pointerEvents: 'none',
+                    zIndex: 2
+                  }}
+                />
+              </>
+            )}
           </div>
         </div>
 
