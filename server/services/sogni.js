@@ -1322,7 +1322,7 @@ export async function generateImage(client, params, progressCallback) {
                 } catch (fallbackError) {
                   console.error(`[${projectId}] Error processing fallback completion for job ${event.jobId}:`, fallbackError);
                 }
-              }, 10000); // Wait 10 seconds after reaching 85% before forcing completion
+              }, 20000); // Wait 20 seconds after reaching 85% before forcing completion
               
               projectCompletionTracker.jobCompletionTimeouts.set(event.jobId, timeoutId);
             }

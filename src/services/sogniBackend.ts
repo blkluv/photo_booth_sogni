@@ -557,7 +557,7 @@ export class BackendSogniClient {
                 }
               }, 100); // Check every 100ms
               
-              // Failsafe timeout after 5 seconds
+              // Failsafe timeout after 15 seconds
               setTimeout(() => {
                 if ((project as any)._completionCheckInterval) {
                   console.log(`Frontend failsafe timeout - sending project completion anyway`);
@@ -566,7 +566,7 @@ export class BackendSogniClient {
                   delete (project as any)._pendingCompletion;
                   project.emit('completed', []);
                 }
-              }, 5000);
+              }, 15000);
             } else {
               // All jobs already complete, send immediately
               console.log(`All jobs already complete, sending project completion immediately`);
