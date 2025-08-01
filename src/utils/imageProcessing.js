@@ -270,10 +270,10 @@ async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, fram
       tlCorner.crossOrigin = 'anonymous';
       
       tlCorner.onload = () => {
-        // Calculate scaled dimensions to match gallery view sizing
-        // Use consistent 75% to match gallery thumbnails
-        const maxWidth = imageWidth * 0.75;
-        const maxHeight = imageHeight * 0.75;
+        // Calculate scaled dimensions to match full-size display view
+        // Use 100% to match updated display sizing
+        const maxWidth = imageWidth * 1.0;
+        const maxHeight = imageHeight * 1.0;
         
         const scaleX = maxWidth / tlCorner.naturalWidth;
         const scaleY = maxHeight / tlCorner.naturalHeight;
@@ -298,10 +298,10 @@ async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, fram
       blCorner.crossOrigin = 'anonymous';
       
       blCorner.onload = () => {
-        // Calculate scaled dimensions to match gallery view sizing
-        // Use 75% width, 80% height to match gallery thumbnails
-        const maxWidth = imageWidth * 0.75;
-        const maxHeight = imageHeight * 0.80;
+        // Calculate scaled dimensions to match full-size display view
+        // Use 100% width and height to match updated display sizing
+        const maxWidth = imageWidth * 1.0;
+        const maxHeight = imageHeight * 1.0;
         
         const scaleX = maxWidth / blCorner.naturalWidth;
         const scaleY = maxHeight / blCorner.naturalHeight;

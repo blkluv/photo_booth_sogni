@@ -14,7 +14,7 @@ const ImageAdjuster = ({
   onCancel
 }) => {
   const { settings } = useApp();
-  const { aspectRatio } = settings;
+  const { aspectRatio, tezdevTheme } = settings;
   
   const containerRef = useRef(null);
   const imageRef = useRef(null);
@@ -414,10 +414,55 @@ const ImageAdjuster = ({
             />
           </div>
           <div className="image-frame-overlay">
-            <div className="frame-corner top-left"></div>
-            <div className="frame-corner top-right"></div>
-            <div className="frame-corner bottom-left"></div>
-            <div className="frame-corner bottom-right"></div>
+            {/* GM Vietnam Frame Overlay */}
+            {tezdevTheme === 'gmvietnam' && (
+              <>
+                {/* Top-Left Corner */}
+                <div
+                  className="gmvn-frame-corner gmvn-frame-top-left"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    backgroundImage: `url(/tezos/GMVN-FRAME-TL.png)`,
+                    backgroundSize: 'contain',
+                    backgroundPosition: 'top left',
+                    backgroundRepeat: 'no-repeat',
+                    pointerEvents: 'none',
+                    zIndex: 2
+                  }}
+                />
+                {/* Bottom-Left Corner */}
+                <div
+                  className="gmvn-frame-corner gmvn-frame-bottom-left"
+                  style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    backgroundImage: `url(/tezos/GMVN-FRAME-BL.png)`,
+                    backgroundSize: 'contain',
+                    backgroundPosition: 'bottom left',
+                    backgroundRepeat: 'no-repeat',
+                    pointerEvents: 'none',
+                    zIndex: 2
+                  }}
+                />
+              </>
+            )}
+            
+            {/* Default frame corners - only show when not using GMVN theme */}
+            {tezdevTheme !== 'gmvietnam' && (
+              <>
+                <div className="frame-corner top-left"></div>
+                <div className="frame-corner top-right"></div>
+                <div className="frame-corner bottom-left"></div>
+                <div className="frame-corner bottom-right"></div>
+              </>
+            )}
           </div>
         </div>
         
