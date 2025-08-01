@@ -1314,10 +1314,28 @@ export async function generateImage(client, params, progressCallback) {
           }
           break;
         }
-        case 'completed':
+        case 'completed': {
+          // Try to get resultUrl from the event first, then fallback to project job data
+          let resultUrl = event.resultUrl;
+          
+          // If resultUrl is missing from the event, try to get it from the project job data
+          if (!resultUrl && project) {
+            try {
+              const projectJob = project.jobs?.find(job => job.id === event.jobId);
+              if (projectJob && projectJob.resultUrl) {
+                resultUrl = projectJob.resultUrl;
+                console.log(`Backend: Retrieved missing resultUrl from project job ${event.jobId}: ${resultUrl.substring(0, 50)}...`);
+              } else {
+                console.warn(`Backend: Job ${event.jobId} completed but resultUrl is missing from both event and project job data`);
+              }
+            } catch (projectAccessError) {
+              console.warn(`Backend: Could not access project jobs to retrieve missing resultUrl for ${event.jobId}:`, projectAccessError.message);
+            }
+          }
+          
           progressEvent = {
             type: 'jobCompleted',
-            resultUrl: event.resultUrl,
+            resultUrl: resultUrl,
             positivePrompt: event.positivePrompt,
             jobIndex: event.jobIndex,
             isNSFW: event.isNSFW,
@@ -1326,10 +1344,13 @@ export async function generateImage(client, params, progressCallback) {
           };
           
           // Log NSFW filtering issues
-          if (event.isNSFW && !event.resultUrl) {
+          if (event.isNSFW && !resultUrl) {
             console.warn(`Job ${event.jobId} completed but was flagged as NSFW, resultUrl is null`);
             console.warn(`Job details: seed=${event.seed}, steps=${event.steps}, project=${projectId}`);
             progressEvent.nsfwFiltered = true;
+          } else if (!resultUrl && !event.isNSFW) {
+            console.warn(`Job ${event.jobId} completed but resultUrl is missing from both event and project data`);
+            console.warn(`Job details: seed=${event.seed}, steps=${event.steps}, project=${projectId}`);
           }
           
           // ALWAYS send the job completion to frontend first, then handle project tracking
@@ -1412,6 +1433,7 @@ export async function generateImage(client, params, progressCallback) {
             projectCompletionTracker.jobCompletionTimeouts.delete(event.jobId);
           }
           break;
+        }
         case 'failed':
         case 'error':
           progressEvent = {
