@@ -454,9 +454,22 @@ async function createSogniClient(appIdPrefix, clientProvidedAppId) {
         console.log(`[AUTH] Saved tokens for client ${sogniAppId}`);
       }
       
-      // Add event listeners to record activity on any client events
+      // Add event listeners to record activity on any client events with error handling
       if (client.on) {
-        client.on('*', () => recordClientActivity(client.appId || sogniAppId));
+        const activityHandler = () => {
+          try {
+            recordClientActivity(client.appId || sogniAppId);
+          } catch (activityError) {
+            // Silently handle activity tracking errors to prevent unhandled rejections
+            console.warn(`[${client.appId || sogniAppId}] Error in activity tracking:`, activityError.message);
+          }
+        };
+        
+        try {
+          client.on('*', activityHandler);
+        } catch (eventListenerError) {
+          console.warn(`[${client.appId || sogniAppId}] Error setting up activity event listener:`, eventListenerError.message);
+        }
       }
       
       // Add WebSocket error handlers to prevent uncaught exceptions
@@ -867,9 +880,13 @@ export async function generateImage(client, params, progressCallback) {
         recordClientActivity(client.appId);
       };
       
-      // Record activity on all client events
+      // Record activity on all client events with error handling
       if (client.on) {
-        client.on('*', client._eventHandlers.activityHandler);
+        try {
+          client.on('*', client._eventHandlers.activityHandler);
+        } catch (globalEventListenerError) {
+          console.warn(`[${client.appId}] Error setting up global activity event listener:`, globalEventListenerError.message);
+        }
       }
     }
 
@@ -880,15 +897,18 @@ export async function generateImage(client, params, progressCallback) {
       projectCompletionReceived: false,
       projectCompletionTimeout: null,
       projectCompletionEvent: null,
-      sendProjectCompletion: null
+      sendProjectCompletion: null,
+      jobProgress: new Map(), // Track progress for each job
+      jobCompletionTimeouts: new Map() // Track completion timeouts for each job
     };
     
     // Now create project-specific handlers that filter by project ID
     const projectHandler = (event) => {
-      // Only process events for this specific project
-      if (event.projectId !== projectId) {
-        return;
-      }
+      try {
+        // Only process events for this specific project
+        if (event.projectId !== projectId) {
+          return;
+        }
       /* Example of each event we can expect:
       {
         type: 'queued',
@@ -917,13 +937,49 @@ export async function generateImage(client, params, progressCallback) {
         case 'completed':
           // Store the completion event and wait for all job completions to be sent
           if (project) {
-            // Get the expected number of jobs from the project
-            const expectedJobs = project.numberOfImages || project.jobs?.length || 0;
+            let expectedJobs = 0;
+            let completedJobs = 0;
+            let imageUrls = [];
             
-            // Count how many jobs actually completed in REST data
-            let completedJobs = project.jobs?.filter(job => 
-              job.status === 'completed' || job.resultUrl
-            ).length || 0;
+            try {
+              // Get the expected number of jobs from the project (may trigger API call)
+              expectedJobs = project.numberOfImages || project.jobs?.length || 0;
+              
+              // Count how many jobs actually completed in REST data (may trigger API call)
+              completedJobs = project.jobs?.filter(job => 
+                job.status === 'completed' || job.resultUrl
+              ).length || 0;
+              
+              // Add the imageUrls to the completion event (may trigger API call)
+              imageUrls = project.jobs
+                ?.filter(job => job.resultUrl)
+                .map(job => job.resultUrl) || [];
+            } catch (projectAccessError) {
+              // Handle token expiry or other API errors when accessing project properties
+              if (projectAccessError.status === 401 || 
+                  (projectAccessError.payload && projectAccessError.payload.errorCode === 107) ||
+                  projectAccessError.message?.includes('Invalid token')) {
+                
+                console.warn(`[${projectId}] Token expired while accessing project data during completion, using fallback values. Error:`, projectAccessError.message);
+                
+                // Clear invalid tokens to force re-authentication on next request
+                clearInvalidTokens();
+                
+                // Use fallback values - we can't get the actual project data
+                expectedJobs = projectCompletionTracker.expectedJobs || 0;
+                completedJobs = 0;
+                imageUrls = [];
+                
+                // Log this as a warning but don't crash
+                console.warn(`[${projectId}] Using fallback values for project completion due to token expiry: expectedJobs=${expectedJobs}, completedJobs=${completedJobs}`);
+              } else {
+                // For non-auth errors, log but continue with fallback values
+                console.warn(`[${projectId}] Error accessing project data during completion (non-auth error):`, projectAccessError.message);
+                expectedJobs = projectCompletionTracker.expectedJobs || 0;
+                completedJobs = 0;
+                imageUrls = [];
+              }
+            }
             
             // Initialize a set to track job IDs that completed outside REST data
             if (!project._extraCompletedJobIds) {
@@ -938,11 +994,6 @@ export async function generateImage(client, params, progressCallback) {
             progressEvent = {
               type: 'completed',
             };
-            
-            // Add the imageUrls to the completion event
-            const imageUrls = project.jobs
-              ?.filter(job => job.resultUrl)
-              .map(job => job.resultUrl) || [];
             
             if (imageUrls.length > 0) {
               progressEvent.imageUrls = imageUrls;
@@ -1021,6 +1072,53 @@ export async function generateImage(client, params, progressCallback) {
             
             // Don't send progressEvent immediately - it will be sent by sendProjectCompletion()
             progressEvent = null;
+            
+            // Set up a global fallback timeout in case individual job timeouts don't work
+            if (!projectCompletionTracker.projectCompletionTimeout) {
+              console.log(`[${projectId}] Setting up global fallback timeout for project completion`);
+              projectCompletionTracker.projectCompletionTimeout = setTimeout(() => {
+                console.log(`[${projectId}] Global fallback timeout triggered - forcing all remaining job completions`);
+                
+                // Force completion for any jobs that haven't completed yet
+                for (const [jobId, progress] of projectCompletionTracker.jobProgress.entries()) {
+                  if (progress >= 85 && !projectCompletionTracker.jobCompletionTimeouts.has(jobId)) {
+                    console.log(`[${projectId}] Forcing completion for stuck job ${jobId} at ${progress}%`);
+                    
+                    // Send fallback completion immediately
+                    const fallbackProgressEvent = {
+                      type: 'jobCompleted',
+                      jobId: jobId,
+                      projectId: projectId,
+                      resultUrl: null,
+                      positivePrompt: null,
+                      jobIndex: null,
+                      isNSFW: false,
+                      seed: null,
+                      steps: null,
+                      fallback: true,
+                      forced: true
+                    };
+                    
+                    if (progressCallback) {
+                      progressCallback(fallbackProgressEvent);
+                    }
+                    
+                    projectCompletionTracker.sentJobCompletions++;
+                    console.log(`[${projectId}] Forced job completion sent for ${jobId} (${projectCompletionTracker.sentJobCompletions}/${projectCompletionTracker.expectedJobs || '?'})`);
+                  }
+                }
+                
+                // Force send project completion if we have enough completions
+                if (projectCompletionTracker.sentJobCompletions >= projectCompletionTracker.expectedJobs) {
+                  console.log(`[${projectId}] Forcing project completion after global timeout`);
+                  if (projectCompletionTracker.sendProjectCompletion) {
+                    projectCompletionTracker.sendProjectCompletion();
+                  } else if (progressCallback && projectCompletionTracker.projectCompletionEvent) {
+                    progressCallback(projectCompletionTracker.projectCompletionEvent);
+                  }
+                }
+              }, 30000); // Global timeout of 30 seconds after project completion event
+            }
           }
           break;  
         case 'error':
@@ -1031,16 +1129,31 @@ export async function generateImage(client, params, progressCallback) {
           };
           
           // Add explicit tracking for expected vs actual job count
-          if (project && project.jobCount !== undefined) {
-            const actualJobsStarted = project.jobs ? project.jobs.length : 0;
-            if (actualJobsStarted < project.jobCount) {
-              console.warn(`Project ${projectId} failed with job count mismatch: ${actualJobsStarted}/${project.jobCount} jobs started`);
-              
-              // Include the job count mismatch in the error event
-              progressEvent.jobCountMismatch = {
-                expected: project.jobCount,
-                actual: actualJobsStarted
-              };
+          if (project) {
+            try {
+              if (project.jobCount !== undefined) {
+                const actualJobsStarted = project.jobs ? project.jobs.length : 0;
+                if (actualJobsStarted < project.jobCount) {
+                  console.warn(`Project ${projectId} failed with job count mismatch: ${actualJobsStarted}/${project.jobCount} jobs started`);
+                  
+                  // Include the job count mismatch in the error event
+                  progressEvent.jobCountMismatch = {
+                    expected: project.jobCount,
+                    actual: actualJobsStarted
+                  };
+                }
+              }
+            } catch (projectAccessError) {
+              // Handle token expiry when accessing project properties during failure
+              if (projectAccessError.status === 401 || 
+                  (projectAccessError.payload && projectAccessError.payload.errorCode === 107) ||
+                  projectAccessError.message?.includes('Invalid token')) {
+                
+                console.warn(`[${projectId}] Token expired while accessing project data during failure event, skipping job count check. Error:`, projectAccessError.message);
+                clearInvalidTokens();
+              } else {
+                console.warn(`[${projectId}] Error accessing project data during failure event:`, projectAccessError.message);
+              }
             }
           }
           break;  
@@ -1049,21 +1162,34 @@ export async function generateImage(client, params, progressCallback) {
           break;
       }
       
-      if (progressEvent && progressCallback) {
-        progressEvent.projectId = event.projectId;
-        progressCallback(progressEvent);
+        if (progressEvent && progressCallback) {
+          progressEvent.projectId = event.projectId;
+          progressCallback(progressEvent);
+        }
+      } catch (projectHandlerError) {
+        // Handle any errors in the project event handler to prevent unhandled rejections
+        if (projectHandlerError.status === 401 || 
+            (projectHandlerError.payload && projectHandlerError.payload.errorCode === 107) ||
+            projectHandlerError.message?.includes('Invalid token')) {
+          
+          console.warn(`[${projectId}] Token expired in project event handler, clearing tokens. Error:`, projectHandlerError.message);
+          clearInvalidTokens();
+        } else {
+          console.error(`[${projectId}] Error in project event handler:`, projectHandlerError);
+        }
       }
     };
     
     const jobHandler = (event) => {
-      // Only process events for this specific project
-      if (event.projectId !== projectId) {
-        return;
-      }
-      
-      if (event.type !== 'progress') {
-        console.log(`Job event for project ${projectId}: "${event.type}" payload:`, event);
-      }
+      try {
+        // Only process events for this specific project
+        if (event.projectId !== projectId) {
+          return;
+        }
+        
+        if (event.type !== 'progress') {
+          console.log(`Job event for project ${projectId}: "${event.type}" payload:`, event);
+        }
       /* Example of each event we can expect:
       {
         type: 'initiating',
@@ -1117,12 +1243,77 @@ export async function generateImage(client, params, progressCallback) {
             jobIndex: event.jobIndex
           }
           break;
-        case 'progress':
+        case 'progress': {
+          const progressPercent = Math.floor(event.step / event.stepCount * 100);
           progressEvent = {
             type: 'progress',
-            progress: Math.floor(event.step / event.stepCount * 100),
+            progress: progressPercent,
           };
+          
+          // Track job progress and set up fallback completion detection
+          if (event.jobId) {
+            projectCompletionTracker.jobProgress.set(event.jobId, progressPercent);
+            
+            // If job reaches 85%+ and no completion timeout is set, set one up
+            if (progressPercent >= 85 && !projectCompletionTracker.jobCompletionTimeouts.has(event.jobId)) {
+              console.log(`[${projectId}] Job ${event.jobId} reached ${progressPercent}%, setting up fallback completion timeout`);
+              
+              const timeoutId = setTimeout(() => {
+                console.log(`[${projectId}] Fallback completion timeout triggered for job ${event.jobId} - simulating completion event`);
+                
+                // Note: Sogni client likely failed to emit completion due to token expiry, so we simulate one
+                
+                // Process this event through our job handler logic
+                try {
+                  console.log(`[${projectId}] Processing fallback completion for job ${event.jobId}`);
+                  
+                  // Create the progress event for job completion
+                  const fallbackProgressEvent = {
+                    type: 'jobCompleted',
+                    resultUrl: null,
+                    positivePrompt: null,
+                    jobIndex: null,
+                    isNSFW: false,
+                    seed: null,
+                    steps: null,
+                    fallback: true
+                  };
+                  
+                  // ALWAYS send the job completion to frontend first
+                  if (fallbackProgressEvent && progressCallback) {
+                    fallbackProgressEvent.jobId = event.jobId;
+                    fallbackProgressEvent.projectId = event.projectId;
+                    progressCallback(fallbackProgressEvent);
+                  }
+                  
+                  // Track the completion
+                  projectCompletionTracker.sentJobCompletions++;
+                  console.log(`[${projectId}] Fallback job completion sent for ${event.jobId} (${projectCompletionTracker.sentJobCompletions}/${projectCompletionTracker.expectedJobs || '?'})`);
+                  
+                  // Check if we can send the project completion now
+                  if (projectCompletionTracker.projectCompletionReceived && 
+                      projectCompletionTracker.sentJobCompletions >= projectCompletionTracker.expectedJobs) {
+                    console.log(`[${projectId}] All fallback job completions sent (${projectCompletionTracker.sentJobCompletions}/${projectCompletionTracker.expectedJobs}), triggering project completion`);
+                    
+                    if (projectCompletionTracker.sendProjectCompletion) {
+                      projectCompletionTracker.sendProjectCompletion();
+                    } else if (progressCallback && projectCompletionTracker.projectCompletionEvent) {
+                      progressCallback(projectCompletionTracker.projectCompletionEvent);
+                    }
+                  }
+                  
+                  // Clean up the timeout
+                  projectCompletionTracker.jobCompletionTimeouts.delete(event.jobId);
+                } catch (fallbackError) {
+                  console.error(`[${projectId}] Error processing fallback completion for job ${event.jobId}:`, fallbackError);
+                }
+              }, 10000); // Wait 10 seconds after reaching 85% before forcing completion
+              
+              projectCompletionTracker.jobCompletionTimeouts.set(event.jobId, timeoutId);
+            }
+          }
           break;
+        }
         case 'completed':
           progressEvent = {
             type: 'jobCompleted',
@@ -1141,44 +1332,84 @@ export async function generateImage(client, params, progressCallback) {
             progressEvent.nsfwFiltered = true;
           }
           
-          // Track job completion in the project
+          // ALWAYS send the job completion to frontend first, then handle project tracking
+          // This ensures the frontend gets completion events even if token expires during tracking
+          if (progressEvent && progressCallback) {
+            progressEvent.jobId = event.jobId;
+            progressEvent.projectId = event.projectId;
+            progressCallback(progressEvent);
+          }
+          
+          // Track job completion in the project (this can fail, but we've already sent the event)
           if (project) {
-            // First, check if this job is in the project's job list
-            const jobInList = project.jobs?.some(job => job.id === event.jobId);
-            
-            if (!jobInList) {
-              console.warn(`Job with id ${event.jobId} not found in the REST project data`);
+            try {
+              let jobInList = false;
               
-              // If the project has already received its completion event, track this as an extra
-              if (project._receivedCompletionEvent) {
-                if (!project._extraCompletedJobIds) {
-                  project._extraCompletedJobIds = new Set();
-                }
-                project._extraCompletedJobIds.add(event.jobId);
-                console.log(`Added job ${event.jobId} to extra completed jobs after project completion`);
-              }
-            }
-            
-            // Increment the sent job completions counter
-            projectCompletionTracker.sentJobCompletions++;
-            console.log(`Job completion sent for ${event.jobId} (${projectCompletionTracker.sentJobCompletions}/${projectCompletionTracker.expectedJobs || '?'})`);
-            
-            // Check if we can send the project completion now
-            if (projectCompletionTracker.projectCompletionReceived && 
-                projectCompletionTracker.sentJobCompletions >= projectCompletionTracker.expectedJobs) {
-              console.log(`All job completions sent (${projectCompletionTracker.sentJobCompletions}/${projectCompletionTracker.expectedJobs}), triggering project completion`);
-              
-              // Call the sendProjectCompletion function from the tracker
-              if (projectCompletionTracker.sendProjectCompletion) {
-                projectCompletionTracker.sendProjectCompletion();
-              } else {
-                // Fallback: send immediately if we lost the reference
-                console.log(`Sending project completion immediately (fallback)`);
-                if (progressCallback && projectCompletionTracker.projectCompletionEvent) {
-                  progressCallback(projectCompletionTracker.projectCompletionEvent);
+              try {
+                // First, check if this job is in the project's job list (may trigger API call)
+                jobInList = project.jobs?.some(job => job.id === event.jobId);
+              } catch (projectAccessError) {
+                // Handle token expiry when accessing project.jobs
+                if (projectAccessError.status === 401 || 
+                    (projectAccessError.payload && projectAccessError.payload.errorCode === 107) ||
+                    projectAccessError.message?.includes('Invalid token')) {
+                  
+                  console.warn(`[${projectId}] Token expired while checking job list during completion, assuming job not in list. Error:`, projectAccessError.message);
+                  clearInvalidTokens();
+                  jobInList = false; // Assume job not in list when we can't access project data
+                } else {
+                  console.warn(`[${projectId}] Error accessing project.jobs during completion:`, projectAccessError.message);
+                  jobInList = false; // Assume job not in list on other errors
                 }
               }
+              
+              if (!jobInList) {
+                console.warn(`Job with id ${event.jobId} not found in the REST project data`);
+                
+                // If the project has already received its completion event, track this as an extra
+                if (project._receivedCompletionEvent) {
+                  if (!project._extraCompletedJobIds) {
+                    project._extraCompletedJobIds = new Set();
+                  }
+                  project._extraCompletedJobIds.add(event.jobId);
+                  console.log(`Added job ${event.jobId} to extra completed jobs after project completion`);
+                }
+              }
+              
+              // Increment the sent job completions counter
+              projectCompletionTracker.sentJobCompletions++;
+              console.log(`Job completion sent for ${event.jobId} (${projectCompletionTracker.sentJobCompletions}/${projectCompletionTracker.expectedJobs || '?'})`);
+              
+              // Check if we can send the project completion now
+              if (projectCompletionTracker.projectCompletionReceived && 
+                  projectCompletionTracker.sentJobCompletions >= projectCompletionTracker.expectedJobs) {
+                console.log(`All job completions sent (${projectCompletionTracker.sentJobCompletions}/${projectCompletionTracker.expectedJobs}), triggering project completion`);
+                
+                // Call the sendProjectCompletion function from the tracker
+                if (projectCompletionTracker.sendProjectCompletion) {
+                  projectCompletionTracker.sendProjectCompletion();
+                } else {
+                  // Fallback: send immediately if we lost the reference
+                  console.log(`Sending project completion immediately (fallback)`);
+                  if (progressCallback && projectCompletionTracker.projectCompletionEvent) {
+                    progressCallback(projectCompletionTracker.projectCompletionEvent);
+                  }
+                }
+              }
+            } catch (projectTrackingError) {
+              // If project tracking fails entirely, log it but don't fail the job completion
+              console.warn(`[${projectId}] Project tracking failed for completed job ${event.jobId}, but job completion was sent to frontend:`, projectTrackingError.message);
             }
+          }
+          
+          // Clear progressEvent since we already sent it
+          progressEvent = null;
+          
+          // Clear any pending fallback completion timeout since we got a real completion
+          if (event.jobId && projectCompletionTracker.jobCompletionTimeouts.has(event.jobId)) {
+            console.log(`[${projectId}] Real completion received for job ${event.jobId}, clearing fallback timeout`);
+            clearTimeout(projectCompletionTracker.jobCompletionTimeouts.get(event.jobId));
+            projectCompletionTracker.jobCompletionTimeouts.delete(event.jobId);
           }
           break;
         case 'failed':
@@ -1189,16 +1420,31 @@ export async function generateImage(client, params, progressCallback) {
           };
           
           // Add explicit tracking for expected vs actual job count
-          if (project && project.jobCount !== undefined) {
-            const actualJobsStarted = project.jobs ? project.jobs.length : 0;
-            if (actualJobsStarted < project.jobCount) {
-              console.warn(`Project ${projectId} failed with job count mismatch: ${actualJobsStarted}/${project.jobCount} jobs started`);
-              
-              // Include the job count mismatch in the error event
-              progressEvent.jobCountMismatch = {
-                expected: project.jobCount,
-                actual: actualJobsStarted
-              };
+          if (project) {
+            try {
+              if (project.jobCount !== undefined) {
+                const actualJobsStarted = project.jobs ? project.jobs.length : 0;
+                if (actualJobsStarted < project.jobCount) {
+                  console.warn(`Project ${projectId} failed with job count mismatch: ${actualJobsStarted}/${project.jobCount} jobs started`);
+                  
+                  // Include the job count mismatch in the error event
+                  progressEvent.jobCountMismatch = {
+                    expected: project.jobCount,
+                    actual: actualJobsStarted
+                  };
+                }
+              }
+            } catch (projectAccessError) {
+              // Handle token expiry when accessing project properties during job failure
+              if (projectAccessError.status === 401 || 
+                  (projectAccessError.payload && projectAccessError.payload.errorCode === 107) ||
+                  projectAccessError.message?.includes('Invalid token')) {
+                
+                console.warn(`[${projectId}] Token expired while accessing project data during job failure event, skipping job count check. Error:`, projectAccessError.message);
+                clearInvalidTokens();
+              } else {
+                console.warn(`[${projectId}] Error accessing project data during job failure event:`, projectAccessError.message);
+              }
             }
           }
           break;
@@ -1207,10 +1453,40 @@ export async function generateImage(client, params, progressCallback) {
           break;
       }
       
-      if (progressEvent && progressCallback) {
-        progressEvent.jobId = event.jobId;
-        progressEvent.projectId = event.projectId;
-        progressCallback(progressEvent);
+        // Send any remaining progress events (job completion events are handled separately above)
+        if (progressEvent && progressCallback) {
+          progressEvent.jobId = event.jobId;
+          progressEvent.projectId = event.projectId;
+          progressCallback(progressEvent);
+        }
+      } catch (jobHandlerError) {
+        // Handle any errors in the job event handler to prevent unhandled rejections
+        if (jobHandlerError.status === 401 || 
+            (jobHandlerError.payload && jobHandlerError.payload.errorCode === 107) ||
+            jobHandlerError.message?.includes('Invalid token')) {
+          
+          console.warn(`[${projectId}] Token expired in job event handler, clearing tokens. Error:`, jobHandlerError.message);
+          clearInvalidTokens();
+        } else {
+          console.error(`[${projectId}] Error in job event handler:`, jobHandlerError);
+        }
+      }
+    };
+    
+    // Cleanup function for project completion tracker
+    const cleanupProjectCompletionTracker = () => {
+      // Clear all job completion timeouts
+      for (const [jobId, timeoutId] of projectCompletionTracker.jobCompletionTimeouts.entries()) {
+        console.log(`[${projectId}] Cleaning up fallback timeout for job ${jobId}`);
+        clearTimeout(timeoutId);
+      }
+      projectCompletionTracker.jobCompletionTimeouts.clear();
+      projectCompletionTracker.jobProgress.clear();
+      
+      // Clear project completion timeout if it exists
+      if (projectCompletionTracker.projectCompletionTimeout) {
+        clearTimeout(projectCompletionTracker.projectCompletionTimeout);
+        projectCompletionTracker.projectCompletionTimeout = null;
       }
     };
     
@@ -1218,16 +1494,44 @@ export async function generateImage(client, params, progressCallback) {
     client._eventHandlers.projectHandlers.set(projectId, projectHandler);
     client._eventHandlers.jobHandlers.set(projectId, jobHandler);
     
-    // Register the event handlers
-    client.projects.on('project', projectHandler);
-    client.projects.on('job', jobHandler);
+    // Register the event handlers with error handling
+    try {
+      client.projects.on('project', projectHandler);
+      client.projects.on('job', jobHandler);
+    } catch (eventRegistrationError) {
+      if (eventRegistrationError.status === 401 || 
+          (eventRegistrationError.payload && eventRegistrationError.payload.errorCode === 107) ||
+          eventRegistrationError.message?.includes('Invalid token')) {
+        
+        console.warn(`[${projectId}] Token expired while registering event handlers, clearing tokens and rethrowing. Error:`, eventRegistrationError.message);
+        clearInvalidTokens();
+        throw new Error(`Authentication failed during event handler registration: ${eventRegistrationError.message}`);
+      }
+      
+      // For other errors, just re-throw
+      throw eventRegistrationError;
+    }
     
-    // Set up activity tracking for this project
-    project.on('updated', client._eventHandlers.activityHandler);
+    // Set up activity tracking for this project with error handling
+    try {
+      project.on('updated', client._eventHandlers.activityHandler);
+    } catch (activityTrackingError) {
+      if (activityTrackingError.status === 401 || 
+          (activityTrackingError.payload && activityTrackingError.payload.errorCode === 107) ||
+          activityTrackingError.message?.includes('Invalid token')) {
+        
+        console.warn(`[${projectId}] Token expired while setting up activity tracking, will continue without it. Error:`, activityTrackingError.message);
+        clearInvalidTokens();
+        // Don't throw here - activity tracking is optional
+      } else {
+        console.warn(`[${projectId}] Error setting up activity tracking, will continue without it. Error:`, activityTrackingError.message);
+      }
+    }
     
     return {
       projectId: project.id,
-      client: client // Return the client reference so caller can access it
+      client: client, // Return the client reference so caller can access it
+      cleanup: cleanupProjectCompletionTracker // Return cleanup function
     };
   } catch (error) {
     console.error(`Error generating image:`, error);
