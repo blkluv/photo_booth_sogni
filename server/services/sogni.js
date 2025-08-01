@@ -785,10 +785,21 @@ export async function generateImage(client, params, progressCallback) {
       if (!client.account.currentAccount.isAuthenicated) {
         console.warn(`[GENERATE] Client ${client.appId} is not authenticated, attempting to refresh...`);
         await client.account.refreshBalance(); // This will trigger re-auth if needed
+      } else {
+        // Even if authenticated, test token validity to catch expired tokens early
+        console.log(`[GENERATE] Testing token validity for client ${client.appId} before generation...`);
+        await client.account.refreshBalance();
+        console.log(`[GENERATE] Token validation successful for client ${client.appId}`);
       }
     } catch (preValidationError) {
       if (preValidationError.status === 401 || preValidationError.message?.includes('Invalid token')) {
-        console.error(`[GENERATE] Client ${client.appId} pre-validation failed with auth error, will attempt to continue but may fail`);
+        console.error(`[GENERATE] Client ${client.appId} pre-validation failed with auth error, clearing tokens and rethrowing`);
+        
+        // Clear invalid tokens to force re-authentication
+        clearInvalidTokens();
+        
+        // Re-throw with better error message to trigger retry logic in caller
+        throw new Error(`Authentication failed before image generation: ${preValidationError.message}`);
       } else {
         console.warn(`[GENERATE] Client ${client.appId} pre-validation failed with non-auth error: ${preValidationError.message}`);
       }
@@ -1318,19 +1329,10 @@ export async function generateImage(client, params, progressCallback) {
           // Try to get resultUrl from the event first, then fallback to project job data
           let resultUrl = event.resultUrl;
           
-          // If resultUrl is missing from the event, try to get it from the project job data
-          if (!resultUrl && project) {
-            try {
-              const projectJob = project.jobs?.find(job => job.id === event.jobId);
-              if (projectJob && projectJob.resultUrl) {
-                resultUrl = projectJob.resultUrl;
-                console.log(`Backend: Retrieved missing resultUrl from project job ${event.jobId}: ${resultUrl.substring(0, 50)}...`);
-              } else {
-                console.warn(`Backend: Job ${event.jobId} completed but resultUrl is missing from both event and project job data`);
-              }
-            } catch (projectAccessError) {
-              console.warn(`Backend: Could not access project jobs to retrieve missing resultUrl for ${event.jobId}:`, projectAccessError.message);
-            }
+          // Log when resultUrl is missing from the real event (not fallback)
+          if (!resultUrl && !event.fallback) {
+            console.error(`REAL JOB COMPLETION EVENT MISSING RESULT URL - Job ${event.jobId} completed but resultUrl is null in the event itself`);
+            console.error(`Event details:`, JSON.stringify(event, null, 2));
           }
           
           progressEvent = {
@@ -1534,6 +1536,37 @@ export async function generateImage(client, params, progressCallback) {
       throw eventRegistrationError;
     }
     
+    // Disable periodic token validation for now to see if it's causing the issue
+    // const tokenValidationInterval = setInterval(async () => {
+    //   try {
+    //     // Only validate if the project is still active
+    //     if (project && client && client.account && client.account.currentAccount) {
+    //       console.log(`[${projectId}] Performing periodic token validation...`);
+    //       await client.account.refreshBalance();
+    //     }
+    //   } catch (validationError) {
+    //     if (validationError.status === 401 || validationError.message?.includes('Invalid token')) {
+    //       console.warn(`[${projectId}] Periodic token validation failed - token expired during generation`);
+    //       
+    //       // Clear the interval since we found an invalid token
+    //       clearInterval(tokenValidationInterval);
+    //       
+    //       // Clear invalid tokens
+    //       clearInvalidTokens();
+    //       
+    //       // This will be caught by the unhandled rejection handler
+    //       throw new Error(`Token expired during image generation: ${validationError.message}`);
+    //     } else {
+    //       // For non-auth errors, just log and continue
+    //       console.warn(`[${projectId}] Periodic token validation failed with non-auth error: ${validationError.message}`);
+    //     }
+    //   }
+    // }, 30000); // Check every 30 seconds
+    
+    // Store the interval for cleanup (no need to modify the const function)
+    // The cleanupProjectCompletionTracker will be called when the project completes/fails
+    // We'll clean up the interval separately in the return object's cleanup function
+    
     // Set up activity tracking for this project with error handling
     try {
       project.on('updated', client._eventHandlers.activityHandler);
@@ -1553,7 +1586,7 @@ export async function generateImage(client, params, progressCallback) {
     return {
       projectId: project.id,
       client: client, // Return the client reference so caller can access it
-      cleanup: cleanupProjectCompletionTracker // Return cleanup function
+      cleanup: cleanupProjectCompletionTracker // Back to original cleanup
     };
   } catch (error) {
     console.error(`Error generating image:`, error);

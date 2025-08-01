@@ -504,46 +504,91 @@ router.post('/generate', ensureSessionId, async (req, res) => {
 
     // console.log(`DEBUG - ${new Date().toISOString()} - [${localProjectId}] Calling Sogni SDK (generateImage function) with params:`, Object.keys(params));
     
-    // Start the generation process but don't wait for completion - just wait for first event
-    generateImage(client, params, progressHandler)
-      .then(sogniResult => {
-        console.log(`DEBUG - ${new Date().toISOString()} - [${localProjectId}] Sogni SDK (generateImage function) promise resolved.`);
-        console.log(`[${localProjectId}] Sogni generation process finished. Sogni Project ID: ${sogniResult.projectId}, Result:`, JSON.stringify(sogniResult.result));
-      })
-      .catch(error => {
-        console.error(`ERROR - ${new Date().toISOString()} - [${localProjectId}] Sogni SDK (generateImage function) promise rejected:`, error);
-        console.error(`[${localProjectId}] Sogni generation process failed:`, error);
-        
-        // Check if this is an authentication error (including token expiry during generation)
-        const isAuthError = error.status === 401 || 
-                           (error.payload && error.payload.errorCode === 107) || 
-                           error.message?.includes('Invalid token') ||
-                           error.message?.includes('Authentication required');
-        
-        // Check if this is an insufficient funds error
-        const isInsufficientFundsError = error.payload?.errorCode === 4024 || 
-                                       error.message?.includes('Insufficient funds') ||
-                                       error.message?.includes('Debit Error');
-        
-        if (isAuthError) {
-          console.log(`[${localProjectId}] Authentication error detected, will clean up client to force re-authentication on next request`);
+    // Helper function to attempt generation with retry on auth failure
+    const attemptGeneration = async (clientToUse, isRetry = false) => {
+      return generateImage(clientToUse, params, progressHandler)
+        .then(sogniResult => {
+          console.log(`DEBUG - ${new Date().toISOString()} - [${localProjectId}] Sogni SDK (generateImage function) promise resolved.`);
+          console.log(`[${localProjectId}] Sogni generation process finished. Sogni Project ID: ${sogniResult.projectId}, Result:`, JSON.stringify(sogniResult.result));
+        })
+        .catch(async (error) => {
+          console.error(`ERROR - ${new Date().toISOString()} - [${localProjectId}] Sogni SDK (generateImage function) promise rejected:`, error);
+          console.error(`[${localProjectId}] Sogni generation process failed${isRetry ? ' (retry attempt)' : ''}:`, error);
           
-          // Clear invalid cached tokens
-          clearInvalidTokens();
+          // Check if this is an authentication error (including token expiry during generation)
+          const isAuthError = error.status === 401 || 
+                             (error.payload && error.payload.errorCode === 107) || 
+                             error.message?.includes('Invalid token') ||
+                             error.message?.includes('Authentication required');
           
-          // Get the client ID associated with this session
-          const sessionId = req.sessionId;
-          if (sessionId && sessionClients.has(sessionId)) {
-            const clientId = sessionClients.get(sessionId);
+          // Check if this is an insufficient funds error
+          const isInsufficientFundsError = error.payload?.errorCode === 4024 || 
+                                         error.message?.includes('Insufficient funds') ||
+                                         error.message?.includes('Debit Error');
+          
+          // If this is an auth error and we haven't already retried, attempt retry with fresh client
+          if (isAuthError && !isRetry) {
+            console.log(`[${localProjectId}] Authentication error detected during generation, attempting retry with fresh client`);
             
-            // Force client cleanup to trigger re-authentication on next request
-            console.log(`[${localProjectId}] Forcing cleanup of client ${clientId} due to auth error`);
-            cleanupSogniClient(clientId);
+            // Clear invalid cached tokens
+            clearInvalidTokens();
             
-            // Remove the session-to-client mapping to force new client creation
-            sessionClients.delete(sessionId);
+            // Get the client ID associated with this session
+            const sessionId = req.sessionId;
+            if (sessionId && sessionClients.has(sessionId)) {
+              const clientId = sessionClients.get(sessionId);
+              
+              // Force client cleanup to trigger re-authentication
+              console.log(`[${localProjectId}] Forcing cleanup of client ${clientId} due to auth error`);
+              cleanupSogniClient(clientId);
+              
+              // Remove the session-to-client mapping to force new client creation
+              sessionClients.delete(sessionId);
+            }
+            
+            try {
+              // Get a fresh client with new authentication
+              console.log(`[${localProjectId}] Creating fresh client for retry...`);
+              const freshClient = await getSessionClient(sessionId, clientAppId);
+              
+              // Retry the generation with the fresh client
+              console.log(`[${localProjectId}] Retrying generation with fresh client...`);
+              return await attemptGeneration(freshClient, true); // Mark as retry to prevent infinite recursion
+            } catch (retryError) {
+              console.error(`[${localProjectId}] Retry attempt failed:`, retryError);
+              // Fall through to normal error handling with the original error
+            }
           }
-        }
+          
+          if (isAuthError) {
+            console.log(`[${localProjectId}] Authentication error ${isRetry ? '(retry also failed)' : ''} - will clean up client state`);
+            
+            // Clear invalid cached tokens
+            clearInvalidTokens();
+            
+            // Get the client ID associated with this session
+            const sessionId = req.sessionId;
+            if (sessionId && sessionClients.has(sessionId)) {
+              const clientId = sessionClients.get(sessionId);
+              
+              // Force client cleanup to trigger re-authentication on next request
+              console.log(`[${localProjectId}] Forcing cleanup of client ${clientId} due to auth error`);
+              cleanupSogniClient(clientId);
+              
+              // Remove the session-to-client mapping to force new client creation
+              sessionClients.delete(sessionId);
+            }
+          }
+          
+          // Re-throw the error to continue with normal error handling
+          throw error;
+        });
+    };
+
+    // Start the generation process but don't wait for completion - just wait for first event
+    attemptGeneration(client)
+      .catch(error => {
+        // This handles the final error after any retry attempts
         
         if (activeProjects.has(localProjectId)) {
           const clients = activeProjects.get(localProjectId);
