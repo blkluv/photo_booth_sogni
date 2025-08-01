@@ -821,7 +821,7 @@ export async function generateImage(client, params, progressCallback) {
       // numberOfPreviews: params.numberPreviews || 1,
       scheduler: 'DPM Solver Multistep (DPM-Solver++)',
       timeStepSpacing: 'Karras',
-      disableNSFWFilter: true,
+      disableNSFWFilter: false,
       tokenType: params.tokenType || 'spark', // Forward tokenType from frontend, default to 'spark'
       ...(params.seed !== undefined ? { seed: params.seed } : {})
     };
