@@ -83,6 +83,15 @@ const PhotoGallery = ({
   
   const dynamicStyle = getAspectRatioStyle();
   
+  // Calculate GMVN frame size based on aspect ratio
+  // Use 50% for 1:1 or wider ratios, 100% for portrait ratios
+  const getGMVNFrameSize = () => {
+    const wideAspectRatios = ['square', 'landscape', 'wide', 'ultrawide'];
+    return wideAspectRatios.includes(aspectRatio) ? '50%' : '100%';
+  };
+  
+  const gmvnFrameSize = getGMVNFrameSize();
+  
   const handlePhotoSelect = useCallback((index, e) => {
     const element = e.currentTarget;
     
@@ -913,8 +922,8 @@ const PhotoGallery = ({
                             position: 'absolute',
                             top: 0,
                             left: 0,
-                            width: '100%',
-                            height: '100%',
+                            width: gmvnFrameSize,
+                            height: gmvnFrameSize,
                             backgroundImage: `url(/tezos/GMVN-FRAME-TL.png)`,
                             backgroundSize: 'contain',
                             backgroundPosition: 'top left',
@@ -929,8 +938,8 @@ const PhotoGallery = ({
                             position: 'absolute',
                             bottom: 0,
                             left: 0,
-                            width: '100%',
-                            height: '100%',
+                            width: gmvnFrameSize,
+                            height: gmvnFrameSize,
                             backgroundImage: `url(/tezos/GMVN-FRAME-BL.png)`,
                             backgroundSize: 'contain',
                             backgroundPosition: 'bottom left',

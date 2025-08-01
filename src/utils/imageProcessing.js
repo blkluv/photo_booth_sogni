@@ -88,7 +88,8 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
       frameColor = 'white',
       labelFont = '72px "Permanent Marker", cursive',
       labelColor = '#333',
-      tezdevTheme = 'off'
+      tezdevTheme = 'off',
+      aspectRatio = 'portrait'
     } = options;
 
     // Load the Permanent Marker font if it's not already loaded
@@ -155,7 +156,7 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
       
       // Apply TezDev frame if enabled (works on all aspect ratios now)
       if (tezdevTheme !== 'off') {
-        applyTezDevFrame(ctx, imageWidth, imageHeight, frameWidth, frameTopWidth, tezdevTheme)
+        applyTezDevFrame(ctx, imageWidth, imageHeight, frameWidth, frameTopWidth, tezdevTheme, aspectRatio)
           .then(() => {
             finalizePolaroid();
           })
@@ -241,13 +242,18 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
  * @param {number} frameOffsetY - Y offset of the image from canvas edge
  * @param {string} theme - TezDev theme ('blue', 'pink', or 'gmvietnam')
  */
-async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, frameOffsetY, theme) {
+async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, frameOffsetY, theme, aspectRatio) {
   return new Promise((resolve, reject) => {
     // Handle GM Vietnam theme with corner frames
     if (theme === 'gmvietnam') {
       let loadedImages = 0;
       const totalImages = 2;
       let hasError = false;
+      
+      // Calculate frame size based on aspect ratio
+      // Use 50% for 1:1 or wider ratios, 100% for portrait ratios
+      const wideAspectRatios = ['square', 'landscape', 'wide', 'ultrawide'];
+      const frameScale = wideAspectRatios.includes(aspectRatio) ? 0.5 : 1.0;
 
       const onImageLoad = () => {
         loadedImages++;
@@ -270,10 +276,10 @@ async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, fram
       tlCorner.crossOrigin = 'anonymous';
       
       tlCorner.onload = () => {
-        // Calculate scaled dimensions to match full-size display view
-        // Use 100% to match updated display sizing
-        const maxWidth = imageWidth * 1.0;
-        const maxHeight = imageHeight * 1.0;
+        // Calculate scaled dimensions based on aspect ratio
+        // Use frameScale (75% for wide ratios, 100% for portrait ratios)
+        const maxWidth = imageWidth * frameScale;
+        const maxHeight = imageHeight * frameScale;
         
         const scaleX = maxWidth / tlCorner.naturalWidth;
         const scaleY = maxHeight / tlCorner.naturalHeight;
@@ -298,10 +304,10 @@ async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, fram
       blCorner.crossOrigin = 'anonymous';
       
       blCorner.onload = () => {
-        // Calculate scaled dimensions to match full-size display view
-        // Use 100% width and height to match updated display sizing
-        const maxWidth = imageWidth * 1.0;
-        const maxHeight = imageHeight * 1.0;
+        // Calculate scaled dimensions based on aspect ratio
+        // Use frameScale (75% for wide ratios, 100% for portrait ratios)
+        const maxWidth = imageWidth * frameScale;
+        const maxHeight = imageHeight * frameScale;
         
         const scaleX = maxWidth / blCorner.naturalWidth;
         const scaleY = maxHeight / blCorner.naturalHeight;
