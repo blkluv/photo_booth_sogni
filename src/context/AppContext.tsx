@@ -6,12 +6,14 @@ import { getSettingFromCookie, saveSettingsToCookies } from '../utils/cookies';
 // Helper function to handle TezDev theme cookie migration
 const getTezDevThemeFromCookie = () => {
   const savedTheme = getSettingFromCookie('tezdevTheme', DEFAULT_SETTINGS.tezdevTheme);
-  // Force existing users with 'pink' or 'blue' to default to 'off'
+  // Force existing users with 'pink' or 'blue' to default to GM Vietnam
   if (savedTheme === 'pink' || savedTheme === 'blue') {
     // Save the new default and return it
-    saveSettingsToCookies({ tezdevTheme: 'off' });
-    return 'off';
+    saveSettingsToCookies({ tezdevTheme: 'gmvietnam' });
+    return 'gmvietnam';
   }
+  // If user has explicitly set it to 'off', respect that choice
+  // Otherwise, use the default (which is now 'gmvietnam')
   return savedTheme;
 };
 
