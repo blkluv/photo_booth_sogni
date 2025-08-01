@@ -1027,14 +1027,18 @@ export async function generateImage(client, params, progressCallback) {
             // Check if we can send the project completion immediately
             if (projectCompletionTracker.sentJobCompletions >= expectedJobs) {
               console.log(`All job completions already sent, sending project completion immediately`);
-              projectCompletionTracker.sendProjectCompletion();
+              if (projectCompletionTracker.sendProjectCompletion) {
+                projectCompletionTracker.sendProjectCompletion();
+              }
             } else {
               console.log(`Waiting for ${expectedJobs - projectCompletionTracker.sentJobCompletions} more job completions before sending project completion`);
               
               // Set a failsafe timeout to send completion even if some job events are missing
               projectCompletionTracker.projectCompletionTimeout = setTimeout(() => {
                 console.log(`Backend failsafe timeout reached, sending project completion (sent ${projectCompletionTracker.sentJobCompletions}/${expectedJobs} job completions)`);
-                projectCompletionTracker.sendProjectCompletion();
+                if (projectCompletionTracker.sendProjectCompletion) {
+                  projectCompletionTracker.sendProjectCompletion();
+                }
               }, 3000); // 3 second failsafe
             }
             
