@@ -590,6 +590,16 @@ router.post('/generate', ensureSessionId, async (req, res) => {
       .catch(error => {
         // This handles the final error after any retry attempts
         
+        // Check if this is an authentication error
+        const isAuthError = (error.payload && error.payload.errorCode === 107) || 
+                           error.message?.includes('Invalid token') ||
+                           error.message?.includes('Authentication required');
+        
+        // Check if this is an insufficient funds error
+        const isInsufficientFundsError = error.payload?.errorCode === 4024 || 
+                                       error.message?.includes('Insufficient funds') ||
+                                       error.message?.includes('Debit Error');
+        
         if (activeProjects.has(localProjectId)) {
           const clients = activeProjects.get(localProjectId);
           let errorMessage = error.message || 'Image generation failed';
@@ -624,6 +634,16 @@ router.post('/generate', ensureSessionId, async (req, res) => {
           if (!globalThis.pendingProjectErrors) {
             globalThis.pendingProjectErrors = new Map();
           }
+          
+          // Check if this is an authentication error
+          const isAuthError = (error.payload && error.payload.errorCode === 107) || 
+                             error.message?.includes('Invalid token') ||
+                             error.message?.includes('Authentication required');
+          
+          // Check if this is an insufficient funds error  
+          const isInsufficientFundsError = error.payload?.errorCode === 4024 || 
+                                         error.message?.includes('Insufficient funds') ||
+                                         error.message?.includes('Debit Error');
           
           let errorMessage = error.message || 'Image generation failed';
           

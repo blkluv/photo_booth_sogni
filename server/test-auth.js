@@ -19,13 +19,33 @@ const main = async () => {
   console.log('Testing Sogni Client authentication with version 3.0.0-alpha.40');
   
   try {
+    // Get environment-aware URLs
+    const getSogniUrls = (env) => {
+      const SOGNI_HOSTS = {
+        'local': { socket: 'wss://socket-local.sogni.ai', api: 'https://api-local.sogni.ai' },
+        'staging': { socket: 'wss://socket-staging.sogni.ai', api: 'https://api-staging.sogni.ai' },
+        'production': { socket: 'wss://socket.sogni.ai', api: 'https://api.sogni.ai' },
+      };
+      return SOGNI_HOSTS[env || 'production'];
+    };
+    
+    const sogniEnv = process.env.SOGNI_ENV || 'production';
+    const sogniUrls = getSogniUrls(sogniEnv);
+    
+    console.log(`Using ${sogniEnv} environment:`);
+    console.log(`  API: ${sogniUrls.api}`);
+    console.log(`  Socket: ${sogniUrls.socket}`);
+    
+    // Use testnet for staging environment, mainnet for production  
+    const useTestnet = sogniEnv === 'staging' || sogniEnv === 'local';
+    
     const client = await SogniClient.createInstance({
       appId: 'test-client-' + Date.now(),
-      testnet: false,
+      testnet: useTestnet,
       network: "fast",
       logLevel: "info",
-      restEndpoint: 'https://api.sogni.ai',
-      socketEndpoint: 'wss://socket.sogni.ai',
+      restEndpoint: sogniUrls.api,
+      socketEndpoint: sogniUrls.socket,
     });
     
     console.log('✓ Client created successfully');

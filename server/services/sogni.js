@@ -320,9 +320,11 @@ async function createSogniClient(appIdPrefix, clientProvidedAppId) {
       const customJsonRpcUrl = process.env.JSON_RPC_URL;
       
       // Optimized client creation with faster timeouts
+      // Use testnet for staging environment, mainnet for production
+      const useTestnet = sogniEnv === 'staging' || sogniEnv === 'local';
       const client = await SogniClient.createInstance({
         appId: sogniAppId,
-        testnet: false,
+        testnet: useTestnet, // staging/local uses testnet, production uses mainnet
         network: "fast",
         logLevel: "info",
         restEndpoint: sogniUrls.api,
