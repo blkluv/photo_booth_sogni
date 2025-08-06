@@ -85,7 +85,7 @@ export const DEFAULT_SETTINGS: Settings = {
   soundEnabled: true,
   slothicornAnimationEnabled: true,
   aspectRatio: getDefaultAspectRatio(),
-  tezdevTheme: 'gmvietnam' as const,
+  tezdevTheme: 'off' as const,
 };
 
 // Backend now handles all Sogni API communication, so we don't need these URLs in the frontend
