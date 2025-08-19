@@ -35,6 +35,7 @@ const PhotoGallery = ({
   selectedSubIndex = 0,
   handleShareToX,
   slothicornAnimationEnabled,
+  backgroundAnimationsEnabled = false,
   tezdevTheme = 'off',
   aspectRatio = null,
   handleRetryPhoto,
@@ -397,7 +398,7 @@ const PhotoGallery = ({
           repeating-linear-gradient(-45deg, rgba(255,255,255,0.15) 0px, rgba(255,255,255,0.15) 2px, transparent 2px, transparent 4px)
         `,
         backgroundSize: '400% 400%, 20px 20px, 20px 20px',
-        animation: 'psychedelic-shift 15s ease infinite',
+        animation: backgroundAnimationsEnabled ? 'psychedelic-shift 15s ease infinite' : 'none',
       }}
     >
       <button
@@ -1057,6 +1058,7 @@ PhotoGallery.propTypes = {
   selectedSubIndex: PropTypes.number,
   handleShareToX: PropTypes.func.isRequired,
   slothicornAnimationEnabled: PropTypes.bool.isRequired,
+  backgroundAnimationsEnabled: PropTypes.bool,
   tezdevTheme: PropTypes.string,
   aspectRatio: PropTypes.string,
   handleRetryPhoto: PropTypes.func,

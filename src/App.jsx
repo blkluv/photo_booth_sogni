@@ -133,6 +133,7 @@ const App = () => {
     seed,
     soundEnabled,
     slothicornAnimationEnabled,
+    backgroundAnimationsEnabled,
     aspectRatio,
     tezdevTheme
   } = settings;
@@ -2698,6 +2699,11 @@ const App = () => {
               updateSetting('slothicornAnimationEnabled', value);
               saveSettingsToCookies({ slothicornAnimationEnabled: value });
             }}
+            backgroundAnimationsEnabled={backgroundAnimationsEnabled}
+            onBackgroundAnimationsEnabledChange={(value) => {
+              updateSetting('backgroundAnimationsEnabled', value);
+              saveSettingsToCookies({ backgroundAnimationsEnabled: value });
+            }}
             onResetSettings={resetSettings}
             onBackToMenu={handleBackToMenu}
           />
@@ -3362,6 +3368,11 @@ const App = () => {
             updateSetting('slothicornAnimationEnabled', value);
             saveSettingsToCookies({ slothicornAnimationEnabled: value });
           }}
+          backgroundAnimationsEnabled={backgroundAnimationsEnabled}
+          onBackgroundAnimationsEnabledChange={(value) => {
+            updateSetting('backgroundAnimationsEnabled', value);
+            saveSettingsToCookies({ backgroundAnimationsEnabled: value });
+          }}
           onResetSettings={resetSettings} // Pass context reset function
           // Props still using local state/logic
           cameraDevices={cameraDevices}
@@ -3529,6 +3540,7 @@ const App = () => {
           selectedSubIndex={selectedSubIndex}
           handleShareToX={handleShareToX}
           slothicornAnimationEnabled={slothicornAnimationEnabled}
+          backgroundAnimationsEnabled={backgroundAnimationsEnabled}
           tezdevTheme={tezdevTheme}
           aspectRatio={aspectRatio}
           handleRetryPhoto={handleRetryPhoto}

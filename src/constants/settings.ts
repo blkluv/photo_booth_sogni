@@ -84,6 +84,7 @@ export const DEFAULT_SETTINGS: Settings = {
   seed: '',
   soundEnabled: true,
   slothicornAnimationEnabled: true,
+  backgroundAnimationsEnabled: false,
   aspectRatio: getDefaultAspectRatio(),
   tezdevTheme: 'off' as const,
 };

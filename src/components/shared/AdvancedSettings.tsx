@@ -63,6 +63,10 @@ interface AdvancedSettingsProps {
   slothicornAnimationEnabled?: boolean;
   /** Handler for slothicorn animation enabled change */
   onSlothicornAnimationEnabledChange?: (enabled: boolean) => void;
+  /** Background animations enabled state */
+  backgroundAnimationsEnabled?: boolean;
+  /** Handler for background animations enabled change */
+  onBackgroundAnimationsEnabledChange?: (enabled: boolean) => void;
   /** Handler for settings reset */
   onResetSettings?: () => void;
   /** Current aspect ratio */
@@ -108,6 +112,8 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
   onSoundEnabledChange,
   slothicornAnimationEnabled = true,
   onSlothicornAnimationEnabledChange,
+  backgroundAnimationsEnabled = false,
+  onBackgroundAnimationsEnabledChange,
   onResetSettings,
   aspectRatio,
   onAspectRatioChange,
@@ -442,6 +448,17 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
             onChange={(e) => onSlothicornAnimationEnabledChange?.(e.target.checked)}
           />
           <label htmlFor="slothicorn-toggle" className="control-label">Slothicorn Animation</label>
+        </div>
+        
+        {/* Background Animations toggle */}
+        <div className="control-option checkbox">
+          <input
+            type="checkbox"
+            id="background-animations-toggle"
+            checked={backgroundAnimationsEnabled}
+            onChange={(e) => onBackgroundAnimationsEnabledChange?.(e.target.checked)}
+          />
+          <label htmlFor="background-animations-toggle" className="control-label">Background Animations</label>
         </div>
         
         {/* Event Theme selector */}

@@ -84,6 +84,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     seed: getSettingFromCookie('seed', DEFAULT_SETTINGS.seed),
     soundEnabled: getSettingFromCookie('soundEnabled', DEFAULT_SETTINGS.soundEnabled || true),
     slothicornAnimationEnabled: getSettingFromCookie('slothicornAnimationEnabled', DEFAULT_SETTINGS.slothicornAnimationEnabled || true),
+    backgroundAnimationsEnabled: getSettingFromCookie('backgroundAnimationsEnabled', DEFAULT_SETTINGS.backgroundAnimationsEnabled || false),
     aspectRatio: getSettingFromCookie('aspectRatio', DEFAULT_SETTINGS.aspectRatio),
     tezdevTheme: getTezDevThemeFromCookie()
   }));

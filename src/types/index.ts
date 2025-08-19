@@ -60,6 +60,7 @@ export interface Settings {
   seed?: string;
   soundEnabled: boolean;
   slothicornAnimationEnabled: boolean;
+  backgroundAnimationsEnabled: boolean;
   aspectRatio: AspectRatioOption;
   tezdevTheme: TezDevTheme;
 } 
