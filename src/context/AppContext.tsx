@@ -7,6 +7,7 @@ import { getSettingFromCookie, saveSettingsToCookies } from '../utils/cookies';
 const getTezDevThemeFromCookie = () => {
   const savedTheme = getSettingFromCookie('tezdevTheme', DEFAULT_SETTINGS.tezdevTheme);
   // Force existing users with 'pink', 'blue', or 'gmvietnam' to default to 'off' since events are over
+  // Keep 'supercasual' as it's the new active theme
   if (savedTheme === 'pink' || savedTheme === 'blue' || savedTheme === 'gmvietnam') {
     // Save the new default and return it
     saveSettingsToCookies({ tezdevTheme: 'off' });

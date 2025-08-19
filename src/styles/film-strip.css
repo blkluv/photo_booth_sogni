@@ -346,6 +346,17 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
   display: none !important;
 }
 
+/* Remove white polaroid frame for Super Casual theme */
+.film-frame.selected.super-casual-theme img {
+  border: none !important;
+  background: transparent !important;
+}
+
+/* Hide polaroid label for Super Casual theme */
+.film-frame.selected.super-casual-theme .photo-label {
+  display: none !important;
+}
+
 
 
 /* Add responsive styles for selected photo view on mobile/portrait */

@@ -329,6 +329,48 @@ async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, fram
       return;
     }
     
+    // Handle Super Casual theme - only for narrow (2:3) aspect ratio
+    if (theme === 'supercasual') {
+      // Only apply Super Casual theme to narrow (2:3) aspect ratio
+      if (aspectRatio !== 'narrow') {
+        console.log('Super Casual theme only applies to narrow (2:3) aspect ratio');
+        resolve();
+        return;
+      }
+      
+      const superCasualFrame = new Image();
+      superCasualFrame.crossOrigin = 'anonymous';
+      
+      superCasualFrame.onload = () => {
+        // Scale the frame to fit the image area
+        const maxWidth = imageWidth;
+        const maxHeight = imageHeight;
+        
+        const scaleX = maxWidth / superCasualFrame.naturalWidth;
+        const scaleY = maxHeight / superCasualFrame.naturalHeight;
+        const scale = Math.min(scaleX, scaleY);
+        
+        const scaledWidth = superCasualFrame.naturalWidth * scale;
+        const scaledHeight = superCasualFrame.naturalHeight * scale;
+        
+        // Center the frame over the image
+        const frameX = frameOffsetX + (imageWidth - scaledWidth) / 2;
+        const frameY = frameOffsetY + (imageHeight - scaledHeight) / 2;
+        
+        ctx.drawImage(superCasualFrame, frameX, frameY, scaledWidth, scaledHeight);
+        console.log('Applied Super Casual frame overlay');
+        resolve();
+      };
+      
+      superCasualFrame.onerror = (err) => {
+        console.error('Failed to load Super Casual frame:', err);
+        reject(err);
+      };
+      
+      superCasualFrame.src = '/events/super-casual.png';
+      return;
+    }
+    
     // Handle original blue/pink themes with corner pieces
     let loadedImages = 0;
     const totalImages = 2;

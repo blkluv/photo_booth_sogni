@@ -463,8 +463,28 @@ const ImageAdjuster = ({
               </>
             )}
             
-            {/* Default frame corners - only show when not using GMVN theme */}
-            {tezdevTheme !== 'gmvietnam' && (
+            {/* Super Casual Full Frame Overlay - only for narrow (2:3) aspect ratio */}
+            {tezdevTheme === 'supercasual' && aspectRatio === 'narrow' && (
+              <div
+                className="super-casual-frame-overlay"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  backgroundImage: `url(/events/super-casual.png)`,
+                  backgroundSize: 'contain',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
+                  pointerEvents: 'none',
+                  zIndex: 2
+                }}
+              />
+            )}
+            
+            {/* Default frame corners - only show when not using GMVN or Super Casual themes */}
+            {tezdevTheme !== 'gmvietnam' && tezdevTheme !== 'supercasual' && (
               <>
                 <div className="frame-corner top-left"></div>
                 <div className="frame-corner top-right"></div>

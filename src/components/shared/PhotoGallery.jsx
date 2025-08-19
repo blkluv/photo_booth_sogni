@@ -761,7 +761,7 @@ const PhotoGallery = ({
             return (
               <div
                 key={photo.id}
-                className={`film-frame loading ${isSelected ? 'selected' : ''} ${isSelected && tezdevTheme === 'gmvietnam' ? 'gm-vietnam-theme' : ''}`}
+                className={`film-frame loading ${isSelected ? 'selected' : ''} ${isSelected && tezdevTheme === 'gmvietnam' ? 'gm-vietnam-theme' : ''} ${isSelected && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''}`}
                 data-enhancing={photo.enhancing ? 'true' : undefined}
                 data-error={photo.error ? 'true' : undefined}
                 data-enhanced={photo.enhanced ? 'true' : undefined}
@@ -853,7 +853,7 @@ const PhotoGallery = ({
           return (
             <div 
               key={photo.id}
-              className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''} ${isLoaded ? 'loaded' : ''} ${isSelected && tezdevTheme === 'gmvietnam' ? 'gm-vietnam-theme' : ''}`}
+              className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''} ${isLoaded ? 'loaded' : ''} ${isSelected && tezdevTheme === 'gmvietnam' ? 'gm-vietnam-theme' : ''} ${isSelected && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''}`}
               onClick={e => isSelected ? handlePhotoViewerClick(e) : handlePhotoSelect(index, e)}
               data-enhancing={photo.enhancing ? 'true' : undefined}
               data-error={photo.error ? 'true' : undefined}
@@ -910,7 +910,7 @@ const PhotoGallery = ({
                     display: 'block'
                   }}
                 />
-                {/* TezDev Theme Overlays - Only show on selected (popup) view */}
+                {/* Event Theme Overlays - Only show on selected (popup) view */}
                 {thumbUrl && isLoaded && isSelected && tezdevTheme !== 'off' && (
                   <>
                     {/* GM Vietnam Corner Frame Overlay */}
@@ -949,6 +949,25 @@ const PhotoGallery = ({
                           }}
                         />
                       </>
+                    )}
+                    
+                    {/* Super Casual Full Frame Overlay - only for narrow (2:3) aspect ratio */}
+                    {tezdevTheme === 'supercasual' && aspectRatio === 'narrow' && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          backgroundImage: `url(/events/super-casual.png)`,
+                          backgroundSize: 'contain',
+                          backgroundPosition: 'center',
+                          backgroundRepeat: 'no-repeat',
+                          pointerEvents: 'none',
+                          zIndex: 2
+                        }}
+                      />
                     )}
                     
                     {/* Blue/Pink Corner Frame Overlays */}

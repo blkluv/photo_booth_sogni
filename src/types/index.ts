@@ -43,7 +43,7 @@ export interface ModelOption {
 
 export type AspectRatioOption = 'portrait' | 'landscape' | 'square' | 'narrow' | 'wide' | 'ultrawide' | 'ultranarrow';
 
-export type TezDevTheme = 'blue' | 'pink' | 'gmvietnam' | 'off';
+export type TezDevTheme = 'blue' | 'pink' | 'gmvietnam' | 'supercasual' | 'off';
 
 export interface Settings {
   selectedStyle: string;

@@ -3344,8 +3344,8 @@ const App = () => {
             updateSetting('tezdevTheme', value);
             saveSettingsToCookies({ tezdevTheme: value });
             
-            // Automatically switch to narrow (2:3) aspect ratio for GM Vietnam theme
-            if (value === 'gmvietnam') {
+            // Automatically switch to narrow (2:3) aspect ratio for GM Vietnam and Super Casual themes
+            if (value === 'gmvietnam' || value === 'supercasual') {
               updateSetting('aspectRatio', 'narrow');
               saveSettingsToCookies({ aspectRatio: 'narrow' });
               // Update CSS variables to match the new aspect ratio
