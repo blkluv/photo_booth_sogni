@@ -544,6 +544,7 @@ export class BackendSogniClient {
               
               // Store the completion intent and wait for remaining job completions
               (project as any)._pendingCompletion = true;
+              (project as any)._completionStartTime = Date.now();
               (project as any)._completionCheckInterval = setInterval(() => {
                 const stillIncomplete = project.jobs ? project.jobs.filter(j => !j.resultUrl && !j.error) : [];
                 if (stillIncomplete.length === 0) {
@@ -551,19 +552,44 @@ export class BackendSogniClient {
                   clearInterval((project as any)._completionCheckInterval);
                   delete (project as any)._completionCheckInterval;
                   delete (project as any)._pendingCompletion;
+                  delete (project as any)._completionStartTime;
                   project.emit('completed', []);
                 } else {
-                  console.log(`Still waiting for ${stillIncomplete.length} jobs to complete`);
+                  const elapsedSeconds = Math.floor((Date.now() - (project as any)._completionStartTime) / 1000);
+                  console.log(`Still waiting for ${stillIncomplete.length} jobs to complete (${elapsedSeconds}s elapsed)`);
+                  
+                  // After 10 seconds of waiting, start being more aggressive about failing orphaned jobs
+                  if (elapsedSeconds >= 10) {
+                    console.log(`After ${elapsedSeconds}s, assuming remaining jobs are orphaned and failing them`);
+                    stillIncomplete.forEach(job => {
+                      console.log(`Auto-failing orphaned job ${job.id} (realJobId: ${job.realJobId || 'unassigned'}) after ${elapsedSeconds}s wait`);
+                      project.failJob(job.id, 'Generation failed - job appears to be orphaned after project completion');
+                    });
+                  }
                 }
               }, 100); // Check every 100ms
               
               // Failsafe timeout after 15 seconds
               setTimeout(() => {
                 if ((project as any)._completionCheckInterval) {
+                  console.log(`Frontend failsafe timeout - checking for orphaned jobs`);
+                  
+                  // Before sending completion, fail any jobs that are still incomplete
+                  // This handles cases where server-side errors prevent individual job completion events
+                  const stillIncomplete = project.jobs ? project.jobs.filter(j => !j.resultUrl && !j.error) : [];
+                  if (stillIncomplete.length > 0) {
+                    console.log(`Failsafe: Auto-failing ${stillIncomplete.length} orphaned jobs that never received completion events`);
+                    stillIncomplete.forEach(job => {
+                      console.log(`Failsafe: Failing orphaned job ${job.id} (realJobId: ${job.realJobId || 'unassigned'})`);
+                      project.failJob(job.id, 'Generation failed - no completion event received');
+                    });
+                  }
+                  
                   console.log(`Frontend failsafe timeout - sending project completion anyway`);
                   clearInterval((project as any)._completionCheckInterval);
                   delete (project as any)._completionCheckInterval;
                   delete (project as any)._pendingCompletion;
+                  delete (project as any)._completionStartTime;
                   project.emit('completed', []);
                 }
               }, 15000);
@@ -582,6 +608,7 @@ export class BackendSogniClient {
               clearInterval((project as any)._completionCheckInterval);
               delete (project as any)._completionCheckInterval;
               delete (project as any)._pendingCompletion;
+              delete (project as any)._completionStartTime;
             }
             
             const failureError = new Error(event.error as string || 'Project failed') as Error & { projectId: string };
@@ -597,6 +624,7 @@ export class BackendSogniClient {
               clearInterval((project as any)._completionCheckInterval);
               delete (project as any)._completionCheckInterval;
               delete (project as any)._pendingCompletion;
+              delete (project as any)._completionStartTime;
             }
             
             console.error(`Backend reported an error for project ${project.id}:`, event);
@@ -721,6 +749,7 @@ export class BackendSogniClient {
                     delete (project as any)._completionCheckInterval;
                   }
                   delete (project as any)._pendingCompletion;
+                  delete (project as any)._completionStartTime;
                   project.emit('completed', []);
                 }
               }

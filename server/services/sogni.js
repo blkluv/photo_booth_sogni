@@ -1081,6 +1081,23 @@ export async function generateImage(client, params, progressCallback) {
               
               // Clean up handlers after a short delay to ensure completion event is processed
               setTimeout(() => {
+                // Cancel all pending job completion timeouts to prevent orphaned fallback events
+                if (projectCompletionTracker.jobCompletionTimeouts.size > 0) {
+                  console.log(`Cancelling ${projectCompletionTracker.jobCompletionTimeouts.size} pending job fallback timeouts for ${projectId}`);
+                  projectCompletionTracker.jobCompletionTimeouts.forEach((timeoutId, jobId) => {
+                    clearTimeout(timeoutId);
+                    console.log(`Cancelled fallback timeout for job ${jobId}`);
+                  });
+                  projectCompletionTracker.jobCompletionTimeouts.clear();
+                }
+                
+                // Cancel global fallback timeout as well
+                if (projectCompletionTracker.projectCompletionTimeout) {
+                  clearTimeout(projectCompletionTracker.projectCompletionTimeout);
+                  projectCompletionTracker.projectCompletionTimeout = null;
+                  console.log(`Cancelled global fallback timeout for ${projectId}`);
+                }
+                
                 if (client._eventHandlers.projectHandlers.has(projectId)) {
                   const handler = client._eventHandlers.projectHandlers.get(projectId);
                   client.projects.off('project', handler);
@@ -1292,6 +1309,12 @@ export async function generateImage(client, params, progressCallback) {
                 
                 // Process this event through our job handler logic
                 try {
+                  // Check if project completion has already been sent - if so, skip fallback
+                  if (project && project._receivedCompletionEvent) {
+                    console.log(`[${projectId}] Skipping fallback completion for job ${event.jobId} - project already completed`);
+                    return;
+                  }
+                  
                   console.log(`[${projectId}] Processing fallback completion for job ${event.jobId}`);
                   
                   // Create the progress event for job completion
