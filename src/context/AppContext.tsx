@@ -6,12 +6,12 @@ import { getSettingFromCookie, saveSettingsToCookies } from '../utils/cookies';
 // Helper function to handle TezDev theme cookie migration
 const getTezDevThemeFromCookie = () => {
   const savedTheme = getSettingFromCookie('tezdevTheme', DEFAULT_SETTINGS.tezdevTheme);
-  // Force existing users with 'pink', 'blue', or 'gmvietnam' to default to 'off' since events are over
-  // Keep 'supercasual' as it's the new active theme
-  if (savedTheme === 'pink' || savedTheme === 'blue' || savedTheme === 'gmvietnam') {
+  // Force existing users with 'pink', 'blue', or 'gmvietnam' to default to 'supercasual' since those events are over
+  // Keep 'supercasual' as the new active theme, and also default 'off' to 'supercasual' for new default
+  if (savedTheme === 'pink' || savedTheme === 'blue' || savedTheme === 'gmvietnam' || savedTheme === 'off') {
     // Save the new default and return it
-    saveSettingsToCookies({ tezdevTheme: 'off' });
-    return 'off';
+    saveSettingsToCookies({ tezdevTheme: 'supercasual' });
+    return 'supercasual';
   }
   return savedTheme;
 };

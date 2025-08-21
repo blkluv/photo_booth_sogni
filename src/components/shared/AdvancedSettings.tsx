@@ -406,6 +406,22 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
           <span className="slider-value">{controlNetGuidanceEnd.toFixed(1)}</span>
         </div>
 
+        {/* Event Theme selector */}
+        <div className="control-option">
+          <label className="control-label">Event Theme:</label>
+          <select
+            className="model-select"
+            onChange={(e) => handleTezDevThemeChange(e.target.value as TezDevTheme)}
+            value={currentTezDevTheme}
+          >
+            <option value="blue">Blue</option>
+            <option value="pink">Pink</option>
+            <option value="gmvietnam">GM Vietnam</option>
+            <option value="supercasual">Super Casual</option>
+            <option value="off">Off</option>
+          </select>
+        </div>
+
         {/* Flash toggle */}
         <div className="control-option checkbox">
           <input
@@ -459,22 +475,6 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
             onChange={(e) => onBackgroundAnimationsEnabledChange?.(e.target.checked)}
           />
           <label htmlFor="background-animations-toggle" className="control-label">Background Animations</label>
-        </div>
-        
-        {/* Event Theme selector */}
-        <div className="control-option">
-          <label className="control-label">Event Theme:</label>
-          <select
-            className="model-select"
-            onChange={(e) => handleTezDevThemeChange(e.target.value as TezDevTheme)}
-            value={currentTezDevTheme}
-          >
-            <option value="blue">Blue</option>
-            <option value="pink">Pink</option>
-            <option value="gmvietnam">GM Vietnam</option>
-            <option value="supercasual">Super Casual</option>
-            <option value="off">Off</option>
-          </select>
         </div>
         
         {/* Reset settings button */}
