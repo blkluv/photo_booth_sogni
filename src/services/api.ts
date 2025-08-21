@@ -649,33 +649,19 @@ export async function generateImage(params: Record<string, unknown>, progressCal
       // Handle response
       xhr.addEventListener('load', () => {
         cleanup();
-        console.log(`XHR Response - Status: ${xhr.status}, Response Text Length: ${xhr.responseText?.length || 0}`);
         try {
           if (xhr.status >= 200 && xhr.status < 300) {
             const jsonRaw: unknown = JSON.parse(xhr.responseText);
             const json: Record<string, unknown> = isObjectRecord(jsonRaw) ? jsonRaw : {};
-            console.log('XHR Success - Project ID:', json.projectId);
             resolve({
               projectId: json.projectId as string | undefined,
               status: json.status as string | undefined,
               responseData: json
             });
           } else {
-            console.error(`XHR Error - Status: ${xhr.status}, Response: ${xhr.responseText}`);
-            let errorMessage = `Server error (${xhr.status}). Please try again.`;
-            
-            if (xhr.status === 0) {
-              errorMessage = 'Network connection lost. Please check your internet and try again.';
-            } else if (xhr.responseText) {
-              try {
-                const errorData = JSON.parse(xhr.responseText);
-                if (errorData && typeof errorData === 'object' && 'error' in errorData) {
-                  errorMessage = String(errorData.error);
-                }
-              } catch {
-                // If response is not JSON, use the status message
-              }
-            }
+            const errorMessage = xhr.status === 0 
+              ? 'Network connection lost. Please check your internet and try again.'
+              : `Server error (${xhr.status}). Please try again.`;
             
             reject(new NetworkError(
               errorMessage,
@@ -685,7 +671,6 @@ export async function generateImage(params: Record<string, unknown>, progressCal
             ));
           }
         } catch (error) {
-          console.error('XHR Parse Error:', error);
           reject(new NetworkError(
             `Network error: ${error instanceof Error ? error.message : String(error)}`,
             false,
@@ -698,25 +683,20 @@ export async function generateImage(params: Record<string, unknown>, progressCal
       // Handle errors
       xhr.addEventListener('error', () => {
         cleanup();
-        console.error('XHR Error Event - Failed to connect to API');
-        console.error(`Attempted URL: ${API_BASE_URL}/sogni/generate`);
         // Check connectivity and handle appropriately
         checkConnectivity().then(isConnected => {
-          const errorMsg = isConnected 
-            ? `Network error during upload. The API at ${API_BASE_URL} may not be accessible from this device.`
-            : 'Internet connection lost. Please check your network and try again.';
-          console.error('Connectivity check result:', isConnected, 'Error:', errorMsg);
           reject(new NetworkError(
-            errorMsg,
+            isConnected 
+              ? 'Network error during upload. Please try again.'
+              : 'Internet connection lost. Please check your network and try again.',
             false,
             !isConnected,
             true
           ));
         }).catch(() => {
           // If connectivity check fails, assume network error
-          console.error('Connectivity check failed');
           reject(new NetworkError(
-            `Network error: Cannot reach API at ${API_BASE_URL}. Please check your connection and try again.`,
+            'Network error during upload. Please check your connection and try again.',
             false,
             true,
             true
@@ -726,22 +706,17 @@ export async function generateImage(params: Record<string, unknown>, progressCal
       
       xhr.addEventListener('abort', () => {
         cleanup();
-        console.error('XHR Abort Event - Request was cancelled or timed out');
         reject(new NetworkError('Request was cancelled', false, false, false));
       });
       
       // Configure and send request
-      console.log(`Sending XHR POST request to: ${API_BASE_URL}/sogni/generate`);
-      console.log('Request headers - Content-Type: application/json, X-Client-App-ID:', clientAppId);
       xhr.open('POST', `${API_BASE_URL}/sogni/generate`);
       xhr.setRequestHeader('Content-Type', 'application/json');
       xhr.setRequestHeader('Accept', 'application/json');
       xhr.setRequestHeader('X-Client-App-ID', clientAppId);
       xhr.withCredentials = true; // Include credentials for cross-origin requests
       
-      const requestBody = JSON.stringify(requestParams);
-      console.log(`Request body size: ${requestBody.length} bytes`);
-      xhr.send(requestBody);
+      xhr.send(JSON.stringify(requestParams));
     });
     
     // Mark that we have successfully connected

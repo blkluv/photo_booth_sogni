@@ -650,6 +650,30 @@ const App = () => {
   }, [sogniClient]); // Added sogniClient as dependency, state setters are stable
 
   /**
+   * Stop the camera stream and clean up resources
+   */
+  const stopCamera = useCallback(() => {
+    if (videoReference.current && videoReference.current.srcObject) {
+      console.log('🛑 Stopping camera stream');
+      const stream = videoReference.current.srcObject;
+      const tracks = stream.getTracks();
+      tracks.forEach(track => {
+        console.log(`🛑 Stopping track: ${track.kind} (${track.label})`);
+        track.stop();
+      });
+      
+      // Clear the video source
+      videoReference.current.srcObject = null;
+      
+      // Clean up orientation handler if it exists
+      if (orientationHandler) {
+        window.removeEventListener('orientationchange', orientationHandler);
+        setOrientationHandler(null);
+      }
+    }
+  }, [videoReference, orientationHandler, setOrientationHandler]);
+
+  /**
    * Start the camera stream for a given deviceId or fallback.
    * Request specific resolution based on desired aspect ratio.
    */
@@ -938,6 +962,18 @@ const App = () => {
   // Add an effect specifically for page unload/refresh cleanup
   useEffect(() => {
     const handleBeforeUnload = () => {
+      // Stop camera stream on page unload
+      if (videoReference.current && videoReference.current.srcObject) {
+        console.log('🛑 Stopping camera stream on page unload');
+        const stream = videoReference.current.srcObject;
+        const tracks = stream.getTracks();
+        tracks.forEach(track => {
+          console.log(`🛑 Stopping track: ${track.kind} (${track.label})`);
+          track.stop();
+        });
+        videoReference.current.srcObject = null;
+      }
+      
       // Clean up blob URLs to prevent memory leaks
       photos.forEach(photo => {
         if (photo.images) {
@@ -1473,6 +1509,8 @@ const App = () => {
       }
 
       if (!isMoreOperation) {
+        // Stop camera when showing photo grid
+        stopCamera();
         setShowPhotoGrid(true);
         setShowStartMenu(false);
       }
@@ -2109,6 +2147,8 @@ const App = () => {
         return updated;
       });
       
+      // Stop camera when showing photo grid
+      stopCamera();
       setShowPhotoGrid(true);
       setShowStartMenu(false);
     }
@@ -2507,6 +2547,9 @@ const App = () => {
       return;
     }
 
+    // Stop the camera stream after capturing the photo
+    stopCamera();
+
     // Create a temporary URL for the blob and show the image adjuster
     const tempUrl = URL.createObjectURL(blob);
     setCurrentUploadedImageUrl(tempUrl);
@@ -2659,6 +2702,8 @@ const App = () => {
               onClick={() => {
                 // Pre-scroll to top for smooth transition
                 window.scrollTo({ top: 0, behavior: 'smooth' });
+                // Stop camera when showing photo grid
+                stopCamera();
                 // Show photo grid
                 setShowPhotoGrid(true);
                 setShowStartMenu(false);
@@ -2798,16 +2843,12 @@ const App = () => {
       // Go directly back to camera view instead of start menu
       setShowStartMenu(false);
       
-      // Ensure camera is running and properly mirrored
-      if (cameraManuallyStarted && videoReference.current && videoReference.current.srcObject) {
-        // Camera stream exists, just ensure mirroring is correct
-        videoReference.current.style.transform = isFrontCamera ? 'scaleX(-1)' : 'scaleX(1)';
-        // Ensure video is playing
-        videoReference.current.play().catch(error => {
-          console.warn("Video re-play error:", error);
-        });
+      // Restart camera since it was stopped when photo grid was shown
+      if (cameraManuallyStarted && videoReference.current) {
+        // Always restart the camera since we stop it when showing photo grid
+        startCamera(selectedCameraDeviceId);
       } else {
-        // Camera stream doesn't exist or hasn't been started, restart it
+        // Camera hasn't been manually started yet, start it now
         startCamera(selectedCameraDeviceId);
         setCameraManuallyStarted(true);
       }
@@ -3698,6 +3739,8 @@ const App = () => {
             onClick={() => {
               // Pre-scroll to top for smooth transition
               window.scrollTo(0, 0);
+              // Stop camera when showing photo grid
+              stopCamera();
               // Clean transition - explicitly ensure camera is hidden first
               setShowPhotoGrid(true);
               setShowStartMenu(false);
