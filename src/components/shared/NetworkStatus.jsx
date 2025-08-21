@@ -5,10 +5,11 @@ import PropTypes from 'prop-types';
  * NetworkStatus component that shows connectivity status to users
  * Particularly useful for mobile users experiencing network issues
  */
-const NetworkStatus = ({ onRetryAll }) => {
+const NetworkStatus = ({ onRetryAll, connectionState = 'online', isGenerating = false }) => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [showOfflineNotification, setShowOfflineNotification] = useState(false);
+  const [showNotification, setShowNotification] = useState(false);
   const [wasOffline, setWasOffline] = useState(false);
+  const [notificationType, setNotificationType] = useState('offline'); // 'offline', 'reconnected', 'connection-issues', 'timeout'
 
   useEffect(() => {
     const handleOnline = () => {
@@ -17,12 +18,13 @@ const NetworkStatus = ({ onRetryAll }) => {
       
       if (wasOffline) {
         // Show "back online" notification briefly
-        setShowOfflineNotification(true);
+        setNotificationType('reconnected');
+        setShowNotification(true);
         setWasOffline(false);
         
         // Auto-hide after 3 seconds
         setTimeout(() => {
-          setShowOfflineNotification(false);
+          setShowNotification(false);
         }, 3000);
       }
     };
@@ -31,47 +33,124 @@ const NetworkStatus = ({ onRetryAll }) => {
       console.log('Network: Device went offline');
       setIsOnline(false);
       setWasOffline(true);
-      setShowOfflineNotification(true);
+      setNotificationType('offline');
+      setShowNotification(true);
     };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
     // Check initial state
-    if (!navigator.onLine && !showOfflineNotification) {
+    if (!navigator.onLine && !showNotification) {
       setIsOnline(false);
-      setShowOfflineNotification(true);
+      setNotificationType('offline');
+      setShowNotification(true);
     }
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [wasOffline, showOfflineNotification]);
+  }, [wasOffline, showNotification]);
+
+  // Handle connection state changes from parent
+  useEffect(() => {
+    if (connectionState === 'connecting' && isGenerating) {
+      setNotificationType('connection-issues');
+      setShowNotification(true);
+    } else if (connectionState === 'timeout' && isGenerating) {
+      setNotificationType('timeout');
+      setShowNotification(true);
+    } else if (connectionState === 'online' && notificationType !== 'reconnected') {
+      // Only hide if we're not showing a reconnected message
+      if (notificationType === 'connection-issues' || notificationType === 'timeout') {
+        setShowNotification(false);
+      }
+    }
+  }, [connectionState, isGenerating, notificationType]);
 
   // Auto-hide offline notification after 10 seconds when offline
   useEffect(() => {
-    if (!isOnline && showOfflineNotification) {
+    if (!isOnline && showNotification && notificationType === 'offline') {
       const timer = setTimeout(() => {
-        setShowOfflineNotification(false);
+        setShowNotification(false);
       }, 10000);
       
       return () => clearTimeout(timer);
     }
-  }, [isOnline, showOfflineNotification]);
+  }, [isOnline, showNotification, notificationType]);
+
+  // Auto-hide connection issues after 15 seconds
+  useEffect(() => {
+    if (showNotification && (notificationType === 'connection-issues' || notificationType === 'timeout')) {
+      const timer = setTimeout(() => {
+        setShowNotification(false);
+      }, 15000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [showNotification, notificationType]);
 
   const handleRetryClick = () => {
     if (onRetryAll && typeof onRetryAll === 'function') {
       onRetryAll();
     }
-    setShowOfflineNotification(false);
+    setShowNotification(false);
   };
 
   const handleDismiss = () => {
-    setShowOfflineNotification(false);
+    setShowNotification(false);
   };
 
-  if (!showOfflineNotification) return null;
+  if (!showNotification) return null;
+
+  // Get notification content based on type
+  const getNotificationContent = () => {
+    switch (notificationType) {
+      case 'offline':
+        return {
+          emoji: '📶',
+          title: 'No Internet Connection',
+          subtitle: 'Check your network and try again',
+          color: '#f44336',
+          showRetry: false
+        };
+      case 'reconnected':
+        return {
+          emoji: '✅',
+          title: 'Back Online!',
+          subtitle: 'You can retry failed photos now',
+          color: '#4CAF50',
+          showRetry: true
+        };
+      case 'connection-issues':
+        return {
+          emoji: '⚠️',
+          title: 'Connection Issues',
+          subtitle: 'Having trouble connecting to the server',
+          color: '#FF9800',
+          showRetry: true
+        };
+      case 'timeout':
+        return {
+          emoji: '⏱️',
+          title: 'Connection Timeout',
+          subtitle: 'The request is taking too long. Try refreshing.',
+          color: '#f44336',
+          showRetry: true
+        };
+      default:
+        return {
+          emoji: '📶',
+          title: 'Connection Status',
+          subtitle: 'Checking connection...',
+          color: '#666',
+          showRetry: false
+        };
+    }
+  };
+
+  const content = getNotificationContent();
 
   return (
     <>
@@ -96,7 +175,7 @@ const NetworkStatus = ({ onRetryAll }) => {
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 50000,
-          backgroundColor: isOnline ? '#4CAF50' : '#f44336',
+          backgroundColor: content.color,
           color: 'white',
           padding: '12px 20px',
           borderRadius: '8px',
@@ -115,33 +194,20 @@ const NetworkStatus = ({ onRetryAll }) => {
       
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <span style={{ fontSize: '16px' }}>
-          {isOnline ? '✅' : '📶'}
+          {content.emoji}
         </span>
         <div>
-          {isOnline ? (
-            <div>
-              <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>
-                Back Online!
-              </div>
-              <div style={{ fontSize: '12px', opacity: 0.9 }}>
-                You can retry failed photos now
-              </div>
-            </div>
-          ) : (
-            <div>
-              <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>
-                No Internet Connection
-              </div>
-              <div style={{ fontSize: '12px', opacity: 0.9 }}>
-                Check your network and try again
-              </div>
-            </div>
-          )}
+          <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>
+            {content.title}
+          </div>
+          <div style={{ fontSize: '12px', opacity: 0.9 }}>
+            {content.subtitle}
+          </div>
         </div>
       </div>
       
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-        {isOnline && onRetryAll && (
+        {content.showRetry && onRetryAll && (
           <button
             onClick={handleRetryClick}
             style={{
@@ -195,6 +261,8 @@ const NetworkStatus = ({ onRetryAll }) => {
 
 NetworkStatus.propTypes = {
   onRetryAll: PropTypes.func,
+  connectionState: PropTypes.oneOf(['online', 'offline', 'connecting', 'timeout']),
+  isGenerating: PropTypes.bool,
 };
 
 export default NetworkStatus; 

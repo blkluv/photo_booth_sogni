@@ -36,6 +36,7 @@ import ImageAdjuster from './components/shared/ImageAdjuster';
 import UploadProgress from './components/shared/UploadProgress';
 import PromoPopup from './components/shared/PromoPopup';
 import NetworkStatus from './components/shared/NetworkStatus';
+import { subscribeToConnectionState, getCurrentConnectionState } from './services/api';
 
 
 // Helper function to update URL with prompt parameter
@@ -164,6 +165,10 @@ const App = () => {
   
   // Add state for promotional popup
   const [showPromoPopup, setShowPromoPopup] = useState(false);
+  
+  // Connection state management
+  const [connectionState, setConnectionState] = useState(getCurrentConnectionState());
+  const [isGenerating, setIsGenerating] = useState(false);
   
   // Helper function to trigger promotional popup after batch completion
   const triggerPromoPopupIfNeeded = () => {
@@ -551,6 +556,43 @@ const App = () => {
       aspectRatio
     });
   };
+
+  // -------------------------
+  //   Connection State Management
+  // -------------------------
+  useEffect(() => {
+    // Subscribe to connection state changes
+    const unsubscribe = subscribeToConnectionState((newState) => {
+      setConnectionState(newState);
+    });
+    
+    return unsubscribe;
+  }, []);
+  
+  // Track if we're currently generating to show appropriate connection status
+  useEffect(() => {
+    const hasGeneratingPhotos = photos.some(photo => photo.generating || photo.loading);
+    setIsGenerating(hasGeneratingPhotos);
+    
+    // Set up timeout detection for stuck generation states
+    if (hasGeneratingPhotos && !activeProjectReference.current) {
+      // Only set timeout if no active project (to avoid conflicts with existing timeout system)
+      console.log('Setting up stuck state detection for orphaned generating photos');
+      const timeoutId = setTimeout(() => {
+        // Check if photos are still generating and no active project
+        setPhotos(prev => {
+          const stillGenerating = prev.some(photo => photo.generating || photo.loading);
+          if (stillGenerating && !activeProjectReference.current) {
+            console.warn('Generation appears stuck after 2 minutes with no active project, notifying user');
+            setConnectionState('timeout');
+          }
+          return prev;
+        });
+      }, 120000); // 2 minutes
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [photos, activeProjectReference.current]);
 
   // -------------------------
   //   Sogni initialization
@@ -3148,19 +3190,75 @@ const App = () => {
   const handleRetryAllPhotos = async () => {
     console.log('Retrying all failed retryable photos');
     
+    // Reset connection state when user manually retries
+    setConnectionState('online');
+    
+    // Cancel any active project first to prevent conflicts
+    if (activeProjectReference.current) {
+      console.log('Cancelling active project before retry:', activeProjectReference.current);
+      if (sogniClient) {
+        try {
+          await sogniClient.cancelProject(activeProjectReference.current);
+        } catch (error) {
+          console.warn('Error cancelling active project during retry:', error);
+        }
+      }
+      activeProjectReference.current = null;
+      clearAllTimeouts(); // Clear any existing timeouts
+    }
+    
     // Find all photos that can be retried
     const retryablePhotos = photos
       .map((photo, index) => ({ photo, index }))
       .filter(({ photo }) => photo.error && photo.retryable && !photo.generating);
     
-    if (retryablePhotos.length === 0) {
-      console.log('No retryable photos found');
+    // Also handle stuck generating photos (force retry them)
+    const stuckPhotos = photos
+      .map((photo, index) => ({ photo, index }))
+      .filter(({ photo }) => (photo.generating || photo.loading) && !photo.error);
+    
+    if (retryablePhotos.length === 0 && stuckPhotos.length === 0) {
+      console.log('No retryable or stuck photos found');
       return;
     }
     
+    // First, reset stuck photos to error state so they can be retried
+    if (stuckPhotos.length > 0) {
+      console.log(`Found ${stuckPhotos.length} stuck photos, converting to retryable errors`);
+      setPhotos(prev => {
+        const updated = [...prev];
+        stuckPhotos.forEach(({ index }) => {
+          if (updated[index]) {
+            updated[index] = {
+              ...updated[index],
+              generating: false,
+              loading: false,
+              error: 'GENERATION STUCK: Connection timeout',
+              retryable: true,
+              permanentError: false,
+              statusText: 'Stuck - Retry Available'
+            };
+          }
+        });
+        return updated;
+      });
+      
+      // Wait a moment for state to update
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    // Get the updated photos list after state changes using a callback to ensure fresh state
+    let allRetryablePhotos = [];
+    setPhotos(prev => {
+      allRetryablePhotos = prev
+        .map((photo, index) => ({ photo, index }))
+        .filter(({ photo }) => photo.error && photo.retryable && !photo.generating);
+      return prev; // Don't actually change the state here
+    });
+    
     // Retry each photo with a small delay between retries
-    for (let i = 0; i < retryablePhotos.length; i++) {
-      const { index } = retryablePhotos[i];
+    for (let i = 0; i < allRetryablePhotos.length; i++) {
+      const { index } = allRetryablePhotos[i];
       
       // Add a delay between retries to avoid overwhelming the server
       if (i > 0) {
@@ -3918,7 +4016,11 @@ const App = () => {
       />
 
       {/* Network Status Notification */}
-      <NetworkStatus onRetryAll={handleRetryAllPhotos} />
+      <NetworkStatus 
+        onRetryAll={handleRetryAllPhotos} 
+        connectionState={connectionState}
+        isGenerating={isGenerating}
+      />
       
       {/* Add this section at the end, right before the closing tag */}
       {showImageAdjuster && currentUploadedImageUrl && (

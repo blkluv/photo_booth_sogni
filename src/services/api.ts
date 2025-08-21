@@ -9,6 +9,43 @@ let isOnline = navigator.onLine;
 let lastConnectionCheck = 0;
 let connectivityCheckInProgress = false;
 
+// Connection state management for UI feedback
+type ConnectionState = 'online' | 'offline' | 'connecting' | 'timeout';
+let currentConnectionState: ConnectionState = navigator.onLine ? 'online' : 'offline';
+const connectionStateListeners: Array<(state: ConnectionState) => void> = [];
+
+// Export function to subscribe to connection state changes
+export function subscribeToConnectionState(listener: (state: ConnectionState) => void): () => void {
+  connectionStateListeners.push(listener);
+  // Return unsubscribe function
+  return () => {
+    const index = connectionStateListeners.indexOf(listener);
+    if (index > -1) {
+      connectionStateListeners.splice(index, 1);
+    }
+  };
+}
+
+// Notify all listeners of connection state change
+function notifyConnectionStateChange(newState: ConnectionState) {
+  if (currentConnectionState !== newState) {
+    currentConnectionState = newState;
+    console.log(`Connection state changed to: ${newState}`);
+    connectionStateListeners.forEach(listener => {
+      try {
+        listener(newState);
+      } catch (error) {
+        console.warn('Error in connection state listener:', error);
+      }
+    });
+  }
+}
+
+// Get current connection state
+export function getCurrentConnectionState(): ConnectionState {
+  return currentConnectionState;
+}
+
 /**
  * Check if the device is currently online by testing connectivity
  */
@@ -885,6 +922,9 @@ export async function generateImage(params: Record<string, unknown>, progressCal
               });
             } else {
               console.error('EventSource connection failed permanently after retries.');
+              if (typeof window !== 'undefined') {
+                notifyConnectionStateChange('offline');
+              }
               clearAllTimers();
               safelyCloseEventSource();
               
