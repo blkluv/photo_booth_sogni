@@ -518,4 +518,71 @@ export const blobToDataURL = (blob) => {
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
-}; 
+};
+
+/**
+ * Convert a PNG blob to high-quality JPEG blob for efficient upload
+ * Maintains high quality while reducing file size for faster uploads
+ * @param {Blob} pngBlob - The PNG blob to convert
+ * @param {number} quality - JPEG quality (0.1-1.0), default 0.92 for high quality
+ * @returns {Promise<Blob>} High-quality JPEG blob
+ */
+export async function convertPngToHighQualityJpeg(pngBlob, quality = 0.92) {
+  return new Promise((resolve, reject) => {
+    // Log original file size
+    const originalSizeMB = (pngBlob.size / 1024 / 1024).toFixed(2);
+    console.log(`🖼️ Converting PNG to JPEG - Original size: ${originalSizeMB}MB`);
+
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      
+      // Enable high-quality image resampling for best results
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      
+      // Fill with white background to avoid black background in JPEG
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw the image
+      ctx.drawImage(img, 0, 0);
+      
+      // Convert to high-quality JPEG blob
+      canvas.toBlob((jpegBlob) => {
+        if (!jpegBlob) {
+          reject(new Error('Failed to create JPEG blob'));
+          return;
+        }
+        
+        // Log conversion results
+        const newSizeMB = (jpegBlob.size / 1024 / 1024).toFixed(2);
+        const compressionRatio = ((1 - jpegBlob.size / pngBlob.size) * 100).toFixed(1);
+        console.log(`📦 JPEG conversion complete - New size: ${newSizeMB}MB (${compressionRatio}% smaller)`);
+        
+        resolve(jpegBlob);
+      }, 'image/jpeg', quality);
+    };
+    
+    img.onerror = () => {
+      reject(new Error('Failed to load PNG image for conversion'));
+    };
+    
+    // Create object URL to load the PNG blob
+    const url = URL.createObjectURL(pngBlob);
+    
+    // Store the original onload handler
+    const originalOnload = img.onload;
+    
+    // Override onload to clean up URL and call original handler
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      originalOnload();
+    };
+    
+    img.src = url;
+  });
+} 

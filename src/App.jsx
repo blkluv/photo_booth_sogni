@@ -2383,18 +2383,34 @@ const App = () => {
     // Generate initial data URL and blob
     // const dataUrl = canvas.toDataURL('image/png', 1.0);
     
-    // Use a quality of 1.0 and explicitly use the PNG MIME type for iOS
-    const blob = await new Promise(resolve => {
+    // Create initial PNG blob with maximum quality
+    const pngBlob = await new Promise(resolve => {
       canvas.toBlob(resolve, 'image/png', 1.0);
     });
     
-    if (!blob) {
+    if (!pngBlob) {
       console.error('Failed to create blob from canvas');
       return;
     }
 
+    // Convert PNG to high-quality JPEG for efficient upload
+    let finalBlob;
+    try {
+      const { convertPngToHighQualityJpeg } = await import('./utils/imageProcessing.js');
+      finalBlob = await convertPngToHighQualityJpeg(pngBlob);
+      console.log(`📊 Upload format: JPEG (converted from PNG for efficiency)`);
+    } catch (conversionError) {
+      console.warn('JPEG conversion failed, using original PNG:', conversionError);
+      finalBlob = pngBlob;
+      console.log(`📊 Upload format: PNG (fallback)`);
+    }
+
+    // Log final file size being transmitted
+    const finalSizeMB = (finalBlob.size / 1024 / 1024).toFixed(2);
+    console.log(`📤 Final transmission size: ${finalSizeMB}MB`);
+
     // Create a temporary URL for the blob and show the image adjuster
-    const tempUrl = URL.createObjectURL(blob);
+    const tempUrl = URL.createObjectURL(finalBlob);
     setCurrentUploadedImageUrl(tempUrl);
     setCurrentUploadedSource('camera');
     
@@ -2537,21 +2553,37 @@ const App = () => {
     // Generate initial data URL and blob
     // const dataUrl = canvas.toDataURL('image/png', 1.0);
     
-    // Use a quality of 1.0 and explicitly use the PNG MIME type for iOS
-    const blob = await new Promise(resolve => {
+    // Create initial PNG blob with maximum quality
+    const pngBlob = await new Promise(resolve => {
       canvas.toBlob(resolve, 'image/png', 1.0);
     });
     
-    if (!blob) {
+    if (!pngBlob) {
       console.error('Failed to create blob from canvas');
       return;
     }
+
+    // Convert PNG to high-quality JPEG for efficient upload
+    let finalBlob;
+    try {
+      const { convertPngToHighQualityJpeg } = await import('./utils/imageProcessing.js');
+      finalBlob = await convertPngToHighQualityJpeg(pngBlob);
+      console.log(`📊 Upload format: JPEG (converted from PNG for efficiency)`);
+    } catch (conversionError) {
+      console.warn('JPEG conversion failed, using original PNG:', conversionError);
+      finalBlob = pngBlob;
+      console.log(`📊 Upload format: PNG (fallback)`);
+    }
+
+    // Log final file size being transmitted
+    const finalSizeMB = (finalBlob.size / 1024 / 1024).toFixed(2);
+    console.log(`📤 Final transmission size: ${finalSizeMB}MB`);
 
     // Stop the camera stream after capturing the photo
     stopCamera();
 
     // Create a temporary URL for the blob and show the image adjuster
-    const tempUrl = URL.createObjectURL(blob);
+    const tempUrl = URL.createObjectURL(finalBlob);
     setCurrentUploadedImageUrl(tempUrl);
     setCurrentUploadedSource('camera');
     

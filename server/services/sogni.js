@@ -830,21 +830,31 @@ export async function generateImage(client, params, progressCallback) {
     
     // Add image data BEFORE creating the project
     if (isEnhancement) {
-      projectOptions.startingImage = params.startingImage instanceof Uint8Array 
+      const imageData = params.startingImage instanceof Uint8Array 
         ? params.startingImage 
         : new Uint8Array(params.startingImage);
+      projectOptions.startingImage = imageData;
       projectOptions.startingImageStrength = params.startingImageStrength || 0.85;
+      
+      // Log enhancement image transmission details
+      const enhancementSizeMB = (imageData.length / 1024 / 1024).toFixed(2);
+      console.log(`🚀 [SERVER] Enhancement image to Sogni SDK: ${enhancementSizeMB}MB (${imageData.length} bytes)`);
     } else if (params.imageData) {
+      const imageData = params.imageData instanceof Uint8Array 
+        ? params.imageData 
+        : new Uint8Array(params.imageData);
       projectOptions.controlNet = {
         name: 'instantid',
-        image: params.imageData instanceof Uint8Array 
-          ? params.imageData 
-          : new Uint8Array(params.imageData),
+        image: imageData,
         strength: params.controlNetStrength || 0.8,
         mode: 'balanced',
         guidanceStart: 0,
         guidanceEnd: params.controlNetGuidanceEnd || 0.3,
       };
+      
+      // Log controlNet image transmission details
+      const controlNetSizeMB = (imageData.length / 1024 / 1024).toFixed(2);
+      console.log(`🚀 [SERVER] ControlNet image to Sogni SDK: ${controlNetSizeMB}MB (${imageData.length} bytes)`);
     } else {
       console.warn("No starting image or controlNet image data provided.");
     }

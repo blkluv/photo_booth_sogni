@@ -373,9 +373,25 @@ const ImageAdjuster = ({
       drawHeight
     );
     
-    // Convert to blob using maximum quality (1.0) to preserve details for Sogni SDK
-    canvas.toBlob((blob) => {
-      onConfirm(blob);
+    // Convert to PNG blob first with maximum quality to preserve details
+    canvas.toBlob(async (pngBlob) => {
+      // Convert PNG to high-quality JPEG for efficient upload
+      let finalBlob;
+      try {
+        const { convertPngToHighQualityJpeg } = await import('../../utils/imageProcessing.js');
+        finalBlob = await convertPngToHighQualityJpeg(pngBlob);
+        console.log(`📊 ImageAdjuster: JPEG format selected for upload`);
+      } catch (conversionError) {
+        console.warn('ImageAdjuster: JPEG conversion failed, using PNG:', conversionError);
+        finalBlob = pngBlob;
+        console.log(`📊 ImageAdjuster: PNG format (fallback)`);
+      }
+
+      // Log final file size being transmitted
+      const finalSizeMB = (finalBlob.size / 1024 / 1024).toFixed(2);
+      console.log(`📤 ImageAdjuster transmission size: ${finalSizeMB}MB`);
+
+      onConfirm(finalBlob);
     }, 'image/png', 1.0);
   };
   

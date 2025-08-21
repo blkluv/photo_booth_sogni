@@ -439,9 +439,15 @@ export async function createProject(params: Record<string, unknown>, progressCal
       // For enhancement, the image is already in Array form
       if (Array.isArray(params.startingImage)) {
         imageData = params.startingImage;
+        const enhancementSizeMB = (params.startingImage.length / 1024 / 1024).toFixed(2);
+        console.log(`📤 Enhancement image transmitting to Sogni API: ${enhancementSizeMB}MB`);
+        console.log(`📊 Enhancement image format: Array (${params.startingImage.length} bytes)`);
       } else if (params.startingImage instanceof Uint8Array) {
         // Convert Uint8Array to regular array
         imageData = Array.from(params.startingImage);
+        const enhancementSizeMB = (params.startingImage.length / 1024 / 1024).toFixed(2);
+        console.log(`📤 Enhancement image transmitting to Sogni API: ${enhancementSizeMB}MB`);
+        console.log(`📊 Enhancement image format: Uint8Array converted to Array (${params.startingImage.length} bytes)`);
       } else {
         throw new Error('Enhancement requires startingImage as Array or Uint8Array');
       }
@@ -454,9 +460,11 @@ export async function createProject(params: Record<string, unknown>, progressCal
     ) {
       const controlNet = params.controlNet as { image: unknown };
       if (controlNet.image instanceof Uint8Array) {
-        // Check image size and compress if needed
+        // Check image size and log transmission details
         const originalSize = controlNet.image.length;
-        console.log(`Original image size: ${originalSize / 1024 / 1024} MB`);
+        const originalSizeMB = (originalSize / 1024 / 1024).toFixed(2);
+        console.log(`📤 Transmitting to Sogni API: ${originalSizeMB}MB`);
+        console.log(`📊 Image data format: Uint8Array (${originalSize} bytes)`);
         
         // For large images, send chunks or downsize
         if (originalSize > 10 * 1024 * 1024) { // If over 10MB
