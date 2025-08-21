@@ -758,10 +758,6 @@ export async function generateImage(params: Record<string, unknown>, progressCal
       // Keep track of reconnection timers
       let reconnectionTimer: NodeJS.Timeout | undefined = undefined;
       
-      // Track if we've ever successfully connected
-      let hasConnectedOnce = false;
-      const connectionStartTime = Date.now();
-      
       // Function to clear all timers
       const clearAllTimers = () => {
         if (connectionTimeout !== undefined) {
@@ -850,12 +846,6 @@ export async function generateImage(params: Record<string, unknown>, progressCal
                 connectionTimeout = undefined;
               }
 
-              // Mark that we've successfully connected when we receive any message
-              if (!hasConnectedOnce) {
-                hasConnectedOnce = true;
-                console.log('EventSource connection established successfully');
-              }
-
               // Only handle connection/heartbeat events internally
               if (data.type === 'connected' || data.type === 'heartbeat') {
                 // Optionally log or handle connection events
@@ -923,37 +913,10 @@ export async function generateImage(params: Record<string, unknown>, progressCal
               checkConnectivity().then(isConnected => {
                 if (!isConnected) {
                   console.log('Device is offline, will retry when connection is restored');
-                  // Still respect retry limits even when offline
-                  if (retryCount >= maxRetries) {
-                    console.error('EventSource connection failed permanently - device offline and max retries exceeded.');
-                    clearAllTimers();
-                    safelyCloseEventSource();
-                    reject(new NetworkError(
-                      'Connection failed - device appears to be offline. Please check your internet connection and try again.',
-                      false,
-                      true,
-                      true
-                    ));
-                    return;
-                  }
-                  // Longer delay when offline, but still respect retry count
+                  // Longer delay when offline
                   const delay = 5000; // 5 seconds when offline
                   reconnectionTimer = setTimeout(connectSSE, delay);
                 } else {
-                  // If we've never connected and we're getting repeated failures, fail faster
-                  const elapsedTime = Date.now() - connectionStartTime;
-                  if (!hasConnectedOnce && elapsedTime > 60000) { // 1 minute without any successful connection
-                    console.error('EventSource connection failed permanently - unable to establish initial connection after 1 minute.');
-                    clearAllTimers();
-                    safelyCloseEventSource();
-                    reject(new NetworkError(
-                      'Unable to connect to the processing server. Please check if the service is running and try again.',
-                      false,
-                      false,
-                      true
-                    ));
-                    return;
-                  }
                   // Use shorter delay for network errors when online
                   const delay = isNetworkError ? 500 : 1000 * Math.pow(1.5, retryCount);
                   console.log(`Will retry in ${delay}ms`);
