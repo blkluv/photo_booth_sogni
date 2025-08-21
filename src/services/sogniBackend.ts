@@ -794,11 +794,24 @@ export class BackendSogniClient {
       }
       
       console.error('Error starting generation:', error);
+      console.error('Error details:', {
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        message: error && typeof error === 'object' && 'message' in error ? (error as { message: string }).message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      
       project.emit('uploadComplete'); // Clean up upload progress
       const errorMsg = error && typeof error === 'object' && 'message' in error && typeof (error as { message: unknown }).message === 'string'
         ? (error as { message: string }).message
         : String(error);
-      project.emit('failed', new Error(errorMsg));
+      
+      // Emit a more user-friendly error message
+      const userFriendlyError = new Error(
+        errorMsg.includes('Network error') || errorMsg.includes('connection') 
+          ? 'Unable to connect to the image generation service. Please check your internet connection and try again.'
+          : errorMsg
+      );
+      project.emit('failed', userFriendlyError);
       // Remove from active projects
       this.activeProjects.delete(projectId);
     }
