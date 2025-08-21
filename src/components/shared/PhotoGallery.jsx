@@ -50,7 +50,7 @@ const PhotoGallery = ({
       setShowMoreButtonDuringGeneration(false);
       const timeoutId = setTimeout(() => {
         setShowMoreButtonDuringGeneration(true);
-      }, 10000); // 10 seconds
+      }, 20000); // 20 seconds
 
       return () => {
         clearTimeout(timeoutId);
@@ -64,7 +64,7 @@ const PhotoGallery = ({
   // Handler for the "more" button that can either generate more or cancel current generation
   const handleMoreButtonClick = useCallback(async () => {
     if (isGenerating && activeProjectReference.current) {
-      // Cancel current project
+      // Cancel current project and immediately start new batch
       console.log('Cancelling current project from more button:', activeProjectReference.current);
       try {
         if (sogniClient && sogniClient.cancelProject) {
@@ -73,8 +73,12 @@ const PhotoGallery = ({
         activeProjectReference.current = null;
         // Reset the timeout state
         setShowMoreButtonDuringGeneration(false);
+        // Immediately start new batch after canceling
+        handleGenerateMorePhotos();
       } catch (error) {
         console.warn('Error cancelling project from more button:', error);
+        // Even if cancellation fails, try to start new batch
+        handleGenerateMorePhotos();
       }
     } else {
       // Normal "generate more photos" behavior
