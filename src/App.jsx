@@ -2992,7 +2992,7 @@ const App = () => {
       });
     }
 
-    if (activeProjectReference.current || !lastPhotoData.blob) {
+    if (!lastPhotoData.blob) {
       return;
     }
 

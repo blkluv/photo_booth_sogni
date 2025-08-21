@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useEffect } from 'react';
+import React, { useMemo, useCallback, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import '../../styles/film-strip.css'; // Using film-strip.css which contains the gallery styles
 import '../../styles/components/PhotoGallery.css';
@@ -40,6 +40,48 @@ const PhotoGallery = ({
   aspectRatio = null,
   handleRetryPhoto,
 }) => {
+  // State to track when to show the "more" button during generation
+  const [showMoreButtonDuringGeneration, setShowMoreButtonDuringGeneration] = useState(false);
+  
+  // Effect to handle the 10-second timeout for showing the "more" button during generation
+  useEffect(() => {
+    if (isGenerating && selectedPhotoIndex === null) {
+      // Start the 10-second timeout when generation begins
+      setShowMoreButtonDuringGeneration(false);
+      const timeoutId = setTimeout(() => {
+        setShowMoreButtonDuringGeneration(true);
+      }, 10000); // 10 seconds
+
+      return () => {
+        clearTimeout(timeoutId);
+      };
+    } else {
+      // Reset the state when not generating or when a photo is selected
+      setShowMoreButtonDuringGeneration(false);
+    }
+  }, [isGenerating, selectedPhotoIndex]);
+
+  // Handler for the "more" button that can either generate more or cancel current generation
+  const handleMoreButtonClick = useCallback(async () => {
+    if (isGenerating && activeProjectReference.current) {
+      // Cancel current project
+      console.log('Cancelling current project from more button:', activeProjectReference.current);
+      try {
+        if (sogniClient && sogniClient.cancelProject) {
+          await sogniClient.cancelProject(activeProjectReference.current);
+        }
+        activeProjectReference.current = null;
+        // Reset the timeout state
+        setShowMoreButtonDuringGeneration(false);
+      } catch (error) {
+        console.warn('Error cancelling project from more button:', error);
+      }
+    } else {
+      // Normal "generate more photos" behavior
+      handleGenerateMorePhotos();
+    }
+  }, [isGenerating, activeProjectReference, sogniClient, handleGenerateMorePhotos]);
+
   // Skip rendering if there are no photos or the grid is hidden
   if (photos.length === 0 || !showPhotoGrid) return null;
   
@@ -448,22 +490,25 @@ const PhotoGallery = ({
         </button>
       )}
       {/* More button - positioned on the right side */}
-      {!isGenerating && selectedPhotoIndex === null && (
+      {((!isGenerating && selectedPhotoIndex === null) || (isGenerating && showMoreButtonDuringGeneration && selectedPhotoIndex === null)) && (
         <button
           className="more-photos-btn corner-btn"
-          onClick={handleGenerateMorePhotos}
-          disabled={activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob}
+          onClick={handleMoreButtonClick}
+          disabled={!isGenerating && (activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob)}
           style={{
             position: 'fixed',
             right: '20px',
             bottom: '20px',
             left: 'auto',
-            cursor: activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob ? 'not-allowed' : 'pointer',
+            cursor: (!isGenerating && (activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob)) ? 'not-allowed' : 'pointer',
             zIndex: 9999,
-            opacity: activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob ? 0.6 : 1,
+            opacity: (!isGenerating && (activeProjectReference.current !== null || !isSogniReady || !lastPhotoData.blob)) ? 0.6 : 1,
+            backgroundColor: isGenerating ? '#ff6b6b' : undefined, // Red background when in cancel mode
+            borderColor: isGenerating ? '#ff6b6b' : undefined,
           }}
+          title={isGenerating ? 'Cancel current generation and start new batch' : 'Generate more photos'}
         >
-          More ✨
+          {isGenerating ? 'Cancel & More ✨' : 'More ✨'}
         </button>
       )}
       {/* Navigation buttons - only show when a photo is selected */}
