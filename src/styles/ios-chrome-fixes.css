@@ -153,13 +153,6 @@
     justify-content: center !important;
   }
   
-  /* Remove height constraint in PWA mode to prevent layout issues */
-  @media (display-mode: standalone) {
-    .main-content-area {
-      height: auto !important;
-    }
-  }
-  
   /* Fix for global photobooth frame centering */
   .polaroidFrame, [class*="polaroidFrame"] {
     margin: 0 auto !important;
