@@ -219,6 +219,19 @@
   transform-origin: left;
 }
 
+/* Signup button in tips modal */
+@media (max-width: 480px) {
+  .note-footer > div {
+    flex-direction: column !important;
+    text-align: center !important;
+  }
+  
+  .signup-tip-button {
+    margin-top: 10px !important;
+    align-self: center !important;
+  }
+}
+
 @keyframes floatIn {
   0% {
     opacity: 0;

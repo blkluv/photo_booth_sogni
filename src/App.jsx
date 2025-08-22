@@ -254,6 +254,11 @@ const App = () => {
       }, 20000);
     }
   };
+
+  // Add this for testing - you can call this from browser console
+  window.showPromoPopupNow = () => {
+    setShowPromoPopup(true);
+  };
   
   // Handle promotional popup close
   const handlePromoPopupClose = () => {
@@ -3878,9 +3883,44 @@ const App = () => {
                   <li>You can even drag a photo into the camera window to use as a reference!</li>
                 </ul>
                 <div className="note-footer">
-                  <a href="https://www.sogni.ai/sdk" target="_blank" rel="noopener noreferrer">
-                  Vibe Coded with Sogni Client SDK<br/>Powered by Sogni Supernet ❤️
-                  </a>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                    <a href="https://www.sogni.ai/sdk" target="_blank" rel="noopener noreferrer">
+                      Vibe Coded with Sogni Client SDK<br/>Powered by Sogni Supernet ❤️
+                    </a>
+                    <button
+                      onClick={() => {
+                        setShowInfoModal(false);
+                        setShowPromoPopup(true);
+                      }}
+                      className="signup-tip-button"
+                      style={{
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        border: 'none',
+                        color: 'white',
+                        padding: '6px 12px',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                        textShadow: '0 1px 2px rgba(0,0,0,0.2)',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.05)';
+                        e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                      }}
+                      title="Get 100 free credits with Sogni!"
+                    >
+                      Signup? ✨
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

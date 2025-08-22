@@ -69,19 +69,39 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.promo-logo {
-  margin-bottom: 12px;
+.promo-mascot {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-.sogni-logo {
-  font-size: 48px;
-  display: inline-block;
-  animation: sparkle 2s ease-in-out infinite;
+.sloth-mascot {
+  width: 120px;
+  height: auto;
+  max-width: 100%;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+  animation: slothBounce 3s ease-in-out infinite;
+  transition: transform 0.3s ease;
 }
 
-@keyframes sparkle {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
+.sloth-mascot:hover {
+  transform: scale(1.05) rotate(-2deg);
+}
+
+@keyframes slothBounce {
+  0%, 100% { 
+    transform: translateY(0) scale(1);
+  }
+  25% { 
+    transform: translateY(-8px) scale(1.02);
+  }
+  50% { 
+    transform: translateY(-4px) scale(1.01);
+  }
+  75% { 
+    transform: translateY(-12px) scale(1.03);
+  }
 }
 
 .promo-modal-header h2 {
@@ -269,6 +289,10 @@
     padding: 14px 20px;
     font-size: 15px;
   }
+
+  .sloth-mascot {
+    width: 100px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -289,8 +313,8 @@
     font-size: 20px;
   }
 
-  .sogni-logo {
-    font-size: 40px;
+  .sloth-mascot {
+    width: 80px;
   }
 
   .promo-modal-header h2 {

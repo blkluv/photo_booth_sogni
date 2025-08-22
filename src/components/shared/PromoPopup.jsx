@@ -52,8 +52,12 @@ const PromoPopup = ({ isOpen, onClose }) => {
         <button className="promo-modal-close" onClick={onClose}>×</button>
         
         <div className="promo-modal-header">
-          <div className="promo-logo">
-            <span className="sogni-logo">✨</span>
+          <div className="promo-mascot">
+            <img 
+              src="/sloth_cam_hop_trnsparent.png" 
+              alt="Sogni Sloth Camera" 
+              className="sloth-mascot"
+            />
           </div>
           <h2>Enjoying Photobooth?</h2>
         </div>
