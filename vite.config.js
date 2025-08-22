@@ -88,6 +88,8 @@ export default defineConfig(({ mode }) => {
       // Ensure JSON files and JavaScript configs are included in the build
       assetsInclude: ['**/*.json', 'src/constants/**/*.js'],
     },
+    // Copy PWA files during build
+    publicDir: 'public',
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
