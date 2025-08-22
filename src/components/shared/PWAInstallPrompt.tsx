@@ -26,10 +26,16 @@ const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ onClose }) => {
   };
 
   useEffect(() => {
-    // Force update service worker cache on component mount
-    if ('serviceWorker' in navigator) {
+    // Only check for service worker updates once per session to avoid reload loops
+    const hasCheckedForUpdates = sessionStorage.getItem('sw-update-checked');
+    if ('serviceWorker' in navigator && !hasCheckedForUpdates) {
+      sessionStorage.setItem('sw-update-checked', 'true');
       void navigator.serviceWorker.getRegistration().then(registration => {
         if (registration) {
+          // Only update if there's actually an update available
+          registration.addEventListener('updatefound', () => {
+            console.log('Service worker update found');
+          });
           void registration.update();
         }
       }).catch(error => {

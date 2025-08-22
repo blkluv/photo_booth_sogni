@@ -30,7 +30,8 @@ self.addEventListener('install', (event) => {
       return cache.addAll(STATIC_ASSETS);
     })
   );
-  self.skipWaiting();
+  // Don't immediately take control to prevent reload loops
+  // Let the page decide when to activate the new service worker
 });
 
 // Activate event - clean up old caches
