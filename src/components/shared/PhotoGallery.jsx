@@ -1,4 +1,5 @@
-import React, { useMemo, useCallback, useEffect, useState } from 'react';
+import React, { useMemo, useCallback, useEffect, useState, memo } from 'react';
+
 import PropTypes from 'prop-types';
 import '../../styles/film-strip.css'; // Using film-strip.css which contains the gallery styles
 import '../../styles/components/PhotoGallery.css';
@@ -6,6 +7,46 @@ import { createPolaroidImage } from '../../utils/imageProcessing';
 import { getPhotoHashtag } from '../../services/TwitterShare';
 import { downloadImageMobile, enableMobileImageDownload } from '../../utils/mobileDownload';
 import { isMobile } from '../../utils/index';
+
+// Memoized placeholder image component to prevent blob reloading
+const PlaceholderImage = memo(({ placeholderUrl }) => {
+
+  
+  if (!placeholderUrl) return null;
+  
+  return (
+    <img
+      src={placeholderUrl}
+      alt="Original reference"
+      className="placeholder"
+      onLoad={e => {
+        // Enable mobile-optimized download functionality when image loads
+        enableMobileImageDownload(e.target);
+      }}
+      onContextMenu={e => {
+        // Allow native context menu for image downloads
+        e.stopPropagation();
+      }}
+      style={{
+        objectFit: 'cover',
+        position: 'relative',
+        top: 0,
+        left: 0,
+        opacity: 0.25,
+        zIndex: 1
+      }}
+    />
+  );
+}, (prevProps, nextProps) => {
+  // Only re-render if the actual URL changes
+  return prevProps.placeholderUrl === nextProps.placeholderUrl;
+});
+
+PlaceholderImage.displayName = 'PlaceholderImage';
+
+PlaceholderImage.propTypes = {
+  placeholderUrl: PropTypes.string
+};
 
 const PhotoGallery = ({
   photos,
@@ -40,6 +81,8 @@ const PhotoGallery = ({
   aspectRatio = null,
   handleRetryPhoto,
 }) => {
+
+  
   // State to track when to show the "more" button during generation
   const [showMoreButtonDuringGeneration, setShowMoreButtonDuringGeneration] = useState(false);
   
@@ -847,29 +890,7 @@ const PhotoGallery = ({
                 }}
               >
                 <div>
-                  {placeholderUrl && (
-                    <img
-                      src={placeholderUrl}
-                      alt="Original reference"
-                      className="placeholder"
-                      onLoad={e => {
-                        // Enable mobile-optimized download functionality when image loads
-                        enableMobileImageDownload(e.target);
-                      }}
-                      onContextMenu={e => {
-                        // Allow native context menu for image downloads
-                        e.stopPropagation();
-                      }}
-                      style={{
-                        objectFit: 'cover',
-                        position: 'relative',
-                        top: 0,
-                        left: 0,
-                        opacity: 0.25,
-                        zIndex: 1
-                      }}
-                    />
-                  )}
+                  <PlaceholderImage placeholderUrl={placeholderUrl} />
                 </div>
                 <div className="photo-label">
                   {photo.error ? 
@@ -948,6 +969,18 @@ const PhotoGallery = ({
                   onLoad={e => {
                     // Enable mobile-optimized download functionality when image loads
                     enableMobileImageDownload(e.target);
+                    
+                    // Add fade-in animation when image first loads
+                    const img = e.target;
+                    if (!img.classList.contains('fade-in-complete')) {
+                      img.style.opacity = '0';
+                      img.classList.add('fade-in-complete');
+                      
+                      // Trigger fade-in after a brief delay to ensure smooth animation
+                      requestAnimationFrame(() => {
+                        img.style.opacity = photo.isPreview ? '0.25' : '1';
+                      });
+                    }
                   }}
                   onError={e => {
                     if (photo.originalDataUrl && e.target.src !== photo.originalDataUrl) {
@@ -978,8 +1011,8 @@ const PhotoGallery = ({
                     top: 0,
                     left: 0,
                     display: 'block',
-                    opacity: photo.isPreview ? 0.25 : 1, // Same opacity as placeholder for preview images
-                    transition: 'opacity 0.3s ease' // Smooth transition when final image loads
+                    opacity: 0, // Start invisible, will fade in via onLoad
+                    transition: 'opacity 0.5s ease-in' // Smooth fade-in transition when final image loads
                   }}
                 />
                 {/* Event Theme Overlays - Only show on selected (popup) view */}

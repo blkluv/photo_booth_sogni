@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+
 import { getModelOptions, defaultStylePrompts as initialStylePrompts, TIMEOUT_CONFIG } from './constants/settings';
 import { photoThoughts, randomThoughts } from './constants/thoughts';
 import { saveSettingsToCookies, shouldShowPromoPopup, markPromoPopupShown } from './utils/cookies';
@@ -31,6 +32,7 @@ import promptsData from './prompts.json';
 import PhotoGallery from './components/shared/PhotoGallery';
 import { useApp } from './context/AppContext.tsx';
 import TwitterShareModal from './components/shared/TwitterShareModal';
+
 import SplashScreen from './components/shared/SplashScreen';
 // Import the ImageAdjuster component
 import ImageAdjuster from './components/shared/ImageAdjuster';
@@ -65,6 +67,8 @@ const getHashtagForStyle = (styleKey) => {
 };
 
 const App = () => {
+
+  
   const videoReference = useRef(null);
   const canvasReference = useRef(null);
   const shutterSoundReference = useRef(null);
@@ -160,6 +164,8 @@ const App = () => {
   const [currentUploadedImageUrl, setCurrentUploadedImageUrl] = useState('');
   const [currentUploadedSource, setCurrentUploadedSource] = useState('');
   
+
+  
   // Helper functions for localStorage persistence
   const saveLastEditablePhotoToStorage = async (photoData) => {
     try {
@@ -179,6 +185,7 @@ const App = () => {
         reader.readAsDataURL(photoData.blob);
       } else {
         // No blob, just store what we have
+        // eslint-disable-next-line no-unused-vars
         const { blob, ...photoDataWithoutBlob } = photoData;
         localStorage.setItem('sogni-lastEditablePhoto', JSON.stringify(photoDataWithoutBlob));
       }
@@ -452,10 +459,36 @@ const App = () => {
 
   // Update showThought function
   let thoughtInProgress = false;
+  // Create refs for condition checking to avoid useCallback recreation
+  const conditionsRef = useRef();
+  conditionsRef.current = {
+    selectedPhotoIndex,
+    showSplashScreen,
+    showStartMenu,
+    slothicornAnimationEnabled
+  };
+
   const showThought = useCallback(() => {
+    const { selectedPhotoIndex, showSplashScreen, showStartMenu, slothicornAnimationEnabled } = conditionsRef.current;
+    
     // don't show thought if Slothicorn is disabled or on splash/start screens
-    if (!slothicornAnimationEnabled || showSplashScreen || showStartMenu) return;
-    if (thoughtInProgress) return;
+    if (!slothicornAnimationEnabled || showSplashScreen || showStartMenu) {
+      // console.log('🤔 showThought: Skipped - slothicorn disabled or on splash/start screen');
+      return;
+    }
+    
+    // Don't show thoughts when viewing a specific photo
+    if (selectedPhotoIndex !== null) {
+      //console.log('🤔 showThought: Skipped - photo is selected');
+      return;
+    }
+    
+    if (thoughtInProgress) {
+      // console.log('🤔 showThought: Skipped - thought already in progress');
+      return;
+    }
+    
+    //console.log('🤔 showThought: Showing new thought - this will trigger App re-render');
     thoughtInProgress = true;
     // Select thoughts based on whether there's an active project
     const thoughts = activeProjectReference.current ? photoThoughts : randomThoughts;
@@ -470,31 +503,35 @@ const App = () => {
     });
 
     setTimeout(() => {
+      console.log('🤔 showThought: Clearing thought - this will trigger App re-render');
       setCurrentThought(null);
       thoughtInProgress = false;
     }, 4500);
-  }, [slothicornAnimationEnabled, showSplashScreen, showStartMenu]);
+  }, []); // No dependencies - all conditions checked via ref
 
-  // Update timing in useEffect
+  // Update timing in useEffect - FIXED: Remove problematic dependencies that cause system recreation
   useEffect(() => {
     // Initial delay between 5-15 seconds
     const initialDelay = 5000 + Math.random() * 15_000;
+    console.log(`🤔 Setting up thought system: first thought in ${Math.round(initialDelay/1000)}s, then every 18s`);
+    
     const firstThought = setTimeout(() => {
+      console.log('🤔 First thought timeout triggered');
       showThought();
     }, initialDelay);
 
     // Set up interval for random thoughts
     const interval = setInterval(() => {
-      if (selectedPhotoIndex === null && !showSplashScreen && !showStartMenu) {
-        showThought();
-      }
+      console.log('🤔 Thought interval triggered, calling showThought (conditions checked inside)');
+      showThought();
     }, 18_000); // Fixed 18 second interval
 
     return () => {
+      console.log('🤔 Cleaning up thought system');
       clearTimeout(firstThought);
       clearInterval(interval);
     };
-  }, [showThought, selectedPhotoIndex, showSplashScreen, showStartMenu]);
+  }, [showThought]); // Only depend on showThought, which has its own dependencies
 
   // Camera aspect ratio useEffect
   useEffect(() => {
@@ -1157,10 +1194,20 @@ const App = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  // Global 1s timer for generation countdown
+  // Optimized timer for generation countdown - only runs when needed and stops automatically
   useEffect(() => {
+
+    
     const interval = setInterval(() => {
       setPhotos((previousPhotos) => {
+        const hasActiveCountdowns = previousPhotos.some(p => p.generating && p.generationCountdown > 0);
+        
+        if (!hasActiveCountdowns) {
+          // No active countdowns, return unchanged array to prevent unnecessary re-renders
+          return previousPhotos;
+        }
+        
+        // Only update photos that actually have countdowns
         return previousPhotos.map((p) => {
           if (p.generating && p.generationCountdown > 0) {
             return { ...p, generationCountdown: p.generationCountdown - 1 };
@@ -1169,7 +1216,11 @@ const App = () => {
         });
       });
     }, 1000);
-    return () => clearInterval(interval);
+    
+    return () => {
+
+      clearInterval(interval);
+    };
   }, []);
 
   // -------------------------
@@ -3520,7 +3571,7 @@ const App = () => {
   const handleCancelAdjusting = () => {
     setShowImageAdjuster(false);
     
-    // Clean up the URL object
+    // Clean up the URL object to prevent memory leaks
     if (currentUploadedImageUrl) {
       URL.revokeObjectURL(currentUploadedImageUrl);
     }
@@ -3533,46 +3584,6 @@ const App = () => {
   };
 
   // Add this to the component state declarations at the top
-
-  // Add a function to handle camera snapshot adjustment cancellation
-  const handleCameraSnapshotCancel = () => {
-    setShowImageAdjuster(false);
-    
-    // Clean up the URL object to prevent memory leaks
-    if (currentUploadedImageUrl) {
-      URL.revokeObjectURL(currentUploadedImageUrl);
-    }
-    
-    // Reset the current image state
-    setCurrentUploadedImageUrl('');
-  };
-
-  // Add a function to handle cancellation when coming back from photo gallery
-  const handleBackToCameraFromAdjuster = () => {
-    setShowImageAdjuster(false);
-    
-    // Clean up the URL object to prevent memory leaks
-    if (currentUploadedImageUrl) {
-      URL.revokeObjectURL(currentUploadedImageUrl);
-    }
-    
-    // Reset the current image state
-    setCurrentUploadedImageUrl('');
-    
-    // Clear the last photo data since user is abandoning it
-    setLastEditablePhoto(null);
-    
-    // Go back to camera view
-    setShowStartMenu(false);
-    
-    // Restart camera
-    if (cameraManuallyStarted && videoReference.current) {
-      startCamera(selectedCameraDeviceId);
-    } else {
-      startCamera(selectedCameraDeviceId);
-      setCameraManuallyStarted(true);
-    }
-  };
 
   // Handle thumbnail click to reopen the image adjuster
   const handleThumbnailClick = async () => {
@@ -4308,6 +4319,8 @@ const App = () => {
           }
         />
       )}
+      
+
     </>
   );
 };

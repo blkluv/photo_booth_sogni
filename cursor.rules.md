@@ -43,3 +43,30 @@
     - Use information persistence to minimize response time and redundant operations
 
 - Note: App.jsx is over 3000 lines. Always consider this when making changes or reviewing the file.
+
+## React Performance Rules (Learned from Jan 2025 optimization)
+
+**🚨 CRITICAL: Always check these patterns before making React changes**
+
+16. **PREVENT EXCESSIVE RE-RENDERS:**
+    - **Timers/Intervals**: Return same reference when no actual changes needed
+    - **Context Providers**: Always memoize context value objects with `useMemo()`
+    - **User Interactions**: Use direct DOM manipulation + debounced state updates, NOT state updates on every event
+    - **useCallback Dependencies**: Use refs for condition checking to avoid unstable dependencies
+    - **useEffect Chains**: Combine related effects to prevent cascading updates
+
+17. **PERFORMANCE ANTI-PATTERNS TO AVOID:**
+    - ❌ `setPhotos(prev => prev.map(...))` in timers without checking if changes are needed
+    - ❌ Context value objects recreated on every render: `value={{ photos, setPhotos }}`
+    - ❌ `onChange={e => setState(e.target.value)}` for sliders/drag interactions
+    - ❌ useCallback with changing dependencies that cause effect re-runs
+    - ❌ Cascading useEffect hooks that trigger each other
+
+18. **PERFORMANCE PATTERNS TO USE:**
+    - ✅ Check for actual changes before updating state: `if (!hasChanges) return previousState`
+    - ✅ Memoize context values: `useMemo(() => ({ photos, setPhotos }), [photos])`
+    - ✅ Direct DOM updates during interactions: `element.style.transform = ...`
+    - ✅ Debounce state updates: `setTimeout(() => setState(value), 150)`
+    - ✅ Use refs for stable condition checking: `conditionsRef.current = { state }`
+
+**Remember: React performance is about preventing unnecessary work, not just optimizing necessary work.**

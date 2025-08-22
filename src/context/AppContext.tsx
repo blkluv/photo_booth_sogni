@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useRef } from 'react';
+import React, { createContext, useContext, useState, useRef, useMemo } from 'react';
+
 import { Photo, ProjectState, Settings } from '../types/index';
 import { DEFAULT_SETTINGS } from '../constants/settings';
 import { getSettingFromCookie, saveSettingsToCookies } from '../utils/cookies';
@@ -58,6 +59,8 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | null>(null);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+
+  
   // Photos state
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
@@ -116,29 +119,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     saveSettingsToCookies(DEFAULT_SETTINGS);
   };
   
+  const contextValue = useMemo(() => ({
+    photos,
+    setPhotos,
+    selectedPhotoIndex,
+    setSelectedPhotoIndex,
+    loadedImages,
+    setLoadedImages,
+    settings,
+    updateSetting,
+    resetSettings,
+    showStyleDropdown,
+    setShowStyleDropdown,
+    projectState,
+    showInfoModal,
+    setShowInfoModal,
+    showPhotoGrid,
+    setShowPhotoGrid,
+    dragActive,
+    setDragActive,
+  }), [
+    photos,
+    selectedPhotoIndex,
+    loadedImages,
+    settings,
+    showStyleDropdown,
+    showInfoModal,
+    showPhotoGrid,
+    dragActive,
+  ]);
+
   return (
-    <AppContext.Provider
-      value={{
-        photos,
-        setPhotos,
-        selectedPhotoIndex,
-        setSelectedPhotoIndex,
-        loadedImages,
-        setLoadedImages,
-        settings,
-        updateSetting,
-        resetSettings,
-        showStyleDropdown,
-        setShowStyleDropdown,
-        projectState,
-        showInfoModal,
-        setShowInfoModal,
-        showPhotoGrid,
-        setShowPhotoGrid,
-        dragActive,
-        setDragActive,
-      }}
-    >
+    <AppContext.Provider value={contextValue}>
       {children}
     </AppContext.Provider>
   );

@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+
 import PropTypes from 'prop-types';
 import { getCustomDimensions } from '../../utils/imageProcessing';
 import { useApp } from '../../context/AppContext.tsx';
@@ -15,6 +16,8 @@ const ImageAdjuster = ({
   initialPosition = { x: 0, y: 0 },
   defaultScale = 1
 }) => {
+
+  
   const { settings } = useApp();
   const { aspectRatio, tezdevTheme } = settings;
   
@@ -36,8 +39,13 @@ const ImageAdjuster = ({
 
   // Update position and scale when props change (for restoration)
   useEffect(() => {
+
     setPosition(initialPosition);
     setScale(defaultScale);
+    // Update slider DOM value directly without triggering re-render
+    if (sliderRef.current) {
+      sliderRef.current.value = defaultScale;
+    }
   }, [initialPosition.x, initialPosition.y, defaultScale]);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -61,6 +69,22 @@ const ImageAdjuster = ({
   // Check if device has touch capability
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   
+  // Scale throttling for performance optimization (position uses direct DOM updates)
+  const lastScaleUpdate = useRef(0);
+  const scaleUpdateThrottle = 100; // ~10fps for slider - less frequent updates needed
+  
+  // Ref to store the slider element for direct DOM manipulation
+  const sliderRef = useRef(null);
+  
+  // Track if user is currently dragging the slider
+  const [isSliderDragging, setIsSliderDragging] = useState(false);
+  
+  // Debounce timer for final state update
+  const sliderDebounceTimer = useRef(null);
+  
+  // Debounce timer for position updates
+  const positionDebounceTimer = useRef(null);
+  
   // Check for touch device on component mount
   useEffect(() => {
     const checkTouchDevice = () => {
@@ -72,11 +96,17 @@ const ImageAdjuster = ({
     setIsTouchDevice(checkTouchDevice());
   }, []);
   
-  // Calculate container dimensions that fit the viewport while maintaining aspect ratio
+  // Combined effect to handle dimensions and container calculations
   useEffect(() => {
-    const calculateContainerDimensions = () => {      
+
+    
+    // Update dimensions when aspectRatio changes
+    const newDimensions = getCustomDimensions(aspectRatio);
+    setDimensions(newDimensions);
+    
+    const calculateContainerDimensions = (currentDimensions = newDimensions) => {      
       // Get aspect ratio based on current dimensions (which come from selected aspectRatio)
-      const currentAspectRatio = dimensions.width / dimensions.height;
+      const currentAspectRatio = currentDimensions.width / currentDimensions.height;
       // Get viewport dimensions (accounting for padding/margins)
       const viewportWidth = window.innerWidth * 0.8; // 90% of viewport width
       const viewportHeight = window.innerHeight * 0.75; // 80% of viewport height to account for header/buttons
@@ -89,7 +119,7 @@ const ImageAdjuster = ({
       
       if (isPortraitLike) {
         // Portrait-like modes (ultranarrow, narrow, portrait) - prioritize height
-        containerHeight = Math.min(viewportHeight * 0.8, dimensions.height);
+        containerHeight = Math.min(viewportHeight * 0.8, currentDimensions.height);
         containerWidth = containerHeight * currentAspectRatio;
         // Check if width exceeds viewport width
         if (containerWidth > viewportWidth) {
@@ -105,7 +135,7 @@ const ImageAdjuster = ({
       }
       else {
         // Landscape-like modes (landscape, wide, ultrawide) - prioritize width
-        containerWidth = Math.min(viewportWidth, dimensions.width);
+        containerWidth = Math.min(viewportWidth, currentDimensions.width);
         containerHeight = containerWidth / currentAspectRatio;
       }
       
@@ -123,39 +153,78 @@ const ImageAdjuster = ({
       setContainerStyle({
         width: `${containerWidth}px`,
         height: `${containerHeight}px`,
-        aspectRatio: `${dimensions.width}/${dimensions.height}`
+        aspectRatio: `${currentDimensions.width}/${currentDimensions.height}`
       });
     };
     
-    calculateContainerDimensions();
+    // Initial calculation with new dimensions
+    calculateContainerDimensions(newDimensions);
     
-    // Recalculate on window resize
-    window.addEventListener('resize', calculateContainerDimensions);
-    
-    return () => {
-      window.removeEventListener('resize', calculateContainerDimensions);
-    };
-  }, [dimensions, aspectRatio]); // Add aspectRatio as dependency
-  
-  // Handle window resize to update dimensions and orientation
-  useEffect(() => {
     const handleResize = () => {
-      const newDimensions = getCustomDimensions(aspectRatio);
-      setDimensions(newDimensions);
+
+      calculateContainerDimensions(newDimensions);
     };
     
-    // Initial setup with current aspectRatio
-    handleResize();
-    
+    // Set up resize listeners
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleResize);
     
     return () => {
+
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleResize);
     };
-  }, [aspectRatio]); // Re-run when aspectRatio changes
+  }, [aspectRatio]);
   
+  // Keep slider value in sync with scale changes from other sources (pinch, etc.)
+  useEffect(() => {
+    // Only update slider DOM if not currently being dragged by user
+    if (!isSliderDragging && sliderRef.current) {
+      sliderRef.current.value = scale;
+    }
+  }, [scale, isSliderDragging]);
+  
+  // Cleanup debounce timers on unmount
+  useEffect(() => {
+    return () => {
+      if (sliderDebounceTimer.current) {
+        clearTimeout(sliderDebounceTimer.current);
+      }
+      if (positionDebounceTimer.current) {
+        clearTimeout(positionDebounceTimer.current);
+      }
+    };
+  }, []);
+  
+  // Update position via DOM manipulation only (no React state updates during drag)
+  const updatePositionDirect = useCallback((newPosition) => {
+    // Apply position change immediately to image transform (visual only)
+    if (imageRef.current) {
+      imageRef.current.style.transform = `scale(${scale}) translate(${newPosition.x}px, ${newPosition.y}px)`;
+    }
+    
+    // Clear any existing debounce timer
+    if (positionDebounceTimer.current) {
+      clearTimeout(positionDebounceTimer.current);
+    }
+    
+    // Debounce the actual state update
+    positionDebounceTimer.current = setTimeout(() => {
+      setPosition(newPosition);
+    }, 150); // Wait 150ms after user stops dragging
+  }, [scale]);
+
+  const updateScaleThrottled = useCallback((newScale) => {
+    const now = Date.now();
+    if (now - lastScaleUpdate.current >= scaleUpdateThrottle) {
+      // Use requestAnimationFrame for smooth visual updates
+      requestAnimationFrame(() => {
+        setScale(newScale);
+      });
+      lastScaleUpdate.current = now;
+    }
+  }, [scaleUpdateThrottle]);
+
   // Calculate distance between two touch points
   const getDistance = (touch1, touch2) => {
     const dx = touch1.clientX - touch2.clientX;
@@ -181,12 +250,27 @@ const ImageAdjuster = ({
       const newX = clientX - dragStart.x;
       const newY = clientY - dragStart.y;
       
-      setPosition({ x: newX, y: newY });
+      updatePositionDirect({ x: newX, y: newY });
     };
     
     const handleMouseUp = () => {
       if (isDragging) {
         setIsDragging(false);
+        
+        // Ensure final position state is updated immediately
+        if (positionDebounceTimer.current) {
+          clearTimeout(positionDebounceTimer.current);
+          // Get current position from transform and update state
+          const currentTransform = imageRef.current?.style.transform || '';
+          const translateMatch = currentTransform.match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
+          if (translateMatch) {
+            const finalPosition = {
+              x: parseFloat(translateMatch[1]),
+              y: parseFloat(translateMatch[2])
+            };
+            setPosition(finalPosition);
+          }
+        }
         
         // Check if image is completely off-screen after drag
         if (imageRef.current && containerRef.current) {
@@ -219,7 +303,7 @@ const ImageAdjuster = ({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, dragStart]);
+  }, [isDragging, dragStart, updatePositionDirect]);
   
   // Handle mouse/touch down
   const handleDragStart = (e) => {
@@ -267,7 +351,7 @@ const ImageAdjuster = ({
         
         // Calculate new scale value with limits
         const newScale = Math.min(Math.max(initialScale * scaleFactor, 0.25), 3);
-        setScale(newScale);
+        updateScaleThrottled(newScale);
         return;
       }
       
@@ -281,7 +365,7 @@ const ImageAdjuster = ({
       const newX = clientX - dragStart.x;
       const newY = clientY - dragStart.y;
       
-      setPosition({ x: newX, y: newY });
+      updatePositionDirect({ x: newX, y: newY });
     }
     // Mouse move is now handled by the document-level event listener
   };
@@ -290,6 +374,21 @@ const ImageAdjuster = ({
   const handleTouchEnd = () => {
     setIsDragging(false);
     setIsPinching(false);
+    
+    // Ensure final position state is updated immediately
+    if (positionDebounceTimer.current) {
+      clearTimeout(positionDebounceTimer.current);
+      // Get current position from transform and update state
+      const currentTransform = imageRef.current?.style.transform || '';
+      const translateMatch = currentTransform.match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
+      if (translateMatch) {
+        const finalPosition = {
+          x: parseFloat(translateMatch[1]),
+          y: parseFloat(translateMatch[2])
+        };
+        setPosition(finalPosition);
+      }
+    }
     
     // Check if image is completely off-screen after drag
     if (imageRef.current && containerRef.current) {
@@ -310,11 +409,39 @@ const ImageAdjuster = ({
     }
   };
   
-  // Handle zoom level change via slider
-  const handleZoomChange = (e) => {
+  // Handle slider input events - no state updates during dragging
+  const handleSliderInput = useCallback((e) => {
     const newScale = parseFloat(e.target.value);
-    setScale(newScale);
-  };
+    
+    // Apply scale change immediately to image transform (visual only)
+    if (imageRef.current) {
+      imageRef.current.style.transform = `scale(${newScale}) translate(${position.x}px, ${position.y}px)`;
+    }
+    
+    // Clear any existing debounce timer
+    if (sliderDebounceTimer.current) {
+      clearTimeout(sliderDebounceTimer.current);
+    }
+    
+    // Debounce the actual state update
+    sliderDebounceTimer.current = setTimeout(() => {
+      setScale(newScale);
+    }, 150); // Wait 150ms after user stops dragging
+  }, [position.x, position.y]);
+  
+  // Handle slider mouse/touch events for drag state tracking
+  const handleSliderStart = useCallback(() => {
+    setIsSliderDragging(true);
+  }, []);
+  
+  const handleSliderEnd = useCallback(() => {
+    setIsSliderDragging(false);
+    // Ensure final state update happens
+    if (sliderRef.current) {
+      const finalScale = parseFloat(sliderRef.current.value);
+      setScale(finalScale);
+    }
+  }, []);
   
   // Handle confirm button click
   const handleConfirm = () => {
@@ -402,7 +529,6 @@ const ImageAdjuster = ({
     }, 'image/png', 1.0);
   };
   
-  // No useEffect needed - state is initialized directly from props
   
   return (
     <div className="image-adjuster-overlay">
@@ -521,13 +647,18 @@ const ImageAdjuster = ({
                 <span role="img" aria-label="zoom">🔍</span> Size:
               </label>
               <input
+                ref={sliderRef}
                 id="zoom-slider"
                 type="range"
                 min="0.10"
                 max="3"
                 step="0.01"
-                value={scale}
-                onChange={handleZoomChange}
+                defaultValue={scale}
+                onInput={handleSliderInput}
+                onMouseDown={handleSliderStart}
+                onMouseUp={handleSliderEnd}
+                onTouchStart={handleSliderStart}
+                onTouchEnd={handleSliderEnd}
               />
             </div>
           )}
