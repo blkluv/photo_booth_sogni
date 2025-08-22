@@ -61,28 +61,7 @@
 
   /* Position camera buttons EVEN LOWER - 0.66x more down from 5px */
   [class*="bottomControls"] {
-    bottom: max(3px, env(safe-area-inset-bottom)) !important;
-  }
-
-  [class*="thumbnailButtonCorner"] {
-    bottom: max(3px, env(safe-area-inset-bottom)) !important;
-  }
-
-  [class*="cameraFlipButtonWithThumbnail"] {
-    bottom: max(3px, env(safe-area-inset-bottom)) !important;
-  }
-
-  /* Handle 3-button layout (thumbnail + take photo + camera flip) */
-  [class*="cameraControls"] {
-    bottom: max(3px, env(safe-area-inset-bottom)) !important;
-  }
-
-  [class*="cameraButton"] {
-    bottom: max(3px, env(safe-area-inset-bottom)) !important;
-  }
-
-  [class*="flipButton"] {
-    bottom: max(3px, env(safe-area-inset-bottom)) !important;
+    bottom: 13px !important;
   }
 
   /* Fix image adjuster overlay to cover full screen */

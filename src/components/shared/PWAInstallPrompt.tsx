@@ -15,7 +15,7 @@ const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ onClose }) => {
     const isIOS = /iPad|iPhone|iPod/.test(userAgent);
     const isSafari = /Safari/.test(userAgent) && !/Chrome|CriOS|FxiOS/.test(userAgent);
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
-                        (window.navigator as any).standalone === true;
+                        (window.navigator as Navigator & { standalone?: boolean })?.standalone === true;
     
     return isIOS && isSafari && !isStandalone;
   };
@@ -26,6 +26,17 @@ const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ onClose }) => {
   };
 
   useEffect(() => {
+    // Force update service worker cache on component mount
+    if ('serviceWorker' in navigator) {
+      void navigator.serviceWorker.getRegistration().then(registration => {
+        if (registration) {
+          void registration.update();
+        }
+      }).catch(error => {
+        console.log('Service worker update failed:', error);
+      });
+    }
+    
     // Show prompt if conditions are met
     if (isMobileSafari() && !hasBeenDismissed()) {
       // Delay showing the prompt by 3 seconds to not be intrusive
@@ -68,17 +79,13 @@ const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ onClose }) => {
       <div className={`pwa-install-prompt ${isClosing ? 'slide-out' : 'slide-in'}`}>
         <div className="pwa-install-header">
           <div className="pwa-install-icon">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-              <rect width="32" height="32" rx="8" fill="url(#gradient)" />
-              <path d="M16 8L20 12H18V20H14V12H12L16 8Z" fill="white" />
-              <path d="M10 22H22V24H10V22Z" fill="white" />
-              <defs>
-                <linearGradient id="gradient" x1="0" y1="0" x2="32" y2="32">
-                  <stop stopColor="#ff5e8a" />
-                  <stop offset="1" stopColor="#72e3f2" />
-                </linearGradient>
-              </defs>
-            </svg>
+            <img 
+              src={`/slothicorn-camera.png?v=${Date.now()}`} 
+              alt="Sogni Photobooth" 
+              width="32" 
+              height="32"
+              style={{ borderRadius: '8px' }}
+            />
           </div>
           <div className="pwa-install-title">
             <h3>Install Sogni Photobooth</h3>
@@ -114,11 +121,11 @@ const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ onClose }) => {
             </div>
             <div className="pwa-step">
               <span className="pwa-step-number">2</span>
-              <span>Select "Add to Home Screen"</span>
+              <span>Select &quot;Add to Home Screen&quot;</span>
             </div>
             <div className="pwa-step">
               <span className="pwa-step-number">3</span>
-              <span>Tap "Add" to confirm</span>
+              <span>Tap &quot;Add&quot; to confirm</span>
             </div>
           </div>
         </div>
@@ -128,7 +135,7 @@ const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ onClose }) => {
             Maybe Later
           </button>
           <button className="pwa-install-dismiss" onClick={handleClose}>
-            Don't Show Again
+            Don&apos;t Show Again
           </button>
         </div>
       </div>

@@ -12,6 +12,15 @@ const getTezDevThemeFromCookie = () => {
   if (savedTheme === 'pink' || savedTheme === 'blue' || savedTheme === 'gmvietnam' || savedTheme === 'off') {
     // Save the new default and return it
     saveSettingsToCookies({ tezdevTheme: 'supercasual' });
+    
+    // Also set aspect ratio to narrow (2:3) for Super Casual theme
+    const currentAspectRatio = getSettingFromCookie('aspectRatio', DEFAULT_SETTINGS.aspectRatio);
+    if (currentAspectRatio !== 'narrow') {
+      saveSettingsToCookies({ aspectRatio: 'narrow' });
+      // Update CSS variables to match the new aspect ratio
+      document.documentElement.style.setProperty('--current-aspect-ratio', '832/1216');
+    }
+    
     return 'supercasual';
   }
   return savedTheme;
@@ -72,26 +81,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [showStyleDropdown, setShowStyleDropdown] = useState(false);
   
   // Settings state
-  const [settings, setSettings] = useState<Settings>(() => ({
-    selectedStyle: getSettingFromCookie('selectedStyle', DEFAULT_SETTINGS.selectedStyle),
-    selectedModel: getSettingFromCookie('selectedModel', DEFAULT_SETTINGS.selectedModel),
-    numImages: getSettingFromCookie('numImages', DEFAULT_SETTINGS.numImages),
-    promptGuidance: getSettingFromCookie('promptGuidance', DEFAULT_SETTINGS.promptGuidance),
-    controlNetStrength: getSettingFromCookie('controlNetStrength', DEFAULT_SETTINGS.controlNetStrength),
-    controlNetGuidanceEnd: getSettingFromCookie('controlNetGuidanceEnd', DEFAULT_SETTINGS.controlNetGuidanceEnd),
-    inferenceSteps: getSettingFromCookie('inferenceSteps', DEFAULT_SETTINGS.inferenceSteps),
-    flashEnabled: getSettingFromCookie('flashEnabled', DEFAULT_SETTINGS.flashEnabled),
-    keepOriginalPhoto: getSettingFromCookie('keepOriginalPhoto', DEFAULT_SETTINGS.keepOriginalPhoto),
-    positivePrompt: getSettingFromCookie('positivePrompt', DEFAULT_SETTINGS.positivePrompt),
-    stylePrompt: getSettingFromCookie('stylePrompt', DEFAULT_SETTINGS.stylePrompt),
-    negativePrompt: getSettingFromCookie('negativePrompt', DEFAULT_SETTINGS.negativePrompt),
-    seed: getSettingFromCookie('seed', DEFAULT_SETTINGS.seed),
-    soundEnabled: getSettingFromCookie('soundEnabled', DEFAULT_SETTINGS.soundEnabled || true),
-    slothicornAnimationEnabled: getSettingFromCookie('slothicornAnimationEnabled', DEFAULT_SETTINGS.slothicornAnimationEnabled || true),
-    backgroundAnimationsEnabled: getSettingFromCookie('backgroundAnimationsEnabled', DEFAULT_SETTINGS.backgroundAnimationsEnabled || false),
-    aspectRatio: getSettingFromCookie('aspectRatio', DEFAULT_SETTINGS.aspectRatio),
-    tezdevTheme: getTezDevThemeFromCookie()
-  }));
+  const [settings, setSettings] = useState<Settings>(() => {
+    const theme = getTezDevThemeFromCookie();
+    let aspectRatio = getSettingFromCookie('aspectRatio', DEFAULT_SETTINGS.aspectRatio);
+    
+    // If theme is supercasual or gmvietnam, ensure aspect ratio is narrow (2:3)
+    if ((theme === 'supercasual' || theme === 'gmvietnam') && aspectRatio !== 'narrow') {
+      aspectRatio = 'narrow';
+      saveSettingsToCookies({ aspectRatio: 'narrow' });
+      // Update CSS variables to match the new aspect ratio
+      document.documentElement.style.setProperty('--current-aspect-ratio', '832/1216');
+    }
+    
+    return {
+      selectedStyle: getSettingFromCookie('selectedStyle', DEFAULT_SETTINGS.selectedStyle),
+      selectedModel: getSettingFromCookie('selectedModel', DEFAULT_SETTINGS.selectedModel),
+      numImages: getSettingFromCookie('numImages', DEFAULT_SETTINGS.numImages),
+      promptGuidance: getSettingFromCookie('promptGuidance', DEFAULT_SETTINGS.promptGuidance),
+      controlNetStrength: getSettingFromCookie('controlNetStrength', DEFAULT_SETTINGS.controlNetStrength),
+      controlNetGuidanceEnd: getSettingFromCookie('controlNetGuidanceEnd', DEFAULT_SETTINGS.controlNetGuidanceEnd),
+      inferenceSteps: getSettingFromCookie('inferenceSteps', DEFAULT_SETTINGS.inferenceSteps),
+      flashEnabled: getSettingFromCookie('flashEnabled', DEFAULT_SETTINGS.flashEnabled),
+      keepOriginalPhoto: getSettingFromCookie('keepOriginalPhoto', DEFAULT_SETTINGS.keepOriginalPhoto),
+      positivePrompt: getSettingFromCookie('positivePrompt', DEFAULT_SETTINGS.positivePrompt),
+      stylePrompt: getSettingFromCookie('stylePrompt', DEFAULT_SETTINGS.stylePrompt),
+      negativePrompt: getSettingFromCookie('negativePrompt', DEFAULT_SETTINGS.negativePrompt),
+      seed: getSettingFromCookie('seed', DEFAULT_SETTINGS.seed),
+      soundEnabled: getSettingFromCookie('soundEnabled', DEFAULT_SETTINGS.soundEnabled || true),
+      slothicornAnimationEnabled: getSettingFromCookie('slothicornAnimationEnabled', DEFAULT_SETTINGS.slothicornAnimationEnabled || true),
+      backgroundAnimationsEnabled: getSettingFromCookie('backgroundAnimationsEnabled', DEFAULT_SETTINGS.backgroundAnimationsEnabled || false),
+      aspectRatio,
+      tezdevTheme: theme
+    };
+  });
   
   // Project state
   const projectState = useRef<ProjectState>({
