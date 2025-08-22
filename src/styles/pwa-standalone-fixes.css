@@ -4,36 +4,144 @@
   and runs in standalone/fullscreen mode
 */
 
-/* PWA Standalone Mode - Only Control-Specific Fixes */
 @media all and (display-mode: standalone) {
-  /* Only fix specific controls, not entire layout */
-
-  /* Only fix bottom controls to avoid home indicator */
-  [class*="bottomControls"] {
-    bottom: max(12px, env(safe-area-inset-bottom) + 4px) !important;
+  /* CRITICAL: Ensure app uses full screen height */
+  html, body, #root {
+    height: 100vh !important;
+    height: calc(var(--vh, 1vh) * 100) !important;
+    min-height: 100vh !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
 
-  /* Only fix thumbnail and camera buttons */
-  [class*="thumbnailButtonCorner"] {
-    bottom: max(3px, env(safe-area-inset-bottom) - 8px) !important;
+  /* Move top controls higher - another 5px higher */
+  .top-left-style-selector, .header-style-select, .global-style-btn {
+    top: max(10px, env(safe-area-inset-top)) !important;
   }
 
-  [class*="cameraFlipButtonWithThumbnail"] {
-    bottom: max(3px, env(safe-area-inset-bottom) - 8px) !important;
+  .header-settings-btn {
+    top: max(10px, env(safe-area-inset-top)) !important;
   }
 
-  /* Fix corner buttons that might get covered */
-  .view-photos-btn {
-    bottom: max(20px, env(safe-area-inset-bottom) + 5px) !important;
-    right: max(20px, env(safe-area-inset-right) + 5px) !important;
+  .header-info-btn {
+    top: max(10px, env(safe-area-inset-top)) !important;
   }
 
+  /* Fix bottom navigation buttons - align to actual bottom */
   .back-to-menu-btn {
-    bottom: max(20px, env(safe-area-inset-bottom) + 5px) !important;
+    bottom: max(5px, env(safe-area-inset-bottom)) !important;
     left: max(20px, env(safe-area-inset-left) + 5px) !important;
   }
 
-  /* Fix Twitter modal close button to avoid status bar/notch */
+  .view-photos-btn {
+    bottom: max(5px, env(safe-area-inset-bottom)) !important;
+    right: max(20px, env(safe-area-inset-right) + 5px) !important;
+  }
+
+  /* Fix photo grid to use full available space */
+  .film-strip-content {
+    padding-top: max(60px, env(safe-area-inset-top) + 50px) !important;
+    padding-bottom: max(60px, env(safe-area-inset-bottom) + 50px) !important;
+    min-height: calc(100vh - max(60px, env(safe-area-inset-top) + 50px) - max(60px, env(safe-area-inset-bottom) + 50px)) !important;
+  }
+
+  /* CAMERA POSITIONING - Adjust to better position (reduce from 300px) */
+  [class*="cameraContainer"] {
+    align-items: flex-start !important;
+    justify-content: center !important;
+    padding-top: max(180px, env(safe-area-inset-top) + 160px) !important;
+    padding-bottom: max(40px, env(safe-area-inset-bottom) + 30px) !important;
+  }
+
+  /* Remove conflicting polaroid frame margins */
+  [class*="polaroidFrame"] {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* Position camera buttons EVEN LOWER - 0.66x more down from 5px */
+  [class*="bottomControls"] {
+    bottom: max(3px, env(safe-area-inset-bottom)) !important;
+  }
+
+  [class*="thumbnailButtonCorner"] {
+    bottom: max(3px, env(safe-area-inset-bottom)) !important;
+  }
+
+  [class*="cameraFlipButtonWithThumbnail"] {
+    bottom: max(3px, env(safe-area-inset-bottom)) !important;
+  }
+
+  /* Handle 3-button layout (thumbnail + take photo + camera flip) */
+  [class*="cameraControls"] {
+    bottom: max(3px, env(safe-area-inset-bottom)) !important;
+  }
+
+  [class*="cameraButton"] {
+    bottom: max(3px, env(safe-area-inset-bottom)) !important;
+  }
+
+  [class*="flipButton"] {
+    bottom: max(3px, env(safe-area-inset-bottom)) !important;
+  }
+
+  /* Fix image adjuster overlay to cover full screen */
+  .image-adjuster-overlay {
+    height: 100vh !important;
+    height: calc(var(--vh, 1vh) * 100) !important;
+    top: 0 !important;
+    bottom: 0 !important;
+  }
+
+  /* START MENU OVERLAY - REMOVED ALL GARBAGE CSS THAT DOESN'T WORK */
+  /* Keeping it ugly since none of the fixes work */
+
+  /* Fix Advanced Settings overlay - AGGRESSIVE OVERRIDE */
+  .control-overlay,
+  :global(.control-overlay),
+  body .control-overlay,
+  html body .control-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: calc(var(--vh, 1vh) * 100) !important;
+    min-height: 100vh !important;
+    min-height: calc(var(--vh, 1vh) * 100) !important;
+    max-height: none !important;
+    padding: 0 !important;
+    overflow-y: auto !important;
+    z-index: 99999 !important;
+    transform: translateY(0) !important;
+  }
+
+  /* Fix Advanced Settings content container - AGGRESSIVE OVERRIDE */
+  .control-overlay-content,
+  :global(.control-overlay-content),
+  body .control-overlay-content,
+  html body .control-overlay-content {
+    padding-top: max(60px, env(safe-area-inset-top) + 50px) !important;
+    padding-bottom: max(60px, env(safe-area-inset-bottom) + 50px) !important;
+    min-height: 100vh !important;
+    min-height: calc(var(--vh, 1vh) * 100) !important;
+    height: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Fix Advanced Settings close button positioning - TOP RIGHT CORNER */
+  .dismiss-overlay-btn {
+    position: fixed !important;
+    top: max(20px, env(safe-area-inset-top) + 10px) !important;
+    right: max(20px, env(safe-area-inset-right) + 10px) !important;
+    z-index: 99999 !important;
+  }
+
+  /* Fix Twitter modal close button */
   .twitter-modal-close {
     top: max(12px, env(safe-area-inset-top) + 8px) !important;
     right: max(12px, env(safe-area-inset-right) + 8px) !important;
@@ -43,16 +151,5 @@
   .modal [class*="close"], .modal .close-btn, [class*="modal"] [class*="close"] {
     top: max(16px, env(safe-area-inset-top) + 8px) !important;
     right: max(16px, env(safe-area-inset-right) + 8px) !important;
-  }
-}
-
-/* Minimal mobile PWA fixes - only for specific buttons */
-@media all and (display-mode: standalone) and (orientation: portrait) and (max-width: 480px) {
-  [class*="thumbnailButtonCorner"] {
-    bottom: max(3px, env(safe-area-inset-bottom) - 8px) !important;
-  }
-
-  [class*="cameraFlipButtonWithThumbnail"] {
-    bottom: max(3px, env(safe-area-inset-bottom) - 8px) !important;
   }
 }

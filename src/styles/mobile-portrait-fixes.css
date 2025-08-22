@@ -125,7 +125,7 @@
   /* High specificity rules for Chrome mobile */
   body #root [class*="thumbnailButtonCorner"],
   html body #root [class*="thumbnailButtonCorner"] {
-    bottom: 0px !important;
+    bottom: -5px !important;  /* Fixed: moved down 8px from 3px to -5px */
     left: 12px !important;
     transform: translateY(-50%) !important;
     width: 40px !important;
@@ -134,7 +134,7 @@
 
   body #root [class*="cameraFlipButtonWithThumbnail"],
   html body #root [class*="cameraFlipButtonWithThumbnail"] {
-    bottom: 3px !important;
+    bottom: -5px !important;  /* Fixed: moved down 8px from 3px to -5px */
     left: 60px !important;
     transform: translateY(-50%) !important;
     width: 32px !important;

@@ -786,7 +786,7 @@
 @media (max-width: 480px) and (orientation: portrait) {
   /* Target mobile Chrome specifically */
   .thumbnailButtonCorner {
-    bottom: 3px !important;  /* Chrome needs consistent positioning */
+    bottom: -5px !important;  /* Fixed: moved down 8px from 3px to -5px */
     left: 12px !important;
     transform: translateY(-50%) !important;
     width: 40px !important;
@@ -794,7 +794,7 @@
   }
   
   .cameraFlipButtonWithThumbnail {
-    bottom: 3px !important;  /* Chrome needs same as thumbnail */
+    bottom: -5px !important;  /* Fixed: moved down 8px from 3px to -5px */
     left: 60px !important;
     transform: translateY(-50%) !important;
     width: 32px !important;

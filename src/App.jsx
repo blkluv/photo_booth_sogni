@@ -26,6 +26,7 @@ import CameraView from './components/camera/CameraView';
 import CameraStartMenu from './components/camera/CameraStartMenu';
 import StyleDropdown from './components/shared/StyleDropdown';
 import AdvancedSettings from './components/shared/AdvancedSettings';
+import PWAInstallPrompt from './components/shared/PWAInstallPrompt';
 import promptsData from './prompts.json';
 import PhotoGallery from './components/shared/PhotoGallery';
 import { useApp } from './context/AppContext.tsx';
@@ -150,6 +151,9 @@ const App = () => {
   // Info modal state - adding back the missing state
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showPhotoGrid, setShowPhotoGrid] = useState(false);
+  
+  // PWA install prompt state
+  const [showPWAPrompt, setShowPWAPrompt] = useState(true);
   
   // Add state for image adjustment
   const [showImageAdjuster, setShowImageAdjuster] = useState(false);
@@ -3612,6 +3616,13 @@ const App = () => {
         <SplashScreen onDismiss={() => setShowSplashScreen(false)} />
       )}
       
+      {/* PWA Install Prompt */}
+      {showPWAPrompt && (
+        <PWAInstallPrompt 
+          onClose={() => setShowPWAPrompt(false)}
+        />
+      )}
+
       {/* Twitter Share Modal */}
       <TwitterShareModal 
         isOpen={showTwitterModal}
