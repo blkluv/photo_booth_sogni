@@ -409,8 +409,8 @@
   }
   
   .bottomControls {
-    bottom: 15px !important;
-    padding: 0 28px !important;
+    bottom: 12px !important;
+    padding: 0 16px !important;
     justify-content: center !important;
   }
 
@@ -421,12 +421,6 @@
   .title {
     text-align: center;
     width: 100%;
-  }
-
-  .bottomControls {
-    bottom: 12px;
-    padding: 0 16px;
-    justify-content: center;
   }
 
   .styleButton {
@@ -772,14 +766,18 @@
 /* Mobile responsive styles for thumbnail and camera flip button */
 @media (max-width: 600px), (orientation: portrait) and (max-device-width: 1024px) {
   .thumbnailButtonCorner {
-    bottom: 15px !important;  /* Match mobile bottomControls positioning */
+    bottom: 12px !important;  /* Match mobile bottomControls positioning */
     left: 16px !important;    /* Match mobile padding */
     transform: translateY(-50%) !important;  /* Maintain vertical centering */
+    width: 40px !important;   /* Smaller on mobile */
+    height: 40px !important;  /* Smaller on mobile */
   }
   
   .cameraFlipButtonWithThumbnail {
-    bottom: 15px !important;  /* Match mobile bottomControls positioning */
-    left: 72px !important;    /* Adjusted for mobile (48px thumbnail + 24px gap) */
+    bottom: 12px !important;  /* Match mobile bottomControls positioning */
+    left: 64px !important;    /* Adjusted for mobile (40px thumbnail + 24px gap) */
     transform: translateY(-50%) !important;  /* Maintain vertical centering */
+    width: 32px !important;   /* Match mobile cameraFlipButton size */
+    height: 32px !important;  /* Match mobile cameraFlipButton size */
   }
 }

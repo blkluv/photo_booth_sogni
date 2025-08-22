@@ -97,4 +97,25 @@
     bottom: 12px !important;
     bottom: max(12px, env(safe-area-inset-bottom) - 5px) !important;
   }
+
+  /* High specificity rules for thumbnail and camera flip button positioning */
+  body #root [class*="thumbnailButtonCorner"],
+  html body #root [class*="thumbnailButtonCorner"] {
+    bottom: 12px !important;
+    bottom: max(12px, env(safe-area-inset-bottom) - 5px) !important;
+    left: 16px !important;
+    transform: translateY(-50%) !important;
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  body #root [class*="cameraFlipButtonWithThumbnail"],
+  html body #root [class*="cameraFlipButtonWithThumbnail"] {
+    bottom: 12px !important;
+    bottom: max(12px, env(safe-area-inset-bottom) - 5px) !important;
+    left: 64px !important;
+    transform: translateY(-50%) !important;
+    width: 32px !important;
+    height: 32px !important;
+  }
 } 
