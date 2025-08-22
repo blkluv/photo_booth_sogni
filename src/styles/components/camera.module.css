@@ -730,7 +730,7 @@
 .thumbnailButtonCorner {
   position: absolute;
   bottom: 20px;  /* Same as aspect ratio dropdown */
-  left: 12px;
+  left: 32px;    /* Align with polaroid frame padding */
   transform: translateY(-50%);  /* Center vertically like aspect ratio dropdown */
   background: white;
   border: 2px solid #222;
@@ -758,25 +758,25 @@
 .cameraFlipButtonWithThumbnail {
   position: absolute !important;
   bottom: 20px !important;  /* Same vertical alignment as thumbnail */
-  left: 68px !important;    /* To the right of thumbnail (48px width + 20px gap) */
+  left: 88px !important;    /* To the right of thumbnail (32px left + 48px width + 8px gap) */
   transform: translateY(-50%) !important;  /* Center vertically like thumbnail */
   z-index: 1002 !important;  /* Same as thumbnail, higher than bottomControls */
 }
 
 /* Mobile responsive styles for thumbnail and camera flip button */
-@media (max-width: 600px), (orientation: portrait) and (max-device-width: 1024px) {
+@media (max-width: 480px) {
   .thumbnailButtonCorner {
-    bottom: 12px !important;  /* Match mobile bottomControls positioning */
-    left: 16px !important;    /* Match mobile padding */
-    transform: translateY(-50%) !important;  /* Maintain vertical centering */
+    bottom: -8px !important;  /* Match mobile aspect ratio dropdown positioning */
+    left: 12px !important;    /* Match mobile aspect ratio dropdown */
+    transform: translateY(-50%) !important;  /* Same as aspect ratio dropdown */
     width: 40px !important;   /* Smaller on mobile */
     height: 40px !important;  /* Smaller on mobile */
   }
   
   .cameraFlipButtonWithThumbnail {
-    bottom: 12px !important;  /* Match mobile bottomControls positioning */
-    left: 64px !important;    /* Adjusted for mobile (40px thumbnail + 24px gap) */
-    transform: translateY(-50%) !important;  /* Maintain vertical centering */
+    bottom: -8px !important;  /* Match mobile aspect ratio dropdown positioning */
+    left: 60px !important;    /* Adjusted for mobile (40px thumbnail + 20px gap) */
+    transform: translateY(-50%) !important;  /* Same as aspect ratio dropdown */
     width: 32px !important;   /* Match mobile cameraFlipButton size */
     height: 32px !important;  /* Match mobile cameraFlipButton size */
   }
