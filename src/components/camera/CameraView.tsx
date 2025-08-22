@@ -74,6 +74,10 @@ interface CameraViewProps {
   actualCameraDimensions?: { width: number; height: number } | null;
   /** Whether iOS quirk detection has completed */
   quirkDetectionComplete?: boolean;
+  /** Last photo data for thumbnail display */
+  lastPhotoData?: { blob?: Blob; dataUrl?: string; adjustments?: any } | null;
+  /** Handler for when thumbnail is clicked */
+  onThumbnailClick?: () => void;
 }
 
 export const CameraView: React.FC<CameraViewProps> = ({
@@ -109,6 +113,8 @@ export const CameraView: React.FC<CameraViewProps> = ({
   iosQuirkDetected = false,
   actualCameraDimensions = null,
   quirkDetectionComplete = false,
+  lastPhotoData = null,
+  onThumbnailClick,
 }) => {
   // Use aspectRatio prop instead of context
   
@@ -279,20 +285,22 @@ export const CameraView: React.FC<CameraViewProps> = ({
     <div className={styles.bottomControls}>
       {isMobile ? (
         <>
-          {/* Camera flip button for mobile devices */}
-          <button
-            className={styles.cameraFlipButton}
-            onClick={onToggleCamera}
-            aria-label={isFrontCamera ? "Switch to back camera" : "Switch to front camera"}
-            data-testid="camera-flip-button"
-          >
-            <span className={styles.cameraFlipIcon} role="img" aria-label="Flip camera">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M20 5H16.83L15 3H9L7.17 5H4C2.9 5 2 5.9 2 7V19C2 20.1 2.9 21 4 21H20C21.1 21 22 20.1 22 19V7C22 5.9 21.1 5 20 5ZM12 18C9.24 18 7 15.76 7 13C7 10.24 9.24 8 12 8C14.76 8 17 10.24 17 13C17 15.76 14.76 18 12 18Z" fill="#333333"/>
-                <path d="M15 13L13 10V12H9V14H13V16L15 13Z" fill="#333333"/>
-              </svg>
-            </span>
-          </button>
+          {/* Camera flip button for mobile devices - only show when thumbnail is NOT present */}
+          {!(lastPhotoData && (lastPhotoData.blob || lastPhotoData.dataUrl) && onThumbnailClick) && (
+            <button
+              className={styles.cameraFlipButton}
+              onClick={onToggleCamera}
+              aria-label={isFrontCamera ? "Switch to back camera" : "Switch to front camera"}
+              data-testid="camera-flip-button"
+            >
+              <span className={styles.cameraFlipIcon} role="img" aria-label="Flip camera">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M20 5H16.83L15 3H9L7.17 5H4C2.9 5 2 5.9 2 7V19C2 20.1 2.9 21 4 21H20C21.1 21 22 20.1 22 19V7C22 5.9 21.1 5 20 5ZM12 18C9.24 18 7 15.76 7 13C7 10.24 9.24 8 12 8C14.76 8 17 10.24 17 13C17 15.76 14.76 18 12 18Z" fill="#333333"/>
+                  <path d="M15 13L13 10V12H9V14H13V16L15 13Z" fill="#333333"/>
+                </svg>
+              </span>
+            </button>
+          )}
           
           {/* Shutter button - no label on mobile */}
           <button
@@ -385,6 +393,39 @@ export const CameraView: React.FC<CameraViewProps> = ({
           visible={!showSettings}
           position="bottom-right"
         />
+
+        {/* Thumbnail button - positioned in bottom left corner, aligned with aspect ratio picker */}
+        {lastPhotoData && (lastPhotoData.blob || lastPhotoData.dataUrl) && onThumbnailClick && (
+          <button
+            className={styles.thumbnailButtonCorner}
+            onClick={onThumbnailClick}
+            aria-label="Edit last photo"
+            data-testid="thumbnail-button"
+          >
+            <img
+              src={lastPhotoData.blob ? URL.createObjectURL(lastPhotoData.blob) : lastPhotoData.dataUrl}
+              alt="Last photo thumbnail"
+              className={styles.thumbnailImage}
+            />
+          </button>
+        )}
+
+        {/* Camera flip button - positioned next to thumbnail when present, or in original mobile location */}
+        {isMobile && lastPhotoData && (lastPhotoData.blob || lastPhotoData.dataUrl) && onThumbnailClick && (
+          <button
+            className={`${styles.cameraFlipButton} ${styles.cameraFlipButtonWithThumbnail}`}
+            onClick={onToggleCamera}
+            aria-label={isFrontCamera ? "Switch to back camera" : "Switch to front camera"}
+            data-testid="camera-flip-button-corner"
+          >
+            <span className={styles.cameraFlipIcon} role="img" aria-label="Flip camera">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20 5H16.83L15 3H9L7.17 5H4C2.9 5 2 5.9 2 7V19C2 20.1 2.9 21 4 21H20C21.1 21 22 20.1 22 19V7C22 5.9 21.1 5 20 5ZM12 18C9.24 18 7 15.76 7 13C7 10.24 9.24 8 12 8C14.76 8 17 10.24 17 13C17 15.76 14.76 18 12 18Z" fill="#333333"/>
+                <path d="M15 13L13 10V12H9V14H13V16L15 13Z" fill="#333333"/>
+              </svg>
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Advanced Settings Overlay - Use the reusable component */}

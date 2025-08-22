@@ -11,7 +11,9 @@ import '../../styles/components/ImageAdjuster.css';
 const ImageAdjuster = ({ 
   imageUrl,
   onConfirm,
-  onCancel
+  onCancel,
+  initialPosition = { x: 0, y: 0 },
+  defaultScale = 1
 }) => {
   const { settings } = useApp();
   const { aspectRatio, tezdevTheme } = settings;
@@ -28,9 +30,15 @@ const ImageAdjuster = ({
   const containerRef = useRef(null);
   const imageRef = useRef(null);
   
-  // Track image position and scale
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [scale, setScale] = useState(1);
+  // Track image position and scale - initialize directly with props
+  const [position, setPosition] = useState(initialPosition);
+  const [scale, setScale] = useState(defaultScale);
+
+  // Update position and scale when props change (for restoration)
+  useEffect(() => {
+    setPosition(initialPosition);
+    setScale(defaultScale);
+  }, [initialPosition.x, initialPosition.y, defaultScale]);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -158,8 +166,7 @@ const ImageAdjuster = ({
   // Handle image load
   const handleImageLoad = () => {
     setImageLoaded(true);
-    // Reset position to center when the image loads
-    setPosition({ x: 0, y: 0 });
+    // Don't reset position - keep the initial position from props
   };
   
   // Add document-level event listeners for mouse drag operations
@@ -391,18 +398,11 @@ const ImageAdjuster = ({
       const finalSizeMB = (finalBlob.size / 1024 / 1024).toFixed(2);
       console.log(`📤 ImageAdjuster transmission size: ${finalSizeMB}MB`);
 
-      onConfirm(finalBlob);
+      onConfirm(finalBlob, { position, scale });
     }, 'image/png', 1.0);
   };
   
-  // Initialize image position to center
-  useEffect(() => {
-    if (imageRef.current) {
-      setPosition({ x: 0, y: 0 });
-      // Reset scale when loading a new image
-      setScale(1);
-    }
-  }, [imageUrl]);
+  // No useEffect needed - state is initialized directly from props
   
   return (
     <div className="image-adjuster-overlay">
@@ -432,7 +432,10 @@ const ImageAdjuster = ({
                 opacity: imageLoaded ? 1 : 0, // Hide until loaded
                 transition: 'opacity 0.3s ease'
               }}
-              onLoad={handleImageLoad}
+              onLoad={() => {
+                console.log('Image loaded with position:', position, 'scale:', scale);
+                handleImageLoad();
+              }}
               onMouseDown={handleDragStart}
               onTouchStart={handleDragStart}
               draggable="false"
@@ -557,7 +560,12 @@ const ImageAdjuster = ({
 ImageAdjuster.propTypes = {
   imageUrl: PropTypes.string.isRequired,
   onConfirm: PropTypes.func.isRequired,
-  onCancel: PropTypes.func.isRequired
+  onCancel: PropTypes.func.isRequired,
+  initialPosition: PropTypes.shape({
+    x: PropTypes.number,
+    y: PropTypes.number
+  }),
+  defaultScale: PropTypes.number
 };
 
 export default ImageAdjuster; 

@@ -701,3 +701,70 @@
     }
   }
 }
+
+/* Thumbnail button styles */
+.thumbnailButton {
+  background: white;
+  border: 2px solid #222;
+  border-radius: 8px;
+  width: 48px;
+  height: 48px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  outline: none;
+  overflow: hidden;
+  padding: 2px;
+}
+
+.thumbnailButton:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.thumbnailImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+/* Corner positioned thumbnail button - aligned with aspect ratio picker */
+.thumbnailButtonCorner {
+  position: absolute;
+  bottom: 20px;  /* Same as aspect ratio dropdown */
+  left: 12px;
+  transform: translateY(-50%);  /* Center vertically like aspect ratio dropdown */
+  background: white;
+  border: 2px solid #222;
+  border-radius: 8px;
+  width: 48px;
+  height: 48px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  outline: none;
+  overflow: hidden;
+  padding: 2px;
+  z-index: 1002;  /* Higher than bottomControls (1001) */
+}
+
+.thumbnailButtonCorner:hover {
+  transform: translateY(-50%) scale(1.1);  /* Maintain vertical centering while scaling */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+/* Camera flip button positioned next to thumbnail */
+.cameraFlipButtonWithThumbnail {
+  position: absolute !important;
+  bottom: 20px !important;  /* Same vertical alignment as thumbnail */
+  left: 68px !important;    /* To the right of thumbnail (48px width + 20px gap) */
+  transform: translateY(-50%) !important;  /* Center vertically like thumbnail */
+  z-index: 1002 !important;  /* Same as thumbnail, higher than bottomControls */
+}

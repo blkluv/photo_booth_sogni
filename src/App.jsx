@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { getModelOptions, defaultStylePrompts as initialStylePrompts, TIMEOUT_CONFIG } from './constants/settings';
 import { photoThoughts, randomThoughts } from './constants/thoughts';
 import { saveSettingsToCookies, shouldShowPromoPopup, markPromoPopupShown } from './utils/cookies';
@@ -154,6 +154,68 @@ const App = () => {
   const [showImageAdjuster, setShowImageAdjuster] = useState(false);
   const [currentUploadedImageUrl, setCurrentUploadedImageUrl] = useState('');
   const [currentUploadedSource, setCurrentUploadedSource] = useState('');
+  
+  // Helper functions for localStorage persistence
+  const saveLastEditablePhotoToStorage = async (photoData) => {
+    try {
+      if (photoData.blob) {
+        // Convert blob to base64 data URL for storage
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = reader.result;
+          const dataToStore = {
+            ...photoData,
+            dataUrl: dataUrl,
+            // Remove blob since we have dataUrl now
+            blob: null
+          };
+          localStorage.setItem('sogni-lastEditablePhoto', JSON.stringify(dataToStore));
+        };
+        reader.readAsDataURL(photoData.blob);
+      } else {
+        // No blob, just store what we have
+        const { blob, ...photoDataWithoutBlob } = photoData;
+        localStorage.setItem('sogni-lastEditablePhoto', JSON.stringify(photoDataWithoutBlob));
+      }
+    } catch (error) {
+      console.warn('Failed to save lastEditablePhoto to localStorage:', error);
+    }
+  };
+
+  const loadLastEditablePhotoFromStorage = () => {
+    try {
+      const stored = localStorage.getItem('sogni-lastEditablePhoto');
+      return stored ? JSON.parse(stored) : null;
+    } catch (error) {
+      console.warn('Failed to load lastEditablePhoto from localStorage:', error);
+      return null;
+    }
+  };
+
+  // Add state to store the last photo data for re-editing
+  const [lastEditablePhoto, setLastEditablePhotoState] = useState(null);
+  
+  // Custom setter that also saves to localStorage
+  const setLastEditablePhoto = (photoData) => {
+    setLastEditablePhotoState(photoData);
+    if (photoData) {
+      saveLastEditablePhotoToStorage(photoData);
+    } else {
+      localStorage.removeItem('sogni-lastEditablePhoto');
+    }
+  };
+
+
+
+  // Load lastEditablePhoto from localStorage on app mount
+  useEffect(() => {
+    const storedPhotoData = loadLastEditablePhotoFromStorage();
+
+    if (storedPhotoData) {
+      // We don't have the blob anymore, but we have the adjustments
+      setLastEditablePhotoState(storedPhotoData);
+    }
+  }, []);
   
   // Add state for upload progress
   const [showUploadProgress, setShowUploadProgress] = useState(false);
@@ -2414,6 +2476,15 @@ const App = () => {
     setCurrentUploadedImageUrl(tempUrl);
     setCurrentUploadedSource('camera');
     
+    // Store this photo data for potential re-editing
+    const photoData = {
+      imageUrl: tempUrl,
+      source: 'camera',
+      blob: finalBlob
+    };
+
+    setLastEditablePhoto(photoData);
+    
     // Show the image adjuster
     setShowImageAdjuster(true);
   };
@@ -2586,6 +2657,15 @@ const App = () => {
     const tempUrl = URL.createObjectURL(finalBlob);
     setCurrentUploadedImageUrl(tempUrl);
     setCurrentUploadedSource('camera');
+    
+    // Store this photo data for potential re-editing
+    const photoData = {
+      imageUrl: tempUrl,
+      source: 'camera',
+      blob: finalBlob
+    };
+
+    setLastEditablePhoto(photoData);
     
     // Show the image adjuster
     setShowImageAdjuster(true);
@@ -2825,6 +2905,8 @@ const App = () => {
             }}
             onResetSettings={resetSettings}
             onBackToMenu={handleBackToMenu}
+            lastPhotoData={lastEditablePhoto}
+            onThumbnailClick={handleThumbnailClick}
           />
           
           {/* Other UI elements like canvas, flash effect, etc. */}
@@ -2841,6 +2923,8 @@ const App = () => {
               ← Menu
             </button>
           )}
+
+
         </>
       )}
     </div>
@@ -2850,6 +2934,7 @@ const App = () => {
   //   Drag overlay
   // -------------------------
   const handleBackToCamera = () => {
+    // Always go directly back to camera from photo grid
     // Scroll to top smoothly
     window.scrollTo({ top: 0, behavior: 'smooth' });
     
@@ -3000,6 +3085,15 @@ const App = () => {
     const tempUrl = URL.createObjectURL(file);
     setCurrentUploadedImageUrl(tempUrl);
     setCurrentUploadedSource('upload');
+    
+    // Store this photo data for potential re-editing
+    const photoData = {
+      imageUrl: tempUrl,
+      source: 'upload',
+      blob: file
+    };
+
+    setLastEditablePhoto(photoData);
     
     // Show the image adjuster
     setShowImageAdjuster(true);
@@ -3347,7 +3441,7 @@ const App = () => {
   };
 
   // Add this new function to handle the adjusted image after confirmation
-  const handleAdjustedImage = (adjustedBlob) => {
+  const handleAdjustedImage = (adjustedBlob, adjustments) => {
     // Hide the adjuster
     setShowImageAdjuster(false);
     
@@ -3358,6 +3452,15 @@ const App = () => {
     
     // Reset the current image state
     setCurrentUploadedImageUrl('');
+    
+    // Update lastEditablePhoto with the adjustments so user can return to resizer from photo gallery
+    if (lastEditablePhoto && adjustments) {
+  
+      setLastEditablePhoto({
+        ...lastEditablePhoto,
+        adjustments: adjustments
+      });
+    }
     
     // Create a new photo item with temporary placeholder
     const newPhoto = {
@@ -3427,6 +3530,76 @@ const App = () => {
     // Reset the current image state
     setCurrentUploadedImageUrl('');
   };
+
+  // Add a function to handle cancellation when coming back from photo gallery
+  const handleBackToCameraFromAdjuster = () => {
+    setShowImageAdjuster(false);
+    
+    // Clean up the URL object to prevent memory leaks
+    if (currentUploadedImageUrl) {
+      URL.revokeObjectURL(currentUploadedImageUrl);
+    }
+    
+    // Reset the current image state
+    setCurrentUploadedImageUrl('');
+    
+    // Clear the last photo data since user is abandoning it
+    setLastEditablePhoto(null);
+    
+    // Go back to camera view
+    setShowStartMenu(false);
+    
+    // Restart camera
+    if (cameraManuallyStarted && videoReference.current) {
+      startCamera(selectedCameraDeviceId);
+    } else {
+      startCamera(selectedCameraDeviceId);
+      setCameraManuallyStarted(true);
+    }
+  };
+
+  // Handle thumbnail click to reopen the image adjuster
+  const handleThumbnailClick = async () => {
+    if (!lastEditablePhoto) return;
+    
+    if (lastEditablePhoto.blob) {
+      // We have the blob - can reopen the adjuster
+      const newTempUrl = URL.createObjectURL(lastEditablePhoto.blob);
+      setCurrentUploadedImageUrl(newTempUrl);
+      setCurrentUploadedSource(lastEditablePhoto.source);
+      setShowImageAdjuster(true);
+    } else if (lastEditablePhoto.dataUrl) {
+      // We have the dataUrl from localStorage - convert back to blob
+      try {
+        const response = await fetch(lastEditablePhoto.dataUrl);
+        const blob = await response.blob();
+        const newTempUrl = URL.createObjectURL(blob);
+        
+        // Update the lastEditablePhoto with the new blob for future use
+        setLastEditablePhoto({
+          ...lastEditablePhoto,
+          blob: blob,
+          imageUrl: newTempUrl
+        });
+        
+        setCurrentUploadedImageUrl(newTempUrl);
+        setCurrentUploadedSource(lastEditablePhoto.source);
+        setShowImageAdjuster(true);
+      } catch (error) {
+        console.error('Failed to restore image from dataUrl:', error);
+        alert('Failed to restore previous photo. Please take a new photo.');
+        setLastEditablePhoto(null);
+      }
+    } else {
+      // No usable image data
+      console.warn('No usable image data found');
+      setLastEditablePhoto(null);
+    }
+  };
+
+  // Create stable references using useMemo to ensure they don't change
+  const defaultPosition = useMemo(() => ({ x: 0, y: 0 }), []);
+  const defaultScaleValue = 1;
 
   // -------------------------
   //   Render
@@ -4100,9 +4273,16 @@ const App = () => {
       {/* Add this section at the end, right before the closing tag */}
       {showImageAdjuster && currentUploadedImageUrl && (
         <ImageAdjuster
+          key={currentUploadedImageUrl}
           imageUrl={currentUploadedImageUrl}
           onConfirm={handleAdjustedImage}
-          onCancel={currentUploadedSource === 'camera' ? handleCameraSnapshotCancel : handleCancelAdjusting}
+          onCancel={handleCancelAdjusting}
+          initialPosition={
+            lastEditablePhoto?.adjustments?.position || defaultPosition
+          }
+          defaultScale={
+            lastEditablePhoto?.adjustments?.scale || defaultScaleValue
+          }
         />
       )}
     </>

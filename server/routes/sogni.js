@@ -416,9 +416,11 @@ router.post('/generate', ensureSessionId, async (req, res) => {
     const progressHandler = (eventData) => {
       // Log the raw progress data received from the Sogni service callback
       // we don't currently care for the project 'complete' event as we listen to the job 'complete' events already
+      /*
       if (eventData.type !== 'complete') {
         console.log(`[${localProjectId}] Received callback event:`, JSON.stringify(eventData));
       }
+      */
 
       // Signal that we've received the first event from Sogni
       if (!hasReceivedFirstEvent && (eventData.type === 'queued' || eventData.type === 'started' || eventData.type === 'initiating')) {
