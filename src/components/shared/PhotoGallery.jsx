@@ -673,10 +673,20 @@ const PhotoGallery = ({
             <button
               className="action-button enhance-btn"
               onClick={(e) => {
-                undoEnhancement({
-                  photoIndex: selectedPhotoIndex,
-                  subIndex: selectedSubIndex || 0,
-                  setPhotos
+                // Use the functional form of setPhotos to get the latest state
+                setPhotos(currentPhotos => {
+                  const currentPhotoIndex = selectedPhotoIndex;
+                  if (currentPhotoIndex !== null) {
+                    // Call undo enhancement in the next tick to ensure we have the latest state
+                    setTimeout(() => {
+                      undoEnhancement({
+                        photoIndex: currentPhotoIndex,
+                        subIndex: selectedSubIndex || 0,
+                        setPhotos
+                      });
+                    }, 0);
+                  }
+                  return currentPhotos; // Don't modify photos array here
                 });
                 e.stopPropagation();
               }}
@@ -688,17 +698,27 @@ const PhotoGallery = ({
             <button
               className="action-button enhance-btn"
               onClick={(e) => {
-                enhancePhoto({
-                  photo: photos[selectedPhotoIndex],
-                  photoIndex: selectedPhotoIndex,
-                  subIndex: selectedSubIndex || 0,
-                  width: desiredWidth,
-                  height: desiredHeight,
-                  sogniClient,
-                  setPhotos,
-                  onSetActiveProject: (projectId) => {
-                    activeProjectReference.current = projectId;
+                // Use the functional form of setPhotos to get the latest state
+                setPhotos(currentPhotos => {
+                  const currentPhotoIndex = selectedPhotoIndex;
+                  if (currentPhotoIndex !== null && currentPhotos[currentPhotoIndex]) {
+                    // Call enhance photo in the next tick to ensure we have the latest state
+                    setTimeout(() => {
+                      enhancePhoto({
+                        photo: currentPhotos[currentPhotoIndex],
+                        photoIndex: currentPhotoIndex,
+                        subIndex: selectedSubIndex || 0,
+                        width: desiredWidth,
+                        height: desiredHeight,
+                        sogniClient,
+                        setPhotos,
+                        onSetActiveProject: (projectId) => {
+                          activeProjectReference.current = projectId;
+                        }
+                      });
+                    }, 0);
                   }
+                  return currentPhotos; // Don't modify photos array here
                 });
                 e.stopPropagation();
               }}
