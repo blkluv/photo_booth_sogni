@@ -862,20 +862,53 @@ export async function generateImage(params: Record<string, unknown>, progressCal
             console.log(`Project completion/error event received for ${projectId}, clearing overall timeout`);
             clearAllTimers();
             
-            // Only delay EventSource close for successful completion with missing jobs
+            // Check for missing jobs and only delay if needed
             if (data.type === 'completed') {
+              // Check if the completion event includes information about missing jobs
               const missingJobs = data.missingJobs as { expected: number; completed: number } | undefined;
               const hasMissingJobs = missingJobs && missingJobs.expected > missingJobs.completed;
               
               if (hasMissingJobs) {
                 const missingCount = missingJobs.expected - missingJobs.completed;
-                console.log(`Project ${projectId} completed but ${missingCount} jobs still outstanding - delaying EventSource close`);
+                console.log(`Project ${projectId} completed but ${missingCount} jobs still incomplete - delaying EventSource close up to 5 seconds`);
                 
-                // Wait longer for outstanding job completion events
-                setTimeout(() => {
-                  console.log(`Closing EventSource after waiting for outstanding jobs on project ${projectId}`);
-                  safelyCloseEventSource();
-                }, 5000); // 5 second delay for outstanding jobs
+                // Set up monitoring for missing jobs with 5 second timeout
+                const startTime = Date.now();
+                let jobsReceived = 0;
+                
+                const checkInterval = setInterval(() => {
+                  const elapsed = Date.now() - startTime;
+                  
+                  // Check if we've received the missing jobs by counting jobCompleted events
+                  // This is a simple heuristic - if we started with a deficit and now see more activity,
+                  // we assume the missing jobs arrived
+                  if (jobsReceived >= missingCount) {
+                    console.log(`Missing jobs received after ${elapsed}ms, closing EventSource`);
+                    clearInterval(checkInterval);
+                    safelyCloseEventSource();
+                    return;
+                  }
+                  
+                  if (elapsed >= 5000) {
+                    console.log(`Timeout reached (${elapsed}ms), closing EventSource anyway`);
+                    clearInterval(checkInterval);
+                    safelyCloseEventSource();
+                  }
+                }, 200); // Check every 200ms
+                
+                // Listen for job completion events during the wait period
+                const originalCallback = progressCallback;
+                if (originalCallback) {
+                  progressCallback = (event: unknown) => {
+                    originalCallback(event);
+                    
+                    // Count job completion events during wait period
+                    const eventObj = event as Record<string, unknown>;
+                    if (event && typeof event === 'object' && eventObj.type === 'jobCompleted') {
+                      jobsReceived++;
+                    }
+                  };
+                }
               } else {
                 console.log(`All jobs completed for project ${projectId}, closing EventSource immediately`);
                 safelyCloseEventSource();

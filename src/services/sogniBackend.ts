@@ -171,14 +171,7 @@ export class BackendProject implements SogniEventEmitter {
   completeJob(jobId: string, resultUrl: string) {
     const job = this.jobs.find(j => j.id === jobId);
     if (job) {
-      console.log(`BackendProject: Setting resultUrl for job ${jobId} to ${resultUrl ? 'provided' : 'MISSING'}`);
       job.resultUrl = resultUrl;
-      
-      // Debug: log remaining incomplete jobs
-      const incompleteJobs = this.jobs.filter(j => !j.resultUrl && !j.error);
-      console.log(`BackendProject: After completing ${jobId}, ${incompleteJobs.length} jobs still incomplete:`, 
-        incompleteJobs.map(j => ({ id: j.id, realJobId: j.realJobId })));
-      
       this.emit('jobCompleted', job);
     } else {
       console.warn(`BackendProject: Could not find job ${jobId} to complete`);
@@ -519,7 +512,7 @@ export class BackendSogniClient {
         else if (progressEvent && typeof progressEvent === 'object') {
           const event = progressEvent as Record<string, unknown>;
           const eventType = event.type as string;
-          const jobId = event.jobId as string;
+          const jobId = 'jobId' in event ? event.jobId as string : undefined;
           
           // Extract worker name from any event if available
           let workerName: string | undefined = undefined;
@@ -538,6 +531,15 @@ export class BackendSogniClient {
             console.log(`BackendProject: At project completion, ${incompleteJobs.length} jobs still incomplete:`,
               incompleteJobs.map(j => ({ id: j.id, realJobId: j.realJobId })));
             
+            // Add missing jobs info to the completion event for the API layer
+            const completionEvent = {
+              ...event,
+              missingJobs: {
+                expected: project.jobs ? project.jobs.length : 0,
+                completed: project.jobs ? project.jobs.filter(j => j.resultUrl || j.error).length : 0
+              }
+            };
+            
             // If there are still incomplete jobs, delay the completion event
             if (incompleteJobs.length > 0) {
               console.log(`Frontend delaying project completion - waiting for ${incompleteJobs.length} jobs to complete`);
@@ -553,7 +555,7 @@ export class BackendSogniClient {
                   delete (project as any)._completionCheckInterval;
                   delete (project as any)._pendingCompletion;
                   delete (project as any)._completionStartTime;
-                  project.emit('completed', []);
+                  project.emit('completed', completionEvent);
                 } else {
                   const elapsedSeconds = Math.floor((Date.now() - (project as any)._completionStartTime) / 1000);
                   console.log(`Still waiting for ${stillIncomplete.length} jobs to complete (${elapsedSeconds}s elapsed)`);
@@ -590,13 +592,13 @@ export class BackendSogniClient {
                   delete (project as any)._completionCheckInterval;
                   delete (project as any)._pendingCompletion;
                   delete (project as any)._completionStartTime;
-                  project.emit('completed', []);
+                  project.emit('completed', completionEvent);
                 }
               }, 15000);
             } else {
               // All jobs already complete, send immediately
               console.log(`All jobs already complete, sending project completion immediately`);
-              project.emit('completed', []);
+              project.emit('completed', completionEvent);
             }
             return;
           }
@@ -642,13 +644,10 @@ export class BackendSogniClient {
           
           // For job-level events, find the corresponding frontend job placeholder
           let jobIndex = project.jobs.findIndex(j => j.realJobId === jobId);
-          console.log(`[JOB ASSIGNMENT] Looking for job with realJobId=${jobId}, found index: ${jobIndex}`);
           
           // If no job has this realJobId yet, find the first available job without a realJobId
           if (jobIndex === -1) {
             jobIndex = project.jobs.findIndex(j => !j.realJobId);
-            console.log(`[JOB ASSIGNMENT] No existing job found, looking for available job without realJobId, found index: ${jobIndex}`);
-            console.log(`[JOB ASSIGNMENT] Current jobs state:`, project.jobs.map(j => ({ id: j.id, realJobId: j.realJobId })));
           }
           
           let targetJob = jobIndex >= 0 ? project.jobs[jobIndex] : null;
@@ -731,13 +730,11 @@ export class BackendSogniClient {
                 const isNSFW = event.nsfwFiltered as boolean;
                 
                 if (resultUrl) {
-                  console.log(`Processing jobCompleted for placeholder ${targetJob.id} (real ID ${jobId}) - URL: ${resultUrl.substring(0, 50)}...`);
-                  
                   // Check if this job was already completed (race condition protection)
-                              if (targetJob.resultUrl) {
-              console.log(`Job ${targetJob.id} was already completed, ignoring duplicate completion event`);
-            } else {
-              project.completeJob(targetJob.id, resultUrl);
+                  if (targetJob.resultUrl) {
+                    console.log(`Job ${targetJob.id} was already completed, ignoring duplicate completion event`);
+                  } else {
+                    project.completeJob(targetJob.id, resultUrl);
               
               // Check if we're waiting for project completion and all jobs are now done
               if ((project as any)._pendingCompletion) {
@@ -750,7 +747,17 @@ export class BackendSogniClient {
                   }
                   delete (project as any)._pendingCompletion;
                   delete (project as any)._completionStartTime;
-                  project.emit('completed', []);
+                  
+                  // Create completion event with job info
+                  const finalCompletionEvent = {
+                    type: 'completed',
+                    missingJobs: {
+                      expected: project.jobs ? project.jobs.length : 0,
+                      completed: project.jobs ? project.jobs.filter(j => j.resultUrl || j.error).length : 0
+                    }
+                  };
+                  
+                  project.emit('completed', finalCompletionEvent);
                 }
               }
             }

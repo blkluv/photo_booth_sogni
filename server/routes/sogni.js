@@ -1,5 +1,5 @@
 import express from 'express';
-import { getClientInfo, generateImage, cleanupSogniClient, getSessionClient, disconnectSessionClient, getActiveConnectionsCount, checkIdleConnections, activeConnections, sessionClients, clearInvalidTokens } from '../services/sogni.js';
+import { getClientInfo, generateImage, cleanupSogniClient, getSessionClient, disconnectSessionClient, getActiveConnectionsCount, checkIdleConnections, activeConnections, sessionClients, clearInvalidTokens, validateAuthError } from '../services/sogni.js';
 import { v4 as uuidv4 } from 'uuid';
 import { 
   incrementBatchesGenerated, 
@@ -15,6 +15,9 @@ const router = express.Router();
 
 // Map to store active project SSE connections
 const activeProjects = new Map();
+
+// Map to store pending events for projects that don't have SSE clients yet
+const pendingProjectEvents = new Map();
 
 // Timer for delayed Sogni cleanup
 let sogniCleanupTimer = null;
@@ -200,10 +203,33 @@ router.get('/progress/:projectId', ensureSessionId, (req, res) => {
   }
   activeProjects.get(projectId).add(res);
   
-  // Check for any pending errors for this project and send them immediately
-  console.log(`[${projectId}] Checking for pending errors. Available errors:`, 
-    globalThis.pendingProjectErrors ? Array.from(globalThis.pendingProjectErrors.keys()) : 'none');
+  // Check for any pending events for this project and send them immediately
+  console.log(`[${projectId}] Checking for pending events. Available events:`, 
+    pendingProjectEvents.has(projectId) ? pendingProjectEvents.get(projectId).length : 0);
   
+  if (pendingProjectEvents.has(projectId)) {
+    const events = pendingProjectEvents.get(projectId);
+    console.log(`[${projectId}] Sending ${events.length} stored events to newly connected SSE client`);
+    
+    try {
+      // Send all pending events in order
+      for (const event of events) {
+        res.write(`data: ${JSON.stringify(event)}\n\n`);
+      }
+      res.flushHeaders();
+      console.log(`[${projectId}] Successfully sent ${events.length} pending events`);
+      
+      // Remove the events from pending since they've been delivered
+      pendingProjectEvents.delete(projectId);
+      console.log(`[${projectId}] Removed events from pending. Remaining projects: ${pendingProjectEvents.size}`);
+    } catch (err) {
+      console.error(`[${projectId}] Error sending pending events:`, err.message);
+    }
+  } else {
+    console.log(`[${projectId}] No pending events found for this project`);
+  }
+  
+  // Also check for any pending errors for backward compatibility
   if (globalThis.pendingProjectErrors && globalThis.pendingProjectErrors.has(projectId)) {
     const errorEvent = globalThis.pendingProjectErrors.get(projectId);
     console.log(`[${projectId}] Sending stored error event to newly connected SSE client:`, JSON.stringify(errorEvent));
@@ -212,14 +238,12 @@ router.get('/progress/:projectId', ensureSessionId, (req, res) => {
       res.write(`data: ${JSON.stringify(errorEvent)}\n\n`);
       res.flushHeaders();
       console.log(`[${projectId}] Successfully sent pending error event`);
+      
+      // Remove the error from pending errors since it's been delivered
+      globalThis.pendingProjectErrors.delete(projectId);
     } catch (err) {
       console.error(`Error sending pending error event: ${err.message}`);
     }
-    
-    // Clean up the pending error
-    globalThis.pendingProjectErrors.delete(projectId);
-  } else {
-    console.log(`[${projectId}] No pending errors found for this project`);
   }
   
   // Cancel any pending cleanup since a user is now connected
@@ -415,15 +439,20 @@ router.post('/generate', ensureSessionId, async (req, res) => {
         
       // Ensure the projectId in the event matches the localProjectId for this SSE stream
       // Sogni service events might have their own projectId (the actual Sogni project ID)
+      const { jobId: originalJobId, ...eventDataWithoutJobId } = eventData;
       const sseEvent = {
-        ...eventData,
+        ...eventDataWithoutJobId,
         projectId: localProjectId, // Standardize on the localProjectId for client-side tracking
-        jobId: eventData.jobId, // This should now be correctly set by sogni.js (imgID or SDK job.id)
         workerName: eventData.workerName || 'unknown', // Ensure workerName is present
         progress: typeof eventData.progress === 'number' ? 
                   (eventData.progress > 1 ? eventData.progress / 100 : eventData.progress) : 
                   eventData.progress, // Normalize progress 0-1
       };
+      
+      // Only include jobId if it actually exists (avoid jobId: undefined for project completion events)
+      if (originalJobId !== undefined) {
+        sseEvent.jobId = originalJobId;
+      }
 
       // Handle the 'queued' event specifically
       if (eventData.type === 'queued') {
@@ -444,17 +473,32 @@ router.post('/generate', ensureSessionId, async (req, res) => {
 
       if (activeProjects.has(localProjectId)) {
         const clients = activeProjects.get(localProjectId);
-        // console.log(`[${localProjectId}] Forwarding event to ${clients.size} SSE client(s):`, JSON.stringify(sseEvent));
+        
         clients.forEach(client => {
           sendSSEMessage(client, sseEvent);
         });
       } else {
         console.log(`[${localProjectId}] No SSE clients found for this request.`);
         
-        // Check if this is an error event that needs to be stored
+        // Store ALL events for later pickup when SSE connects (not just errors)
+        console.log(`[${localProjectId}] Storing event for later pickup:`, JSON.stringify(sseEvent));
+        
+        // Initialize pending events array for this project if it doesn't exist
+        if (!pendingProjectEvents.has(localProjectId)) {
+          pendingProjectEvents.set(localProjectId, []);
+        }
+        
+        // Store the event
+        pendingProjectEvents.get(localProjectId).push(sseEvent);
+        
+        // Limit stored events to prevent memory issues (keep last 50 events)
+        const events = pendingProjectEvents.get(localProjectId);
+        if (events.length > 50) {
+          events.splice(0, events.length - 50);
+        }
+        
+        // Also handle error events in the old system for compatibility
         if (eventData.type === 'failed' || eventData.type === 'error') {
-          console.log(`[${localProjectId}] Storing error event for later pickup:`, JSON.stringify(eventData));
-          
           // Store the error event for immediate pickup when SSE connects
           if (!globalThis.pendingProjectErrors) {
             globalThis.pendingProjectErrors = new Map();
@@ -485,16 +529,22 @@ router.post('/generate', ensureSessionId, async (req, res) => {
           
           globalThis.pendingProjectErrors.set(localProjectId, errorEvent);
           console.log(`[${localProjectId}] Error stored for project. Total pending errors: ${globalThis.pendingProjectErrors.size}`);
-          console.log(`[${localProjectId}] All pending error keys:`, Array.from(globalThis.pendingProjectErrors.keys()));
           
           // Clean up after 30 seconds
           setTimeout(() => {
             if (globalThis.pendingProjectErrors) {
-              console.log(`[${localProjectId}] Cleaning up pending error after timeout`);
               globalThis.pendingProjectErrors.delete(localProjectId);
             }
           }, 30000);
         }
+        
+        // Clean up pending events after 2 minutes
+        setTimeout(() => {
+          if (pendingProjectEvents.has(localProjectId)) {
+            console.log(`[${localProjectId}] Cleaning up pending events after timeout`);
+            pendingProjectEvents.delete(localProjectId);
+          }
+        }, 2 * 60 * 1000);
       }
     };
     
@@ -506,7 +556,7 @@ router.post('/generate', ensureSessionId, async (req, res) => {
     
     // Helper function to attempt generation with retry on auth failure
     const attemptGeneration = async (clientToUse, isRetry = false) => {
-      return generateImage(clientToUse, params, progressHandler)
+      return generateImage(clientToUse, params, progressHandler, localProjectId)
         .then(sogniResult => {
           console.log(`DEBUG - ${new Date().toISOString()} - [${localProjectId}] Sogni SDK (generateImage function) promise resolved.`);
           console.log(`[${localProjectId}] Sogni generation process finished. Sogni Project ID: ${sogniResult.projectId}, Result:`, JSON.stringify(sogniResult.result));
@@ -526,37 +576,50 @@ router.post('/generate', ensureSessionId, async (req, res) => {
                                          error.message?.includes('Insufficient funds') ||
                                          error.message?.includes('Debit Error');
           
-          // If this is an auth error and we haven't already retried, attempt retry with fresh client
+          // If this appears to be an auth error, validate it with an additional authenticated call
           if (isAuthError && !isRetry) {
-            console.log(`[${localProjectId}] Authentication error detected during generation, attempting retry with fresh client`);
-            
-            // Clear invalid cached tokens
-            clearInvalidTokens();
-            
-            // Get the client ID associated with this session
-            const sessionId = req.sessionId;
-            if (sessionId && sessionClients.has(sessionId)) {
-              const clientId = sessionClients.get(sessionId);
-              
-              // Force client cleanup to trigger re-authentication
-              console.log(`[${localProjectId}] Forcing cleanup of client ${clientId} due to auth error`);
-              cleanupSogniClient(clientId);
-              
-              // Remove the session-to-client mapping to force new client creation
-              sessionClients.delete(sessionId);
-            }
+            console.log(`[${localProjectId}] Potential auth error detected, validating...`);
             
             try {
-              // Get a fresh client with new authentication
-              console.log(`[${localProjectId}] Creating fresh client for retry...`);
-              const freshClient = await getSessionClient(sessionId, clientAppId);
+              const isRealAuthError = await validateAuthError(error);
               
-              // Retry the generation with the fresh client
-              console.log(`[${localProjectId}] Retrying generation with fresh client...`);
-              return await attemptGeneration(freshClient, true); // Mark as retry to prevent infinite recursion
-            } catch (retryError) {
-              console.error(`[${localProjectId}] Retry attempt failed:`, retryError);
-              // Fall through to normal error handling with the original error
+              if (isRealAuthError) {
+                console.log(`[${localProjectId}] Confirmed auth error, attempting retry with fresh client`);
+                
+                // Clear invalid cached tokens
+                clearInvalidTokens();
+                
+                // Get the client ID associated with this session
+                const sessionId = req.sessionId;
+                if (sessionId && sessionClients.has(sessionId)) {
+                  const clientId = sessionClients.get(sessionId);
+                  
+                  // Force client cleanup to trigger re-authentication
+                  console.log(`[${localProjectId}] Forcing cleanup of client ${clientId} due to auth error`);
+                  cleanupSogniClient(clientId);
+                  
+                  // Remove the session-to-client mapping to force new client creation
+                  sessionClients.delete(sessionId);
+                }
+                
+                try {
+                  // Get a fresh client with new authentication
+                  console.log(`[${localProjectId}] Creating fresh client for retry...`);
+                  const freshClient = await getSessionClient(sessionId, clientAppId);
+                  
+                  // Retry the generation with the fresh client
+                  console.log(`[${localProjectId}] Retrying generation with fresh client...`);
+                  return await attemptGeneration(freshClient, true); // Mark as retry to prevent infinite recursion
+                } catch (retryError) {
+                  console.error(`[${localProjectId}] Retry attempt failed:`, retryError);
+                  // Fall through to normal error handling with the original error
+                }
+              } else {
+                console.log(`[${localProjectId}] Error is not auth-related, not retrying: ${error.message}`);
+              }
+            } catch (validationError) {
+              console.error(`[${localProjectId}] Error validation failed:`, validationError);
+              // Fall through to normal error handling
             }
           }
           
@@ -685,27 +748,8 @@ router.post('/generate', ensureSessionId, async (req, res) => {
         }
       });
 
-    // Wait for either the first event or a timeout
-    try {
-      await Promise.race([
-        firstEventPromise,
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout waiting for generation to start')), 15000) // Increased to 15 second timeout
-        )
-      ]);
-      console.log(`[${localProjectId}] Received first event from Sogni, responding to client.`);
-    } catch (timeoutError) {
-      console.warn(`[${localProjectId}] Timeout waiting for first event, responding anyway:`, timeoutError.message);
-      
-      // Check if we have any stored errors for this project
-      if (globalThis.pendingProjectErrors && globalThis.pendingProjectErrors.has(localProjectId)) {
-        const errorEvent = globalThis.pendingProjectErrors.get(localProjectId);
-        console.log(`[${localProjectId}] Found stored error during timeout, will be delivered via SSE:`, JSON.stringify(errorEvent));
-      }
-    }
-    
-    // Add a small delay to allow SSE connection to establish
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Don't wait for first event - respond immediately to allow SSE connection to establish quickly
+    console.log(`[${localProjectId}] Responding immediately to allow fast SSE connection establishment`);
     
     // Respond to the initial POST request with the project ID
     console.log(`[${localProjectId}] Responding to initial POST request.`);
@@ -733,6 +777,29 @@ router.get('/health', (req, res) => {
     status: 'ok',
     timestamp: new Date().toISOString()
   });
+});
+
+// Test endpoint for new session management
+router.get('/test-client', ensureSessionId, async (req, res) => {
+  try {
+    console.log(`[TEST] Testing new Sogni session management for session: ${req.sessionId}`);
+    
+    const clientInfo = await getClientInfo(req.sessionId);
+    
+    res.json({
+      status: 'success',
+      message: 'New Sogni session management is working',
+      clientInfo: clientInfo,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('[TEST] Error testing client:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // Admin endpoint to clean up all connections (for development/maintenance)
