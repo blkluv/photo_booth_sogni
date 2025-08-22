@@ -132,6 +132,7 @@ const App = () => {
     promptGuidance, 
     controlNetStrength, 
     controlNetGuidanceEnd, 
+    inferenceSteps,
     flashEnabled, 
     keepOriginalPhoto,
     positivePrompt,
@@ -1656,7 +1657,7 @@ const App = () => {
         sizePreset: 'custom',
         width: getCustomDimensions(aspectRatio).width,  // Use aspectRatio here
         height: getCustomDimensions(aspectRatio).height, // Use aspectRatio here
-        steps: 7,
+        steps: inferenceSteps,
         guidance: promptGuidance,
         numberOfImages: numImages, // Use context state
         scheduler: 'DPM Solver Multistep (DPM-Solver++)',
@@ -3703,6 +3704,7 @@ const App = () => {
           promptGuidance={promptGuidance}
           controlNetStrength={controlNetStrength}
           controlNetGuidanceEnd={controlNetGuidanceEnd}
+          inferenceSteps={inferenceSteps}
           flashEnabled={flashEnabled}
           keepOriginalPhoto={keepOriginalPhoto}
           aspectRatio={aspectRatio}
@@ -3718,6 +3720,7 @@ const App = () => {
           onControlNetStrengthChange={(value) => updateSetting('controlNetStrength', value)}
           // Remove incorrect setters, use updateSetting instead
           onControlNetGuidanceEndChange={(value) => updateSetting('controlNetGuidanceEnd', value)}
+          onInferenceStepsChange={(value) => updateSetting('inferenceSteps', value)}
           onFlashEnabledChange={(value) => updateSetting('flashEnabled', value)}
           onKeepOriginalPhotoChange={(value) => updateSetting('keepOriginalPhoto', value)}
           onAspectRatioChange={(value) => {

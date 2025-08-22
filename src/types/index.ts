@@ -53,6 +53,7 @@ export interface Settings {
   promptGuidance: number;
   controlNetStrength: number;
   controlNetGuidanceEnd: number;
+  inferenceSteps: number;
   flashEnabled: boolean;
   keepOriginalPhoto: boolean;
   positivePrompt?: string;

@@ -47,6 +47,10 @@ interface AdvancedSettingsProps {
   controlNetGuidanceEnd?: number;
   /** Handler for ControlNet guidance end change */
   onControlNetGuidanceEndChange?: (value: number) => void;
+  /** Inference steps value */
+  inferenceSteps?: number;
+  /** Handler for inference steps change */
+  onInferenceStepsChange?: (value: number) => void;
   /** Flash enabled state */
   flashEnabled?: boolean;
   /** Handler for flash enabled change */
@@ -104,6 +108,8 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
   onControlNetStrengthChange,
   controlNetGuidanceEnd = 0.6,
   onControlNetGuidanceEndChange,
+  inferenceSteps = 7,
+  onInferenceStepsChange,
   flashEnabled = true,
   onFlashEnabledChange,
   keepOriginalPhoto = false,
@@ -404,6 +410,21 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
             className="slider-input"
           />
           <span className="slider-value">{controlNetGuidanceEnd.toFixed(1)}</span>
+        </div>
+
+        {/* Inference Steps slider */}
+        <div className="control-option">
+          <label className="control-label">Inference Steps:</label>
+          <input
+            type="range"
+            min={4}
+            max={10}
+            step={1}
+            value={inferenceSteps}
+            onChange={(e) => onInferenceStepsChange?.(Number(e.target.value))}
+            className="slider-input"
+          />
+          <span className="slider-value">{inferenceSteps}</span>
         </div>
 
         {/* Event Theme selector */}

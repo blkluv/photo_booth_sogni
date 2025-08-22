@@ -343,7 +343,7 @@ export async function generateImage(client, params, progressCallback, localProje
       sizePreset: 'custom',
       width: params.width,
       height: params.height,
-      steps: isEnhancement ? 4 : 7,
+      steps: params.inferenceSteps || (isEnhancement ? 4 : 7),
       guidance: params.promptGuidance || (isEnhancement ? 1 : 2),
       numberOfImages: params.numberImages || 1,
       numberOfPreviews: 10,

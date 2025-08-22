@@ -75,6 +75,7 @@ export const DEFAULT_SETTINGS: Settings = {
   promptGuidance: 2,
   controlNetStrength: 0.7,
   controlNetGuidanceEnd: 0.6,
+  inferenceSteps: 7,
   flashEnabled: true,
   keepOriginalPhoto: false,
   selectedStyle: "randomMix",

@@ -79,6 +79,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     promptGuidance: getSettingFromCookie('promptGuidance', DEFAULT_SETTINGS.promptGuidance),
     controlNetStrength: getSettingFromCookie('controlNetStrength', DEFAULT_SETTINGS.controlNetStrength),
     controlNetGuidanceEnd: getSettingFromCookie('controlNetGuidanceEnd', DEFAULT_SETTINGS.controlNetGuidanceEnd),
+    inferenceSteps: getSettingFromCookie('inferenceSteps', DEFAULT_SETTINGS.inferenceSteps),
     flashEnabled: getSettingFromCookie('flashEnabled', DEFAULT_SETTINGS.flashEnabled),
     keepOriginalPhoto: getSettingFromCookie('keepOriginalPhoto', DEFAULT_SETTINGS.keepOriginalPhoto),
     positivePrompt: getSettingFromCookie('positivePrompt', DEFAULT_SETTINGS.positivePrompt),

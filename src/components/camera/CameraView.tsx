@@ -444,6 +444,8 @@ export const CameraView: React.FC<CameraViewProps> = ({
         onControlNetStrengthChange={onControlNetStrengthChange}
         controlNetGuidanceEnd={controlNetGuidanceEnd}
         onControlNetGuidanceEndChange={onControlNetGuidanceEndChange}
+        inferenceSteps={7}
+        onInferenceStepsChange={() => {}}
         flashEnabled={flashEnabled}
         onFlashEnabledChange={onFlashEnabledChange}
         keepOriginalPhoto={keepOriginalPhoto}
