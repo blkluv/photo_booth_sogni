@@ -52,6 +52,7 @@ export class BackendProject implements SogniEventEmitter {
     id: string;
     on: (event: string, callback: (progress: number) => void) => void;
     resultUrl?: string;
+    previewUrl?: string; // Add preview URL support
     workerName?: string;
     realJobId?: string;
     index?: number;
@@ -724,6 +725,27 @@ export class BackendSogniClient {
               }
               break;
               
+            case 'preview':
+              if (targetJob) {
+                const previewUrl = event.previewUrl as string || event.resultUrl as string;
+                
+                if (previewUrl) {
+                  // Set ONLY the preview URL - DO NOT set resultUrl (that would mark job as completed)
+                  targetJob.previewUrl = previewUrl;
+                  
+                  // Emit a jobCompleted-like event but mark it as preview
+                  project.emit('jobCompleted', {
+                    ...targetJob,
+                    resultUrl: previewUrl, // Pass preview URL as resultUrl for the event only
+                    previewUrl: previewUrl,
+                    isPreview: true
+                  });
+                  
+
+                }
+              }
+              break;
+              
             case 'jobCompleted':
               if (targetJob) {
                 const resultUrl = event.resultUrl as string;
@@ -735,32 +757,32 @@ export class BackendSogniClient {
                     console.log(`Job ${targetJob.id} was already completed, ignoring duplicate completion event`);
                   } else {
                     project.completeJob(targetJob.id, resultUrl);
-              
-              // Check if we're waiting for project completion and all jobs are now done
-              if ((project as any)._pendingCompletion) {
-                const stillIncomplete = project.jobs ? project.jobs.filter(j => !j.resultUrl && !j.error) : [];
-                if (stillIncomplete.length === 0) {
-                  console.log(`Final job completed while waiting - triggering delayed project completion for ${project.id}`);
-                  if ((project as any)._completionCheckInterval) {
-                    clearInterval((project as any)._completionCheckInterval);
-                    delete (project as any)._completionCheckInterval;
-                  }
-                  delete (project as any)._pendingCompletion;
-                  delete (project as any)._completionStartTime;
                   
-                  // Create completion event with job info
-                  const finalCompletionEvent = {
-                    type: 'completed',
-                    missingJobs: {
-                      expected: project.jobs ? project.jobs.length : 0,
-                      completed: project.jobs ? project.jobs.filter(j => j.resultUrl || j.error).length : 0
+                    // Check if we're waiting for project completion and all jobs are now done
+                    if ((project as any)._pendingCompletion) {
+                      const stillIncomplete = project.jobs ? project.jobs.filter(j => !j.resultUrl && !j.error) : [];
+                      if (stillIncomplete.length === 0) {
+                        console.log(`Final job completed while waiting - triggering delayed project completion for ${project.id}`);
+                        if ((project as any)._completionCheckInterval) {
+                          clearInterval((project as any)._completionCheckInterval);
+                          delete (project as any)._completionCheckInterval;
+                        }
+                        delete (project as any)._pendingCompletion;
+                        delete (project as any)._completionStartTime;
+                        
+                        // Create completion event with job info
+                        const finalCompletionEvent = {
+                          type: 'completed',
+                          missingJobs: {
+                            expected: project.jobs ? project.jobs.length : 0,
+                            completed: project.jobs ? project.jobs.filter(j => j.resultUrl || j.error).length : 0
+                          }
+                        };
+                        
+                        project.emit('completed', finalCompletionEvent);
+                      }
                     }
-                  };
-                  
-                  project.emit('completed', finalCompletionEvent);
-                }
-              }
-            }
+                  }
                 } else if (isNSFW) {
                   console.warn(`Job ${targetJob.id} (real ID ${jobId}) completed but was filtered due to NSFW content`);
                   // Mark job as failed due to NSFW filtering

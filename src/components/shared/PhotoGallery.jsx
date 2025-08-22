@@ -977,7 +977,9 @@ const PhotoGallery = ({
                     position: 'relative',
                     top: 0,
                     left: 0,
-                    display: 'block'
+                    display: 'block',
+                    opacity: photo.isPreview ? 0.25 : 1, // Same opacity as placeholder for preview images
+                    transition: 'opacity 0.3s ease' // Smooth transition when final image loads
                   }}
                 />
                 {/* Event Theme Overlays - Only show on selected (popup) view */}

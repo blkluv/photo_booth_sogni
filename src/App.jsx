@@ -644,7 +644,7 @@ const App = () => {
     // Set up timeout detection for stuck generation states
     if (hasGeneratingPhotos && !activeProjectReference.current) {
       // Only set timeout if no active project (to avoid conflicts with existing timeout system)
-      console.log('Setting up stuck state detection for orphaned generating photos');
+      // console.log('Setting up stuck state detection for orphaned generating photos');
       const timeoutId = setTimeout(() => {
         // Check if photos are still generating and no active project
         setPhotos(prev => {
@@ -1649,16 +1649,22 @@ const App = () => {
       });
 
       // Set up handlers for any jobs that exist immediately
-      console.log('Project jobs to set up:', project.jobs);
+
+      
       if (project.jobs && project.jobs.length > 0) {
         project.jobs.forEach((job, index) => {
           projectStateReference.current.jobMap.set(job.id, index);
+
         });
       }
+      
+
 
       // Attach a single project-level job event handler
       project.on('job', (event) => {
         const { type, jobId, workerName, queuePosition, jobIndex, positivePrompt, progress } = event;
+        
+
         
         // Find the photo associated with this job
         const photoIndex = projectStateReference.current.jobMap.has(jobId)
@@ -1722,6 +1728,9 @@ const App = () => {
           } else if (type === 'progress') {
             const cachedWorkerName = updated[photoIndex].workerName || 'unknown';
             const displayProgress = Math.round((progress ?? 0) * 100);
+            
+
+            
             updated[photoIndex] = {
               ...updated[photoIndex],
               generating: true,
@@ -1932,99 +1941,110 @@ const App = () => {
         });
       });
 
-      // Individual job events
+      // Listen to project updates to get job progress and preview images
+
+
+      // Handle job completion for cleanup and final processing
       project.on('jobCompleted', (job) => {
-        // Clear job timeout when it completes
-        clearJobTimeout(job.id);
+        const isPreview = job.isPreview === true;
+        
+        // Clear job timeout when it completes (only for final, not previews)
+        if (!isPreview) {
+          clearJobTimeout(job.id);
+        }
         
         if (!job.resultUrl) {
           console.error('Missing resultUrl for job:', job.id);
           return;
         }
+        
         const jobIndex = projectStateReference.current.jobMap.get(job.id);
         const offset = keepOriginalPhoto ? 1 : 0;
         const photoIndex = jobIndex + offset;
         const positivePrompt = job.positivePrompt;
         
-        console.log('📸 Job completed:', {
-          jobId: job.id,
-          realJobId: job.realJobId,
-          photoIndex,
-          positivePrompt,
-          selectedStyle,
-          stylePrompt: stylePrompt.trim()
-        });
+        // Handle preview vs final image loading
+        if (isPreview) {
+          // PREVIEW IMAGE - load immediately without affecting status text
+          fetch(job.resultUrl)
+            .then(response => response.blob())
+            .then(blob => {
+              const objectUrl = URL.createObjectURL(blob);
+              
+              setPhotos(previous => {
+                const updated = [...previous];
+                if (updated[photoIndex] && !updated[photoIndex].permanentError) {
+                  updated[photoIndex] = {
+                    ...updated[photoIndex],
+                    images: [objectUrl], // Show preview
+                    newlyArrived: true,
+                    isPreview: true // Mark as preview for styling
+                    // Keep existing generating: true and progress from generation events
+                    // Don't override loading or statusText
+                  };
+                }
+                return updated;
+              });
+            })
+            .catch(error => {
+              console.error('Preview image load failed:', error);
+            });
+          
+          return; // Don't process hashtags for previews
+        }
         
-        // Check how many jobs are still outstanding for this project
-        const remainingJobs = photos.filter(photo => 
-          photo.generating && 
-          photo.projectId === project.id
-        );
-        console.log(`📊 After job ${job.id} completion: ${remainingJobs.length} jobs still generating for project ${project.id}`);
-        
+        // FINAL IMAGE - handle hashtags and completion
+        // Handle hashtag generation for final jobs
         let hashtag = '';
         if (positivePrompt) {
           const foundKey = Object.entries(promptsData).find(([, value]) => value === positivePrompt)?.[0];
           if (foundKey) {
             hashtag = `#${foundKey}`;
-            console.log('📸 Found hashtag for prompt:', { positivePrompt, hashtag, foundKey });
-          } else {
-            console.log('📸 No hashtag match found for prompt:', positivePrompt);
+            console.log('📸 Found hashtag for completed job:', { positivePrompt, hashtag, foundKey });
           }
         }
         
-        // Load image with download progress tracking
+        // If we have a valid stylePrompt, use that to help with hashtag lookup
+        if (!hashtag && stylePrompt.trim()) {
+          const styleKey = Object.entries(promptsData).find(([, value]) => value === stylePrompt.trim())?.[0];
+          if (styleKey) {
+            console.log('📸 Found hashtag from stylePrompt:', styleKey);
+            hashtag = `#${styleKey}`;
+          }
+        }
+        
+        // If we still don't have a hashtag but have a selectedStyle, use that
+        if (!hashtag && selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix') {
+          console.log('📸 Using selectedStyle for hashtag:', selectedStyle);
+          hashtag = `#${selectedStyle}`;
+        }
+        
+        // Load final image and update with completion status
         loadImageWithProgress(job.resultUrl, photoIndex, (loadedImageUrl) => {
           setPhotos(previous => {
             const updated = [...previous];
-            if (!updated[photoIndex]) {
-              console.error(`No photo box found at index ${photoIndex}`);
-              return previous;
+            if (updated[photoIndex] && !updated[photoIndex].permanentError) {
+              updated[photoIndex] = {
+                ...updated[photoIndex],
+                images: [loadedImageUrl], // Replace preview with final image
+                loading: false,
+                generating: false, // Mark as complete
+                progress: 100,
+                newlyArrived: true,
+                isPreview: false, // Clear preview flag so final image shows at full opacity
+                positivePrompt,
+                stylePrompt: stylePrompt.trim(),
+                statusText: hashtag || `#${(jobIndex || 0) + 1}`
+              };
             }
-            // Check if this photo has a permanent error - if so, don't update it
-            if (updated[photoIndex].permanentError) {
-              console.log(`Photo at index ${photoIndex} has permanent error, skipping update`);
-              return previous;
-            }
-            
-            // If we have a valid stylePrompt, use that to help with hashtag lookup
-            if (!hashtag && stylePrompt.trim()) {
-              // Check if stylePrompt matches any key in promptsData
-              const styleKey = Object.entries(promptsData).find(([, value]) => value === stylePrompt.trim())?.[0];
-              if (styleKey) {
-                console.log('📸 Found hashtag from stylePrompt:', styleKey);
-                hashtag = `#${styleKey}`;
-              }
-            }
-            
-            // If we still don't have a hashtag but have a selectedStyle, use that
-            if (!hashtag && selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix') {
-              console.log('📸 Using selectedStyle for hashtag:', selectedStyle);
-              hashtag = `#${selectedStyle}`;
-            }
-            
-            updated[photoIndex] = {
-              ...updated[photoIndex],
-              generating: false,
-              loading: false,
-              progress: 100,
-              images: [loadedImageUrl],
-              newlyArrived: true,
-              positivePrompt, // Ensure we keep the positivePrompt
-              stylePrompt: stylePrompt.trim(), // Make sure stylePrompt is included
-              statusText: hashtag || `#${jobIndex+1}`
-            };
-            
-            console.log('📸 Updated photo with result:', {
-              photoIndex,
-              hashtag,
-              stylePrompt: updated[photoIndex].stylePrompt,
-              positivePrompt: updated[photoIndex].positivePrompt,
-              statusText: updated[photoIndex].statusText
-            });
-            
-            // Check if all photos are done generating  
-            const stillGenerating = updated.some(photo => photo.generating);
+            return updated;
+          });
+        });
+        
+        // Check if all photos are done generating  
+        setTimeout(() => {
+          setPhotos(current => {
+            const stillGenerating = current.some(photo => photo.generating);
             if (!stillGenerating && activeProjectReference.current) {
               // All jobs are done, clear the active project and timeouts
               console.log('All jobs completed, clearing active project');
@@ -2034,18 +2054,9 @@ const App = () => {
               // Trigger promotional popup after batch completion
               triggerPromoPopupIfNeeded();
             }
-            
-            // Play camera wind sound when images are loaded into the grid
-            if (soundEnabled && cameraWindSoundReference.current) {
-              cameraWindSoundReference.current.currentTime = 0;
-              cameraWindSoundReference.current.play().catch(error => {
-                console.warn("Error playing camera wind sound:", error);
-              });
-            }
-            
-            return updated;
+            return current;
           });
-        });
+        }, 100);
       });
 
       project.on('jobFailed', (job) => {

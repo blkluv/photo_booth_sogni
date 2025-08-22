@@ -328,8 +328,8 @@ export async function generateImage(client, params, progressCallback, localProje
   return await withSogniClient(async (sogniClient) => {
     console.log('[IMAGE] Starting image generation with params:', {
       model: params.model,
-      prompt: params.prompt?.substring(0, 50) + '...',
-      ...Object.fromEntries(Object.entries(params).filter(([key]) => key !== 'prompt'))
+      // prompt: params.prompt?.substring(0, 50) + '...',
+      //...Object.fromEntries(Object.entries(params).filter(([key]) => key !== 'prompt'))
     });
 
     // Prepare project options in the correct format for the Sogni SDK
@@ -343,15 +343,20 @@ export async function generateImage(client, params, progressCallback, localProje
       sizePreset: 'custom',
       width: params.width,
       height: params.height,
-      steps: isEnhancement ? 4 : 7,
-      guidance: params.promptGuidance || (isEnhancement ? 1 : 7),
+      steps: isEnhancement ? 4 : 5,
+      guidance: params.promptGuidance || (isEnhancement ? 1 : 2),
       numberOfImages: params.numberImages || 1,
+      numberOfPreviews: 10,
       scheduler: 'DPM Solver Multistep (DPM-Solver++)',
       timeStepSpacing: 'Karras',
       disableNSFWFilter: true,
       tokenType: params.tokenType || 'spark',
       ...(params.seed !== undefined ? { seed: params.seed } : {})
     };
+    
+
+    
+
     
     // Add image data for enhancement or controlNet
     if (isEnhancement) {
@@ -432,14 +437,38 @@ export async function generateImage(client, params, progressCallback, localProje
               return;
             }
             
-            if (event.type !== 'progress') {
-              console.log(`[IMAGE] Job event for project ${project.id}: "${event.type}" payload:`, event);
-            }
+
             
             let progressEvent = null;
             
             // Process different event types with original data structure
             switch (event.type) {
+              case 'preview':
+                // Handle preview events
+                if (!event.jobId || !event.url) {
+                  console.log(`[IMAGE] Skipping preview event - missing jobId or url:`, { jobId: event.jobId, hasUrl: !!event.url });
+                  break;
+                }
+                
+                // Cancel fallback completion timeout since we received a preview (job is still actively generating)
+                if (projectCompletionTracker.jobCompletionTimeouts.has(event.jobId)) {
+                  console.log(`[IMAGE] Preview received for job ${event.jobId}, canceling fallback completion timeout`);
+                  clearTimeout(projectCompletionTracker.jobCompletionTimeouts.get(event.jobId));
+                  projectCompletionTracker.jobCompletionTimeouts.delete(event.jobId);
+                }
+                
+                progressEvent = {
+                  type: 'preview',
+                  jobId: event.jobId,
+                  projectId: projectDetails.localProjectId || event.projectId,
+                  previewUrl: event.url,
+                  resultUrl: event.url, // Also set as resultUrl for compatibility
+                  positivePrompt: event.positivePrompt || projectDetails.positivePrompt,
+                  jobIndex: event.jobIndex
+                };
+
+                break;
+                
               case 'initiating':
               case 'started':
                 // Skip events without jobId as they can't be assigned to specific jobs

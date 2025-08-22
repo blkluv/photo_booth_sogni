@@ -152,15 +152,47 @@
     <!-- Service Worker Registration -->
     <script>
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
-              console.log('SW registered: ', registration);
-            })
-            .catch((registrationError) => {
-              console.log('SW registration failed: ', registrationError);
+        // Skip service worker in development to prevent caching issues
+        const isLocalDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname.includes('local');
+        
+        if (!isLocalDev) {
+          window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+              .then((registration) => {
+                console.log('SW registered: ', registration);
+                
+                // Force update check on page load for production
+                registration.addEventListener('updatefound', () => {
+                  console.log('SW update found, will reload page when ready');
+                  const newWorker = registration.installing;
+                  newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                      // New version available, reload page
+                      window.location.reload();
+                    }
+                  });
+                });
+                
+                // Check for updates immediately
+                registration.update();
+              })
+              .catch((registrationError) => {
+                console.log('SW registration failed: ', registrationError);
+              });
+          });
+        } else {
+          console.log('Service Worker disabled in local development');
+          
+          // Unregister any existing service worker in development
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+              for(let registration of registrations) {
+                registration.unregister();
+                console.log('Unregistered existing service worker');
+              }
             });
-        });
+          }
+        }
       }
     </script>
   </body>

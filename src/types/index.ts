@@ -10,6 +10,7 @@ export interface Photo {
   loading?: boolean;
   progress?: number;
   permanentError?: boolean;
+
   // Timeout tracking fields
   jobStartTime?: number;
   lastProgressTime?: number;

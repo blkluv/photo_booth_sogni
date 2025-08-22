@@ -1,6 +1,6 @@
 // Service Worker for Sogni AI Photobooth PWA
-const CACHE_NAME = 'sogni-photobooth-v1.0.13';
-const STATIC_CACHE_NAME = 'sogni-photobooth-static-v1.0.13';
+const CACHE_NAME = 'sogni-photobooth-v1.0.14';
+const STATIC_CACHE_NAME = 'sogni-photobooth-static-v1.0.14';
 
 // Assets to cache for offline functionality
 const STATIC_ASSETS = [
@@ -61,6 +61,13 @@ self.addEventListener('fetch', (event) => {
   if (event.request.url.includes('/api/') || 
       event.request.url.includes('/sogni/') || 
       event.request.url.includes('/health')) {
+    return;
+  }
+
+  // NEVER cache JavaScript files to prevent update issues
+  if (event.request.url.includes('.js') || event.request.url.includes('assets/index-')) {
+    console.log('Bypassing cache for JS file:', event.request.url);
+    event.respondWith(fetch(event.request));
     return;
   }
 
