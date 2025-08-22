@@ -118,4 +118,26 @@
     width: 32px !important;
     height: 32px !important;
   }
+}
+
+/* Mobile Chrome specific fixes - applies to all mobile Chrome browsers */
+@media (max-width: 480px) and (orientation: portrait) and (not (-webkit-touch-callout: none)) {
+  /* High specificity rules for Chrome mobile */
+  body #root [class*="thumbnailButtonCorner"],
+  html body #root [class*="thumbnailButtonCorner"] {
+    bottom: 0px !important;
+    left: 12px !important;
+    transform: translateY(-50%) !important;
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  body #root [class*="cameraFlipButtonWithThumbnail"],
+  html body #root [class*="cameraFlipButtonWithThumbnail"] {
+    bottom: 3px !important;
+    left: 60px !important;
+    transform: translateY(-50%) !important;
+    width: 32px !important;
+    height: 32px !important;
+  }
 } 

@@ -10,6 +10,7 @@
 @import './styles/style-dropdown.css';
 @import './styles/theme.css';
 @import './styles/ios-chrome-fixes.css';
+@import './styles/pwa-standalone-fixes.css';
 @import './styles/slothicorn.css';
 @import './styles/studio-lights.css';
 

@@ -1,0 +1,224 @@
+/* 
+  PWA STANDALONE MODE FIXES
+  These rules handle layout issues when the app is saved to home screen
+  and runs in standalone/fullscreen mode
+*/
+
+/* PWA Standalone Mode Detection and Base Rules */
+@media all and (display-mode: standalone) {
+  /* Base PWA container fixes */
+  html, body {
+    height: 100% !important;
+    height: 100vh !important;
+    height: calc(var(--vh, 1vh) * 100) !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    position: fixed !important;
+    width: 100% !important;
+    top: 0 !important;
+    left: 0 !important;
+  }
+
+  /* Root container adjustments for PWA */
+  #root {
+    height: 100% !important;
+    height: 100vh !important;
+    height: calc(var(--vh, 1vh) * 100) !important;
+    width: 100% !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    overflow: hidden !important;
+    /* Add safe area padding for status bar */
+    padding-top: env(safe-area-inset-top) !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+    padding-left: env(safe-area-inset-left) !important;
+    padding-right: env(safe-area-inset-right) !important;
+  }
+
+  /* Camera container adjustments for PWA */
+  [class*="cameraContainer"] {
+    height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
+    height: calc((var(--vh, 1vh) * 100) - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
+    position: fixed !important;
+    top: env(safe-area-inset-top) !important;
+    left: env(safe-area-inset-left) !important;
+    right: env(safe-area-inset-right) !important;
+    bottom: env(safe-area-inset-bottom) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 10 !important;
+  }
+
+  /* Polaroid frame adjustments for PWA */
+  [class*="polaroidFrame"] {
+    position: relative !important;
+    margin: 0 auto !important;
+    max-height: calc(85vh - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
+    max-height: calc((var(--vh, 1vh) * 85) - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
+    max-width: calc(92vw - env(safe-area-inset-left) - env(safe-area-inset-right)) !important;
+    width: auto !important;
+    /* Center vertically accounting for safe areas */
+    transform: translateY(calc((env(safe-area-inset-top) - env(safe-area-inset-bottom)) / 2)) !important;
+  }
+
+  /* Bottom controls positioning for PWA */
+  [class*="bottomControls"] {
+    bottom: max(12px, env(safe-area-inset-bottom) + 8px) !important;
+    left: env(safe-area-inset-left) !important;
+    right: env(safe-area-inset-right) !important;
+    padding-left: max(16px, env(safe-area-inset-left) + 16px) !important;
+    padding-right: max(16px, env(safe-area-inset-right) + 16px) !important;
+  }
+
+  /* Thumbnail and camera flip button positioning for PWA */
+  [class*="thumbnailButtonCorner"] {
+    bottom: max(12px, env(safe-area-inset-bottom) + 8px) !important;
+    left: max(32px, env(safe-area-inset-left) + 32px) !important;
+    transform: translateY(-50%) !important;
+  }
+
+  [class*="cameraFlipButtonWithThumbnail"] {
+    bottom: max(12px, env(safe-area-inset-bottom) + 8px) !important;
+    left: max(88px, env(safe-area-inset-left) + 88px) !important;
+    transform: translateY(-50%) !important;
+  }
+
+  /* Aspect ratio dropdown positioning for PWA */
+  [class*="aspect-ratio-dropdown"] {
+    bottom: max(12px, env(safe-area-inset-bottom) + 8px) !important;
+    right: max(20px, env(safe-area-inset-right) + 20px) !important;
+  }
+
+  /* Menu buttons positioning for PWA */
+  .back-to-menu-btn, [class*="menu"] {
+    bottom: max(20px, env(safe-area-inset-bottom) + 20px) !important;
+    left: max(20px, env(safe-area-inset-left) + 20px) !important;
+  }
+
+  .view-photos-btn {
+    bottom: max(20px, env(safe-area-inset-bottom) + 20px) !important;
+    right: max(20px, env(safe-area-inset-right) + 20px) !important;
+  }
+}
+
+/* PWA Standalone Mode - Mobile Portrait Specific */
+@media all and (display-mode: standalone) and (orientation: portrait) and (max-width: 480px) {
+  /* Mobile PWA specific adjustments */
+  [class*="thumbnailButtonCorner"] {
+    bottom: max(8px, env(safe-area-inset-bottom) + 8px) !important;
+    left: max(12px, env(safe-area-inset-left) + 12px) !important;
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  [class*="cameraFlipButtonWithThumbnail"] {
+    bottom: max(8px, env(safe-area-inset-bottom) + 8px) !important;
+    left: max(60px, env(safe-area-inset-left) + 60px) !important;
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  /* Adjust polaroid frame for mobile PWA */
+  [class*="polaroidFrame"] {
+    max-height: calc(80vh - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
+    max-width: calc(95vw - env(safe-area-inset-left) - env(safe-area-inset-right)) !important;
+  }
+
+  /* Adjust camera view borders for mobile PWA */
+  [class*="cameraView"] {
+    border-left: max(20px, env(safe-area-inset-left) + 10px) solid white !important;
+    border-right: max(20px, env(safe-area-inset-right) + 10px) solid white !important;
+    border-top: max(22px, env(safe-area-inset-top) + 10px) solid white !important;
+    border-bottom: 70px solid white !important;
+  }
+}
+
+/* PWA Standalone Mode - Landscape Specific */
+@media all and (display-mode: standalone) and (orientation: landscape) {
+  /* Landscape PWA adjustments */
+  [class*="polaroidFrame"] {
+    max-height: calc(90vh - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
+    max-width: calc(85vw - env(safe-area-inset-left) - env(safe-area-inset-right)) !important;
+  }
+
+  /* Ensure controls don't get cut off in landscape */
+  [class*="bottomControls"] {
+    bottom: max(8px, env(safe-area-inset-bottom) + 8px) !important;
+  }
+
+  [class*="thumbnailButtonCorner"] {
+    bottom: max(8px, env(safe-area-inset-bottom) + 8px) !important;
+    left: max(32px, env(safe-area-inset-left) + 32px) !important;
+  }
+
+  [class*="cameraFlipButtonWithThumbnail"] {
+    bottom: max(8px, env(safe-area-inset-bottom) + 8px) !important;
+    left: max(88px, env(safe-area-inset-left) + 88px) !important;
+  }
+}
+
+/* PWA Fullscreen Mode Fallback (for older browsers) */
+@media all and (display-mode: fullscreen) {
+  /* Apply same rules as standalone for fullscreen mode */
+  html, body, #root {
+    height: 100vh !important;
+    height: calc(var(--vh, 1vh) * 100) !important;
+    position: fixed !important;
+    overflow: hidden !important;
+    padding-top: env(safe-area-inset-top) !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+    padding-left: env(safe-area-inset-left) !important;
+    padding-right: env(safe-area-inset-right) !important;
+  }
+
+  /* Apply all the same positioning rules as standalone mode */
+  [class*="cameraContainer"] {
+    height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
+    top: env(safe-area-inset-top) !important;
+    bottom: env(safe-area-inset-bottom) !important;
+    left: env(safe-area-inset-left) !important;
+    right: env(safe-area-inset-right) !important;
+  }
+
+  [class*="bottomControls"] {
+    bottom: max(12px, env(safe-area-inset-bottom) + 8px) !important;
+  }
+
+  [class*="thumbnailButtonCorner"] {
+    bottom: max(12px, env(safe-area-inset-bottom) + 8px) !important;
+    left: max(32px, env(safe-area-inset-left) + 32px) !important;
+  }
+
+  [class*="cameraFlipButtonWithThumbnail"] {
+    bottom: max(12px, env(safe-area-inset-bottom) + 8px) !important;
+    left: max(88px, env(safe-area-inset-left) + 88px) !important;
+  }
+}
+
+/* High specificity overrides for PWA mode */
+@media all and (display-mode: standalone) {
+  body #root [class*="cameraContainer"],
+  html body #root [class*="cameraContainer"] {
+    height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
+    top: env(safe-area-inset-top) !important;
+    bottom: env(safe-area-inset-bottom) !important;
+    padding: 0 !important;
+  }
+
+  body #root [class*="thumbnailButtonCorner"],
+  html body #root [class*="thumbnailButtonCorner"] {
+    bottom: max(12px, env(safe-area-inset-bottom) + 8px) !important;
+    left: max(32px, env(safe-area-inset-left) + 32px) !important;
+  }
+
+  body #root [class*="cameraFlipButtonWithThumbnail"],
+  html body #root [class*="cameraFlipButtonWithThumbnail"] {
+    bottom: max(12px, env(safe-area-inset-bottom) + 8px) !important;
+    left: max(88px, env(safe-area-inset-left) + 88px) !important;
+  }
+}

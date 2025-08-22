@@ -774,10 +774,30 @@
   }
   
   .cameraFlipButtonWithThumbnail {
-    bottom: -8px !important;  /* Match mobile aspect ratio dropdown positioning */
+    bottom: 3px !important;  /* Match mobile aspect ratio dropdown positioning */
     left: 60px !important;    /* Adjusted for mobile (40px thumbnail + 20px gap) */
     transform: translateY(-50%) !important;  /* Same as aspect ratio dropdown */
     width: 32px !important;   /* Match mobile cameraFlipButton size */
     height: 32px !important;  /* Match mobile cameraFlipButton size */
+  }
+}
+
+/* Additional mobile Chrome specific fixes */
+@media (max-width: 480px) and (orientation: portrait) {
+  /* Target mobile Chrome specifically */
+  .thumbnailButtonCorner {
+    bottom: 3px !important;  /* Chrome needs consistent positioning */
+    left: 12px !important;
+    transform: translateY(-50%) !important;
+    width: 40px !important;
+    height: 40px !important;
+  }
+  
+  .cameraFlipButtonWithThumbnail {
+    bottom: 3px !important;  /* Chrome needs same as thumbnail */
+    left: 60px !important;
+    transform: translateY(-50%) !important;
+    width: 32px !important;
+    height: 32px !important;
   }
 }
