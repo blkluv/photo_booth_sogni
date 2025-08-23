@@ -7,22 +7,22 @@ import { getSettingFromCookie, saveSettingsToCookies } from '../utils/cookies';
 // Helper function to handle TezDev theme cookie migration
 const getTezDevThemeFromCookie = () => {
   const savedTheme = getSettingFromCookie('tezdevTheme', DEFAULT_SETTINGS.tezdevTheme);
-  // Force existing users with 'pink', 'blue', or 'gmvietnam' to default to 'supercasual' since those events are over
-  // Keep 'supercasual' as the new active theme, and also default 'off' to 'supercasual' for new default
-  if (savedTheme === 'pink' || savedTheme === 'blue' || savedTheme === 'gmvietnam' || savedTheme === 'off') {
-    // Save the new default and return it
-    saveSettingsToCookies({ tezdevTheme: 'supercasual' });
-    
-    // Also set aspect ratio to narrow (2:3) for Super Casual theme
-    const currentAspectRatio = getSettingFromCookie('aspectRatio', DEFAULT_SETTINGS.aspectRatio);
-    if (currentAspectRatio !== 'narrow') {
-      saveSettingsToCookies({ aspectRatio: 'narrow' });
-      // Update CSS variables to match the new aspect ratio
-      document.documentElement.style.setProperty('--current-aspect-ratio', '832/1216');
+  
+  // Check if we've already performed the one-time migration
+  const migrationCompleted = localStorage.getItem('sogni_theme_migration_v2');
+  
+  if (!migrationCompleted) {
+    // This is the one-time migration - reset any existing theme to 'off'
+    if (savedTheme === 'pink' || savedTheme === 'blue' || savedTheme === 'gmvietnam' || savedTheme === 'supercasual') {
+      // Save the new default and mark migration as completed
+      saveSettingsToCookies({ tezdevTheme: 'off' });
+      localStorage.setItem('sogni_theme_migration_v2', 'completed');
+      return 'off';
     }
-    
-    return 'supercasual';
+    // Even if they had 'off' already, mark migration as completed so we don't check again
+    localStorage.setItem('sogni_theme_migration_v2', 'completed');
   }
+  
   return savedTheme;
 };
 
@@ -83,15 +83,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Settings state
   const [settings, setSettings] = useState<Settings>(() => {
     const theme = getTezDevThemeFromCookie();
-    let aspectRatio = getSettingFromCookie('aspectRatio', DEFAULT_SETTINGS.aspectRatio);
-    
-    // If theme is supercasual or gmvietnam, ensure aspect ratio is narrow (2:3)
-    if ((theme === 'supercasual' || theme === 'gmvietnam') && aspectRatio !== 'narrow') {
-      aspectRatio = 'narrow';
-      saveSettingsToCookies({ aspectRatio: 'narrow' });
-      // Update CSS variables to match the new aspect ratio
-      document.documentElement.style.setProperty('--current-aspect-ratio', '832/1216');
-    }
+    const aspectRatio = getSettingFromCookie('aspectRatio', DEFAULT_SETTINGS.aspectRatio);
     
     return {
       selectedStyle: getSettingFromCookie('selectedStyle', DEFAULT_SETTINGS.selectedStyle),
