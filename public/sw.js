@@ -1,5 +1,5 @@
 // Service Worker for Sogni AI Photobooth PWA
-const CACHE_VERSION = '1.0.15';
+const CACHE_VERSION = '1.0.16';
 const CACHE_NAME = `sogni-photobooth-v${CACHE_VERSION}`;
 const STATIC_CACHE_NAME = `sogni-photobooth-static-v${CACHE_VERSION}`;
 
