@@ -1119,7 +1119,7 @@ const App = () => {
 
   // If we return to camera, ensure the video is playing
   useEffect(() => {
-    if (cameraManuallyStarted && selectedPhotoIndex === null && videoReference.current) {
+    if (cameraManuallyStarted && selectedPhotoIndex === null && !showPhotoGrid && videoReference.current) {
       console.log("Restarting video playback");
       // Add a small delay to ensure DOM updates before attempting to play
       setTimeout(() => {
@@ -1139,7 +1139,7 @@ const App = () => {
         }
       }, 100);
     }
-  }, [selectedPhotoIndex, startCamera, selectedCameraDeviceId, cameraManuallyStarted]);
+  }, [selectedPhotoIndex, startCamera, selectedCameraDeviceId, cameraManuallyStarted, showPhotoGrid]);
 
   // Preload images for the selected photo
   useEffect(() => {
