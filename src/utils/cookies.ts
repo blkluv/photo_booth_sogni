@@ -45,4 +45,25 @@ export function markPromoPopupShown(): void {
   } catch (e) {
     console.warn('Error marking promo popup as shown:', e);
   }
+}
+
+// Theme group preferences utilities
+export function getThemeGroupPreferences(): Record<string, boolean> {
+  try {
+    const preferences = localStorage.getItem('sogni_theme_groups');
+    if (preferences) {
+      return JSON.parse(preferences) as Record<string, boolean>;
+    }
+  } catch (e) {
+    console.warn('Error reading theme group preferences:', e);
+  }
+  return {}; // Return empty object if not found or error
+}
+
+export function saveThemeGroupPreferences(preferences: Record<string, boolean>): void {
+  try {
+    localStorage.setItem('sogni_theme_groups', JSON.stringify(preferences));
+  } catch (e) {
+    console.warn('Error saving theme group preferences:', e);
+  }
 } 

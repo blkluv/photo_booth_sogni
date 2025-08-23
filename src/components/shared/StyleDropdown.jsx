@@ -1,6 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { styleIdToDisplay } from '../../utils';
+import { THEME_GROUPS, getDefaultThemeGroupState, getEnabledPrompts } from '../../constants/themeGroups';
+import { getThemeGroupPreferences, saveThemeGroupPreferences } from '../../utils/cookies';
 import '../../styles/style-dropdown.css';
 import PropTypes from 'prop-types';
 
@@ -13,13 +15,19 @@ const StyleDropdown = ({
   defaultStylePrompts, 
   setShowControlOverlay, 
   dropdownPosition = 'top', // Default value
-  triggerButtonClass = '.bottom-style-select' // Default class for the main toolbar
+  triggerButtonClass = '.bottom-style-select', // Default class for the main toolbar
+  onThemeChange = null // Callback when theme preferences change
 }) => {
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const [mounted, setMounted] = useState(false);
   const [actualPosition, setActualPosition] = useState(dropdownPosition);
   const dropdownReference = useRef(null);
   const [initialScrollDone, setInitialScrollDone] = useState(false);
+  const [themeGroupState, setThemeGroupState] = useState(() => {
+    const saved = getThemeGroupPreferences();
+    const defaultState = getDefaultThemeGroupState();
+    return { ...defaultState, ...saved };
+  });
   
   useEffect(() => {
     if (isOpen) {
@@ -28,7 +36,7 @@ const StyleDropdown = ({
       if (styleButton) {
         const rect = styleButton.getBoundingClientRect();
         const dropdownWidth = 240;
-        const dropdownHeight = 380; // Approximate height for calculation
+        const dropdownHeight = 450; // Increased to accommodate theme section
         
         // Calculate safe left position to prevent off-screen rendering
         let leftPosition = rect.left + rect.width / 2;
@@ -162,6 +170,24 @@ const StyleDropdown = ({
     }
   }, [isOpen, initialScrollDone]);
 
+  // Handle theme group toggle
+  const handleThemeGroupToggle = (groupId) => {
+    const newState = {
+      ...themeGroupState,
+      [groupId]: !themeGroupState[groupId]
+    };
+    setThemeGroupState(newState);
+    saveThemeGroupPreferences(newState);
+    
+    // Notify parent component about theme changes
+    if (onThemeChange) {
+      onThemeChange(newState);
+    }
+  };
+
+  // Filter prompts based on enabled theme groups
+  const enabledPrompts = getEnabledPrompts(themeGroupState, defaultStylePrompts);
+
   // If not mounted or not open, don't render anything
   if (!mounted || !isOpen) return null;
 
@@ -187,7 +213,7 @@ const StyleDropdown = ({
           }}
         >
           <span>🎲</span>
-          <span>YOLO MODE</span>
+          <span>Random Mix</span>
         </div>
         
         <div 
@@ -198,7 +224,18 @@ const StyleDropdown = ({
           }}
         >
           <span>🔀</span>
-          <span>Random</span>
+          <span>Random Single</span>
+        </div>
+        
+        <div 
+          className={`style-option ${selectedStyle === 'oneOfEach' ? 'selected' : ''}`} 
+          onClick={() => { 
+            updateStyle('oneOfEach');
+            onClose();
+          }}
+        >
+          <span>🙏</span>
+          <span>One of each plz</span>
         </div>
         
         <div 
@@ -214,9 +251,34 @@ const StyleDropdown = ({
         </div>
       </div>
       
+      {/* Themes Section */}
+      <div className="style-section themes">
+        <div className="section-header">
+          <span>🎨 Themes</span>
+        </div>
+        <div className="theme-groups">
+          {Object.entries(THEME_GROUPS).map(([groupId, group]) => (
+            <div key={groupId} className="theme-group">
+              <label className="theme-group-label">
+                <input
+                  type="checkbox"
+                  checked={themeGroupState[groupId]}
+                  onChange={() => handleThemeGroupToggle(groupId)}
+                  className="theme-group-checkbox"
+                />
+                <span className="theme-group-name">{group.name}</span>
+                <span className="theme-group-count">({group.prompts.length})</span>
+              </label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="style-section-divider"></div>
+
       <div className="style-section regular">
-        {Object.keys(defaultStylePrompts)
-          .filter(key => key !== 'random' && key !== 'custom' && key !== 'randomMix')
+        {Object.keys(enabledPrompts)
+          .filter(key => key !== 'random' && key !== 'custom' && key !== 'randomMix' && key !== 'oneOfEach')
           .sort((a, b) => {
             const displayA = styleIdToDisplay(a);
             const displayB = styleIdToDisplay(b);
@@ -259,6 +321,7 @@ StyleDropdown.propTypes = {
   setShowControlOverlay: PropTypes.func,
   dropdownPosition: PropTypes.string,
   triggerButtonClass: PropTypes.string,
+  onThemeChange: PropTypes.func,
 };
 
 export default StyleDropdown; 

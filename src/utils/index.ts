@@ -130,7 +130,7 @@ export function styleIdToDisplay(styleId: string): string {
  */
 export function getRandomStyle(availableStyles: string[]): string {
   const filteredStyles = availableStyles.filter(
-    (key) => key !== 'custom' && key !== 'random' && key !== 'randomMix'
+    (key) => key !== 'custom' && key !== 'random' && key !== 'randomMix' && key !== 'oneOfEach'
   );
   return filteredStyles[Math.floor(Math.random() * filteredStyles.length)];
 }
@@ -140,13 +140,24 @@ export function getRandomStyle(availableStyles: string[]): string {
  */
 export function getRandomMixPrompts(availableStyles: string[], prompts: Record<string, string>, count: number): string {
   const filteredStyles = availableStyles.filter(
-    (key) => key !== 'custom' && key !== 'random' && key !== 'randomMix'
+    (key) => key !== 'custom' && key !== 'random' && key !== 'randomMix' && key !== 'oneOfEach'
   );
+
+  // Shuffle the available styles to ensure good distribution
+  const shuffledStyles = [...filteredStyles];
+  for (let i = shuffledStyles.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffledStyles[i], shuffledStyles[j]] = [shuffledStyles[j], shuffledStyles[i]];
+  }
 
   const selectedPrompts = [];
   for (let i = 0; i < count; i++) {
-    const randomStyle = filteredStyles[Math.floor(Math.random() * filteredStyles.length)];
-    selectedPrompts.push(prompts[randomStyle]);
+    // Cycle through shuffled styles to ensure good distribution
+    const styleIndex = i % shuffledStyles.length;
+    const selectedStyle = shuffledStyles[styleIndex];
+    if (prompts[selectedStyle]) {
+      selectedPrompts.push(prompts[selectedStyle]);
+    }
   }
 
   return `{${selectedPrompts.join('|')}}`;

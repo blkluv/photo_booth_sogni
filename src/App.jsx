@@ -7,6 +7,8 @@ import { styleIdToDisplay } from './utils';
 import { getCustomDimensions } from './utils/imageProcessing';
 import { goToPreviousPhoto, goToNextPhoto } from './utils/photoNavigation';
 import { loadPrompts, getRandomStyle, getRandomMixPrompts } from './services/prompts';
+import { getDefaultThemeGroupState, getEnabledPrompts, getOneOfEachPrompts } from './constants/themeGroups';
+import { getThemeGroupPreferences } from './utils/cookies';
 import { initializeSogniClient } from './services/sogni';
 import { isNetworkError } from './services/api';
 import { enhancePhoto, undoEnhancement } from './services/PhotoEnhancer';
@@ -45,7 +47,7 @@ import { subscribeToConnectionState, getCurrentConnectionState } from './service
 
 // Helper function to update URL with prompt parameter
 const updateUrlWithPrompt = (promptKey) => {
-  if (!promptKey || ['randomMix', 'random', 'custom'].includes(promptKey)) {
+  if (!promptKey || ['randomMix', 'random', 'custom', 'oneOfEach'].includes(promptKey)) {
     // Remove the parameter if randomMix or empty
     const url = new URL(window.location.href);
     url.searchParams.delete('prompt');
@@ -60,7 +62,7 @@ const updateUrlWithPrompt = (promptKey) => {
 
 // Helper function to get the hashtag for a style
 const getHashtagForStyle = (styleKey) => {
-  if (!styleKey || styleKey === 'custom' || styleKey === 'random' || styleKey === 'randomMix') {
+  if (!styleKey || styleKey === 'custom' || styleKey === 'random' || styleKey === 'randomMix' || styleKey === 'oneOfEach') {
     return null;
   }
   return styleKey;
@@ -152,6 +154,18 @@ const App = () => {
   
   // Add state to track the current hashtag for sharing
   const [currentHashtag, setCurrentHashtag] = useState(null);
+  
+  // Track current theme state for real-time filtering
+  const [currentThemeState, setCurrentThemeState] = useState(() => {
+    const saved = getThemeGroupPreferences();
+    const defaultState = getDefaultThemeGroupState();
+    return { ...defaultState, ...saved };
+  });
+
+  // Callback to handle theme changes from StyleDropdown
+  const handleThemeChange = useCallback((newThemeState) => {
+    setCurrentThemeState(newThemeState);
+  }, []);
 
   // Info modal state - adding back the missing state
   const [showInfoModal, setShowInfoModal] = useState(false);
@@ -347,8 +361,8 @@ const App = () => {
             )
           };
           
-          // Add random style that uses all prompts
-          newStylePrompts.random = `{${Object.values(prompts).join('|')}}`;
+          // Add random style that will be resolved at generation time
+          newStylePrompts.random = 'RANDOM_SINGLE_STYLE';
           
           return newStylePrompts;
         });
@@ -1534,21 +1548,32 @@ const App = () => {
       
       setLastPhotoData({ blob: photoBlob, dataUrl, sourceType });
       const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      // Get theme-filtered prompts for random selection
+      const getFilteredPromptsForRandom = () => {
+        return getEnabledPrompts(currentThemeState, stylePrompts);
+      };
+
       // Prompt logic: use context state
       let finalPositivePrompt = positivePrompt.trim();
-      if (!finalPositivePrompt) {
-        if (selectedStyle === 'custom') {
-          finalPositivePrompt = '';
-        } else if (selectedStyle === 'random') {
-          // ... (prompt loading logic remains the same)
-          const randomStyle = getRandomStyle(stylePrompts);
-          finalPositivePrompt = stylePrompts[randomStyle] || '';
-        } else if (selectedStyle === 'randomMix') {
-          // Use numImages from context state
-          finalPositivePrompt = getRandomMixPrompts(numImages, stylePrompts); 
-        } else {
-          finalPositivePrompt = stylePrompts[selectedStyle] || '';
-        }
+      
+      // Handle special style modes (these override any existing prompt text)
+      if (selectedStyle === 'custom') {
+        finalPositivePrompt = finalPositivePrompt || '';
+      } else if (selectedStyle === 'random') {
+        // Pick one random style and use it for all images in the batch
+        const filteredPrompts = getFilteredPromptsForRandom();
+        const randomStyle = getRandomStyle(filteredPrompts);
+        finalPositivePrompt = filteredPrompts[randomStyle] || '';
+      } else if (selectedStyle === 'randomMix') {
+        // Use different random prompts for each image - creates {prompt1|prompt2|...} syntax
+        const filteredPrompts = getFilteredPromptsForRandom();
+        finalPositivePrompt = getRandomMixPrompts(numImages, filteredPrompts); 
+      } else if (selectedStyle === 'oneOfEach') {
+        // Use one prompt from each enabled theme group in order
+        finalPositivePrompt = getOneOfEachPrompts(currentThemeState, stylePrompts, numImages);
+      } else {
+        // Use the selected style prompt, or fallback to user's custom text
+        finalPositivePrompt = stylePrompts[selectedStyle] || finalPositivePrompt || '';
       }
       // Style prompt logic: use context state
       let finalStylePrompt = stylePrompt.trim() || ''; 
@@ -2821,6 +2846,7 @@ const App = () => {
           defaultStylePrompts={stylePrompts}
           showControlOverlay={showControlOverlay}
           setShowControlOverlay={setShowControlOverlay}
+          onThemeChange={handleThemeChange}
           dropdownPosition="bottom" // Force dropdown to appear below the button since it's at the top of the screen
           triggerButtonClass=".global-style-btn"
         />

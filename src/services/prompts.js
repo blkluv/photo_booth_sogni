@@ -64,8 +64,8 @@ export const initializeStylePrompts = async () => {
       )
     };
     
-    // Add random style that uses all prompts
-    stylePrompts.random = `{${Object.values(prompts).join('|')}}`;
+    // Add random style that will be resolved at generation time
+    stylePrompts.random = 'RANDOM_SINGLE_STYLE';
     
     console.log('Prompts loaded successfully:', Object.keys(stylePrompts).length);
     return stylePrompts;
@@ -100,7 +100,7 @@ export const generateRandomPrompts = (count, stylePrompts) => {
  */
 export const getRandomStyle = (stylePrompts) => {
   const availableStyles = Object.keys(stylePrompts)
-    .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix');
+    .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix' && key !== 'oneOfEach');
   
   if (availableStyles.length === 0) {
     console.warn('No styles available for random selection');
@@ -115,17 +115,26 @@ export const getRandomStyle = (stylePrompts) => {
  */
 export const getRandomMixPrompts = (count, stylePrompts) => {
   const availableStyles = Object.keys(stylePrompts)
-    .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix');
+    .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix' && key !== 'oneOfEach');
   
   if (availableStyles.length === 0) {
     console.warn('No styles available for random mix');
     return 'A creative portrait style'; // Fallback if no styles are available
   }
   
+  // Shuffle the available styles to ensure good distribution
+  const shuffledStyles = [...availableStyles];
+  for (let i = shuffledStyles.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffledStyles[i], shuffledStyles[j]] = [shuffledStyles[j], shuffledStyles[i]];
+  }
+  
   const selectedPrompts = [];
   for (let index = 0; index < count; index++) {
-    const randomStyle = availableStyles[Math.floor(Math.random() * availableStyles.length)];
-    const prompt = stylePrompts[randomStyle];
+    // Cycle through shuffled styles to ensure good distribution
+    const styleIndex = index % shuffledStyles.length;
+    const selectedStyle = shuffledStyles[styleIndex];
+    const prompt = stylePrompts[selectedStyle];
     if (prompt) {
       selectedPrompts.push(prompt);
     }
