@@ -132,7 +132,6 @@ export const THEME_GROUPS = {
       'celestialSketch',
       'arcticExplorer',
       'cyberGlow',
-      'mirrorChrome',
       'techBlueprint',
       'tikiRetro'
     ]
