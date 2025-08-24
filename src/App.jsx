@@ -493,22 +493,18 @@ const App = () => {
     
     // don't show thought if Slothicorn is disabled or on splash/start screens
     if (!slothicornAnimationEnabled || showSplashScreen || showStartMenu) {
-      // console.log('🤔 showThought: Skipped - slothicorn disabled or on splash/start screen');
       return;
     }
     
     // Don't show thoughts when viewing a specific photo
     if (selectedPhotoIndex !== null) {
-      //console.log('🤔 showThought: Skipped - photo is selected');
       return;
     }
     
     if (thoughtInProgress) {
-      // console.log('🤔 showThought: Skipped - thought already in progress');
       return;
     }
     
-    //console.log('🤔 showThought: Showing new thought - this will trigger App re-render');
     thoughtInProgress = true;
     // Select thoughts based on whether there's an active project
     const thoughts = activeProjectReference.current ? photoThoughts : randomThoughts;
@@ -523,7 +519,6 @@ const App = () => {
     });
 
     setTimeout(() => {
-      console.log('🤔 showThought: Clearing thought - this will trigger App re-render');
       setCurrentThought(null);
       thoughtInProgress = false;
     }, 4500);
