@@ -505,6 +505,8 @@ export async function createProject(params: Record<string, unknown>, progressCal
         promptGuidance: params.guidance,
         numberImages: params.numberOfImages,
         inferenceSteps: params.steps,
+        scheduler: params.scheduler,
+        timeStepSpacing: params.timeStepSpacing,
         startingImage: Array.isArray(imageData) || imageData instanceof Uint8Array ? imageData : [],
         startingImageStrength: params.startingImageStrength || 0.85,
         sourceType: params.sourceType // Pass sourceType through for enhancement
@@ -527,6 +529,8 @@ export async function createProject(params: Record<string, unknown>, progressCal
         promptGuidance: params.guidance,
         numberImages: params.numberOfImages,
         inferenceSteps: params.steps,
+        scheduler: params.scheduler,
+        timeStepSpacing: params.timeStepSpacing,
         controlNetStrength,
         controlNetGuidanceEnd,
         imageData: Array.isArray(imageData) || imageData instanceof Uint8Array ? imageData : [],

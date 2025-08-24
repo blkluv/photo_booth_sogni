@@ -334,7 +334,6 @@ export async function generateImage(client, params, progressCallback, localProje
 
     // Prepare project options in the correct format for the Sogni SDK
     const isEnhancement = params.startingImage !== undefined;
-    
     const projectOptions = {
       modelId: params.selectedModel,
       positivePrompt: params.positivePrompt || '',
@@ -347,8 +346,8 @@ export async function generateImage(client, params, progressCallback, localProje
       guidance: params.promptGuidance || (isEnhancement ? 1 : 2),
       numberOfImages: params.numberImages || 1,
       numberOfPreviews: 10,
-      scheduler: 'DPM Solver Multistep (DPM-Solver++)',
-      timeStepSpacing: 'Karras',
+      scheduler: params.scheduler || 'DPM++ SDE',
+      timeStepSpacing: params.timeStepSpacing || 'Karras',
       disableNSFWFilter: true,
       tokenType: params.tokenType || 'spark',
       ...(params.seed !== undefined ? { seed: params.seed } : {})

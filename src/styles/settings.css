@@ -611,4 +611,223 @@
     width: 41px;
     height: 41px;
   }
+}
+
+/* Model Group - Integrated Advanced Settings */
+.model-group {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  margin-bottom: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.model-main {
+  margin-bottom: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.advanced-toggle-wrapper {
+  padding: 0;
+}
+
+.advanced-toggle-subtle {
+  width: 100%;
+  padding: 8px 15px;
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.advanced-toggle-subtle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.toggle-text {
+  font-weight: 500;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.toggle-chevron {
+  font-size: 16px;
+  transition: transform 0.2s ease;
+  color: #ffd301;
+  font-weight: bold;
+}
+
+.toggle-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.advanced-subsection {
+  background: rgba(0, 0, 0, 0.1);
+  animation: expandDown 0.25s ease;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+@keyframes expandDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 400px;
+  }
+}
+
+.advanced-control {
+  padding: 10px 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: background-color 0.2s ease;
+}
+
+.advanced-control:last-child {
+  border-bottom: none;
+}
+
+.advanced-control:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.advanced-label {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  font-weight: 500;
+  min-width: 140px;
+  margin: 0;
+}
+
+.advanced-input-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.advanced-slider {
+  width: 120px;
+  height: 8px;
+  background: linear-gradient(to right, #ff3366, #7132e8);
+  border-radius: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+}
+
+.advanced-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffd301;
+  cursor: pointer;
+  border: 1px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.advanced-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffd301;
+  cursor: pointer;
+  border: 1px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.advanced-value {
+  min-width: 35px;
+  text-align: center;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.advanced-select {
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 12px;
+  min-width: 140px;
+  cursor: pointer;
+}
+
+.advanced-select:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.15);
+  border-color: #ffd301;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
+  .advanced-control {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 12px 15px;
+  }
+  
+  .advanced-label {
+    margin-bottom: 8px;
+    min-width: auto;
+    width: 100%;
+  }
+  
+  .advanced-input-group {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .advanced-slider {
+    width: 100%;
+    flex: 1;
+    margin-right: 10px;
+  }
+  
+  .advanced-select {
+    width: 100%;
+    min-width: auto;
+  }
+}
+
+@media (max-width: 420px) and (orientation: portrait) {
+  .advanced-control {
+    padding: 14px 12px;
+  }
+  
+  .advanced-slider {
+    height: 12px;
+  }
+  
+  .advanced-slider::-webkit-slider-thumb {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .advanced-slider::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+  }
 } 

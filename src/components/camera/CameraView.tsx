@@ -52,6 +52,18 @@ interface CameraViewProps {
   controlNetGuidanceEnd?: number;
   /** Handler for ControlNet guidance end change */
   onControlNetGuidanceEndChange?: (value: number) => void;
+  /** Inference steps value */
+  inferenceSteps?: number;
+  /** Handler for inference steps change */
+  onInferenceStepsChange?: (value: number) => void;
+  /** Scheduler value */
+  scheduler?: string;
+  /** Handler for scheduler change */
+  onSchedulerChange?: (value: string) => void;
+  /** Time step spacing value */
+  timeStepSpacing?: string;
+  /** Handler for time step spacing change */
+  onTimeStepSpacingChange?: (value: string) => void;
   /** Flash enabled state */
   flashEnabled?: boolean;
   /** Handler for flash enabled change */
@@ -103,6 +115,12 @@ export const CameraView: React.FC<CameraViewProps> = ({
   onControlNetStrengthChange,
   controlNetGuidanceEnd = 0.6,
   onControlNetGuidanceEndChange,
+  inferenceSteps = 7,
+  onInferenceStepsChange,
+  scheduler = 'DPM++ SDE',
+  onSchedulerChange,
+  timeStepSpacing = 'Karras',
+  onTimeStepSpacingChange,
   flashEnabled = true,
   onFlashEnabledChange,
   keepOriginalPhoto = false,
@@ -444,8 +462,12 @@ export const CameraView: React.FC<CameraViewProps> = ({
         onControlNetStrengthChange={onControlNetStrengthChange}
         controlNetGuidanceEnd={controlNetGuidanceEnd}
         onControlNetGuidanceEndChange={onControlNetGuidanceEndChange}
-        inferenceSteps={7}
-        onInferenceStepsChange={() => {}}
+        inferenceSteps={inferenceSteps}
+        onInferenceStepsChange={onInferenceStepsChange}
+        scheduler={scheduler}
+        onSchedulerChange={onSchedulerChange}
+        timeStepSpacing={timeStepSpacing}
+        onTimeStepSpacingChange={onTimeStepSpacingChange}
         flashEnabled={flashEnabled}
         onFlashEnabledChange={onFlashEnabledChange}
         keepOriginalPhoto={keepOriginalPhoto}

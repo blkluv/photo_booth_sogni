@@ -93,6 +93,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       controlNetStrength: getSettingFromCookie('controlNetStrength', DEFAULT_SETTINGS.controlNetStrength),
       controlNetGuidanceEnd: getSettingFromCookie('controlNetGuidanceEnd', DEFAULT_SETTINGS.controlNetGuidanceEnd),
       inferenceSteps: getSettingFromCookie('inferenceSteps', DEFAULT_SETTINGS.inferenceSteps),
+      scheduler: getSettingFromCookie('scheduler', DEFAULT_SETTINGS.scheduler),
+      timeStepSpacing: getSettingFromCookie('timeStepSpacing', DEFAULT_SETTINGS.timeStepSpacing),
       flashEnabled: getSettingFromCookie('flashEnabled', DEFAULT_SETTINGS.flashEnabled),
       keepOriginalPhoto: getSettingFromCookie('keepOriginalPhoto', DEFAULT_SETTINGS.keepOriginalPhoto),
       positivePrompt: getSettingFromCookie('positivePrompt', DEFAULT_SETTINGS.positivePrompt),

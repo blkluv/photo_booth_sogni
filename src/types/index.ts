@@ -54,6 +54,8 @@ export interface Settings {
   controlNetStrength: number;
   controlNetGuidanceEnd: number;
   inferenceSteps: number;
+  scheduler: string;
+  timeStepSpacing: string;
   flashEnabled: boolean;
   keepOriginalPhoto: boolean;
   positivePrompt?: string;

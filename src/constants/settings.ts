@@ -76,6 +76,8 @@ export const DEFAULT_SETTINGS: Settings = {
   controlNetStrength: 0.7,
   controlNetGuidanceEnd: 0.6,
   inferenceSteps: 7,
+  scheduler: 'DPM++ SDE',
+  timeStepSpacing: 'Karras',
   flashEnabled: true,
   keepOriginalPhoto: false,
   selectedStyle: "randomMix",

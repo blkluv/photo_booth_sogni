@@ -135,6 +135,8 @@ const App = () => {
     controlNetStrength, 
     controlNetGuidanceEnd, 
     inferenceSteps,
+    scheduler,
+    timeStepSpacing,
     flashEnabled, 
     keepOriginalPhoto,
     positivePrompt,
@@ -1672,6 +1674,7 @@ const App = () => {
       setUploadStatusText('Uploading your image...');
       
       // Create project using context state for settings
+      console.log('🔧 Creating project with scheduler:', scheduler, 'timeStepSpacing:', timeStepSpacing);
       const project = await sogniClient.projects.create({ 
         testnet: false,
         tokenType: 'spark',
@@ -1685,8 +1688,8 @@ const App = () => {
         steps: inferenceSteps,
         guidance: promptGuidance,
         numberOfImages: numImages, // Use context state
-        scheduler: 'DPM Solver Multistep (DPM-Solver++)',
-        timeStepSpacing: 'Karras',
+        scheduler: scheduler,
+        timeStepSpacing: timeStepSpacing,
         controlNet: {
           name: 'instantid',
           image: new Uint8Array(blobArrayBuffer),
@@ -2972,6 +2975,21 @@ const App = () => {
               updateSetting('controlNetGuidanceEnd', value);
               saveSettingsToCookies({ controlNetGuidanceEnd: value });
             }}
+            inferenceSteps={inferenceSteps}
+            onInferenceStepsChange={(value) => {
+              updateSetting('inferenceSteps', value);
+              saveSettingsToCookies({ inferenceSteps: value });
+            }}
+            scheduler={scheduler}
+            onSchedulerChange={(value) => {
+              updateSetting('scheduler', value);
+              saveSettingsToCookies({ scheduler: value });
+            }}
+            timeStepSpacing={timeStepSpacing}
+            onTimeStepSpacingChange={(value) => {
+              updateSetting('timeStepSpacing', value);
+              saveSettingsToCookies({ timeStepSpacing: value });
+            }}
             flashEnabled={flashEnabled}
             onFlashEnabledChange={(value) => {
               updateSetting('flashEnabled', value);
@@ -3731,6 +3749,8 @@ const App = () => {
           controlNetStrength={controlNetStrength}
           controlNetGuidanceEnd={controlNetGuidanceEnd}
           inferenceSteps={inferenceSteps}
+          scheduler={scheduler}
+          timeStepSpacing={timeStepSpacing}
           flashEnabled={flashEnabled}
           keepOriginalPhoto={keepOriginalPhoto}
           aspectRatio={aspectRatio}
@@ -3747,6 +3767,8 @@ const App = () => {
           // Remove incorrect setters, use updateSetting instead
           onControlNetGuidanceEndChange={(value) => updateSetting('controlNetGuidanceEnd', value)}
           onInferenceStepsChange={(value) => updateSetting('inferenceSteps', value)}
+          onSchedulerChange={(value) => updateSetting('scheduler', value)}
+          onTimeStepSpacingChange={(value) => updateSetting('timeStepSpacing', value)}
           onFlashEnabledChange={(value) => updateSetting('flashEnabled', value)}
           onKeepOriginalPhotoChange={(value) => updateSetting('keepOriginalPhoto', value)}
           onAspectRatioChange={(value) => {

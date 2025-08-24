@@ -51,6 +51,14 @@ interface AdvancedSettingsProps {
   inferenceSteps?: number;
   /** Handler for inference steps change */
   onInferenceStepsChange?: (value: number) => void;
+  /** Scheduler value */
+  scheduler?: string;
+  /** Handler for scheduler change */
+  onSchedulerChange?: (value: string) => void;
+  /** Time step spacing value */
+  timeStepSpacing?: string;
+  /** Handler for time step spacing change */
+  onTimeStepSpacingChange?: (value: string) => void;
   /** Flash enabled state */
   flashEnabled?: boolean;
   /** Handler for flash enabled change */
@@ -110,6 +118,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
   onControlNetGuidanceEndChange,
   inferenceSteps = 7,
   onInferenceStepsChange,
+  scheduler = 'DPM++ SDE',
+  onSchedulerChange,
+  timeStepSpacing = 'Karras',
+  onTimeStepSpacingChange,
   flashEnabled = true,
   onFlashEnabledChange,
   keepOriginalPhoto = false,
@@ -130,6 +142,9 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
   const { settings, updateSetting } = useApp();
   const currentAspectRatio = aspectRatio || settings.aspectRatio;
   const currentTezDevTheme = tezdevTheme || settings.tezdevTheme;
+  
+  // State for collapsible Advanced Model Settings section
+  const [showAdvancedModelSettings, setShowAdvancedModelSettings] = React.useState(false);
 
   const handleAspectRatioChange = (newAspectRatio: AspectRatioOption) => {
     // Use the provided handler or fallback to context
@@ -184,7 +199,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
   return (
     <div className={`control-overlay ${visible ? 'visible' : ''}`} style={{ position: 'fixed', zIndex: 99999 }}>
       <div className="control-overlay-content">
-        <h2 className="settings-title">Advanced Settings</h2>
+        <h2 className="settings-title">Settings</h2>
         
         <button 
           className="dismiss-overlay-btn"
@@ -284,21 +299,137 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
           </div>
         </div>
 
-        {/* Model selector */}
+        {/* Model selector with integrated advanced settings */}
         {modelOptions.length > 0 && (
-          <div className="control-option">
-            <label className="control-label">Image Model:</label>
-            <select
-              className="model-select"
-              onChange={(e) => onModelSelect?.(e.target.value)}
-              value={selectedModel}
-            >
-              {modelOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+          <div className="model-group">
+            {/* Main Image Model selector */}
+            <div className="control-option model-main">
+              <label className="control-label">Image Model:</label>
+              <select
+                className="model-select"
+                onChange={(e) => onModelSelect?.(e.target.value)}
+                value={selectedModel}
+              >
+                {modelOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Advanced toggle - seamlessly integrated */}
+            <div className="advanced-toggle-wrapper">
+              <button 
+                className="advanced-toggle-subtle"
+                onClick={() => setShowAdvancedModelSettings(!showAdvancedModelSettings)}
+                type="button"
+              >
+                <span className="toggle-text">Advanced Settings</span>
+                <span className={`toggle-chevron ${showAdvancedModelSettings ? 'expanded' : ''}`}>
+                  ›
+                </span>
+              </button>
+            </div>
+            
+            {/* Advanced settings - seamless subsection */}
+            {showAdvancedModelSettings && (
+              <div className="advanced-subsection">
+                {/* Prompt Guidance slider */}
+                <div className="advanced-control">
+                  <label className="advanced-label">Prompt Guidance:</label>
+                  <div className="advanced-input-group">
+                    <input
+                      type="range"
+                      min={1.8}
+                      max={3}
+                      step={0.1}
+                      value={promptGuidance}
+                      onChange={(e) => onPromptGuidanceChange?.(Number(e.target.value))}
+                      className="advanced-slider"
+                    />
+                    <span className="advanced-value">{promptGuidance.toFixed(1)}</span>
+                  </div>
+                </div>
+
+                {/* ControlNet Strength slider */}
+                <div className="advanced-control">
+                  <label className="advanced-label">Instant ID Strength:</label>
+                  <div className="advanced-input-group">
+                    <input
+                      type="range"
+                      min={0.4}
+                      max={1}
+                      step={0.1}
+                      value={controlNetStrength}
+                      onChange={(e) => onControlNetStrengthChange?.(Number(e.target.value))}
+                      className="advanced-slider"
+                    />
+                    <span className="advanced-value">{controlNetStrength.toFixed(1)}</span>
+                  </div>
+                </div>
+
+                {/* ControlNet Guidance End slider */}
+                <div className="advanced-control">
+                  <label className="advanced-label">Instant ID Impact Stop:</label>
+                  <div className="advanced-input-group">
+                    <input
+                      type="range"
+                      min={0.2}
+                      max={0.8}
+                      step={0.1}
+                      value={controlNetGuidanceEnd}
+                      onChange={(e) => onControlNetGuidanceEndChange?.(Number(e.target.value))}
+                      className="advanced-slider"
+                    />
+                    <span className="advanced-value">{controlNetGuidanceEnd.toFixed(1)}</span>
+                  </div>
+                </div>
+
+                {/* Inference Steps slider */}
+                <div className="advanced-control">
+                  <label className="advanced-label">Inference Steps:</label>
+                  <div className="advanced-input-group">
+                    <input
+                      type="range"
+                      min={4}
+                      max={10}
+                      step={1}
+                      value={inferenceSteps}
+                      onChange={(e) => onInferenceStepsChange?.(Number(e.target.value))}
+                      className="advanced-slider"
+                    />
+                    <span className="advanced-value">{inferenceSteps}</span>
+                  </div>
+                </div>
+
+                {/* Scheduler selector */}
+                <div className="advanced-control">
+                  <label className="advanced-label">Scheduler:</label>
+                  <select
+                    className="advanced-select"
+                    onChange={(e) => onSchedulerChange?.(e.target.value)}
+                    value={scheduler}
+                  >
+                    <option value="DPM++ SDE">DPM++ SDE</option>
+                    <option value="DPM++ 2M SDE">DPM++ 2M SDE</option>
+                  </select>
+                </div>
+
+                {/* Time Step Spacing selector */}
+                <div className="advanced-control">
+                  <label className="advanced-label">Time Step Spacing:</label>
+                  <select
+                    className="advanced-select"
+                    onChange={(e) => onTimeStepSpacingChange?.(e.target.value)}
+                    value={timeStepSpacing}
+                  >
+                    <option value="Karras">Karras</option>
+                    <option value="SGM Uniform">SGM Uniform</option>
+                  </select>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -367,65 +498,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
           />
         </div>
 
-        {/* Prompt Guidance slider */}
-        <div className="control-option">
-          <label className="control-label">Prompt Guidance:</label>
-          <input
-            type="range"
-            min={1.8}
-            max={3}
-            step={0.1}
-            value={promptGuidance}
-            onChange={(e) => onPromptGuidanceChange?.(Number(e.target.value))}
-            className="slider-input"
-          />
-          <span className="slider-value">{promptGuidance.toFixed(1)}</span>
-        </div>
 
-        {/* ControlNet Strength slider */}
-        <div className="control-option">
-          <label className="control-label">Instant ID Strength:</label>
-          <input
-            type="range"
-            min={0.4}
-            max={1}
-            step={0.1}
-            value={controlNetStrength}
-            onChange={(e) => onControlNetStrengthChange?.(Number(e.target.value))}
-            className="slider-input"
-          />
-          <span className="slider-value">{controlNetStrength.toFixed(1)}</span>
-        </div>
-
-        {/* ControlNet Guidance End slider */}
-        <div className="control-option">
-          <label className="control-label">Instant ID Impact Stop:</label>
-          <input
-            type="range"
-            min={0.2}
-            max={0.8}
-            step={0.1}
-            value={controlNetGuidanceEnd}
-            onChange={(e) => onControlNetGuidanceEndChange?.(Number(e.target.value))}
-            className="slider-input"
-          />
-          <span className="slider-value">{controlNetGuidanceEnd.toFixed(1)}</span>
-        </div>
-
-        {/* Inference Steps slider */}
-        <div className="control-option">
-          <label className="control-label">Inference Steps:</label>
-          <input
-            type="range"
-            min={4}
-            max={10}
-            step={1}
-            value={inferenceSteps}
-            onChange={(e) => onInferenceStepsChange?.(Number(e.target.value))}
-            className="slider-input"
-          />
-          <span className="slider-value">{inferenceSteps}</span>
-        </div>
 
         {/* Event Theme selector */}
         <div className="control-option">

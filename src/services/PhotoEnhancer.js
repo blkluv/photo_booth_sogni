@@ -74,6 +74,8 @@ export const enhancePhoto = async (options) => {
         steps: 4,
         guidance: 1,
         numberOfImages: 1,
+        // Note: Flux models use their own optimal scheduler/timeStepSpacing defaults
+        // so we don't override them here
         startingImage: Array.from(new Uint8Array(arrayBuffer)),
         startingImageStrength: 0.75,
       });
