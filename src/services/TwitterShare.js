@@ -82,7 +82,7 @@ export const shareToTwitter = async ({
     const hashtag = getPhotoHashtag(photo);
     const styleTag = hashtag ? hashtag.replace('#', '') : 'vaporwave';
     
-    twitterMessage = `Just took my photo at the @sogni_protocol photobooth at the @Tezos booth at G-79 @WebX_Asia! #SogniAtWebXAsia #${styleTag} @tzapac @etherlink`;
+    twitterMessage = `Just took my photo at the @sogni_protocol photobooth at the @Tezos booth at G-79 @WebX_Asia! #SogniAtWebXAsia #${styleTag} @tzapac @etherlink https://photobooth.sogni.ai/?prompt=${styleTag}`;
   } else if (tezdevTheme !== 'off') {
     // Use TezDev-specific message format
     const hashtag = getPhotoHashtag(photo);

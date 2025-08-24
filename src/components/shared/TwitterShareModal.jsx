@@ -47,7 +47,7 @@ const TwitterShareModal = ({
       if (tezdevTheme === 'tezoswebx') {
         // Use Tezos WebX-specific message format
         const styleTag = styleHashtag ? styleHashtag.replace('#', '') : '';
-        const tezosWebXMessage = `Just took my photo at the @sogni_protocol photobooth at the @Tezos booth at G-79 @WebX_Asia! #SogniAtWebXAsia #${styleTag} @tzapac @etherlink`;
+        const tezosWebXMessage = `Just took my photo at the @sogni_protocol photobooth at the @Tezos booth at G-79 @WebX_Asia! #SogniAtWebXAsia #${styleTag} @tzapac @etherlink https://photobooth.sogni.ai/?prompt=${styleTag}`;
         setMessage(tezosWebXMessage);
       } else if (tezdevTheme !== 'off') {
         // Use TezDev-specific message format
