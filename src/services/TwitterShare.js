@@ -77,7 +77,13 @@ export const shareToTwitter = async ({
   // Determine the appropriate message format based on TezDev theme
   let twitterMessage = customMessage;
   
-  if (tezdevTheme !== 'off') {
+  if (tezdevTheme === 'tezoswebx') {
+    // Use Tezos WebX-specific message format
+    const hashtag = getPhotoHashtag(photo);
+    const styleTag = hashtag ? hashtag.replace('#', '') : 'vaporwave';
+    
+    twitterMessage = `Just took my photo at the @sogni_protocol photobooth at the @Tezos booth at G-79 @WebX_Asia! #SogniAtWebXAsia #${styleTag} @tzapac @etherlink`;
+  } else if (tezdevTheme !== 'off') {
     // Use TezDev-specific message format
     const hashtag = getPhotoHashtag(photo);
     const styleTag = hashtag ? hashtag.replace('#', '') : 'vaporwave';

@@ -44,7 +44,12 @@ const TwitterShareModal = ({
   // Initialize message with default and hashtag when modal opens
   useEffect(() => {
     if (isOpen) {
-      if (tezdevTheme !== 'off') {
+      if (tezdevTheme === 'tezoswebx') {
+        // Use Tezos WebX-specific message format
+        const styleTag = styleHashtag ? styleHashtag.replace('#', '') : '';
+        const tezosWebXMessage = `Just took my photo at the @sogni_protocol photobooth at the @Tezos booth at G-79 @WebX_Asia! #SogniAtWebXAsia #${styleTag} @tzapac @etherlink`;
+        setMessage(tezosWebXMessage);
+      } else if (tezdevTheme !== 'off') {
         // Use TezDev-specific message format
         const styleTag = styleHashtag ? styleHashtag.replace('#', '') : '';
         const tezdevMessage = `Just took my photo at the @sogni_protocol photobooth #${styleTag} with @tzapac @tezos @etherlink

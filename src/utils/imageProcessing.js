@@ -371,6 +371,48 @@ async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, fram
       return;
     }
     
+    // Handle Tezos WebX theme - only for narrow (2:3) aspect ratio
+    if (theme === 'tezoswebx') {
+      // Only apply Tezos WebX theme to narrow (2:3) aspect ratio
+      if (aspectRatio !== 'narrow') {
+        console.log('Tezos WebX theme only applies to narrow (2:3) aspect ratio');
+        resolve();
+        return;
+      }
+      
+      const tezosWebXFrame = new Image();
+      tezosWebXFrame.crossOrigin = 'anonymous';
+      
+      tezosWebXFrame.onload = () => {
+        // Scale the frame to fit the image area
+        const maxWidth = imageWidth;
+        const maxHeight = imageHeight;
+        
+        const scaleX = maxWidth / tezosWebXFrame.naturalWidth;
+        const scaleY = maxHeight / tezosWebXFrame.naturalHeight;
+        const scale = Math.min(scaleX, scaleY);
+        
+        const scaledWidth = tezosWebXFrame.naturalWidth * scale;
+        const scaledHeight = tezosWebXFrame.naturalHeight * scale;
+        
+        // Center the frame over the image
+        const frameX = frameOffsetX + (imageWidth - scaledWidth) / 2;
+        const frameY = frameOffsetY + (imageHeight - scaledHeight) / 2;
+        
+        ctx.drawImage(tezosWebXFrame, frameX, frameY, scaledWidth, scaledHeight);
+        console.log('Applied Tezos WebX frame overlay');
+        resolve();
+      };
+      
+      tezosWebXFrame.onerror = (err) => {
+        console.error('Failed to load Tezos WebX frame:', err);
+        reject(err);
+      };
+      
+      tezosWebXFrame.src = '/events/tz_webx.png';
+      return;
+    }
+    
     // Handle original blue/pink themes with corner pieces
     let loadedImages = 0;
     const totalImages = 2;

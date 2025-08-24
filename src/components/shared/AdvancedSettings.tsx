@@ -175,8 +175,8 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
       updateSetting('tezdevTheme', newTheme);
     }
     
-    // Automatically switch to narrow (2:3) aspect ratio for GM Vietnam and Super Casual themes
-    if (newTheme === 'gmvietnam' || newTheme === 'supercasual') {
+    // Automatically switch to narrow (2:3) aspect ratio for GM Vietnam, Super Casual, and Tezos WebX themes
+    if (newTheme === 'gmvietnam' || newTheme === 'supercasual' || newTheme === 'tezoswebx') {
       handleAspectRatioChange('narrow');
     }
   };
@@ -439,6 +439,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
             <option value="pink">Pink</option>
             <option value="gmvietnam">GM Vietnam</option>
             <option value="supercasual">Super Casual</option>
+            <option value="tezoswebx">Tezos WebX</option>
             <option value="off">Off</option>
           </select>
         </div>

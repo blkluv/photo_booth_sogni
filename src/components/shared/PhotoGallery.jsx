@@ -874,7 +874,7 @@ const PhotoGallery = ({
             return (
               <div
                 key={photo.id}
-                className={`film-frame loading ${isSelected ? 'selected' : ''} ${isSelected && tezdevTheme === 'gmvietnam' ? 'gm-vietnam-theme' : ''} ${isSelected && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''}`}
+                className={`film-frame loading ${isSelected ? 'selected' : ''} ${isSelected && tezdevTheme === 'gmvietnam' ? 'gm-vietnam-theme' : ''} ${isSelected && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''}`}
                 data-enhancing={photo.enhancing ? 'true' : undefined}
                 data-error={photo.error ? 'true' : undefined}
                 data-enhanced={photo.enhanced ? 'true' : undefined}
@@ -944,7 +944,7 @@ const PhotoGallery = ({
           return (
             <div 
               key={photo.id}
-              className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''} ${isLoaded ? 'loaded' : ''} ${isSelected && tezdevTheme === 'gmvietnam' ? 'gm-vietnam-theme' : ''} ${isSelected && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''}`}
+              className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''} ${isLoaded ? 'loaded' : ''} ${isSelected && tezdevTheme === 'gmvietnam' ? 'gm-vietnam-theme' : ''} ${isSelected && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''}`}
               onClick={e => isSelected ? handlePhotoViewerClick(e) : handlePhotoSelect(index, e)}
               data-enhancing={photo.enhancing ? 'true' : undefined}
               data-error={photo.error ? 'true' : undefined}
@@ -1066,6 +1066,25 @@ const PhotoGallery = ({
                           width: '100%',
                           height: '100%',
                           backgroundImage: `url(/events/super-casual.png)`,
+                          backgroundSize: 'contain',
+                          backgroundPosition: 'center',
+                          backgroundRepeat: 'no-repeat',
+                          pointerEvents: 'none',
+                          zIndex: 2
+                        }}
+                      />
+                    )}
+                    
+                    {/* Tezos WebX Full Frame Overlay - only for narrow (2:3) aspect ratio */}
+                    {tezdevTheme === 'tezoswebx' && aspectRatio === 'narrow' && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          backgroundImage: `url(/events/tz_webx.png)`,
                           backgroundSize: 'contain',
                           backgroundPosition: 'center',
                           backgroundRepeat: 'no-repeat',
