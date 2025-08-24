@@ -2,76 +2,76 @@
   "name": "Sogni AI Photobooth",
   "short_name": "Sogni Photobooth",
   "description": "Capture and transform your photos with AI styles - Slothicorn Edition",
-  "start_url": "/?v=1.0.15",
+  "start_url": "/?v=1.0.18",
   "display": "standalone",
   "orientation": "portrait-primary",
   "theme_color": "#000000",
   "background_color": "#000000",
   "scope": "/",
-  "version": "1.0.15",
+  "version": "1.0.18",
   "icons": [
     {
-      "src": "/icons/icon-72x72.png?v=1.0.15",
+      "src": "/icons/icon-72x72.png?v=1.0.18",
       "sizes": "72x72",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-96x96.png?v=1.0.15",
+      "src": "/icons/icon-96x96.png?v=1.0.18",
       "sizes": "96x96",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-128x128.png?v=1.0.15",
+      "src": "/icons/icon-128x128.png?v=1.0.18",
       "sizes": "128x128",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-144x144.png?v=1.0.15",
+      "src": "/icons/icon-144x144.png?v=1.0.18",
       "sizes": "144x144",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-152x152.png?v=1.0.15",
+      "src": "/icons/icon-152x152.png?v=1.0.18",
       "sizes": "152x152",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-180x180.png?v=1.0.15",
+      "src": "/icons/icon-180x180.png?v=1.0.18",
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-192x192.png?v=1.0.15",
+      "src": "/icons/icon-192x192.png?v=1.0.18",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-384x384.png?v=1.0.15",
+      "src": "/icons/icon-384x384.png?v=1.0.18",
       "sizes": "384x384",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-512x512.png?v=1.0.15",
+      "src": "/icons/icon-512x512.png?v=1.0.18",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-192x192.png?v=1.0.15",
+      "src": "/icons/icon-192x192.png?v=1.0.18",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/icons/icon-512x512.png?v=1.0.15",
+      "src": "/icons/icon-512x512.png?v=1.0.18",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
