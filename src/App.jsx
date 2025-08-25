@@ -34,6 +34,8 @@ import promptsData from './prompts.json';
 import PhotoGallery from './components/shared/PhotoGallery';
 import { useApp } from './context/AppContext.tsx';
 import TwitterShareModal from './components/shared/TwitterShareModal';
+import FriendlyErrorModal from './components/shared/FriendlyErrorModal';
+import SuccessToast from './components/shared/SuccessToast';
 
 import SplashScreen from './components/shared/SplashScreen';
 // Import the ImageAdjuster component
@@ -413,6 +415,9 @@ const App = () => {
   // Add state for Twitter share modal
   const [showTwitterModal, setShowTwitterModal] = useState(false);
   const [twitterPhotoIndex, setTwitterPhotoIndex] = useState(null);
+  const [lastTwitterMessage, setLastTwitterMessage] = useState(null);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   // Add state for splash screen
   const [showSplashScreen, setShowSplashScreen] = useState(true);
@@ -658,6 +663,9 @@ const App = () => {
   
   // Add a handler for the actual sharing with custom message
   const handleTwitterShare = async (customMessage) => {
+    // Store the message for potential retry
+    setLastTwitterMessage(customMessage);
+    
     // Get the current URL with any hashtag parameter
     const shareUrl = new URL(window.location.href);
     
@@ -674,7 +682,12 @@ const App = () => {
       customMessage,
       shareUrl: shareUrl.toString(), // Pass the full URL with parameters
       tezdevTheme,
-      aspectRatio
+      aspectRatio,
+      onSuccess: () => {
+        setSuccessMessage('Your photo has been shared to X/Twitter!');
+        setShowSuccessToast(true);
+        setShowTwitterModal(false);
+      }
     });
   };
 
@@ -2857,39 +2870,24 @@ const App = () => {
         statusText={uploadStatusText}
       />
 
-      {/* Display backend error if present */}
-      {backendError && (
-        <div className="backend-error-message" style={{
-          position: 'fixed',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          padding: '20px',
-          background: 'rgba(255, 0, 0, 0.1)',
-          border: '1px solid #ff0000',
-          borderRadius: '8px',
-          maxWidth: '90%',
-          width: '600px',
-          zIndex: 99999,
-          backdropFilter: 'blur(8px)',
-          textAlign: 'center',
-          fontWeight: 'bold',
-          color: '#d32f2f',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
-        }}>
-          <h3 style={{ margin: '0 0 10px 0' }}>Backend Connection Error</h3>
-          <p style={{ margin: '0 0 15px 0' }}>{backendError}</p>
-          <button onClick={() => setBackendError(null)} style={{
-            padding: '8px 16px',
-            background: '#d32f2f',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontWeight: 'bold'
-          }}>Okkkayy</button>
-        </div>
-      )}
+      {/* Friendly Error Modal */}
+      <FriendlyErrorModal 
+        error={backendError}
+        onClose={() => setBackendError(null)}
+        onRetry={() => {
+          // If there's a retry context, re-trigger the Twitter share
+          if (twitterPhotoIndex !== null && lastTwitterMessage) {
+            handleTwitterShare(lastTwitterMessage);
+          }
+        }}
+      />
+
+      {/* Success Toast */}
+      <SuccessToast
+        message={successMessage}
+        isVisible={showSuccessToast}
+        onClose={() => setShowSuccessToast(false)}
+      />
 
       {showStartMenu ? (
         <>

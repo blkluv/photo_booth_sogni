@@ -228,10 +228,13 @@ https://photobooth.sogni.ai/?prompt=${styleTag}`;
             disabled={isSharing || !message.trim() || isLoadingPreview}
           >
             {isSharing ? (
-              <span className="twitter-loading">
-                <span className="dot"></span>
-                <span className="dot"></span>
-                <span className="dot"></span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="twitter-loading">
+                  <span className="dot"></span>
+                  <span className="dot"></span>
+                  <span className="dot"></span>
+                </span>
+                <span>Sharing your masterpiece...</span>
               </span>
             ) : (
               <>

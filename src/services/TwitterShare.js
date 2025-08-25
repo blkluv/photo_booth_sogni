@@ -51,7 +51,12 @@ export const shareToTwitter = async ({
 }) => {
   if (photoIndex === null || !photos[photoIndex] || !photos[photoIndex].images || !photos[photoIndex].images[0]) {
     console.error('No image selected or image URL is missing for sharing.');
-    setBackendError('No image available for sharing.');
+    setBackendError({
+      type: 'no_image',
+      title: '📷 No Image Selected',
+      message: 'Please select a photo from your gallery before sharing to X/Twitter.',
+      canRetry: false
+    });
     return;
   }
 
@@ -180,7 +185,13 @@ https://photobooth.sogni.ai/?prompt=${styleTag}`;
             return attemptShare();
           }
           
-          setBackendError(`Error starting share: ${errorMessage}`);
+          setBackendError({
+            type: 'connection_error',
+            title: '🌐 Connection Issue',
+            message: 'Having trouble connecting to our sharing service. Please check your internet connection and try again.',
+            details: errorMessage,
+            canRetry: true
+          });
           return;
         }
 
@@ -272,7 +283,12 @@ https://photobooth.sogni.ai/?prompt=${styleTag}`;
         
         if (!responseData.authUrl) {
           console.error('No authUrl received from backend.');
-          setBackendError('Could not get Twitter authorization URL.');
+          setBackendError({
+            type: 'auth_error',
+            title: '🔐 Authorization Issue',
+            message: 'Unable to set up sharing with X/Twitter. Please try again in a moment.',
+            canRetry: true
+          });
           return;
         }
 
@@ -291,7 +307,17 @@ https://photobooth.sogni.ai/?prompt=${styleTag}`;
         
         if (!popup || popup.closed || typeof popup.closed === 'undefined') {
           console.error('Popup blocked or could not be opened');
-          setBackendError('Popup blocked. Please allow popups for this site.');
+          
+          // Offer a more user-friendly fallback with direct link sharing
+          const fallbackUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(twitterMessage)}`;
+          
+          setBackendError({
+            type: 'popup_blocked',
+            title: '🚫 Pop-up Blocked',
+            message: 'Your browser blocked the sharing window. No worries! You can still share your photo manually. Click the button below to open X/Twitter, then save and attach your photo from the gallery.',
+            fallbackUrl: fallbackUrl,
+            fallbackText: 'Open X/Twitter'
+          });
           return;
         }
         
