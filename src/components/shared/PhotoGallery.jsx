@@ -755,6 +755,8 @@ const PhotoGallery = ({
                         height: desiredHeight,
                         sogniClient,
                         setPhotos,
+                        outputFormat: outputFormat,
+                        sensitiveContentFilter: sensitiveContentFilter,
                         onSetActiveProject: (projectId) => {
                           activeProjectReference.current = projectId;
                         }

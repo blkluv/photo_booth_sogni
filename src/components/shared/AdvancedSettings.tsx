@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { AspectRatioOption, TezDevTheme } from '../../types/index';
+import { AspectRatioOption, TezDevTheme, OutputFormat } from '../../types/index';
 
 interface AdvancedSettingsProps {
   /** Whether the settings overlay is visible */
@@ -89,6 +89,14 @@ interface AdvancedSettingsProps {
   tezdevTheme?: TezDevTheme;
   /** Handler for TezDev theme change */
   onTezDevThemeChange?: (theme: TezDevTheme) => void;
+  /** Current output format */
+  outputFormat?: OutputFormat;
+  /** Handler for output format change */
+  onOutputFormatChange?: (format: OutputFormat) => void;
+  /** Sensitive content filter enabled state */
+  sensitiveContentFilter?: boolean;
+  /** Handler for sensitive content filter change */
+  onSensitiveContentFilterChange?: (enabled: boolean) => void;
 }
 
 /**
@@ -137,11 +145,17 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
   onAspectRatioChange,
   tezdevTheme,
   onTezDevThemeChange,
+  outputFormat = 'jpg',
+  onOutputFormatChange,
+  sensitiveContentFilter = false,
+  onSensitiveContentFilterChange,
 }) => {
-  // Get current aspect ratio from context if not provided via props
+  // Get current settings from context if not provided via props
   const { settings, updateSetting } = useApp();
   const currentAspectRatio = aspectRatio || settings.aspectRatio;
   const currentTezDevTheme = tezdevTheme || settings.tezdevTheme;
+  const currentOutputFormat = outputFormat || settings.outputFormat;
+  const currentSensitiveContentFilter = sensitiveContentFilter !== undefined ? sensitiveContentFilter : settings.sensitiveContentFilter;
   
   // State for collapsible Advanced Model Settings section
   const [showAdvancedModelSettings, setShowAdvancedModelSettings] = React.useState(false);
@@ -196,10 +210,28 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
     }
   };
 
+  const handleOutputFormatChange = (newFormat: OutputFormat) => {
+    // Use the provided handler or fallback to context
+    if (onOutputFormatChange) {
+      onOutputFormatChange(newFormat);
+    } else {
+      updateSetting('outputFormat', newFormat);
+    }
+  };
+
+  const handleSensitiveContentFilterChange = (enabled: boolean) => {
+    // Use the provided handler or fallback to context
+    if (onSensitiveContentFilterChange) {
+      onSensitiveContentFilterChange(enabled);
+    } else {
+      updateSetting('sensitiveContentFilter', enabled);
+    }
+  };
+
   return (
     <div className={`control-overlay ${visible ? 'visible' : ''}`} style={{ position: 'fixed', zIndex: 99999 }}>
       <div className="control-overlay-content">
-        <h2 className="settings-title">Settings</h2>
+        <h2 className="settings-title">Photobooth Settings</h2>
         
         <button 
           className="dismiss-overlay-btn"
@@ -515,6 +547,30 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
             <option value="tezoswebx">Tezos WebX</option>
             <option value="off">Off</option>
           </select>
+        </div>
+
+        {/* Output Type selector */}
+        <div className="control-option">
+          <label className="control-label">Output Type:</label>
+          <select
+            className="model-select"
+            onChange={(e) => handleOutputFormatChange(e.target.value as OutputFormat)}
+            value={currentOutputFormat}
+          >
+            <option value="png">PNG</option>
+            <option value="jpg">JPG</option>
+          </select>
+        </div>
+
+        {/* Sensitive Content Filter toggle */}
+        <div className="control-option checkbox">
+          <input
+            type="checkbox"
+            id="sensitive-content-filter-toggle"
+            checked={currentSensitiveContentFilter}
+            onChange={(e) => handleSensitiveContentFilterChange(e.target.checked)}
+          />
+          <label htmlFor="sensitive-content-filter-toggle" className="control-label">Sensitive Content Filter</label>
         </div>
 
         {/* Flash toggle */}

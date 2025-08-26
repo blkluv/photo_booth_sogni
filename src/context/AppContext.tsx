@@ -105,7 +105,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       slothicornAnimationEnabled: getSettingFromCookie('slothicornAnimationEnabled', DEFAULT_SETTINGS.slothicornAnimationEnabled || true),
       backgroundAnimationsEnabled: getSettingFromCookie('backgroundAnimationsEnabled', DEFAULT_SETTINGS.backgroundAnimationsEnabled || false),
       aspectRatio,
-      tezdevTheme: theme
+      tezdevTheme: theme,
+      outputFormat: getSettingFromCookie('outputFormat', DEFAULT_SETTINGS.outputFormat),
+      sensitiveContentFilter: getSettingFromCookie('sensitiveContentFilter', DEFAULT_SETTINGS.sensitiveContentFilter)
     };
   });
   

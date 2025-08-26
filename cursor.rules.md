@@ -14,7 +14,6 @@
    ```  
    and stop on any error.
 7. Never rewrite or delete files unless explicitly asked.
-8. Switch to **gpt-4o-xl** automatically when a single file > 800 lines.
 9. **NEVER** duplicate large portions of code or create alternate versions of files. If a file needs refactoring:
    - Create smaller, modular components
    - Use proper React patterns like HOCs, render props, or hooks
@@ -70,3 +69,23 @@
     - ✅ Use refs for stable condition checking: `conditionsRef.current = { state }`
 
 **Remember: React performance is about preventing unnecessary work, not just optimizing necessary work.**
+
+## Sogni API Integration Rules
+
+19. **SOGNI API PARAMETER PROPAGATION:**
+    - When adding new settings/parameters that affect image generation, update ALL three integration points:
+      1. **Frontend Direct Calls**: `src/App.jsx` - direct sogniClient.projects.create() calls
+      2. **API Service Layer**: `src/services/api.ts` - createProject() function parameter mapping
+      3. **Backend Service**: `server/services/sogni.js` - generateImage() function projectOptions
+    - **NEVER** add a new setting without updating all three layers
+    - Always check both enhancement and generation code paths
+    - Test that new parameters flow from UI → Frontend → API → Backend → Sogni SDK
+
+20. **LOGGING AND DEBUG PRACTICES:**
+    - **NEVER** log raw image data (Uint8Array, ArrayBuffer, base64 strings, etc.) as it clogs logs
+    - Use `server/utils/logRedaction.js` utilities to redact image data from logs:
+      - `redactImageData()` for general objects with image fields
+      - `redactProjectResult()` for Sogni project results  
+      - `redactRequestParams()` for request parameters
+    - Log image sizes, formats, and metadata instead of raw data
+    - Example: `<REDACTED: 1024 bytes>` instead of the actual byte array

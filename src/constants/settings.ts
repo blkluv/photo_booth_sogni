@@ -1,4 +1,4 @@
-import { Settings, AspectRatioOption } from '../types/index';
+import { Settings, AspectRatioOption, OutputFormat } from '../types/index';
 
 // Helper function to safely get model options
 export const getModelOptions = () => {
@@ -90,6 +90,8 @@ export const DEFAULT_SETTINGS: Settings = {
   backgroundAnimationsEnabled: true,
   aspectRatio: getDefaultAspectRatio(),
   tezdevTheme: 'off' as const,
+  outputFormat: 'jpg' as OutputFormat,
+  sensitiveContentFilter: false,
 };
 
 // Backend now handles all Sogni API communication, so we don't need these URLs in the frontend

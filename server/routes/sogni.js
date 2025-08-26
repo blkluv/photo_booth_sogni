@@ -8,6 +8,7 @@ import {
   incrementPhotosTakenViaCamera,
   incrementPhotosUploadedViaBrowse
 } from '../services/redisService.js';
+import { redactProjectResult } from '../utils/logRedaction.js';
 import process from 'process';
 import { Buffer } from 'buffer';
 
@@ -559,9 +560,11 @@ router.post('/generate', ensureSessionId, async (req, res) => {
     // Helper function to attempt generation with retry on auth failure
     const attemptGeneration = async (clientToUse, isRetry = false) => {
       return generateImage(clientToUse, params, progressHandler, localProjectId)
-        .then(sogniResult => {
+        .then((sogniResult) => {
           console.log(`DEBUG - ${new Date().toISOString()} - [${localProjectId}] Sogni SDK (generateImage function) promise resolved.`);
-          console.log(`[${localProjectId}] Sogni generation process finished. Sogni Project ID: ${sogniResult.projectId}, Result:`, JSON.stringify(sogniResult.result));
+          // Redact potentially large result data from logs
+          const redactedResult = redactProjectResult(sogniResult.result);
+          console.log(`[${localProjectId}] Sogni generation process finished. Sogni Project ID: ${sogniResult.projectId}, Result:`, JSON.stringify(redactedResult));
         })
         .catch(async (error) => {
           console.error(`ERROR - ${new Date().toISOString()} - [${localProjectId}] Sogni SDK (generateImage function) promise rejected:`, error);

@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import process from 'process';
+import { redactImageData } from '../utils/logRedaction.js';
 
 // Import SogniClient dynamically to avoid issues
 let SogniClient;
@@ -327,7 +328,9 @@ export async function disconnectSessionClient(sessionId) {
 export async function generateImage(client, params, progressCallback, localProjectId = null) {
   return await withSogniClient(async (sogniClient) => {
     console.log('[IMAGE] Starting image generation with params:', {
-      model: params.model,
+      model: params.selectedModel,
+      outputFormat: params.outputFormat,
+      sensitiveContentFilter: params.sensitiveContentFilter,
       // prompt: params.prompt?.substring(0, 50) + '...',
       //...Object.fromEntries(Object.entries(params).filter(([key]) => key !== 'prompt'))
     });
@@ -348,7 +351,8 @@ export async function generateImage(client, params, progressCallback, localProje
       numberOfPreviews: 10,
       scheduler: params.scheduler || 'DPM++ SDE',
       timeStepSpacing: params.timeStepSpacing || 'Karras',
-      disableNSFWFilter: true,
+      disableNSFWFilter: params.sensitiveContentFilter ? false : true,
+      outputFormat: params.outputFormat || 'jpg',
       tokenType: params.tokenType || 'spark',
       ...(params.seed !== undefined ? { seed: params.seed } : {})
     };

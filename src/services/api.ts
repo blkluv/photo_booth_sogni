@@ -492,7 +492,6 @@ export async function createProject(params: Record<string, unknown>, progressCal
     
     // Format the parameters for the backend based on request type
     let projectParams: Record<string, unknown>;
-    
     if (isEnhancement) {
       // Enhancement parameters
       projectParams = {
@@ -507,6 +506,8 @@ export async function createProject(params: Record<string, unknown>, progressCal
         inferenceSteps: params.steps,
         scheduler: params.scheduler,
         timeStepSpacing: params.timeStepSpacing,
+        outputFormat: params.outputFormat || 'jpg',
+        sensitiveContentFilter: params.sensitiveContentFilter || false,
         startingImage: Array.isArray(imageData) || imageData instanceof Uint8Array ? imageData : [],
         startingImageStrength: params.startingImageStrength || 0.85,
         sourceType: params.sourceType // Pass sourceType through for enhancement
@@ -531,6 +532,8 @@ export async function createProject(params: Record<string, unknown>, progressCal
         inferenceSteps: params.steps,
         scheduler: params.scheduler,
         timeStepSpacing: params.timeStepSpacing,
+        outputFormat: params.outputFormat || 'jpg',
+        sensitiveContentFilter: params.sensitiveContentFilter || false,
         controlNetStrength,
         controlNetGuidanceEnd,
         imageData: Array.isArray(imageData) || imageData instanceof Uint8Array ? imageData : [],

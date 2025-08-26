@@ -25,6 +25,8 @@ export const enhancePhoto = async (options) => {
     height,
     sogniClient,
     setPhotos,
+    outputFormat,
+    sensitiveContentFilter,
     onSetActiveProject
   } = options;
 
@@ -60,24 +62,51 @@ export const enhancePhoto = async (options) => {
     const arrayBuffer = await imageBlob.arrayBuffer();
     console.log(`[ENHANCE] Creating enhancement project with Sogni API`, photo, width, height);
     
-    // Check if we have the new backend proxy client or old direct SDK
-    if (sogniClient.projects && typeof sogniClient.projects.create === 'function') {
-      // Use the backend proxy client
-      const project = await sogniClient.projects.create({
-        testnet: false,
-        tokenType: 'spark',
-        modelId: "flux1-schnell-fp8",
-        positivePrompt: `Detailed portrait, ${photo.positivePrompt || 'Portrait masterpiece'}`,
-        sizePreset: 'custom',
-        width,
-        height,
-        steps: 4,
-        guidance: 1,
-        numberOfImages: 1,
-        // Note: Flux models use their own optimal scheduler/timeStepSpacing defaults
-        // so we don't override them here
-        startingImage: Array.from(new Uint8Array(arrayBuffer)),
-        startingImageStrength: 0.75,
+    // Use the same API path as regular generation to get proper upload handling
+    const project = await sogniClient.projects.create({
+      testnet: false,
+      tokenType: 'spark',
+      modelId: "flux1-schnell-fp8",
+      positivePrompt: `Detailed portrait, ${photo.positivePrompt || 'Portrait masterpiece'}`,
+      sizePreset: 'custom',
+      width,
+      height,
+      steps: 4,
+      guidance: 1,
+      numberOfImages: 1,
+      outputFormat: outputFormat || 'jpg', // Use settings from context
+      sensitiveContentFilter: false, // enhance jobs are not sensitive content
+      // Note: Flux models use their own optimal scheduler/timeStepSpacing defaults
+      // so we don't override them here
+      startingImage: new Uint8Array(arrayBuffer),
+      startingImageStrength: 0.75,
+    });
+      
+      // Wait for upload completion like regular generation does
+      await new Promise((resolve) => {
+        let uploadCompleted = false;
+        
+        const uploadCompleteHandler = () => {
+          if (!uploadCompleted) {
+            uploadCompleted = true;
+            console.log(`[ENHANCE] Starting image upload completed, enhancement can proceed`);
+            project.off('uploadComplete', uploadCompleteHandler);
+            resolve();
+          }
+        };
+        
+        // Listen for upload completion
+        project.on('uploadComplete', uploadCompleteHandler);
+        
+        // Fallback timeout in case upload complete event doesn't fire
+        setTimeout(() => {
+          if (!uploadCompleted) {
+            uploadCompleted = true;
+            console.log(`[ENHANCE] Upload timeout reached, proceeding with enhancement`);
+            project.off('uploadComplete', uploadCompleteHandler);
+            resolve();
+          }
+        }, 5000); // 5 second timeout
       });
       
       // Track progress
@@ -174,9 +203,7 @@ export const enhancePhoto = async (options) => {
           return updated;
         });
       });
-    } else {
-      throw new Error("Sogni client is not initialized correctly");
-    }
+      
   } catch (error) {
     console.error(`[ENHANCE] Error enhancing image:`, error);
     setPhotos(prev => {

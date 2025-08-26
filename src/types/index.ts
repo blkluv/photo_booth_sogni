@@ -46,6 +46,8 @@ export type AspectRatioOption = 'portrait' | 'landscape' | 'square' | 'narrow' |
 
 export type TezDevTheme = 'blue' | 'pink' | 'gmvietnam' | 'supercasual' | 'tezoswebx' | 'off';
 
+export type OutputFormat = 'png' | 'jpg';
+
 export interface Settings {
   selectedStyle: string;
   selectedModel: string;
@@ -67,4 +69,6 @@ export interface Settings {
   backgroundAnimationsEnabled: boolean;
   aspectRatio: AspectRatioOption;
   tezdevTheme: TezDevTheme;
+  outputFormat: OutputFormat;
+  sensitiveContentFilter: boolean;
 } 

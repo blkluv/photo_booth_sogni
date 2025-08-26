@@ -149,7 +149,9 @@ const App = () => {
     slothicornAnimationEnabled,
     backgroundAnimationsEnabled,
     aspectRatio,
-    tezdevTheme
+    tezdevTheme,
+    outputFormat,
+    sensitiveContentFilter
   } = settings;
   // --- End context usage ---
 
@@ -1687,7 +1689,6 @@ const App = () => {
       setUploadStatusText('Uploading your image...');
       
       // Create project using context state for settings
-      console.log('🔧 Creating project with scheduler:', scheduler, 'timeStepSpacing:', timeStepSpacing);
       const project = await sogniClient.projects.create({ 
         testnet: false,
         tokenType: 'spark',
@@ -1703,6 +1704,8 @@ const App = () => {
         numberOfImages: numImages, // Use context state
         scheduler: scheduler,
         timeStepSpacing: timeStepSpacing,
+        outputFormat: outputFormat, // Add output format setting
+        sensitiveContentFilter: sensitiveContentFilter, // Add sensitive content filter setting
         controlNet: {
           name: 'instantid',
           image: new Uint8Array(blobArrayBuffer),
@@ -3800,6 +3803,16 @@ const App = () => {
             updateSetting('backgroundAnimationsEnabled', value);
             saveSettingsToCookies({ backgroundAnimationsEnabled: value });
           }}
+          outputFormat={outputFormat}
+          onOutputFormatChange={(value) => {
+            updateSetting('outputFormat', value);
+            saveSettingsToCookies({ outputFormat: value });
+          }}
+          sensitiveContentFilter={sensitiveContentFilter}
+          onSensitiveContentFilterChange={(value) => {
+            updateSetting('sensitiveContentFilter', value);
+            saveSettingsToCookies({ sensitiveContentFilter: value });
+          }}
           onResetSettings={resetSettings} // Pass context reset function
           // Props still using local state/logic
           cameraDevices={cameraDevices}
@@ -4000,6 +4013,8 @@ const App = () => {
           desiredWidth={desiredWidth}
           desiredHeight={desiredHeight}
           selectedSubIndex={selectedSubIndex}
+          outputFormat={outputFormat}
+          sensitiveContentFilter={sensitiveContentFilter}
           handleShareToX={handleShareToX}
           slothicornAnimationEnabled={slothicornAnimationEnabled}
           backgroundAnimationsEnabled={backgroundAnimationsEnabled}
