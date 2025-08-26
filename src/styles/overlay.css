@@ -21,8 +21,12 @@
   color: #fff;
   z-index: 100000;
   pointer-events: none;
-  animation: pulse 1s infinite;
   user-select: none;
+}
+
+/* Only animate when actually visible */
+.global-countdown-overlay:not(:empty) {
+  animation: pulse 1s infinite;
 }
 
 @keyframes pulse {

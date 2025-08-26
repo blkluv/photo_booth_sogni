@@ -13,7 +13,7 @@
   height: auto !important;
   z-index: 100000 !important; /* Ensure this is higher than any other z-index in the app */
   pointer-events: none !important;
-  will-change: transform, bottom !important;
+  will-change: auto;
 }
 
 /* When animating, don't use !important on bottom to allow JS control */
@@ -21,11 +21,21 @@
   animation: none !important;
   bottom: -360px; /* Starting position, will be overridden by JS */
   z-index: 999999 !important; /* Extremely high z-index to appear above everything during animation */
+  will-change: transform, bottom; /* Enable GPU acceleration only when animating */
 }
 
-/* Idle wiggle when not actively animating via JS */
-.slothicorn-container:not(.animating) {
+/* Idle wiggle when not actively animating via JS and animations are enabled */
+.slothicorn-container:not(.animating):not(.animations-disabled) {
   animation: sloth-fidget 4s ease-in-out infinite;
+}
+
+/* Disable animations when slothicorn animations are disabled */
+.slothicorn-container.animations-disabled {
+  animation: none !important;
+}
+
+.slothicorn-container.animations-disabled .slothicorn-image {
+  animation: none !important;
 }
 
 @keyframes sloth-fidget {
@@ -40,8 +50,12 @@
   width: 100% !important;
   height: auto !important;
   transform-origin: bottom center !important;
-  will-change: transform !important;
+  will-change: auto;
   pointer-events: none !important;
+}
+
+/* Horn wiggle animation only when animations are enabled */
+.slothicorn-container:not(.animations-disabled) .slothicorn-image {
   animation: horn-wiggle 5s ease-in-out infinite;
 }
 

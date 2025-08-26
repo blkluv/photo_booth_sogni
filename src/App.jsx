@@ -473,8 +473,10 @@ const App = () => {
     }
   };
 
-  // Update showThought function
-  let thoughtInProgress = false;
+  // Optimized thought system - only schedules next thought when conditions are met
+  const thoughtInProgress = useRef(false);
+  const thoughtTimeoutRef = useRef(null);
+  
   // Create refs for condition checking to avoid useCallback recreation
   const conditionsRef = useRef();
   conditionsRef.current = {
@@ -484,24 +486,41 @@ const App = () => {
     slothicornAnimationEnabled
   };
 
-  const showThought = useCallback(() => {
+  // Check if thoughts should be shown
+  const shouldShowThoughts = useCallback(() => {
     const { selectedPhotoIndex, showSplashScreen, showStartMenu, slothicornAnimationEnabled } = conditionsRef.current;
+    return slothicornAnimationEnabled && 
+           !showSplashScreen && 
+           !showStartMenu && 
+           selectedPhotoIndex === null &&
+           !thoughtInProgress.current;
+  }, []);
+
+  // Schedule the next thought only when conditions are met
+  const scheduleNextThought = useCallback(() => {
+    if (thoughtTimeoutRef.current) {
+      clearTimeout(thoughtTimeoutRef.current);
+    }
     
-    // don't show thought if Slothicorn is disabled or on splash/start screens
-    if (!slothicornAnimationEnabled || showSplashScreen || showStartMenu) {
+    if (!shouldShowThoughts()) {
+      // Check again in 5 seconds if conditions aren't met
+      thoughtTimeoutRef.current = setTimeout(scheduleNextThought, 5000);
       return;
     }
     
-    // Don't show thoughts when viewing a specific photo
-    if (selectedPhotoIndex !== null) {
+    const delay = 18000 + Math.random() * 5000; // 18-23 seconds
+    thoughtTimeoutRef.current = setTimeout(() => {
+      showThought();
+      scheduleNextThought(); // Schedule the next one
+    }, delay);
+  }, [shouldShowThoughts]);
+
+  const showThought = useCallback(() => {
+    if (!shouldShowThoughts()) {
       return;
     }
     
-    if (thoughtInProgress) {
-      return;
-    }
-    
-    thoughtInProgress = true;
+    thoughtInProgress.current = true;
     // Select thoughts based on whether there's an active project
     const thoughts = activeProjectReference.current ? photoThoughts : randomThoughts;
     const randomThought = thoughts[Math.floor(Math.random() * thoughts.length)];
@@ -516,33 +535,29 @@ const App = () => {
 
     setTimeout(() => {
       setCurrentThought(null);
-      thoughtInProgress = false;
+      thoughtInProgress.current = false;
     }, 4500);
-  }, []); // No dependencies - all conditions checked via ref
+  }, [shouldShowThoughts]);
 
-  // Update timing in useEffect - FIXED: Remove problematic dependencies that cause system recreation
+  // Optimized thought system setup
   useEffect(() => {
     // Initial delay between 5-15 seconds
-    const initialDelay = 5000 + Math.random() * 15_000;
-    console.log(`🤔 Setting up thought system: first thought in ${Math.round(initialDelay/1000)}s, then every 18s`);
+    const initialDelay = 5000 + Math.random() * 10000;
+    console.log(`🤔 Setting up optimized thought system: first check in ${Math.round(initialDelay/1000)}s`);
     
     const firstThought = setTimeout(() => {
-      console.log('🤔 First thought timeout triggered');
-      showThought();
+      console.log('🤔 Starting thought scheduling system');
+      scheduleNextThought();
     }, initialDelay);
-
-    // Set up interval for random thoughts
-    const interval = setInterval(() => {
-      console.log('🤔 Thought interval triggered, calling showThought (conditions checked inside)');
-      showThought();
-    }, 18_000); // Fixed 18 second interval
 
     return () => {
       console.log('🤔 Cleaning up thought system');
       clearTimeout(firstThought);
-      clearInterval(interval);
+      if (thoughtTimeoutRef.current) {
+        clearTimeout(thoughtTimeoutRef.current);
+      }
     };
-  }, [showThought]); // Only depend on showThought, which has its own dependencies
+  }, [scheduleNextThought]); // Only depend on scheduleNextThought
 
   // Camera aspect ratio useEffect
   useEffect(() => {

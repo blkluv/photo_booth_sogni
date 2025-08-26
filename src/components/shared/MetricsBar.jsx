@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import useMetrics from '../../hooks/useMetrics';
 import './MetricsBar.css';
 
-const MetricItem = ({ title, today, lifetime }) => (
+const MetricItem = React.memo(({ title, today, lifetime }) => (
   <div className="metric-item">
     <div className="metric-title">{title}</div>
     <div className="metric-values">
@@ -17,7 +17,7 @@ const MetricItem = ({ title, today, lifetime }) => (
       </div>
     </div>
   </div>
-);
+));
 
 MetricItem.propTypes = {
   title: PropTypes.string.isRequired,
