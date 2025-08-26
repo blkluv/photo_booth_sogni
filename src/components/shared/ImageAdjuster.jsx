@@ -200,7 +200,7 @@ const ImageAdjuster = ({
   const updatePositionDirect = useCallback((newPosition) => {
     // Apply position change immediately to image transform (visual only)
     if (imageRef.current) {
-      imageRef.current.style.transform = `scale(${scale}) translate(${newPosition.x}px, ${newPosition.y}px)`;
+      imageRef.current.style.transform = `translate(${newPosition.x}px, ${newPosition.y}px) scale(${scale})`;
     }
     
     // Clear any existing debounce timer
@@ -415,7 +415,7 @@ const ImageAdjuster = ({
     
     // Apply scale change immediately to image transform (visual only)
     if (imageRef.current) {
-      imageRef.current.style.transform = `scale(${newScale}) translate(${position.x}px, ${position.y}px)`;
+      imageRef.current.style.transform = `translate(${position.x}px, ${position.y}px) scale(${newScale})`;
     }
     
     // Clear any existing debounce timer
