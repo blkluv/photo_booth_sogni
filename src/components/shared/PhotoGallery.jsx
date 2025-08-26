@@ -391,10 +391,9 @@ const PhotoGallery = ({
       const photoNumberLabel = photos[photoIndex]?.statusText?.split('#')[0]?.trim() || photos[photoIndex]?.label || '';
       const photoLabel = photoNumberLabel + (styleHashtag ? ` ${styleHashtag}` : '');
       
-      // Generate filename with correct extension based on outputFormat
+      // Generate filename - Polaroid downloads are always JPG
       const cleanHashtag = styleHashtag ? styleHashtag.replace('#', '').toLowerCase() : 'sogni';
-      const fileExtension = outputFormat === 'jpg' ? '.jpg' : '.png';
-      const filename = `sogni-photobooth-${cleanHashtag}-style${fileExtension}`;
+      const filename = `sogni-photobooth-${cleanHashtag}-style.jpg`;
       
       // Ensure font is loaded
       if (!document.querySelector('link[href*="Permanent+Marker"]')) {
@@ -407,11 +406,11 @@ const PhotoGallery = ({
       // Wait for fonts to load
       await document.fonts.ready;
       
-      // Create polaroid image
+      // Create polaroid image - always use JPG format for Polaroid downloads
       const polaroidUrl = await createPolaroidImage(imageUrl, photoLabel, {
         tezdevTheme,
         aspectRatio,
-        outputFormat
+        outputFormat: 'jpg'
       });
       
              // Handle download
