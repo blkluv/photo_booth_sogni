@@ -605,11 +605,16 @@ const App = () => {
     setVh();
     
     // Update on orientation change or resize
-    window.addEventListener('resize', setVh);
-    window.addEventListener('orientationchange', () => {
+    const handleResize = () => {
+      setVh();
+    };
+    const handleOrientationChange = () => {
       // Small delay to ensure new dimensions are available
       setTimeout(setVh, 100);
-    });
+    };
+    
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleOrientationChange);
     
     // On iOS, add a class to handle content safely with notches
     if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
@@ -623,8 +628,8 @@ const App = () => {
     }
     
     return () => {
-      window.removeEventListener('resize', setVh);
-      window.removeEventListener('orientationchange', setVh);
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleOrientationChange);
     };
   }, [selectedPhotoIndex]);
 
@@ -690,18 +695,23 @@ const App = () => {
       setConnectionState(newState);
     });
     
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+    };
   }, []);
   
-  // Track if we're currently generating to show appropriate connection status
+  // Track if we're currently generating to show appropriate connection status - optimized
   useEffect(() => {
     const hasGeneratingPhotos = photos.some(photo => photo.generating || photo.loading);
-    setIsGenerating(hasGeneratingPhotos);
+    const currentlyGenerating = isGenerating;
     
-    // Set up timeout detection for stuck generation states
-    if (hasGeneratingPhotos && !activeProjectReference.current) {
-      // Only set timeout if no active project (to avoid conflicts with existing timeout system)
-      // console.log('Setting up stuck state detection for orphaned generating photos');
+    // Only update if the generating status actually changed
+    if (hasGeneratingPhotos !== currentlyGenerating) {
+      setIsGenerating(hasGeneratingPhotos);
+    }
+    
+    // Set up timeout detection for stuck generation states (only when starting generation)
+    if (hasGeneratingPhotos && !currentlyGenerating && !activeProjectReference.current) {
       const timeoutId = setTimeout(() => {
         // Check if photos are still generating and no active project
         setPhotos(prev => {
@@ -716,7 +726,7 @@ const App = () => {
       
       return () => clearTimeout(timeoutId);
     }
-  }, [photos, activeProjectReference.current]);
+  }, [photos, isGenerating]); // Include isGenerating to compare previous state
 
   // -------------------------
   //   Sogni initialization
@@ -1165,23 +1175,27 @@ const App = () => {
     }
   }, [selectedPhotoIndex, photos]);
 
-  // Updated to use the utility function
-  const handlePreviousPhoto = () => {
-    const newIndex = goToPreviousPhoto(photos, selectedPhotoIndex);
-    if (newIndex !== selectedPhotoIndex) {
-      setSelectedPhotoIndex(newIndex);
-      setSelectedSubIndex(0);
-    }
-  };
+  // Create a ref to store the current photos array
+  const photosRef = useRef(photos);
+  photosRef.current = photos;
 
-  // Updated to use the utility function
-  const handleNextPhoto = () => {
-    const newIndex = goToNextPhoto(photos, selectedPhotoIndex);
+  // Updated to use the utility function - using refs to avoid dependencies
+  const handlePreviousPhoto = useCallback(() => {
+    const newIndex = goToPreviousPhoto(photosRef.current, selectedPhotoIndex);
     if (newIndex !== selectedPhotoIndex) {
       setSelectedPhotoIndex(newIndex);
       setSelectedSubIndex(0);
     }
-  };
+  }, [selectedPhotoIndex]);
+
+  // Updated to use the utility function - using refs to avoid dependencies  
+  const handleNextPhoto = useCallback(() => {
+    const newIndex = goToNextPhoto(photosRef.current, selectedPhotoIndex);
+    if (newIndex !== selectedPhotoIndex) {
+      setSelectedPhotoIndex(newIndex);
+      setSelectedSubIndex(0);
+    }
+  }, [selectedPhotoIndex]);
 
   // Now update the keyboard handler to use these functions
   const handleKeyDown = useCallback((e) => {
@@ -1207,26 +1221,30 @@ const App = () => {
         handleNextPhoto();
       }
     }
-  }, [selectedPhotoIndex, photos, showControlOverlay]);
+  }, [selectedPhotoIndex, showControlOverlay, handlePreviousPhoto, handleNextPhoto]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [handleKeyDown]);
 
-  // Optimized timer for generation countdown - only runs when needed and stops automatically
+  // Smart timer for generation countdown - only runs when there are active countdowns
   useEffect(() => {
-
+    const hasActiveCountdowns = photos.some(p => p.generating && p.generationCountdown > 0);
+    
+    if (!hasActiveCountdowns) {
+      return; // Don't start interval if no countdowns are active
+    }
     
     const interval = setInterval(() => {
       setPhotos((previousPhotos) => {
-        const hasActiveCountdowns = previousPhotos.some(p => p.generating && p.generationCountdown > 0);
+        const stillHasActiveCountdowns = previousPhotos.some(p => p.generating && p.generationCountdown > 0);
         
-        if (!hasActiveCountdowns) {
-          // No active countdowns, return unchanged array to prevent unnecessary re-renders
-          return previousPhotos;
+        if (!stillHasActiveCountdowns) {
+          return previousPhotos; // Return unchanged, effect will clear interval
         }
-        
         // Only update photos that actually have countdowns
         return previousPhotos.map((p) => {
           if (p.generating && p.generationCountdown > 0) {
@@ -1238,16 +1256,14 @@ const App = () => {
     }, 1000);
     
     return () => {
-
       clearInterval(interval);
     };
-  }, []);
+  }, [photos]); // Depend on photos array to restart/stop interval as needed
 
   // -------------------------
   //   Load image with download progress
   // -------------------------
   const loadImageWithProgress = (imageUrl, photoIndex, onComplete) => {
-    console.log(`Starting image download with progress tracking for photo ${photoIndex}`);
     
     // First, set loading status
     setPhotos(previous => {
@@ -1256,7 +1272,7 @@ const App = () => {
         updated[photoIndex] = {
           ...updated[photoIndex],
           loading: true,
-          statusText: 'Loading artwork... 0%'
+          statusText: 'Loading artwork...'
         };
       }
       return updated;
@@ -1267,23 +1283,59 @@ const App = () => {
     xhr.open('GET', imageUrl);
     xhr.responseType = 'blob';
     
+    // Throttle download progress updates - use ref for scope access
+    let downloadProgressTimeout = null;
+    
+    // Function to clear pending progress updates
+    const clearPendingProgressUpdate = () => {
+      if (downloadProgressTimeout) {
+        clearTimeout(downloadProgressTimeout);
+        downloadProgressTimeout = null;
+      }
+    };
+    
     // Track download progress
     xhr.addEventListener('progress', (event) => {
       if (event.lengthComputable) {
         const downloadProgress = (event.loaded / event.total) * 100;
-        console.log(`Image download progress for photo ${photoIndex}: ${downloadProgress.toFixed(1)}%`);
+
         
-        setPhotos(previous => {
-          const updated = [...previous];
-          if (updated[photoIndex]) {
-            updated[photoIndex] = {
-              ...updated[photoIndex],
-              loading: true,
-              statusText: `Loading artwork... ${Math.round(downloadProgress)}%`
-            };
-          }
-          return updated;
-        });
+        // For completion (100%), update immediately. Otherwise throttle.
+        if (downloadProgress >= 100) {
+          // Clear any pending throttled update
+          clearPendingProgressUpdate();
+          // Update immediately for completion
+          setPhotos(previous => {
+            const updated = [...previous];
+            if (updated[photoIndex]) {
+              updated[photoIndex] = {
+                ...updated[photoIndex],
+                loading: true,
+                statusText: 'Loading artwork... 100%'
+              };
+            }
+            return updated;
+          });
+        } else {
+          // Throttle intermediate progress updates to reduce re-renders
+          clearPendingProgressUpdate();
+          
+          downloadProgressTimeout = setTimeout(() => {
+            setPhotos(previous => {
+              const updated = [...previous];
+              if (updated[photoIndex]) {
+                updated[photoIndex] = {
+                  ...updated[photoIndex],
+                  loading: true,
+                  statusText: Math.round(downloadProgress) > 0 
+                    ? `Loading artwork... ${Math.round(downloadProgress)}%` 
+                    : 'Loading artwork...'
+                };
+              }
+              return updated;
+            });
+          }, 300); // Slightly longer throttle for intermediate updates
+        }
       }
     });
     
@@ -1297,7 +1349,8 @@ const App = () => {
         // Create image to verify it loads
         const img = new Image();
         img.addEventListener('load', () => {
-          console.log(`Image loaded successfully for photo ${photoIndex}`);
+          // Clear any pending throttled download progress updates
+          clearPendingProgressUpdate();
           onComplete(objectUrl);
           // Don't immediately revoke blob URLs as they're needed for downloads
           // The blob URLs will be cleaned up when the page unloads or photos are replaced
@@ -1755,7 +1808,10 @@ const App = () => {
       
 
 
-      // Attach a single project-level job event handler
+      // Attach a single project-level job event handler with throttling
+      let progressUpdateTimeout = null;
+      let nonProgressUpdateTimeout = null;
+      
       project.on('job', (event) => {
         const { type, jobId, workerName, queuePosition, jobIndex, positivePrompt, progress } = event;
         
@@ -1771,86 +1827,101 @@ const App = () => {
             return;
         }
 
-        // Update project watchdog timer on any meaningful progress
-        if (['initiating', 'started', 'progress'].includes(type)) {
-          updateWatchdogTimer();
-        }
-
-        setPhotos(prev => {
-          const updated = [...prev];
-          if (photoIndex >= updated.length) return prev;
-          // Try to find a hashtag for the style prompt
-          let hashtag = '';
-          const stylePromptValue = updated[photoIndex].stylePrompt;
-          if (stylePromptValue) {
-            const foundKey = Object.entries(promptsData).find(([, value]) => value === stylePromptValue)?.[0];
-            if (foundKey) hashtag = `#${foundKey}`;
+        // Throttle progress updates to reduce excessive re-renders
+        if (type === 'progress') {
+          // Update watchdog timer for progress events (but throttled)
+          if (progressUpdateTimeout) {
+            clearTimeout(progressUpdateTimeout);
           }
-          if (type === 'initiating') {
-            updated[photoIndex] = {
-              ...updated[photoIndex],
-              statusText: `${workerName || 'unknown'} loading model...`,
-              workerName: workerName || 'unknown',
-              jobId,
-              jobIndex,
-              positivePrompt,
-              stylePrompt: stylePrompt.trim(),  // Add stylePrompt here
-              hashtag
-            };
-          } else if (type === 'started') {
-            // Start per-job timeout when job actually starts
-            startJobTimeout(jobId, photoIndex);
-            
-            // Play hello when a worker is initiating
-            /*
-            if (soundEnabled && helloSoundReference.current && helloSoundReference.current.paused) {
-              helloSoundReference.current.currentTime = 0;
-              helloSoundReference.current.play().catch(error => {
-                console.warn("Error playing hello sound:", error);
-              });
-            }
-            */
-            updated[photoIndex] = {
-              ...updated[photoIndex],
-              statusText: `${workerName || 'unknown'} imagining... `,
-              workerName: workerName || 'unknown',
-              jobId,
-              jobIndex,
-              positivePrompt,
-              stylePrompt: stylePrompt.trim(),  // Add stylePrompt here
-              hashtag
-            };
-          } else if (type === 'progress') {
-            const cachedWorkerName = updated[photoIndex].workerName || 'unknown';
-            const displayProgress = Math.round((progress ?? 0) * 100);
-            
-
-            
-            updated[photoIndex] = {
-              ...updated[photoIndex],
-              generating: true,
-              loading: true,
-              progress: displayProgress,
-              statusText: `${cachedWorkerName} makin' art... ${displayProgress}%`,
-              jobId,
-              lastProgressTime: Date.now() // Update last progress time
-            };
-          } else if (type === 'queued') { // Handle the new 'queued' event
-              const currentStatusText = updated[photoIndex].statusText || 'Calling Art Robot...';
-              // Only update if the current status text still indicates waiting/calling
-              if (currentStatusText.includes('Calling Art Robot') || currentStatusText.includes('In queue')) {
+          progressUpdateTimeout = setTimeout(() => {
+            // Update watchdog timer along with progress to batch the operations
+            updateWatchdogTimer();
+            setPhotos(prev => {
+              const updated = [...prev];
+              if (updated[photoIndex] && !updated[photoIndex].permanentError) {
+                const cachedWorkerName = updated[photoIndex].workerName || 'unknown';
+                const displayProgress = Math.round((progress ?? 0) * 100);
+                
                 updated[photoIndex] = {
                   ...updated[photoIndex],
                   generating: true,
                   loading: true,
-                  // Update status text with queue position
-                  statusText: `Queue position ${queuePosition}`,
-                  jobId, // Ensure jobId is set
+                  progress: displayProgress,
+                  statusText: displayProgress > 0 
+                    ? `${cachedWorkerName} makin' art... ${displayProgress}%`
+                    : `${cachedWorkerName} makin' art...`,
+                  jobId,
+                  lastProgressTime: Date.now()
                 };
               }
+              return updated;
+            });
+          }, 100); // Throttle to max 10 updates per second
+          return; // Don't process immediately
+        }
+
+        // Update project watchdog timer for non-progress events
+        if (['initiating', 'started'].includes(type)) {
+          updateWatchdogTimer();
+        }
+
+        // Throttle non-progress events to reduce cascade renders
+        if (['queued', 'initiating', 'started'].includes(type)) {
+          if (nonProgressUpdateTimeout) {
+            clearTimeout(nonProgressUpdateTimeout);
           }
-          return updated;
-        });
+          nonProgressUpdateTimeout = setTimeout(() => {
+            setPhotos(prev => {
+              const updated = [...prev];
+              if (photoIndex >= updated.length) return prev;
+              // Process the event type
+              if (type === 'initiating' || type === 'started') {
+                // Try to find a hashtag for the style prompt
+                let hashtag = '';
+                const stylePromptValue = updated[photoIndex].stylePrompt;
+                if (stylePromptValue) {
+                  const foundKey = Object.entries(stylePrompts).find(([, value]) => value === stylePromptValue)?.[0];
+                  if (foundKey) {
+                    hashtag = `#${foundKey}`;
+                  }
+                }
+                
+                updated[photoIndex] = {
+                  ...updated[photoIndex],
+                  generating: true,
+                  loading: true,
+                  statusText: workerName ? `${workerName} starting...` : 'Art Robot starting...',
+                  workerName: workerName || 'unknown',
+                  jobId,
+                  jobIndex,
+                  positivePrompt,
+                  stylePrompt: stylePromptValue?.trim() || '',
+                  hashtag
+                };
+              } else if (type === 'queued') {
+                const currentStatusText = updated[photoIndex].statusText || 'Calling Art Robot...';
+                if (currentStatusText.includes('Calling Art Robot') || currentStatusText.includes('In queue')) {
+                  updated[photoIndex] = {
+                    ...updated[photoIndex],
+                    generating: true,
+                    loading: true,
+                    statusText: `Queue position ${queuePosition}`,
+                    jobId,
+                  };
+                }
+              }
+              return updated;
+            });
+          }, 50); // Very short throttle for non-progress events
+          return; // Don't process immediately
+        }
+
+        // Handle job timeout for started events
+        if (type === 'started') {
+          startJobTimeout(jobId, photoIndex);
+        }
+
+        // All other events are now handled by throttling above
       });
 
       // Project level events
@@ -2979,17 +3050,14 @@ const App = () => {
             numImages={numImages}
             onNumImagesChange={(value) => {
               updateSetting('numImages', value);
-              saveSettingsToCookies({ numImages: value });
             }}
             promptGuidance={promptGuidance}
             onPromptGuidanceChange={(value) => {
               updateSetting('promptGuidance', value);
-              saveSettingsToCookies({ promptGuidance: value });
             }}
             guidance={guidance}
             onGuidanceChange={(value) => {
               updateSetting('guidance', value);
-              saveSettingsToCookies({ guidance: value });
             }}
             controlNetStrength={controlNetStrength}
             onControlNetStrengthChange={(value) => {
@@ -3004,17 +3072,14 @@ const App = () => {
             inferenceSteps={inferenceSteps}
             onInferenceStepsChange={(value) => {
               updateSetting('inferenceSteps', value);
-              saveSettingsToCookies({ inferenceSteps: value });
             }}
             scheduler={scheduler}
             onSchedulerChange={(value) => {
               updateSetting('scheduler', value);
-              saveSettingsToCookies({ scheduler: value });
             }}
             timeStepSpacing={timeStepSpacing}
             onTimeStepSpacingChange={(value) => {
               updateSetting('timeStepSpacing', value);
-              saveSettingsToCookies({ timeStepSpacing: value });
             }}
             flashEnabled={flashEnabled}
             onFlashEnabledChange={(value) => {

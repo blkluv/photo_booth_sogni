@@ -1,14 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 
 /**
- * Custom hook to fetch metrics from the server
+ * Custom hook to fetch metrics from the server - optimized version that only fetches on demand
+ * @param {boolean} shouldFetch - Whether to fetch metrics (only when expanded)
  * @returns {Object} Metrics data and loading state
  */
-const useMetrics = () => {
+const useMetrics = (shouldFetch = false) => {
   const [metrics, setMetrics] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [lastRefresh, setLastRefresh] = useState(Date.now());
+  const [lastRefresh, setLastRefresh] = useState(null);
+  const [hasEverFetched, setHasEverFetched] = useState(false);
 
   const fetchMetrics = useCallback(async (forceRefresh = false) => {
     try {
@@ -48,6 +50,7 @@ const useMetrics = () => {
       console.log(`[Metrics] Data received:`, data);
       setMetrics(data);
       setLastRefresh(Date.now());
+      setHasEverFetched(true);
     } catch (err) {
       console.error('[Metrics] Error fetching metrics:', err);
       // Provide fallback metrics rather than showing nothing
@@ -72,29 +75,33 @@ const useMetrics = () => {
         source: 'fallback-client'
       });
       setError(err.message);
+      setHasEverFetched(true);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   // Manual refresh function that can be called from the component
-  const refreshMetrics = () => {
+  const refreshMetrics = useCallback(() => {
     fetchMetrics(true);
-  };
-
-  // Initial fetch and polling
-  useEffect(() => {
-    fetchMetrics();
-
-    // Optional: Set up polling to refresh metrics
-    const intervalId = setInterval(() => fetchMetrics(), 30000); // Refresh every 30 seconds
-
-    return () => {
-      clearInterval(intervalId); // Cleanup interval on unmount
-    };
   }, [fetchMetrics]);
 
-  return { metrics, isLoading, error, lastRefresh, refreshMetrics };
+  // Fetch on first expand only
+  const fetchOnExpand = useCallback(() => {
+    if (!hasEverFetched) {
+      fetchMetrics();
+    }
+  }, [fetchMetrics, hasEverFetched]);
+
+  return { 
+    metrics, 
+    isLoading, 
+    error, 
+    lastRefresh, 
+    refreshMetrics,
+    fetchOnExpand,
+    hasEverFetched
+  };
 };
 
 export default useMetrics; 

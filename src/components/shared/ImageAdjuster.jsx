@@ -161,7 +161,6 @@ const ImageAdjuster = ({
     calculateContainerDimensions(newDimensions);
     
     const handleResize = () => {
-
       calculateContainerDimensions(newDimensions);
     };
     
@@ -170,7 +169,6 @@ const ImageAdjuster = ({
     window.addEventListener('orientationchange', handleResize);
     
     return () => {
-
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleResize);
     };

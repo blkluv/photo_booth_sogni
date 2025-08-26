@@ -1,7 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { useApp } from '../../context/AppContext.tsx';
-import { saveSettingsToCookies } from '../../utils/cookies';
 import './AspectRatioSelector.css';
 
 /**
@@ -18,7 +17,6 @@ const AspectRatioSelector = ({ visible = true }) => {
 
   const handleAspectRatioChange = (newAspectRatio) => {
     updateSetting('aspectRatio', newAspectRatio);
-    saveSettingsToCookies({ aspectRatio: newAspectRatio });
     
     // Update CSS variables to match the new aspect ratio
     switch (newAspectRatio) {

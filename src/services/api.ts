@@ -458,7 +458,7 @@ export async function createProject(params: Record<string, unknown>, progressCal
       isContextImage = true;
       
       // Process the first context image (we only support one for now)
-      const contextImage = params.contextImages[0];
+      const contextImage = (params.contextImages as unknown[])[0];
       if (Array.isArray(contextImage)) {
         imageData = contextImage;
         const contextSizeMB = (contextImage.length / 1024 / 1024).toFixed(2);

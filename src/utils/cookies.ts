@@ -22,7 +22,7 @@ export function saveSettingsToCookies(settings: Partial<Settings>): void {
 }
 
 // Model-specific settings management
-const MODEL_SPECIFIC_SETTINGS = ['inferenceSteps', 'scheduler', 'timeStepSpacing', 'promptGuidance', 'guidance'];
+const MODEL_SPECIFIC_SETTINGS = ['inferenceSteps', 'scheduler', 'timeStepSpacing', 'promptGuidance', 'guidance', 'numImages'];
 
 export function getModelSpecificSetting<T>(modelId: string, settingName: string, defaultValue: T): T {
   try {

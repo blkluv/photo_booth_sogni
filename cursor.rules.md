@@ -53,6 +53,7 @@
     - **User Interactions**: Use direct DOM manipulation + debounced state updates, NOT state updates on every event
     - **useCallback Dependencies**: Use refs for condition checking to avoid unstable dependencies
     - **useEffect Chains**: Combine related effects to prevent cascading updates
+    - **Progress Updates**: NEVER update state on every progress event - use throttling
 
 17. **PERFORMANCE ANTI-PATTERNS TO AVOID:**
     - ❌ `setPhotos(prev => prev.map(...))` in timers without checking if changes are needed
@@ -60,6 +61,11 @@
     - ❌ `onChange={e => setState(e.target.value)}` for sliders/drag interactions
     - ❌ useCallback with changing dependencies that cause effect re-runs
     - ❌ Cascading useEffect hooks that trigger each other
+    - ❌ **CRITICAL**: `useRef.current` as useEffect dependency (causes infinite loops)
+    - ❌ **CRITICAL**: Immediate state updates on every SSE/WebSocket message
+    - ❌ **CRITICAL**: useEffect running on every array change without checking actual differences
+    - ❌ **CRITICAL**: `setInterval()` that runs even when no work is needed (check conditions first)
+    - ❌ **CRITICAL**: Multiple `setPhotos()` calls per progress update (causes cascade renders)
 
 18. **PERFORMANCE PATTERNS TO USE:**
     - ✅ Check for actual changes before updating state: `if (!hasChanges) return previousState`
@@ -67,12 +73,32 @@
     - ✅ Direct DOM updates during interactions: `element.style.transform = ...`
     - ✅ Debounce state updates: `setTimeout(() => setState(value), 150)`
     - ✅ Use refs for stable condition checking: `conditionsRef.current = { state }`
+    - ✅ **THROTTLE PROGRESS UPDATES**: `setTimeout(() => setState(...), 100)` for progress events
+    - ✅ **BATCH OPERATIONS**: Combine multiple state updates in single setTimeout
+    - ✅ **SMART useEffect**: Only run when meaningful changes occur, not on every dependency change
+    - ✅ **LAZY LOADING PATTERN**: Only fetch data when component expands/opens (see MetricsBar optimization)
+    - ✅ **CONDITIONAL INTERVALS**: `if (!hasActiveWork) return; setInterval(...)` pattern
 
-**Remember: React performance is about preventing unnecessary work, not just optimizing necessary work.**
+19. **REAL-TIME DATA PERFORMANCE RULES:**
+    - **SSE/WebSocket Events**: ALWAYS throttle high-frequency events (progress, download, etc.)
+    - **Progress Updates**: Max 10 updates/second (100ms throttle), immediate for completion (100%)
+    - **Event Batching**: Group related events (progress + watchdog timer) in single update
+    - **State Comparison**: Only update state when values actually change: `if (newValue !== oldValue)`
+    - **Completion Events**: Clear pending throttled updates before final state update
+    - **Download Progress**: Throttle intermediate updates, immediate for 0% and 100%
+
+20. **DEBUGGING PERFORMANCE ISSUES:**
+    - Add temporary logging: `console.log('🔍 [PERFORMANCE DEBUG] Component render')`
+    - Track useEffect triggers: `console.log('useEffect triggered - dependency:', dependency)`
+    - Monitor state update frequency: Count renders per second during operations
+    - Use React DevTools Profiler to identify expensive renders
+    - **REMOVE DEBUG LOGGING** after fixing issues
+
+**Remember: React performance is about preventing unnecessary work, not just optimizing necessary work. One excessive re-render can cause cascade effects that multiply the performance impact.**
 
 ## Sogni API Integration Rules
 
-19. **SOGNI API PARAMETER PROPAGATION:**
+21. **SOGNI API PARAMETER PROPAGATION:**
     - When adding new settings/parameters that affect image generation, update ALL three integration points:
       1. **Frontend Direct Calls**: `src/App.jsx` - direct sogniClient.projects.create() calls
       2. **API Service Layer**: `src/services/api.ts` - createProject() function parameter mapping
@@ -81,7 +107,7 @@
     - Always check both enhancement and generation code paths
     - Test that new parameters flow from UI → Frontend → API → Backend → Sogni SDK
 
-20. **LOGGING AND DEBUG PRACTICES:**
+22. **LOGGING AND DEBUG PRACTICES:**
     - **NEVER** log raw image data (Uint8Array, ArrayBuffer, base64 strings, etc.) as it clogs logs
     - Use `server/utils/logRedaction.js` utilities to redact image data from logs:
       - `redactImageData()` for general objects with image fields

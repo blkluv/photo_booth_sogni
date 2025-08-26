@@ -230,6 +230,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       timeStepSpacing: modelDefaults.timeStepSpacing,
       promptGuidance: modelDefaults.promptGuidance || DEFAULT_SETTINGS.promptGuidance,
       guidance: modelDefaults.guidance,
+      numImages: modelDefaults.numImages,
     };
     
     setSettings(resetToDefaults);
@@ -241,10 +242,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       timeStepSpacing: resetToDefaults.timeStepSpacing,
       promptGuidance: resetToDefaults.promptGuidance,
       guidance: resetToDefaults.guidance,
+      numImages: resetToDefaults.numImages,
     });
     
     // Save non-model-specific settings to global storage
-    const { inferenceSteps, scheduler, timeStepSpacing, promptGuidance, guidance, ...nonModelSettings } = resetToDefaults;
+    const { inferenceSteps, scheduler, timeStepSpacing, promptGuidance, guidance, numImages, ...nonModelSettings } = resetToDefaults;
     saveSettingsToCookies(nonModelSettings);
     
     console.log(`Reset settings for model ${currentModel} to defaults:`, modelDefaults);
