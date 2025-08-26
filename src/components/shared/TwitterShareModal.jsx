@@ -23,7 +23,8 @@ const TwitterShareModal = ({
   photoData,
   maxLength = 280,
   tezdevTheme = 'off',
-  aspectRatio = null
+  aspectRatio = null,
+  outputFormat = 'png' // Note: Twitter always uses JPG regardless of this setting
 }) => {
   const [message, setMessage] = useState('');
   const [isSharing, setIsSharing] = useState(false);
@@ -96,21 +97,23 @@ https://photobooth.sogni.ai/?prompt=${styleTag}`;
           
           if (tezdevTheme !== 'off') {
             // For TezDev themes, create full frame version (no polaroid frame, just TezDev overlay)
-            console.log('Creating TezDev full frame preview');
+            console.log('Creating TezDev full frame preview (always JPG for Twitter)');
             previewImageUrl = await createPolaroidImage(imageUrl, '', {
               tezdevTheme,
               aspectRatio,
               frameWidth: 0,      // No polaroid frame
               frameTopWidth: 0,   // No polaroid frame
               frameBottomWidth: 0, // No polaroid frame
-              frameColor: 'transparent' // No polaroid background
+              frameColor: 'transparent', // No polaroid background
+              outputFormat: 'jpg' // Always use JPG for Twitter sharing
             });
           } else {
             // For non-TezDev themes, use traditional polaroid frame
-            console.log(`Creating polaroid preview with label: "${photoLabel}"`);
+            console.log(`Creating polaroid preview with label: "${photoLabel}" (always JPG for Twitter)`);
             previewImageUrl = await createPolaroidImage(imageUrl, photoLabel, {
               tezdevTheme,
-              aspectRatio
+              aspectRatio,
+              outputFormat: 'jpg' // Always use JPG for Twitter sharing
             });
           }
           
@@ -260,7 +263,8 @@ TwitterShareModal.propTypes = {
   photoData: PropTypes.object,
   maxLength: PropTypes.number,
   tezdevTheme: PropTypes.string,
-  aspectRatio: PropTypes.string
+  aspectRatio: PropTypes.string,
+  outputFormat: PropTypes.string
 };
 
 export default TwitterShareModal; 

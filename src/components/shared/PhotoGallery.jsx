@@ -74,6 +74,7 @@ const PhotoGallery = ({
   desiredWidth,
   desiredHeight,
   selectedSubIndex = 0,
+  outputFormat = 'png',
   handleShareToX,
   slothicornAnimationEnabled,
   backgroundAnimationsEnabled = false,
@@ -390,10 +391,10 @@ const PhotoGallery = ({
       const photoNumberLabel = photos[photoIndex]?.statusText?.split('#')[0]?.trim() || photos[photoIndex]?.label || '';
       const photoLabel = photoNumberLabel + (styleHashtag ? ` ${styleHashtag}` : '');
       
-      // Generate filename
-      const cleanHashtag = styleHashtag ? styleHashtag.replace('#', '') : 'sogni';
-      const timestamp = new Date().getTime();
-      const filename = `${cleanHashtag}_photo_${timestamp}.png`;
+      // Generate filename with correct extension based on outputFormat
+      const cleanHashtag = styleHashtag ? styleHashtag.replace('#', '').toLowerCase() : 'sogni';
+      const fileExtension = outputFormat === 'jpg' ? '.jpg' : '.png';
+      const filename = `sogni-photobooth-${cleanHashtag}-style${fileExtension}`;
       
       // Ensure font is loaded
       if (!document.querySelector('link[href*="Permanent+Marker"]')) {
@@ -409,7 +410,8 @@ const PhotoGallery = ({
       // Create polaroid image
       const polaroidUrl = await createPolaroidImage(imageUrl, photoLabel, {
         tezdevTheme,
-        aspectRatio
+        aspectRatio,
+        outputFormat
       });
       
              // Handle download
@@ -437,11 +439,11 @@ const PhotoGallery = ({
     if (!imageUrl) return;
     
     try {
-      // Generate filename
+      // Generate filename with correct extension based on outputFormat
       const styleHashtag = getPhotoHashtag(photos[photoIndex]);
-      const cleanHashtag = styleHashtag ? styleHashtag.replace('#', '') : 'sogni';
-      const timestamp = new Date().getTime();
-      const filename = `${cleanHashtag}_raw_${timestamp}.png`;
+      const cleanHashtag = styleHashtag ? styleHashtag.replace('#', '').toLowerCase() : 'sogni';
+      const fileExtension = outputFormat === 'jpg' ? '.jpg' : '.png';
+      const filename = `sogni-photobooth-${cleanHashtag}-raw${fileExtension}`;
       
       // Apply TezDev frame if theme is enabled (works on all aspect ratios now)
       if (tezdevTheme !== 'off') {
@@ -463,7 +465,8 @@ const PhotoGallery = ({
           frameWidth: 0,      // No polaroid frame
           frameTopWidth: 0,   // No polaroid frame
           frameBottomWidth: 0, // No polaroid frame
-          frameColor: 'transparent' // No polaroid background
+          frameColor: 'transparent', // No polaroid background
+          outputFormat
         });
       
              // Handle download

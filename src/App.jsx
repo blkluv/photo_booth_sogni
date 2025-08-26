@@ -685,6 +685,7 @@ const App = () => {
       shareUrl: shareUrl.toString(), // Pass the full URL with parameters
       tezdevTheme,
       aspectRatio,
+      outputFormat,
       onSuccess: () => {
         setSuccessMessage('Your photo has been shared to X/Twitter!');
         setShowSuccessToast(true);
@@ -3700,6 +3701,7 @@ const App = () => {
         photoData={twitterPhotoIndex !== null ? photos[twitterPhotoIndex] : null}
         tezdevTheme={tezdevTheme}
         aspectRatio={aspectRatio}
+        outputFormat={outputFormat}
       />
 
       {/* Global Countdown Overlay - always above mascot and all UI */}

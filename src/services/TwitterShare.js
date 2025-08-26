@@ -36,6 +36,7 @@ export const getPhotoHashtag = (photo) => {
  * @param {Function} [params.onSuccess] - Callback function for direct share success
  * @param {string} [params.tezdevTheme='off'] - TezDev theme ('blue', 'pink', or 'off')
  * @param {string} [params.aspectRatio] - Aspect ratio of the image
+ * @param {string} [params.outputFormat='png'] - Output format ('png' or 'jpg') - Note: Twitter always uses JPG regardless of this setting
  * @returns {Promise<void>}
  */
 export const shareToTwitter = async ({
@@ -48,6 +49,7 @@ export const shareToTwitter = async ({
   onSuccess = null,
   tezdevTheme = 'off',
   aspectRatio = null,
+  outputFormat = 'png',
 }) => {
   if (photoIndex === null || !photos[photoIndex] || !photos[photoIndex].images || !photos[photoIndex].images[0]) {
     console.error('No image selected or image URL is missing for sharing.');
@@ -118,24 +120,26 @@ https://photobooth.sogni.ai/?prompt=${styleTag}`;
     
     if (tezdevTheme !== 'off') {
       // For TezDev themes, create full frame version (no polaroid frame, just TezDev overlay)
-      console.log('Creating TezDev full frame version for sharing');
+      console.log('Creating TezDev full frame version for sharing (always JPG for Twitter)');
       imageDataUrl = await createPolaroidImage(originalImageUrl, '', {
         tezdevTheme,
         aspectRatio,
         frameWidth: 0,      // No polaroid frame
         frameTopWidth: 0,   // No polaroid frame
         frameBottomWidth: 0, // No polaroid frame
-        frameColor: 'transparent' // No polaroid background
+        frameColor: 'transparent', // No polaroid background
+        outputFormat: 'jpg' // Always use JPG for Twitter sharing
       });
     } else {
       // For non-TezDev themes, use traditional polaroid frame
       const hashtag = getPhotoHashtag(photo);
       const label = hashtag || photo.label || photo.style || '';
       
-      console.log('Creating polaroid image for sharing');
+      console.log('Creating polaroid image for sharing (always JPG for Twitter)');
       imageDataUrl = await createPolaroidImage(originalImageUrl, label, {
         tezdevTheme,
-        aspectRatio
+        aspectRatio,
+        outputFormat: 'jpg' // Always use JPG for Twitter sharing
       });
     }
     

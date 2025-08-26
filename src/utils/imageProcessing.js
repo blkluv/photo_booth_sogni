@@ -77,6 +77,7 @@ export async function resizeDataUrl(dataUrl, width, height) {
  * @param {string} options.labelColor - Color for the label text (default: #333)
  * @param {string} options.tezdevTheme - TezDev theme ('blue', 'pink', or 'off')
  * @param {string} options.aspectRatio - Aspect ratio of the original image
+ * @param {string} options.outputFormat - Output format ('png' or 'jpg', default: 'png')
  * @returns {Promise<string>} Data URL of the generated polaroid image
  */
 export async function createPolaroidImage(imageUrl, label, options = {}) {
@@ -89,7 +90,8 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
       labelFont = '72px "Permanent Marker", cursive',
       labelColor = '#333',
       tezdevTheme = 'off',
-      aspectRatio = 'portrait'
+      aspectRatio = 'portrait',
+      outputFormat = 'png'
     } = options;
 
     // Load the Permanent Marker font if it's not already loaded
@@ -148,7 +150,9 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
       ctx.imageSmoothingQuality = 'high';
       
       // Draw polaroid frame (white background)
-      ctx.fillStyle = frameColor;
+      // For JPG format, ensure we have an opaque background
+      const actualFrameColor = (outputFormat === 'jpg' && frameColor === 'transparent') ? 'white' : frameColor;
+      ctx.fillStyle = actualFrameColor;
       ctx.fillRect(0, 0, polaroidWidth, polaroidHeight);
       
       // Draw the image centered in the frame
@@ -214,8 +218,9 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
         console.log(`Drew label: "${displayLabel}" at y=${labelY} with bottom width ${frameBottomWidth}`);
       }
       
-      // Convert to data URL with maximum quality
-      const dataUrl = canvas.toDataURL('image/png', 1.0);
+      // Convert to data URL with maximum quality using the specified format
+      const mimeType = outputFormat === 'jpg' ? 'image/jpeg' : 'image/png';
+      const dataUrl = canvas.toDataURL(mimeType, 1.0);
       
       // For debugging: display the image in the console
       console.log(`Generated polaroid with dimensions: ${polaroidWidth}x${polaroidHeight}`);
