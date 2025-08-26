@@ -35,6 +35,10 @@ export const getModelOptions = () => {
       label: "epiCRealism XL VXI (SDXL Lightning)",
       value: "coreml-epicrealismXL_VXIAbeast4SLightning",
     },
+    {
+      label: "Flux.1 Kontext",
+      value: "flux1-dev-kontext_fp8_scaled",
+    },
   ];
 };
 
@@ -50,6 +54,34 @@ export const getValidModelValue = (selectedValue: string) => {
   
   // Otherwise use the first option as default
   return defaultValue;
+};
+
+// Helper function to check if the current model is Flux.1 Kontext
+export const isFluxKontextModel = (modelValue: string): boolean => {
+  return modelValue === "flux1-dev-kontext_fp8_scaled";
+};
+
+// Get model-specific default settings
+export const getModelDefaults = (modelValue: string) => {
+  if (isFluxKontextModel(modelValue)) {
+    return {
+      guidance: 3, // Range: 1-5, Default: 3 (Prompt Guidance)
+      inferenceSteps: 20, // Range: 18-28, Default: 20
+      scheduler: 'Euler', // Default: Euler
+      timeStepSpacing: 'Simple', // Default: Simple
+      numImages: 4, // Range: 1-4, Default: 4
+    };
+  }
+  
+  // Default settings for other models
+  return {
+    promptGuidance: 2,
+    guidance: 3,
+    inferenceSteps: 7,
+    scheduler: 'DPM++ SDE',
+    timeStepSpacing: 'Karras',
+    numImages: 8, // Default: 8
+  };
 };
 
 // Helper function to determine default aspect ratio - defaults to narrow (2:3) for new users
@@ -78,6 +110,8 @@ export const DEFAULT_SETTINGS: Settings = {
   inferenceSteps: 7,
   scheduler: 'DPM++ SDE',
   timeStepSpacing: 'Karras',
+  // Flux.1 Kontext specific settings
+  guidance: 3,
   flashEnabled: true,
   keepOriginalPhoto: false,
   selectedStyle: "randomMix",

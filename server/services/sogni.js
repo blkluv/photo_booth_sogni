@@ -361,7 +361,7 @@ export async function generateImage(client, params, progressCallback, localProje
     
 
     
-    // Add image data for enhancement or controlNet
+    // Add image data for enhancement, controlNet, or contextImage1
     if (isEnhancement) {
       const imageData = params.startingImage instanceof Uint8Array 
         ? params.startingImage 
@@ -370,6 +370,16 @@ export async function generateImage(client, params, progressCallback, localProje
       projectOptions.startingImageStrength = params.startingImageStrength || 0.85;
       
       console.log(`[IMAGE] Enhancement image: ${(imageData.length / 1024 / 1024).toFixed(2)}MB`);
+    } else if (params.contextImages && Array.isArray(params.contextImages)) {
+      // Handle Flux.1 Kontext contextImages
+      const contextImagesData = params.contextImages.map(img => {
+        return img instanceof Uint8Array ? img : new Uint8Array(img);
+      });
+      
+      // For Flux.1 Kontext, use contextImages as the direct parameter (array)
+      projectOptions.contextImages = contextImagesData;
+      
+      console.log(`[IMAGE] Context images: ${contextImagesData.length} image(s), total ${(contextImagesData.reduce((sum, img) => sum + img.length, 0) / 1024 / 1024).toFixed(2)}MB`);
     } else if (params.imageData) {
       const imageData = params.imageData instanceof Uint8Array 
         ? params.imageData 

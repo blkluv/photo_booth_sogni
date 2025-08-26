@@ -428,11 +428,12 @@ export async function createProject(params: Record<string, unknown>, progressCal
     // Debug log to track sourceType
     console.log(`createProject called with sourceType: ${typeof params.sourceType === 'string' ? params.sourceType : 'undefined'}`);
     
-    // Process the image data based on the request type (enhancement or generation)
+    // Process the image data based on the request type (enhancement, generation with controlNet, or generation with contextImage1)
     let imageData: unknown;
     let isEnhancement = false;
+    let isContextImage = false;
     
-    // Check if this is an enhancement request (has startingImage) or generation (has controlNet)
+    // Check if this is an enhancement request (has startingImage), contextImage1 request, or generation (has controlNet)
     if (params.startingImage) {
       isEnhancement = true;
       
@@ -450,6 +451,27 @@ export async function createProject(params: Record<string, unknown>, progressCal
         console.log(`📊 Enhancement image format: Uint8Array converted to Array (${params.startingImage.length} bytes)`);
       } else {
         throw new Error('Enhancement requires startingImage as Array or Uint8Array');
+      }
+    }
+    // Process contextImages for Flux.1 Kontext model
+    else if (params.contextImages && Array.isArray(params.contextImages)) {
+      isContextImage = true;
+      
+      // Process the first context image (we only support one for now)
+      const contextImage = params.contextImages[0];
+      if (Array.isArray(contextImage)) {
+        imageData = contextImage;
+        const contextSizeMB = (contextImage.length / 1024 / 1024).toFixed(2);
+        console.log(`📤 Context image transmitting to Sogni API: ${contextSizeMB}MB`);
+        console.log(`📊 Context image format: Array (${contextImage.length} bytes)`);
+      } else if (contextImage instanceof Uint8Array) {
+        // Convert Uint8Array to regular array
+        imageData = Array.from(contextImage);
+        const contextSizeMB = (contextImage.length / 1024 / 1024).toFixed(2);
+        console.log(`📤 Context image transmitting to Sogni API: ${contextSizeMB}MB`);
+        console.log(`📊 Context image format: Uint8Array converted to Array (${contextImage.length} bytes)`);
+      } else {
+        throw new Error('contextImages requires images as Array or Uint8Array');
       }
     } 
     // Process controlNet image for normal generation
@@ -487,7 +509,7 @@ export async function createProject(params: Record<string, unknown>, progressCal
         throw new Error('ControlNet requires image as Array or Uint8Array');
       }
     } else {
-      throw new Error('Invalid image data format - missing controlNet.image or startingImage');
+      throw new Error('Invalid image data format - missing controlNet.image, contextImages, or startingImage');
     }
     
     // Format the parameters for the backend based on request type
@@ -511,6 +533,26 @@ export async function createProject(params: Record<string, unknown>, progressCal
         startingImage: Array.isArray(imageData) || imageData instanceof Uint8Array ? imageData : [],
         startingImageStrength: params.startingImageStrength || 0.85,
         sourceType: params.sourceType // Pass sourceType through for enhancement
+      };
+    } else if (isContextImage) {
+      // Generation parameters with contextImages (Flux.1 Kontext)
+      projectParams = {
+        selectedModel: params.modelId,
+        positivePrompt: params.positivePrompt || '',
+        negativePrompt: params.negativePrompt || '',
+        stylePrompt: params.stylePrompt || '',
+        width: params.width,
+        height: params.height,
+        promptGuidance: params.guidance,
+        numberImages: params.numberOfImages,
+        inferenceSteps: params.steps,
+        scheduler: params.scheduler,
+        timeStepSpacing: params.timeStepSpacing,
+        outputFormat: params.outputFormat || 'jpg',
+        sensitiveContentFilter: params.sensitiveContentFilter || false,
+        contextImages: [Array.isArray(imageData) || imageData instanceof Uint8Array ? imageData : []],
+        seed: params.seed || undefined,
+        sourceType: params.sourceType // Pass sourceType through for generation
       };
     } else {
       // Generation parameters with controlNet

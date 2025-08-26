@@ -1,12 +1,12 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 
-import { getModelOptions, defaultStylePrompts as initialStylePrompts, TIMEOUT_CONFIG } from './constants/settings';
+import { getModelOptions, defaultStylePrompts as initialStylePrompts, TIMEOUT_CONFIG, isFluxKontextModel } from './constants/settings';
 import { photoThoughts, randomThoughts } from './constants/thoughts';
 import { saveSettingsToCookies, shouldShowPromoPopup, markPromoPopupShown } from './utils/cookies';
 import { styleIdToDisplay } from './utils';
 import { getCustomDimensions } from './utils/imageProcessing';
 import { goToPreviousPhoto, goToNextPhoto } from './utils/photoNavigation';
-import { loadPrompts, getRandomStyle, getRandomMixPrompts } from './services/prompts';
+import { initializeStylePrompts, getRandomStyle, getRandomMixPrompts } from './services/prompts';
 import { getDefaultThemeGroupState, getEnabledPrompts, getOneOfEachPrompts } from './constants/themeGroups';
 import { getThemeGroupPreferences } from './utils/cookies';
 import { initializeSogniClient } from './services/sogni';
@@ -128,7 +128,7 @@ const App = () => {
   }, []);
 
   // --- Use AppContext for settings ---
-  const { settings, updateSetting, resetSettings } = useApp();
+  const { settings, updateSetting, switchToModel, resetSettings } = useApp();
   const { 
     selectedStyle, 
     selectedModel, 
@@ -139,6 +139,7 @@ const App = () => {
     inferenceSteps,
     scheduler,
     timeStepSpacing,
+    guidance,
     flashEnabled, 
     keepOriginalPhoto,
     positivePrompt,
@@ -350,35 +351,21 @@ const App = () => {
     }
   }, [stylePrompts, updateSetting, selectedStyle, promptsData]);
 
-  // Update the useEffect that loads prompts
+  // Function to load prompts based on current model
+  const loadPromptsForModel = async (modelId) => {
+    try {
+      const prompts = await initializeStylePrompts(modelId);
+      setStylePrompts(prompts);
+      console.log(`Loaded prompts for model ${modelId}:`, Object.keys(prompts).length);
+    } catch (error) {
+      console.error('Error loading prompts:', error);
+    }
+  };
+
+  // Load prompts on component mount and when model changes
   useEffect(() => {
-    // Try to load prompts from both import and fetch
-    loadPrompts().then(prompts => {
-      if (Object.keys(prompts).length > 0) {
-        console.log('Successfully loaded prompts on component mount, loaded styles:', Object.keys(prompts).length);
-        
-        // Update the state variable instead of modifying the imported constant
-        setStylePrompts(() => {
-          const newStylePrompts = {
-            custom: '',
-            ...Object.fromEntries(
-              Object.entries(prompts)
-                .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
-            )
-          };
-          
-          // Add random style that will be resolved at generation time
-          newStylePrompts.random = 'RANDOM_SINGLE_STYLE';
-          
-          return newStylePrompts;
-        });
-      } else {
-        console.warn('Failed to load prompts from import or fetch');
-      }
-    }).catch(error => {
-      console.error('Error loading prompts on component mount:', error);
-    });
-  }, []);
+    loadPromptsForModel(selectedModel);
+  }, [selectedModel]);
 
   // At the top of App component, add a new ref for tracking project state
   const projectStateReference = useRef({
@@ -1690,7 +1677,8 @@ const App = () => {
       setUploadStatusText('Uploading your image...');
       
       // Create project using context state for settings
-      const project = await sogniClient.projects.create({ 
+      const isFluxKontext = isFluxKontextModel(selectedModel);
+      const projectConfig = { 
         testnet: false,
         tokenType: 'spark',
         modelId: selectedModel,
@@ -1701,23 +1689,33 @@ const App = () => {
         width: getCustomDimensions(aspectRatio).width,  // Use aspectRatio here
         height: getCustomDimensions(aspectRatio).height, // Use aspectRatio here
         steps: inferenceSteps,
-        guidance: promptGuidance,
+        guidance: isFluxKontext ? guidance : promptGuidance, // Use guidance for Flux.1 Kontext, promptGuidance for others
         numberOfImages: numImages, // Use context state
         scheduler: scheduler,
         timeStepSpacing: timeStepSpacing,
         outputFormat: outputFormat, // Add output format setting
         sensitiveContentFilter: sensitiveContentFilter, // Add sensitive content filter setting
-        controlNet: {
+        sourceType: sourceType, // Add sourceType for analytics tracking
+        ...(seedParam !== undefined ? { seed: seedParam } : {})
+      };
+      
+      // Add image configuration based on model type
+      if (isFluxKontext) {
+        // For Flux.1 Kontext, use contextImages array (SDK expects array)
+        projectConfig.contextImages = [new Uint8Array(blobArrayBuffer)];
+      } else {
+        // For other models, use controlNet
+        projectConfig.controlNet = {
           name: 'instantid',
           image: new Uint8Array(blobArrayBuffer),
           strength: controlNetStrength,
           mode: 'balanced',
           guidanceStart: 0,
           guidanceEnd: controlNetGuidanceEnd,
-        },
-        sourceType: sourceType, // Add sourceType for analytics tracking
-        ...(seedParam !== undefined ? { seed: seedParam } : {})
-      });
+        };
+      }
+      
+      const project = await sogniClient.projects.create(projectConfig);
 
       activeProjectReference.current = project.id;
       console.log('Project created:', project.id, 'with jobs:', project.jobs);
@@ -2094,19 +2092,39 @@ const App = () => {
         // Handle hashtag generation for final jobs
         let hashtag = '';
         if (positivePrompt) {
-          const foundKey = Object.entries(promptsData).find(([, value]) => value === positivePrompt)?.[0];
+          // First check current stylePrompts (which includes Flux prompts when appropriate)
+          const foundKey = Object.entries(stylePrompts).find(([, value]) => value === positivePrompt)?.[0];
           if (foundKey) {
             hashtag = `#${foundKey}`;
             console.log('📸 Found hashtag for completed job:', { positivePrompt, hashtag, foundKey });
+          }
+          
+          // Fallback to promptsData for backward compatibility
+          if (!hashtag) {
+            const fallbackKey = Object.entries(promptsData).find(([, value]) => value === positivePrompt)?.[0];
+            if (fallbackKey) {
+              hashtag = `#${fallbackKey}`;
+              console.log('📸 Found hashtag from promptsData fallback:', { positivePrompt, hashtag, fallbackKey });
+            }
           }
         }
         
         // If we have a valid stylePrompt, use that to help with hashtag lookup
         if (!hashtag && stylePrompt.trim()) {
-          const styleKey = Object.entries(promptsData).find(([, value]) => value === stylePrompt.trim())?.[0];
+          // First check current stylePrompts
+          const styleKey = Object.entries(stylePrompts).find(([, value]) => value === stylePrompt.trim())?.[0];
           if (styleKey) {
             console.log('📸 Found hashtag from stylePrompt:', styleKey);
             hashtag = `#${styleKey}`;
+          }
+          
+          // Fallback to promptsData
+          if (!hashtag) {
+            const fallbackStyleKey = Object.entries(promptsData).find(([, value]) => value === stylePrompt.trim())?.[0];
+            if (fallbackStyleKey) {
+              console.log('📸 Found hashtag from stylePrompt fallback:', fallbackStyleKey);
+              hashtag = `#${fallbackStyleKey}`;
+            }
           }
         }
         
@@ -2859,6 +2877,7 @@ const App = () => {
           selectedStyle={selectedStyle}
           updateStyle={handleUpdateStyle}
           defaultStylePrompts={stylePrompts}
+          selectedModel={selectedModel}
           showControlOverlay={showControlOverlay}
           setShowControlOverlay={setShowControlOverlay}
           onThemeChange={handleThemeChange}
@@ -2954,8 +2973,8 @@ const App = () => {
             modelOptions={getModelOptions()}
             selectedModel={selectedModel}
             onModelSelect={(value) => {
-              updateSetting('selectedModel', value);
-              saveSettingsToCookies({ selectedModel: value });
+              console.log(`Model selected: ${value}`);
+              switchToModel(value);
             }}
             numImages={numImages}
             onNumImagesChange={(value) => {
@@ -2966,6 +2985,11 @@ const App = () => {
             onPromptGuidanceChange={(value) => {
               updateSetting('promptGuidance', value);
               saveSettingsToCookies({ promptGuidance: value });
+            }}
+            guidance={guidance}
+            onGuidanceChange={(value) => {
+              updateSetting('guidance', value);
+              saveSettingsToCookies({ guidance: value });
             }}
             controlNetStrength={controlNetStrength}
             onControlNetStrengthChange={(value) => {

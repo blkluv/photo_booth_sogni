@@ -1,4 +1,6 @@
 import promptsData from '../prompts.json';
+import { FLUX_KONTEXT_PROMPTS } from '../constants/fluxPrompts';
+import { isFluxKontextModel } from '../constants/settings';
 
 /**
  * Loads style prompts from various sources.
@@ -45,14 +47,24 @@ export const loadPrompts = () => {
 
 /**
  * Initializes and returns an object with all available style prompts.
+ * @param {string} modelId - The current model ID to determine which prompts to use
  */
-export const initializeStylePrompts = async () => {
+export const initializeStylePrompts = async (modelId = null) => {
   try {
-    const prompts = await loadPrompts();
+    let prompts;
     
-    if (Object.keys(prompts).length === 0) {
-      console.warn('No prompts loaded, using default empty prompt');
-      return { custom: '' };
+    // Use Flux.1 Kontext specific prompts if the model is Flux.1 Kontext
+    if (modelId && isFluxKontextModel(modelId)) {
+      prompts = FLUX_KONTEXT_PROMPTS;
+      console.log('Using Flux.1 Kontext specific prompts');
+    } else {
+      // Use regular prompts for other models
+      prompts = await loadPrompts();
+      
+      if (Object.keys(prompts).length === 0) {
+        console.warn('No prompts loaded, using default empty prompt');
+        return { custom: '' };
+      }
     }
     
     // Create sorted object with custom first
@@ -64,8 +76,10 @@ export const initializeStylePrompts = async () => {
       )
     };
     
-    // Add random style that will be resolved at generation time
-    stylePrompts.random = 'RANDOM_SINGLE_STYLE';
+    // Add random style that will be resolved at generation time (only for non-Flux models)
+    if (!modelId || !isFluxKontextModel(modelId)) {
+      stylePrompts.random = 'RANDOM_SINGLE_STYLE';
+    }
     
     console.log('Prompts loaded successfully:', Object.keys(stylePrompts).length);
     return stylePrompts;

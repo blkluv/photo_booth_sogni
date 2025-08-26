@@ -44,6 +44,10 @@ interface CameraViewProps {
   promptGuidance?: number;
   /** Handler for prompt guidance change */
   onPromptGuidanceChange?: (value: number) => void;
+  /** Guidance value (Flux.1 Kontext specific) */
+  guidance?: number;
+  /** Handler for guidance change (Flux.1 Kontext specific) */
+  onGuidanceChange?: (value: number) => void;
   /** ControlNet strength value */
   controlNetStrength?: number;
   /** Handler for ControlNet strength change */
@@ -111,6 +115,8 @@ export const CameraView: React.FC<CameraViewProps> = ({
   onNumImagesChange,
   promptGuidance = 2,
   onPromptGuidanceChange,
+  guidance = 3,
+  onGuidanceChange,
   controlNetStrength = 0.8,
   onControlNetStrengthChange,
   controlNetGuidanceEnd = 0.6,
@@ -458,6 +464,8 @@ export const CameraView: React.FC<CameraViewProps> = ({
         onNumImagesChange={onNumImagesChange}
         promptGuidance={promptGuidance}
         onPromptGuidanceChange={onPromptGuidanceChange}
+        guidance={guidance}
+        onGuidanceChange={onGuidanceChange}
         controlNetStrength={controlNetStrength}
         onControlNetStrengthChange={onControlNetStrengthChange}
         controlNetGuidanceEnd={controlNetGuidanceEnd}

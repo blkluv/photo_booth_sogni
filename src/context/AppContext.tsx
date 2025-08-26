@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useRef, useMemo } from 'react';
 
 import { Photo, ProjectState, Settings } from '../types/index';
-import { DEFAULT_SETTINGS } from '../constants/settings';
-import { getSettingFromCookie, saveSettingsToCookies } from '../utils/cookies';
+import { DEFAULT_SETTINGS, getModelDefaults, isFluxKontextModel } from '../constants/settings';
+import { getSettingFromCookie, saveSettingsToCookies, getSettingsForModel, saveModelSpecificSettings } from '../utils/cookies';
 
 // Helper function to handle TezDev theme cookie migration
 const getTezDevThemeFromCookie = () => {
@@ -47,6 +47,7 @@ interface AppContextType {
   // Settings
   settings: Settings;
   updateSetting: <K extends keyof Settings>(key: K, value: Settings[K]) => void;
+  switchToModel: (modelId: string) => void;
   resetSettings: () => void;
   
   // Style Dropdown
@@ -84,17 +85,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [settings, setSettings] = useState<Settings>(() => {
     const theme = getTezDevThemeFromCookie();
     const aspectRatio = getSettingFromCookie('aspectRatio', DEFAULT_SETTINGS.aspectRatio);
+    const selectedModel = getSettingFromCookie('selectedModel', DEFAULT_SETTINGS.selectedModel);
+    
+    // Get model-specific settings for the current model
+    const modelSettings = getSettingsForModel(selectedModel);
     
     return {
       selectedStyle: getSettingFromCookie('selectedStyle', DEFAULT_SETTINGS.selectedStyle),
-      selectedModel: getSettingFromCookie('selectedModel', DEFAULT_SETTINGS.selectedModel),
-      numImages: getSettingFromCookie('numImages', DEFAULT_SETTINGS.numImages),
-      promptGuidance: getSettingFromCookie('promptGuidance', DEFAULT_SETTINGS.promptGuidance),
+      selectedModel,
+      numImages: modelSettings.numImages || DEFAULT_SETTINGS.numImages,
+      promptGuidance: modelSettings.promptGuidance || DEFAULT_SETTINGS.promptGuidance,
       controlNetStrength: getSettingFromCookie('controlNetStrength', DEFAULT_SETTINGS.controlNetStrength),
       controlNetGuidanceEnd: getSettingFromCookie('controlNetGuidanceEnd', DEFAULT_SETTINGS.controlNetGuidanceEnd),
-      inferenceSteps: getSettingFromCookie('inferenceSteps', DEFAULT_SETTINGS.inferenceSteps),
-      scheduler: getSettingFromCookie('scheduler', DEFAULT_SETTINGS.scheduler),
-      timeStepSpacing: getSettingFromCookie('timeStepSpacing', DEFAULT_SETTINGS.timeStepSpacing),
+      inferenceSteps: modelSettings.inferenceSteps || DEFAULT_SETTINGS.inferenceSteps,
+      scheduler: modelSettings.scheduler || DEFAULT_SETTINGS.scheduler,
+      timeStepSpacing: modelSettings.timeStepSpacing || DEFAULT_SETTINGS.timeStepSpacing,
+      guidance: modelSettings.guidance || DEFAULT_SETTINGS.guidance,
       flashEnabled: getSettingFromCookie('flashEnabled', DEFAULT_SETTINGS.flashEnabled),
       keepOriginalPhoto: getSettingFromCookie('keepOriginalPhoto', DEFAULT_SETTINGS.keepOriginalPhoto),
       positivePrompt: getSettingFromCookie('positivePrompt', DEFAULT_SETTINGS.positivePrompt),
@@ -126,16 +132,122 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [dragActive, setDragActive] = useState(false);
   
   const updateSetting = <K extends keyof Settings>(key: K, value: Settings[K]) => {
+    // Special handling for model changes
+    if (key === 'selectedModel') {
+      console.log(`updateSetting: Model change detected, calling switchToModel with ${value}`);
+      switchToModel(value as string);
+      return;
+    }
+    
     setSettings(prev => {
       const newSettings = { ...prev, [key]: value };
-      saveSettingsToCookies({ [key]: value });
+      
+      // Save model-specific settings separately
+      const modelSpecificSettings = ['inferenceSteps', 'scheduler', 'timeStepSpacing', 'promptGuidance', 'guidance', 'numImages'];
+      if (modelSpecificSettings.includes(key)) {
+        saveModelSpecificSettings(newSettings.selectedModel, { [key]: value });
+      } else {
+        saveSettingsToCookies({ [key]: value });
+      }
+      
       return newSettings;
     });
   };
   
+  // Function to switch to a different model and load its settings
+  const switchToModel = (modelId: string) => {
+    const currentModel = settings.selectedModel;
+    const isCurrentFlux = isFluxKontextModel(currentModel);
+    const isNewFlux = isFluxKontextModel(modelId);
+    
+    // Check if we're switching between different model types
+    const switchingModelTypes = isCurrentFlux !== isNewFlux;
+    
+    let modelSettings;
+    if (switchingModelTypes) {
+      // When switching between model types, use defaults instead of saved settings
+      modelSettings = getModelDefaults(modelId);
+      console.log(`Switching between model types (${isCurrentFlux ? 'Flux.1 Kontext' : 'Other'} -> ${isNewFlux ? 'Flux.1 Kontext' : 'Other'}), restoring defaults for ${modelId}:`, modelSettings);
+    } else {
+      // When switching within the same model type, use saved settings
+      modelSettings = getSettingsForModel(modelId);
+      console.log(`Switching within same model type, loading saved settings for ${modelId}:`, modelSettings);
+    }
+    
+    const newSettings = {
+      ...settings,
+      selectedModel: modelId,
+      inferenceSteps: modelSettings.inferenceSteps ?? DEFAULT_SETTINGS.inferenceSteps,
+      scheduler: modelSettings.scheduler ?? DEFAULT_SETTINGS.scheduler,
+      timeStepSpacing: modelSettings.timeStepSpacing ?? DEFAULT_SETTINGS.timeStepSpacing,
+      promptGuidance: modelSettings.promptGuidance ?? DEFAULT_SETTINGS.promptGuidance,
+      guidance: modelSettings.guidance ?? DEFAULT_SETTINGS.guidance,
+      numImages: modelSettings.numImages ?? DEFAULT_SETTINGS.numImages,
+    };
+    
+    console.log(`Final settings being applied:`, {
+      inferenceSteps: newSettings.inferenceSteps,
+      scheduler: newSettings.scheduler,
+      timeStepSpacing: newSettings.timeStepSpacing,
+      promptGuidance: newSettings.promptGuidance,
+      guidance: newSettings.guidance,
+      numImages: newSettings.numImages,
+    });
+    
+    setSettings(newSettings);
+    
+    // Save the model selection
+    saveSettingsToCookies({ selectedModel: modelId });
+    
+    // If we switched model types and restored defaults, save them as the new settings for this model
+    if (switchingModelTypes) {
+      saveModelSpecificSettings(modelId, {
+        inferenceSteps: modelSettings.inferenceSteps,
+        scheduler: modelSettings.scheduler,
+        timeStepSpacing: modelSettings.timeStepSpacing,
+        promptGuidance: modelSettings.promptGuidance,
+        guidance: modelSettings.guidance,
+        numImages: modelSettings.numImages,
+      });
+    }
+    
+    console.log(`Switched to model ${modelId} with settings:`, modelSettings);
+  };
+  
   const resetSettings = () => {
-    setSettings(DEFAULT_SETTINGS);
-    saveSettingsToCookies(DEFAULT_SETTINGS);
+    // Get the current model
+    const currentModel = settings.selectedModel;
+    
+    // Get the ACTUAL defaults for the current model (not saved settings)
+    const modelDefaults = getModelDefaults(currentModel);
+    
+    // Reset to defaults for the current model
+    const resetToDefaults = {
+      ...DEFAULT_SETTINGS,
+      selectedModel: currentModel, // Keep the current model
+      inferenceSteps: modelDefaults.inferenceSteps,
+      scheduler: modelDefaults.scheduler,
+      timeStepSpacing: modelDefaults.timeStepSpacing,
+      promptGuidance: modelDefaults.promptGuidance || DEFAULT_SETTINGS.promptGuidance,
+      guidance: modelDefaults.guidance,
+    };
+    
+    setSettings(resetToDefaults);
+    
+    // Save model-specific settings to their separate storage
+    saveModelSpecificSettings(currentModel, {
+      inferenceSteps: resetToDefaults.inferenceSteps,
+      scheduler: resetToDefaults.scheduler,
+      timeStepSpacing: resetToDefaults.timeStepSpacing,
+      promptGuidance: resetToDefaults.promptGuidance,
+      guidance: resetToDefaults.guidance,
+    });
+    
+    // Save non-model-specific settings to global storage
+    const { inferenceSteps, scheduler, timeStepSpacing, promptGuidance, guidance, ...nonModelSettings } = resetToDefaults;
+    saveSettingsToCookies(nonModelSettings);
+    
+    console.log(`Reset settings for model ${currentModel} to defaults:`, modelDefaults);
   };
   
   const contextValue = useMemo(() => ({
@@ -147,6 +259,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setLoadedImages,
     settings,
     updateSetting,
+    switchToModel,
     resetSettings,
     showStyleDropdown,
     setShowStyleDropdown,

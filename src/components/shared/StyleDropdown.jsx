@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { styleIdToDisplay } from '../../utils';
 import { THEME_GROUPS, getDefaultThemeGroupState, getEnabledPrompts } from '../../constants/themeGroups';
 import { getThemeGroupPreferences, saveThemeGroupPreferences } from '../../utils/cookies';
+import { isFluxKontextModel } from '../../constants/settings';
 import '../../styles/style-dropdown.css';
 import PropTypes from 'prop-types';
 
@@ -16,7 +17,8 @@ const StyleDropdown = ({
   setShowControlOverlay, 
   dropdownPosition = 'top', // Default value
   triggerButtonClass = '.bottom-style-select', // Default class for the main toolbar
-  onThemeChange = null // Callback when theme preferences change
+  onThemeChange = null, // Callback when theme preferences change
+  selectedModel = null // Current selected model to determine UI behavior
 }) => {
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const [mounted, setMounted] = useState(false);
@@ -185,8 +187,13 @@ const StyleDropdown = ({
     }
   };
 
-  // Filter prompts based on enabled theme groups
-  const enabledPrompts = getEnabledPrompts(themeGroupState, defaultStylePrompts);
+  // Check if we're using Flux.1 Kontext
+  const isFluxKontext = selectedModel && isFluxKontextModel(selectedModel);
+  
+  // Filter prompts based on enabled theme groups (only for non-Flux models)
+  const enabledPrompts = isFluxKontext 
+    ? defaultStylePrompts 
+    : getEnabledPrompts(themeGroupState, defaultStylePrompts);
 
   // If not mounted or not open, don't render anything
   if (!mounted || !isOpen) return null;
@@ -203,7 +210,7 @@ const StyleDropdown = ({
         left: position.left,
       }}
     >
-      <div className="style-section featured">
+      <div className="style-section featured">      
         {/* Featured options */}
         <div 
           className={`style-option ${selectedStyle === 'randomMix' ? 'selected' : ''}`} 
@@ -216,16 +223,19 @@ const StyleDropdown = ({
           <span>Random Mix</span>
         </div>
         
-        <div 
-          className={`style-option ${selectedStyle === 'random' ? 'selected' : ''}`} 
-          onClick={() => { 
-            updateStyle('random');
-            onClose();
-          }}
-        >
-          <span>🔀</span>
-          <span>Random Single</span>
-        </div>
+        {/* Only show Random Single for non-Flux models (Flux doesn't have 'random' in prompts) */}
+        {!isFluxKontext && (
+          <div 
+            className={`style-option ${selectedStyle === 'random' ? 'selected' : ''}`} 
+            onClick={() => { 
+              updateStyle('random');
+              onClose();
+            }}
+          >
+            <span>🔀</span>
+            <span>Random Single</span>
+          </div>
+        )}
         
         <div 
           className={`style-option ${selectedStyle === 'oneOfEach' ? 'selected' : ''}`} 
@@ -251,30 +261,34 @@ const StyleDropdown = ({
         </div>
       </div>
       
-      {/* Themes Section */}
-      <div className="style-section themes">
-        <div className="section-header">
-          <span>🎨 Themes</span>
-        </div>
-        <div className="theme-groups">
-          {Object.entries(THEME_GROUPS).map(([groupId, group]) => (
-            <div key={groupId} className="theme-group">
-              <label className="theme-group-label">
-                <input
-                  type="checkbox"
-                  checked={themeGroupState[groupId]}
-                  onChange={() => handleThemeGroupToggle(groupId)}
-                  className="theme-group-checkbox"
-                />
-                <span className="theme-group-name">{group.name}</span>
-                <span className="theme-group-count">({group.prompts.length})</span>
-              </label>
+      {/* Themes Section - only show for non-Flux models */}
+      {!isFluxKontext && (
+        <>
+          <div className="style-section themes">
+            <div className="section-header">
+              <span>🎨 Themes</span>
             </div>
-          ))}
-        </div>
-      </div>
+            <div className="theme-groups">
+              {Object.entries(THEME_GROUPS).map(([groupId, group]) => (
+                <div key={groupId} className="theme-group">
+                  <label className="theme-group-label">
+                    <input
+                      type="checkbox"
+                      checked={themeGroupState[groupId]}
+                      onChange={() => handleThemeGroupToggle(groupId)}
+                      className="theme-group-checkbox"
+                    />
+                    <span className="theme-group-name">{group.name}</span>
+                    <span className="theme-group-count">({group.prompts.length})</span>
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
 
-      <div className="style-section-divider"></div>
+          <div className="style-section-divider"></div>
+        </>
+      )}
 
       <div className="style-section regular">
         {Object.keys(enabledPrompts)
@@ -322,6 +336,7 @@ StyleDropdown.propTypes = {
   dropdownPosition: PropTypes.string,
   triggerButtonClass: PropTypes.string,
   onThemeChange: PropTypes.func,
+  selectedModel: PropTypes.string,
 };
 
 export default StyleDropdown; 
