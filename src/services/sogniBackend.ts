@@ -835,10 +835,18 @@ export class BackendSogniClient {
         
         console.error('Backend generation process failed:', error);
         project.emit('uploadComplete'); // Clean up upload progress
-        const errorMsg = error && typeof error === 'object' && 'message' in error && typeof (error as { message: unknown }).message === 'string'
-          ? (error as { message: string }).message
-          : String(error);
-        project.emit('failed', new Error(errorMsg));
+        
+        // Preserve NetworkError properties when emitting failure
+        if (error && typeof error === 'object' && error.constructor && error.constructor.name === 'NetworkError') {
+          // Pass the original NetworkError to preserve its properties
+          project.emit('failed', error);
+        } else {
+          // For other errors, create a new Error with the message
+          const errorMsg = error && typeof error === 'object' && 'message' in error && typeof (error as { message: unknown }).message === 'string'
+            ? (error as { message: string }).message
+            : String(error);
+          project.emit('failed', new Error(errorMsg));
+        }
         // Remove from active projects
         this.activeProjects.delete(projectId);
       });
@@ -859,17 +867,24 @@ export class BackendSogniClient {
       });
       
       project.emit('uploadComplete'); // Clean up upload progress
-      const errorMsg = error && typeof error === 'object' && 'message' in error && typeof (error as { message: unknown }).message === 'string'
-        ? (error as { message: string }).message
-        : String(error);
       
-      // Emit a more user-friendly error message
-      const userFriendlyError = new Error(
-        errorMsg.includes('Network error') || errorMsg.includes('connection') 
-          ? 'Unable to connect to the image generation service. Please check your internet connection and try again.'
-          : errorMsg
-      );
-      project.emit('failed', userFriendlyError);
+      // Preserve NetworkError properties when emitting failure
+      if (error && typeof error === 'object' && error.constructor && error.constructor.name === 'NetworkError') {
+        // Pass the original NetworkError to preserve its properties
+        project.emit('failed', error);
+      } else {
+        // For other errors, create a user-friendly error message
+        const errorMsg = error && typeof error === 'object' && 'message' in error && typeof (error as { message: unknown }).message === 'string'
+          ? (error as { message: string }).message
+          : String(error);
+        
+        const userFriendlyError = new Error(
+          errorMsg.includes('Network error') || errorMsg.includes('connection') 
+            ? 'Unable to connect to the image generation service. Please check your internet connection and try again.'
+            : errorMsg
+        );
+        project.emit('failed', userFriendlyError);
+      }
       // Remove from active projects
       this.activeProjects.delete(projectId);
     }

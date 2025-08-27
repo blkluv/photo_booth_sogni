@@ -2086,14 +2086,19 @@ const App = () => {
                   errorMessage = 'GENERATION FAILED: replenish tokens';
                 } else if (error.isAuthError || error.errorCode === 'auth_error') {
                   errorMessage = 'GENERATION FAILED: authentication failed';
+                } else if (error.isOffline || error.name === 'NetworkError' || 
+                          (error.message && (error.message.includes('network') || 
+                           error.message.includes('connection') || 
+                           error.message.includes('internet') || 
+                           error.message.includes('CORS') ||
+                           error.message.includes('Failed to fetch')))) {
+                  errorMessage = 'GENERATION FAILED: check internet connection';
                 } else if (error.message) {
                   // Extract key info from error message
                   if (error.message.includes('Insufficient') || error.message.includes('credits')) {
                     errorMessage = 'GENERATION FAILED: replenish tokens';
                   } else if (error.message.includes('auth') || error.message.includes('token')) {
                     errorMessage = 'GENERATION FAILED: authentication failed';
-                  } else if (error.message.includes('network') || error.message.includes('connection')) {
-                    errorMessage = 'GENERATION FAILED: connection error';
                   } else {
                     errorMessage = 'GENERATION FAILED: request failed';
                   }
@@ -2103,6 +2108,10 @@ const App = () => {
                   errorMessage = 'GENERATION FAILED: replenish tokens';
                 } else if (error.includes('auth') || error.includes('token')) {
                   errorMessage = 'GENERATION FAILED: authentication failed';
+                } else if (error.includes('network') || error.includes('connection') || 
+                          error.includes('internet') || error.includes('CORS') ||
+                          error.includes('Failed to fetch')) {
+                  errorMessage = 'GENERATION FAILED: check internet connection';
                 } else {
                   errorMessage = 'GENERATION FAILED: request failed';
                 }
