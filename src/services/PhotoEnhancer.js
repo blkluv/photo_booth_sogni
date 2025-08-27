@@ -26,7 +26,6 @@ export const enhancePhoto = async (options) => {
     sogniClient,
     setPhotos,
     outputFormat,
-    sensitiveContentFilter,
     onSetActiveProject
   } = options;
 

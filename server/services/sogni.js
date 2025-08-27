@@ -366,8 +366,12 @@ export async function generateImage(client, params, progressCallback, localProje
       const imageData = params.startingImage instanceof Uint8Array 
         ? params.startingImage 
         : new Uint8Array(params.startingImage);
-      projectOptions.startingImage = imageData;
-      projectOptions.startingImageStrength = params.startingImageStrength || 0.85;
+      
+      // Try structured format like ControlNet instead of direct properties
+      projectOptions.startingImage = {
+        image: imageData,
+        strength: params.startingImageStrength || 0.85
+      };
       
       console.log(`[IMAGE] Enhancement image: ${(imageData.length / 1024 / 1024).toFixed(2)}MB`);
     } else if (params.contextImages && Array.isArray(params.contextImages)) {
@@ -394,6 +398,19 @@ export async function generateImage(client, params, progressCallback, localProje
       };
       
       console.log(`[IMAGE] ControlNet image: ${(imageData.length / 1024 / 1024).toFixed(2)}MB`);
+    }
+
+    // Debug: Show exactly what's being sent to Sogni SDK
+    if (isEnhancement) {
+      console.log('[IMAGE DEBUG] About to call sogniClient.projects.create with:', {
+        isEnhancement: true,
+        hasStartingImage: !!projectOptions.startingImage,
+        modelId: projectOptions.modelId,
+        startingImageSize: projectOptions.startingImage ? projectOptions.startingImage.length : 0
+      });
+      console.log('[IMAGE DEBUG] Exact projectOptions keys:', Object.keys(projectOptions));
+      console.log('[IMAGE DEBUG] startingImage exists:', !!projectOptions.startingImage);
+      console.log('[IMAGE DEBUG] startingImage value type:', typeof projectOptions.startingImage);
     }
 
     // Create project

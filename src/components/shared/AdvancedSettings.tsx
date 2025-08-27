@@ -42,8 +42,6 @@ interface AdvancedSettingsProps {
   onPromptGuidanceChange?: (value: number) => void;
   /** Guidance value (Flux.1 Kontext specific) */
   guidance?: number;
-  /** Handler for guidance change (Flux.1 Kontext specific) */
-  onGuidanceChange?: (value: number) => void;
   /** ControlNet strength value */
   controlNetStrength?: number;
   /** Handler for ControlNet strength change */
@@ -126,7 +124,6 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
   promptGuidance = 2,
   onPromptGuidanceChange,
   guidance = 3,
-  onGuidanceChange,
   controlNetStrength = 0.7,
   onControlNetStrengthChange,
   controlNetGuidanceEnd = 0.6,
@@ -162,6 +159,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
   
   // Check if current model is Flux.1 Kontext
   const isFluxKontext = isFluxKontextModel(selectedModel || settings.selectedModel || '');
+
   const currentAspectRatio = aspectRatio || settings.aspectRatio;
   const currentTezDevTheme = tezdevTheme || settings.tezdevTheme;
   const currentOutputFormat = outputFormat || settings.outputFormat;
@@ -396,12 +394,17 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                         type="range"
                         min={1}
                         max={5}
-                        step={1}
-                        value={guidance}
-                        onChange={(e) => onGuidanceChange?.(Number(e.target.value))}
+                        step={0.1}
+                        value={settings.guidance || 3}
+                        onChange={(e) => {
+                          const newValue = Number(e.target.value);
+                          updateSetting('guidance', newValue);
+                        }}
+
                         className="advanced-slider"
+                        style={{ pointerEvents: 'auto', zIndex: 1000 }}
                       />
-                      <span className="advanced-value">{guidance}</span>
+                      <span className="advanced-value">{settings.guidance || 3}</span>
                     </div>
                   </div>
                 ) : (
@@ -536,7 +539,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
           <input
             type="range"
             min={1}
-            max={isFluxKontext ? 4 : 32}
+            max={isFluxKontext ? 8 : 32}
             step={1}
             value={numImages}
             onChange={(e) => onNumImagesChange?.(Number(e.target.value))}

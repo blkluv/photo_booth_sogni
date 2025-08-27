@@ -69,7 +69,7 @@ export const getModelDefaults = (modelValue: string) => {
       inferenceSteps: 20, // Range: 18-28, Default: 20
       scheduler: 'Euler', // Default: Euler
       timeStepSpacing: 'Simple', // Default: Simple
-      numImages: 4, // Range: 1-4, Default: 4
+      numImages: 8, // Range: 1-4, Default: 4
     };
   }
   
