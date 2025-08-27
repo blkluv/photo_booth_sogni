@@ -1,0 +1,98 @@
+.confetti-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 999;
+  overflow: hidden;
+}
+
+.confetti-piece {
+  position: absolute;
+  top: -20px;
+  opacity: 0.9;
+  will-change: transform, opacity;
+  animation: confetti-realistic-fall linear forwards;
+  animation-delay: var(--animation-delay);
+  animation-duration: var(--animation-duration);
+}
+
+.confetti-square {
+  /* Square confetti pieces */
+}
+
+.confetti-circle {
+  border-radius: 50%;
+}
+
+.confetti-triangle {
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+  border-left: calc(var(--size, 8px) / 2) solid transparent !important;
+  border-right: calc(var(--size, 8px) / 2) solid transparent !important;
+  border-bottom: var(--size, 8px) solid currentColor !important;
+}
+
+/* More realistic physics-based falling animation */
+@keyframes confetti-realistic-fall {
+  0% {
+    transform: translateY(-20px) translateX(0px) rotateZ(0deg);
+    opacity: 1;
+  }
+  15% {
+    opacity: 1;
+  }
+  25% {
+    transform: translateY(25vh) translateX(calc(var(--horizontal-drift) * 0.3)) rotateZ(calc(var(--rotation-speed) * 0.25));
+  }
+  50% {
+    transform: translateY(50vh) translateX(calc(var(--horizontal-drift) * 0.7)) rotateZ(calc(var(--rotation-speed) * 0.5));
+    opacity: 0.9;
+  }
+  75% {
+    transform: translateY(75vh) translateX(var(--horizontal-drift)) rotateZ(calc(var(--rotation-speed) * 0.75));
+    opacity: 0.7;
+  }
+  90% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: translateY(110vh) translateX(calc(var(--horizontal-drift) * 1.2)) rotateZ(var(--rotation-speed));
+    opacity: 0;
+  }
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .confetti-piece {
+    /* Reduce confetti size on mobile for performance */
+    transform: scale(0.7);
+  }
+  
+  .confetti-container {
+    /* Reduce overall number of repaints on mobile */
+    transform: translateZ(0);
+  }
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .confetti-piece {
+    animation-duration: 1s;
+    opacity: 0.6;
+  }
+  
+  @keyframes confetti-realistic-fall {
+    0% {
+      transform: translateY(-20px);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(50vh);
+      opacity: 0;
+    }
+  }
+}
