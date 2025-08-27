@@ -564,8 +564,8 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
   }
 }
 
-/* Remove fade-in animation for loaded images to prevent post-load pulse */
-.film-frame img:not(.placeholder) {
+/* Remove fade-in animation for loaded images to prevent post-load pulse - EXCEPT newly arrived */
+.film-frame:not(.newly-arrived) img:not(.placeholder) {
   /* Remove transition that causes post-load pulse */
   transition: none !important;
   /* Enable native context menu and long press for image downloads */
@@ -577,6 +577,11 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
   user-drag: auto !important;
   /* Enable context menu specifically */
   pointer-events: auto !important;
+}
+
+/* OVERRIDE: Enable transitions for newly arrived images - higher specificity */
+.film-strip-container .film-strip-content .film-frame.newly-arrived img:not(.placeholder) {
+  transition: opacity 1.3s ease-out !important;
 }
 
 /* Add button click behavior */
@@ -617,7 +622,7 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
   }
 }
 
-.film-strip-container.visible .film-frame:not(.loading) {
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived) {
   animation: photoFrameAppear 0.5s cubic-bezier(0.2, 0, 0.2, 1) forwards;
   opacity: 0;
 }
@@ -628,31 +633,47 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
   /* Don't override the loading animation - let it work */
 }
 
-/* Stagger the animation for each frame - but not loading frames */
-.film-strip-container.visible .film-frame:not(.loading):nth-child(1) { animation-delay: .25s; }
-.film-strip-container.visible .film-frame:not(.loading):nth-child(2) { animation-delay: .5s; }
-.film-strip-container.visible .film-frame:not(.loading):nth-child(3) { animation-delay: .75s; }
-.film-strip-container.visible .film-frame:not(.loading):nth-child(4) { animation-delay: 1s; }
-.film-strip-container.visible .film-frame:not(.loading):nth-child(5) { animation-delay: 1.25s; }
-.film-strip-container.visible .film-frame:not(.loading):nth-child(6) { animation-delay: 1.5s; }
-.film-strip-container.visible .film-frame:not(.loading):nth-child(7) { animation-delay: 1.75s; }
-.film-strip-container.visible .film-frame:not(.loading):nth-child(8) { animation-delay: 2s; }
-.film-strip-container.visible .film-frame:not(.loading):nth-child(9) { animation-delay: 2.25s; }
-.film-strip-container.visible .film-frame:not(.loading):nth-child(10) { animation-delay: 2.5s; }
-.film-strip-container.visible .film-frame:not(.loading):nth-child(11) { animation-delay: 2.75s; }
-.film-strip-container.visible .film-frame:not(.loading):nth-child(12) { animation-delay: 3s; }
-.film-strip-container.visible .film-frame:not(.loading):nth-child(13) { animation-delay: 3.25s; }
-.film-strip-container.visible .film-frame:not(.loading):nth-child(14) { animation-delay: 3.5s; }
-.film-strip-container.visible .film-frame:not(.loading):nth-child(15) { animation-delay: 3.75s; }
-.film-strip-container.visible .film-frame:not(.loading):nth-child(16) { animation-delay: 4s; }
-.film-strip-container.visible .film-frame:not(.loading):nth-child(17) { animation-delay: 4.25s; }
-.film-strip-container.visible .film-frame:not(.loading):nth-child(18) { animation-delay: 4.5s; }
-.film-strip-container.visible .film-frame:not(.loading):nth-child(19) { animation-delay: 4.75s; }
-.film-strip-container.visible .film-frame:not(.loading):nth-child(20) { animation-delay: 5s; }
-.film-strip-container.visible .film-frame:not(.loading):nth-child(21) { animation-delay: 5.25s; }
-.film-strip-container.visible .film-frame:not(.loading):nth-child(22) { animation-delay: 5.5s; }
-.film-strip-container.visible .film-frame:not(.loading):nth-child(23) { animation-delay: 5.75s; }
-.film-strip-container.visible .film-frame:not(.loading):nth-child(24) { animation-delay: 6s; }
+/* Override the transition: none rule with maximum specificity - SLOW FOR DEBUGGING */
+.film-strip-container.visible .film-frame.newly-arrived.loaded img:not(.placeholder) {
+  transition: opacity 2s ease-out !important;
+}
+
+/* Fallback rule with even higher specificity */
+.film-strip-container .film-frame.newly-arrived img:not(.placeholder):not(.fallback) {
+  transition: opacity 1.3s ease-out !important;
+}
+
+/* Keep the placeholder visible during the transition */
+.film-frame.newly-arrived .placeholder {
+  opacity: 0.3 !important; /* Keep placeholder visible during transition */
+  transition: opacity 1s ease-out 0.3s !important; /* Fade out to match faster image transition */
+}
+
+/* Stagger the animation for each frame - but not loading or newly-arrived frames */
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(1) { animation-delay: .25s; }
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(2) { animation-delay: .5s; }
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(3) { animation-delay: .75s; }
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(4) { animation-delay: 1s; }
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(5) { animation-delay: 1.25s; }
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(6) { animation-delay: 1.5s; }
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(7) { animation-delay: 1.75s; }
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(8) { animation-delay: 2s; }
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(9) { animation-delay: 2.25s; }
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(10) { animation-delay: 2.5s; }
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(11) { animation-delay: 2.75s; }
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(12) { animation-delay: 3s; }
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(13) { animation-delay: 3.25s; }
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(14) { animation-delay: 3.5s; }
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(15) { animation-delay: 3.75s; }
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(16) { animation-delay: 4s; }
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(17) { animation-delay: 4.25s; }
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(18) { animation-delay: 4.5s; }
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(19) { animation-delay: 4.75s; }
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(20) { animation-delay: 5s; }
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(21) { animation-delay: 5.25s; }
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(22) { animation-delay: 5.5s; }
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(23) { animation-delay: 5.75s; }
+.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(24) { animation-delay: 6s; }
 
 /* Add particle effect for the hiding transition */
 .film-strip-container.hiding::before {

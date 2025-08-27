@@ -3218,7 +3218,7 @@ const App = () => {
             photo.newlyArrived ? { ...photo, newlyArrived: false } : photo
           )
         );
-      }, 600); // Slightly longer than animation duration
+      }, 1500); // Slightly longer than animation duration (1.3s + buffer)
       
       return () => clearTimeout(timer);
     }

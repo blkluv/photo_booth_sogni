@@ -27,15 +27,15 @@ export const THEME_GROUPS = {
   'raver-costume-space-party': {
     name: 'Raver / Costume / Space-Party',
     prompts: [
-      '🪩🌈🌟 Crown Drip', 
-      '🪩🌈🌟 Tarot Glitch', 
-      '🪩🌈🌟 Y2K Raver Kid',
-      '🪩🌈🌟 4AM Fingers', 
-      '🪩🌈🌟 Candy Raver',
-      '🪩🌈🌟 Space Slothi',
-      '🪩🌈🌟 Space Bot',
-      '🪩🌈🌟 Tron Don',
-      '🪩🌈🌟 Tribal Bruh'
+      'Crown Drip', 
+      'Tarot Glitch', 
+      'Y2K Raver Kid',
+      '4AM Fingers', 
+      'Candy Raver',
+      'Space Slothi',
+      'Space Bot',
+      'Tron Don',
+      'Tribal Bruh'
     ]
   },
   'anime-manga-chibi': {

@@ -878,7 +878,7 @@ const PhotoGallery = ({
             return (
               <div
                 key={photo.id}
-                className={`film-frame loading ${isSelected ? 'selected' : ''} ${isSelected && tezdevTheme === 'gmvietnam' ? 'gm-vietnam-theme' : ''} ${isSelected && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''}`}
+                className={`film-frame loading ${isSelected ? 'selected' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && tezdevTheme === 'gmvietnam' ? 'gm-vietnam-theme' : ''} ${isSelected && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''}`}
                 data-enhancing={photo.enhancing ? 'true' : undefined}
                 data-error={photo.error ? 'true' : undefined}
                 data-enhanced={photo.enhanced ? 'true' : undefined}
@@ -949,7 +949,7 @@ const PhotoGallery = ({
           return (
             <div 
               key={photo.id}
-              className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''} ${isLoaded ? 'loaded' : ''} ${isSelected && tezdevTheme === 'gmvietnam' ? 'gm-vietnam-theme' : ''} ${isSelected && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''}`}
+              className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''} ${isLoaded ? 'loaded' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && tezdevTheme === 'gmvietnam' ? 'gm-vietnam-theme' : ''} ${isSelected && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''}`}
               onClick={e => isSelected ? handlePhotoViewerClick(e) : handlePhotoSelect(index, e)}
               data-enhancing={photo.enhancing ? 'true' : undefined}
               data-error={photo.error ? 'true' : undefined}
@@ -979,8 +979,19 @@ const PhotoGallery = ({
                     const img = e.target;
                     if (!img.classList.contains('fade-in-complete')) {
                       img.classList.add('fade-in-complete');
-                      // Set opacity immediately without animation to prevent pulse
-                      img.style.opacity = photo.isPreview ? '0.25' : '1';
+                      
+                      // For newly arrived photos, delay opacity setting to allow transition
+                      if (photo.newlyArrived) {
+                        // Start with opacity 0.01 (almost invisible but not completely transparent)
+                        // This prevents white background from showing while keeping transition smooth
+                        img.style.opacity = '0.01';
+                        setTimeout(() => {
+                          img.style.opacity = photo.isPreview ? '0.25' : '1';
+                        }, 10);
+                      } else {
+                        // Set opacity immediately without animation to prevent pulse
+                        img.style.opacity = photo.isPreview ? '0.25' : '1';
+                      }
                     }
                   }}
                   onError={e => {

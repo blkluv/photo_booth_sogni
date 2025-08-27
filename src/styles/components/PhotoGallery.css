@@ -54,49 +54,49 @@
   }
 }
 
-/* Apply subtle loading effects to the entire polaroid frame - but NOT in popup/selected view */
-.film-frame.loading:not(.selected) {
-  animation: subtle-frame-pulse 1.875s ease-in-out infinite !important; /* Twice as fast as 3.75s */
+/* Apply subtle loading effects to the entire polaroid frame - but NOT in popup/selected view or newly arrived */
+.film-frame.loading:not(.selected):not(.newly-arrived) {
+  animation: subtle-frame-pulse 6s ease-in-out infinite !important; /* Total cycle time to sync all animations */
   /* Use CSS custom property for staggered delays */
   animation-delay: var(--stagger-delay, 0s) !important;
   /* Override any conflicting transitions during loading */
   transition: none !important;
 }
 
-/* Apply visual effects only to the placeholder image content */
-.film-frame.loading .placeholder {
+/* Apply visual effects only to the placeholder image content - but not for newly arrived */
+.film-frame.loading:not(.newly-arrived) .placeholder {
   animation: 
-    subtle-image-pulse 1.875s ease-in-out infinite, /* Twice as fast as 3.75s */
-    gentle-glow 2.25s ease-in-out infinite !important; /* Twice as fast as 4.5s */
+    subtle-image-pulse 6s ease-in-out infinite, /* Sync with frame animation */
+    gentle-glow 6s ease-in-out infinite !important; /* Sync with frame animation */
   /* Use CSS custom property for staggered delays */
   animation-delay: var(--stagger-delay, 0s), calc(var(--stagger-delay, 0s) + 0.6s);
   /* Override any conflicting transitions during loading */
   transition: none !important;
 }
 
-/* Debug: Add explicit stagger rules in case CSS custom properties aren't working - but NOT in popup/selected view */
+/* Debug: Add explicit stagger rules in case CSS custom properties aren't working - but NOT in popup/selected view or newly arrived */
 /* Frame animation delays */
-.film-frame.loading:not(.selected):nth-of-type(1) { animation: subtle-frame-pulse 1.875s ease-in-out infinite !important; animation-delay: 0s !important; }
-.film-frame.loading:not(.selected):nth-of-type(2) { animation: subtle-frame-pulse 1.875s ease-in-out infinite !important; animation-delay: 0.5s !important; }
-.film-frame.loading:not(.selected):nth-of-type(3) { animation: subtle-frame-pulse 1.875s ease-in-out infinite !important; animation-delay: 1s !important; }
-.film-frame.loading:not(.selected):nth-of-type(4) { animation: subtle-frame-pulse 1.875s ease-in-out infinite !important; animation-delay: 1.5s !important; }
-.film-frame.loading:not(.selected):nth-of-type(5) { animation: subtle-frame-pulse 1.875s ease-in-out infinite !important; animation-delay: 2s !important; }
-.film-frame.loading:not(.selected):nth-of-type(6) { animation: subtle-frame-pulse 1.875s ease-in-out infinite !important; animation-delay: 2.5s !important; }
-.film-frame.loading:not(.selected):nth-of-type(7) { animation: subtle-frame-pulse 1.875s ease-in-out infinite !important; animation-delay: 3s !important; }
-.film-frame.loading:not(.selected):nth-of-type(8) { animation: subtle-frame-pulse 1.875s ease-in-out infinite !important; animation-delay: 3.5s !important; }
+.film-frame.loading:not(.selected):not(.newly-arrived):nth-of-type(1) { animation: subtle-frame-pulse 6s ease-in-out infinite !important; animation-delay: 0s !important; }
+.film-frame.loading:not(.selected):not(.newly-arrived):nth-of-type(2) { animation: subtle-frame-pulse 6s ease-in-out infinite !important; animation-delay: 0.5s !important; }
+.film-frame.loading:not(.selected):not(.newly-arrived):nth-of-type(3) { animation: subtle-frame-pulse 6s ease-in-out infinite !important; animation-delay: 1s !important; }
+.film-frame.loading:not(.selected):not(.newly-arrived):nth-of-type(4) { animation: subtle-frame-pulse 6s ease-in-out infinite !important; animation-delay: 1.5s !important; }
+.film-frame.loading:not(.selected):not(.newly-arrived):nth-of-type(5) { animation: subtle-frame-pulse 6s ease-in-out infinite !important; animation-delay: 2s !important; }
+.film-frame.loading:not(.selected):not(.newly-arrived):nth-of-type(6) { animation: subtle-frame-pulse 6s ease-in-out infinite !important; animation-delay: 2.5s !important; }
+.film-frame.loading:not(.selected):not(.newly-arrived):nth-of-type(7) { animation: subtle-frame-pulse 6s ease-in-out infinite !important; animation-delay: 3s !important; }
+.film-frame.loading:not(.selected):not(.newly-arrived):nth-of-type(8) { animation: subtle-frame-pulse 6s ease-in-out infinite !important; animation-delay: 3.5s !important; }
 
-/* Placeholder image animation delays */
-.film-frame.loading:nth-of-type(1) .placeholder { animation-delay: 0s, 0.6s !important; }
-.film-frame.loading:nth-of-type(2) .placeholder { animation-delay: 0.5s, 1.1s !important; }
-.film-frame.loading:nth-of-type(3) .placeholder { animation-delay: 1s, 1.6s !important; }
-.film-frame.loading:nth-of-type(4) .placeholder { animation-delay: 1.5s, 2.1s !important; }
-.film-frame.loading:nth-of-type(5) .placeholder { animation-delay: 2s, 2.6s !important; }
-.film-frame.loading:nth-of-type(6) .placeholder { animation-delay: 2.5s, 3.1s !important; }
-.film-frame.loading:nth-of-type(7) .placeholder { animation-delay: 3s, 3.6s !important; }
-.film-frame.loading:nth-of-type(8) .placeholder { animation-delay: 3.5s, 4.1s !important; }
+/* Placeholder image animation delays - but not for newly arrived */
+.film-frame.loading:not(.newly-arrived):nth-of-type(1) .placeholder { animation-delay: 0s, 0.6s !important; }
+.film-frame.loading:not(.newly-arrived):nth-of-type(2) .placeholder { animation-delay: 0.5s, 1.1s !important; }
+.film-frame.loading:not(.newly-arrived):nth-of-type(3) .placeholder { animation-delay: 1s, 1.6s !important; }
+.film-frame.loading:not(.newly-arrived):nth-of-type(4) .placeholder { animation-delay: 1.5s, 2.1s !important; }
+.film-frame.loading:not(.newly-arrived):nth-of-type(5) .placeholder { animation-delay: 2s, 2.6s !important; }
+.film-frame.loading:not(.newly-arrived):nth-of-type(6) .placeholder { animation-delay: 2.5s, 3.1s !important; }
+.film-frame.loading:not(.newly-arrived):nth-of-type(7) .placeholder { animation-delay: 3s, 3.6s !important; }
+.film-frame.loading:not(.newly-arrived):nth-of-type(8) .placeholder { animation-delay: 3.5s, 4.1s !important; }
 
-/* Ensure loaded frames transition smoothly from loading state - remove transitions that cause pulse */
-.film-frame.loaded {
+/* Ensure loaded frames transition smoothly from loading state - remove transitions that cause pulse - EXCEPT newly arrived */
+.film-frame.loaded:not(.newly-arrived) {
   animation: none !important;
   filter: none !important;
   /* Ensure frame stays visible during transition */
@@ -104,6 +104,11 @@
   visibility: visible !important;
   /* Remove all transitions that might cause post-load pulse */
   transition: none !important;
+}
+
+/* Allow transitions for loaded newly-arrived frames */
+.film-frame.loaded.newly-arrived img:not(.placeholder) {
+  transition: opacity 1.3s ease-out !important;
 }
 
 /* Ensure placeholder fades out smoothly when final image loads */
