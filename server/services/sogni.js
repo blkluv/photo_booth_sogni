@@ -527,7 +527,8 @@ export async function generateImage(client, params, progressCallback, localProje
                     step: event.step,
                     stepCount: event.stepCount,
                     jobId: event.jobId,
-                    projectId: projectDetails.localProjectId || event.projectId
+                    projectId: projectDetails.localProjectId || event.projectId,
+                    workerName: event.workerName || 'unknown'
                   };
                   
                   // Track job progress and set up fallback completion detection
@@ -600,7 +601,8 @@ export async function generateImage(client, params, progressCallback, localProje
                     type: 'progress',
                     progress: event.progress || 0,
                     jobId: event.jobId,
-                    projectId: projectDetails.localProjectId || event.projectId
+                    projectId: projectDetails.localProjectId || event.projectId,
+                    workerName: event.workerName || 'unknown'
                   };
                 }
                 break;
