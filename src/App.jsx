@@ -1618,7 +1618,9 @@ const App = () => {
       const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
       // Get theme-filtered prompts for random selection
       const getFilteredPromptsForRandom = () => {
-        return getEnabledPrompts(currentThemeState, stylePrompts);
+        // For Flux models, use all available prompts without theme filtering
+        const isFluxKontext = isFluxKontextModel(selectedModel);
+        return isFluxKontext ? stylePrompts : getEnabledPrompts(currentThemeState, stylePrompts);
       };
 
       // Prompt logic: use context state
@@ -3862,6 +3864,7 @@ const App = () => {
           selectedModel={selectedModel}
           numImages={numImages}
           promptGuidance={promptGuidance}
+          guidance={guidance}
           controlNetStrength={controlNetStrength}
           controlNetGuidanceEnd={controlNetGuidanceEnd}
           inferenceSteps={inferenceSteps}
@@ -3879,6 +3882,7 @@ const App = () => {
           onModelSelect={(value) => updateSetting('selectedModel', value)}
           onNumImagesChange={(value) => updateSetting('numImages', value)}
           onPromptGuidanceChange={(value) => updateSetting('promptGuidance', value)}
+          onGuidanceChange={(value) => updateSetting('guidance', value)}
           onControlNetStrengthChange={(value) => updateSetting('controlNetStrength', value)}
           // Remove incorrect setters, use updateSetting instead
           onControlNetGuidanceEndChange={(value) => updateSetting('controlNetGuidanceEnd', value)}

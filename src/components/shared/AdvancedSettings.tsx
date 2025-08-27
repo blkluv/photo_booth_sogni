@@ -42,6 +42,8 @@ interface AdvancedSettingsProps {
   onPromptGuidanceChange?: (value: number) => void;
   /** Guidance value (Flux.1 Kontext specific) */
   guidance?: number;
+  /** Handler for guidance change */
+  onGuidanceChange?: (value: number) => void;
   /** ControlNet strength value */
   controlNetStrength?: number;
   /** Handler for ControlNet strength change */
@@ -105,60 +107,66 @@ interface AdvancedSettingsProps {
 /**
  * AdvancedSettings component - reusable settings overlay for camera controls
  */
-export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
-  visible,
-  onClose,
-  positivePrompt = '',
-  onPositivePromptChange,
-  stylePrompt = '',
-  onStylePromptChange,
-  negativePrompt = '',
-  onNegativePromptChange,
-  seed = '',
-  onSeedChange,
-  modelOptions = [],
-  selectedModel = '',
-  onModelSelect,
-  numImages = 8,
-  onNumImagesChange,
-  promptGuidance = 2,
-  onPromptGuidanceChange,
-  guidance = 3,
-  controlNetStrength = 0.7,
-  onControlNetStrengthChange,
-  controlNetGuidanceEnd = 0.6,
-  onControlNetGuidanceEndChange,
-  inferenceSteps = 7,
-  onInferenceStepsChange,
-  scheduler = 'DPM++ SDE',
-  onSchedulerChange,
-  timeStepSpacing = 'Karras',
-  onTimeStepSpacingChange,
-  flashEnabled = true,
-  onFlashEnabledChange,
-  keepOriginalPhoto = false,
-  onKeepOriginalPhotoChange,
-  soundEnabled = true,
-  onSoundEnabledChange,
-  slothicornAnimationEnabled = true,
-  onSlothicornAnimationEnabledChange,
-  backgroundAnimationsEnabled = false,
-  onBackgroundAnimationsEnabledChange,
-  onResetSettings,
-  aspectRatio,
-  onAspectRatioChange,
-  tezdevTheme,
-  onTezDevThemeChange,
-  outputFormat = 'jpg',
-  onOutputFormatChange,
-  sensitiveContentFilter = false,
-  onSensitiveContentFilterChange,
-}) => {
+export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
+  const {
+    visible,
+    onClose,
+    positivePrompt = '',
+    onPositivePromptChange,
+    stylePrompt = '',
+    onStylePromptChange,
+    negativePrompt = '',
+    onNegativePromptChange,
+    seed = '',
+    onSeedChange,
+    modelOptions = [],
+    selectedModel = '',
+    onModelSelect,
+    numImages = 8,
+    onNumImagesChange,
+    promptGuidance = 2,
+    onPromptGuidanceChange,
+    guidance = 3,
+    onGuidanceChange,
+    controlNetStrength = 0.7,
+    onControlNetStrengthChange,
+    controlNetGuidanceEnd = 0.6,
+    onControlNetGuidanceEndChange,
+    inferenceSteps = 7,
+    onInferenceStepsChange,
+    scheduler = 'DPM++ SDE',
+    onSchedulerChange,
+    timeStepSpacing = 'Karras',
+    onTimeStepSpacingChange,
+    flashEnabled = true,
+    onFlashEnabledChange,
+    keepOriginalPhoto = false,
+    onKeepOriginalPhotoChange,
+    soundEnabled = true,
+    onSoundEnabledChange,
+    slothicornAnimationEnabled = true,
+    onSlothicornAnimationEnabledChange,
+    backgroundAnimationsEnabled = false,
+    onBackgroundAnimationsEnabledChange,
+    onResetSettings,
+    aspectRatio,
+    onAspectRatioChange,
+    tezdevTheme,
+    onTezDevThemeChange,
+    outputFormat = 'jpg',
+    onOutputFormatChange,
+    sensitiveContentFilter = false,
+    onSensitiveContentFilterChange,
+  } = props;
+
+
   // Get current settings from context if not provided via props
   const { settings, updateSetting } = useApp();
-  
+
   // Check if current model is Flux.1 Kontext
   const isFluxKontext = isFluxKontextModel(selectedModel || settings.selectedModel || '');
+  
+
 
   const currentAspectRatio = aspectRatio || settings.aspectRatio;
   const currentTezDevTheme = tezdevTheme || settings.tezdevTheme;
@@ -395,16 +403,11 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                         min={1}
                         max={5}
                         step={0.1}
-                        value={settings.guidance || 3}
-                        onChange={(e) => {
-                          const newValue = Number(e.target.value);
-                          updateSetting('guidance', newValue);
-                        }}
-
+                        value={guidance}
+                        onChange={(e) => onGuidanceChange?.(Number(e.target.value))}
                         className="advanced-slider"
-                        style={{ pointerEvents: 'auto', zIndex: 1000 }}
                       />
-                      <span className="advanced-value">{settings.guidance || 3}</span>
+                      <span className="advanced-value">{guidance}</span>
                     </div>
                   </div>
                 ) : (

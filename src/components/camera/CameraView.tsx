@@ -94,6 +94,16 @@ interface CameraViewProps {
   lastPhotoData?: { blob?: Blob; dataUrl?: string; adjustments?: any } | null;
   /** Handler for when thumbnail is clicked */
   onThumbnailClick?: () => void;
+  /** Style prompts data */
+  stylePrompts?: any;
+  /** Available camera devices */
+  cameraDevices?: any[];
+  /** Selected camera device ID */
+  selectedCameraDeviceId?: string;
+  /** Handler for camera selection */
+  onCameraSelect?: (deviceId: string) => void;
+  /** TezDev theme setting */
+  tezdevTheme?: any;
 }
 
 export const CameraView: React.FC<CameraViewProps> = ({
@@ -139,7 +149,14 @@ export const CameraView: React.FC<CameraViewProps> = ({
   quirkDetectionComplete = false,
   lastPhotoData = null,
   onThumbnailClick,
+  stylePrompts,
+  cameraDevices = [],
+  selectedCameraDeviceId,
+  onCameraSelect,
+  tezdevTheme,
 }) => {
+
+
   // Use aspectRatio prop instead of context
   
   // Add state for responsive container sizing

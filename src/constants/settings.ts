@@ -65,11 +65,11 @@ export const isFluxKontextModel = (modelValue: string): boolean => {
 export const getModelDefaults = (modelValue: string) => {
   if (isFluxKontextModel(modelValue)) {
     return {
-      guidance: 3, // Range: 1-5, Default: 3 (Prompt Guidance)
-      inferenceSteps: 20, // Range: 18-28, Default: 20
+      guidance: 3.5, // Range: 1-5, Default: 3.5 (Prompt Guidance)
+      inferenceSteps: 22, // Range: 18-28, Default: 22
       scheduler: 'Euler', // Default: Euler
-      timeStepSpacing: 'Simple', // Default: Simple
-      numImages: 8, // Range: 1-4, Default: 4
+      timeStepSpacing: 'Beta', // Default: Beta
+      numImages: 8, // Range: 1-8, Default: 8
     };
   }
   
