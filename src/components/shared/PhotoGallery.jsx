@@ -975,16 +975,12 @@ const PhotoGallery = ({
                     // Enable mobile-optimized download functionality when image loads
                     enableMobileImageDownload(e.target);
                     
-                    // Add fade-in animation when image first loads
+                    // Remove fade-in animation to prevent post-load pulse
                     const img = e.target;
                     if (!img.classList.contains('fade-in-complete')) {
-                      img.style.opacity = '0';
                       img.classList.add('fade-in-complete');
-                      
-                      // Trigger fade-in after a brief delay to ensure smooth animation
-                      requestAnimationFrame(() => {
-                        img.style.opacity = photo.isPreview ? '0.25' : '1';
-                      });
+                      // Set opacity immediately without animation to prevent pulse
+                      img.style.opacity = photo.isPreview ? '0.25' : '1';
                     }
                   }}
                   onError={e => {
@@ -1016,8 +1012,7 @@ const PhotoGallery = ({
                     top: 0,
                     left: 0,
                     display: 'block',
-                    opacity: 0, // Start invisible, will fade in via onLoad
-                    transition: 'opacity 0.5s ease-in' // Smooth fade-in transition when final image loads
+                    opacity: 0 // Start invisible, will be set to 1 immediately via onLoad without transition
                   }}
                 />
                 {/* Event Theme Overlays - Only show on selected (popup) view */}

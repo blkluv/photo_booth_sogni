@@ -4407,22 +4407,29 @@ const App = () => {
           }
 
           /* ------- UPDATED: Improve Film Frame Hover Effects ------- */
-          .film-frame {
+          .film-frame:not(.loading) {
             transform-origin: center center !important;
             transform: scale(1) translateZ(0) !important;
             will-change: transform, box-shadow !important;
             /* Remove the default transition to prevent background animations */
           }
           
-          /* Only apply transitions on hover/active for deliberate interaction */
-          .film-frame:not(.selected):hover {
+          /* Allow loading animations to work - but not in selected/popup view */
+          .film-frame.loading:not(.selected) {
+            transform-origin: center center !important;
+            will-change: transform, box-shadow !important;
+            /* Don't override transform for loading frames - let animation handle it */
+          }
+          
+          /* Only apply transitions on hover/active for deliberate interaction, but not on loading frames */
+          .film-frame:not(.selected):not(.loading):hover {
             transform: scale(1.05) translateZ(0) !important;
             box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25) !important;
             transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), 
                         box-shadow 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
           }
           
-          .film-frame:not(.selected):active {
+          .film-frame:not(.selected):not(.loading):active {
             transform: scale(0.98) translateZ(0) !important;
             box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2) !important;
             transition: all 0.1s ease-out !important;

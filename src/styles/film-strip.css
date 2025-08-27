@@ -247,8 +247,8 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
   }
 }
 
-/* Remove the "hovered" class approach completely and use only pure CSS */
-.film-frame:hover {
+/* Remove the "hovered" class approach completely and use only pure CSS - but don't interfere with loading animations or selected frames */
+.film-frame:not(.loading):not(.selected):hover {
   transform: translateY(-10px) translateZ(0) !important;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4) !important;
   z-index: 10 !important;
@@ -564,9 +564,10 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
   }
 }
 
-/* Add a fade-in animation for loaded images */
+/* Remove fade-in animation for loaded images to prevent post-load pulse */
 .film-frame img:not(.placeholder) {
-  transition: opacity 0.3s ease-in !important;
+  /* Remove transition that causes post-load pulse */
+  transition: none !important;
   /* Enable native context menu and long press for image downloads */
   -webkit-user-select: auto !important;
   user-select: auto !important;
@@ -616,36 +617,42 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
   }
 }
 
-.film-strip-container.visible .film-frame {
+.film-strip-container.visible .film-frame:not(.loading) {
   animation: photoFrameAppear 0.5s cubic-bezier(0.2, 0, 0.2, 1) forwards;
   opacity: 0;
 }
 
-/* Stagger the animation for each frame */
-.film-strip-container.visible .film-frame:nth-child(1) { animation-delay: .25s; }
-.film-strip-container.visible .film-frame:nth-child(2) { animation-delay: .5s; }
-.film-strip-container.visible .film-frame:nth-child(3) { animation-delay: .75s; }
-.film-strip-container.visible .film-frame:nth-child(4) { animation-delay: 1s; }
-.film-strip-container.visible .film-frame:nth-child(5) { animation-delay: 1.25s; }
-.film-strip-container.visible .film-frame:nth-child(6) { animation-delay: 1.5s; }
-.film-strip-container.visible .film-frame:nth-child(7) { animation-delay: 1.75s; }
-.film-strip-container.visible .film-frame:nth-child(8) { animation-delay: 2s; }
-.film-strip-container.visible .film-frame:nth-child(9) { animation-delay: 2.25s; }
-.film-strip-container.visible .film-frame:nth-child(10) { animation-delay: 2.5s; }
-.film-strip-container.visible .film-frame:nth-child(11) { animation-delay: 2.75s; }
-.film-strip-container.visible .film-frame:nth-child(12) { animation-delay: 3s; }
-.film-strip-container.visible .film-frame:nth-child(13) { animation-delay: 3.25s; }
-.film-strip-container.visible .film-frame:nth-child(14) { animation-delay: 3.5s; }
-.film-strip-container.visible .film-frame:nth-child(15) { animation-delay: 3.75s; }
-.film-strip-container.visible .film-frame:nth-child(16) { animation-delay: 4s; }
-.film-strip-container.visible .film-frame:nth-child(17) { animation-delay: 4.25s; }
-.film-strip-container.visible .film-frame:nth-child(18) { animation-delay: 4.5s; }
-.film-strip-container.visible .film-frame:nth-child(19) { animation-delay: 4.75s; }
-.film-strip-container.visible .film-frame:nth-child(20) { animation-delay: 5s; }
-.film-strip-container.visible .film-frame:nth-child(21) { animation-delay: 5.25s; }
-.film-strip-container.visible .film-frame:nth-child(22) { animation-delay: 5.5s; }
-.film-strip-container.visible .film-frame:nth-child(23) { animation-delay: 5.75s; }
-.film-strip-container.visible .film-frame:nth-child(24) { animation-delay: 6s; }
+/* Ensure loading frames are always visible and can still animate */
+.film-strip-container.visible .film-frame.loading {
+  opacity: 1 !important;
+  /* Don't override the loading animation - let it work */
+}
+
+/* Stagger the animation for each frame - but not loading frames */
+.film-strip-container.visible .film-frame:not(.loading):nth-child(1) { animation-delay: .25s; }
+.film-strip-container.visible .film-frame:not(.loading):nth-child(2) { animation-delay: .5s; }
+.film-strip-container.visible .film-frame:not(.loading):nth-child(3) { animation-delay: .75s; }
+.film-strip-container.visible .film-frame:not(.loading):nth-child(4) { animation-delay: 1s; }
+.film-strip-container.visible .film-frame:not(.loading):nth-child(5) { animation-delay: 1.25s; }
+.film-strip-container.visible .film-frame:not(.loading):nth-child(6) { animation-delay: 1.5s; }
+.film-strip-container.visible .film-frame:not(.loading):nth-child(7) { animation-delay: 1.75s; }
+.film-strip-container.visible .film-frame:not(.loading):nth-child(8) { animation-delay: 2s; }
+.film-strip-container.visible .film-frame:not(.loading):nth-child(9) { animation-delay: 2.25s; }
+.film-strip-container.visible .film-frame:not(.loading):nth-child(10) { animation-delay: 2.5s; }
+.film-strip-container.visible .film-frame:not(.loading):nth-child(11) { animation-delay: 2.75s; }
+.film-strip-container.visible .film-frame:not(.loading):nth-child(12) { animation-delay: 3s; }
+.film-strip-container.visible .film-frame:not(.loading):nth-child(13) { animation-delay: 3.25s; }
+.film-strip-container.visible .film-frame:not(.loading):nth-child(14) { animation-delay: 3.5s; }
+.film-strip-container.visible .film-frame:not(.loading):nth-child(15) { animation-delay: 3.75s; }
+.film-strip-container.visible .film-frame:not(.loading):nth-child(16) { animation-delay: 4s; }
+.film-strip-container.visible .film-frame:not(.loading):nth-child(17) { animation-delay: 4.25s; }
+.film-strip-container.visible .film-frame:not(.loading):nth-child(18) { animation-delay: 4.5s; }
+.film-strip-container.visible .film-frame:not(.loading):nth-child(19) { animation-delay: 4.75s; }
+.film-strip-container.visible .film-frame:not(.loading):nth-child(20) { animation-delay: 5s; }
+.film-strip-container.visible .film-frame:not(.loading):nth-child(21) { animation-delay: 5.25s; }
+.film-strip-container.visible .film-frame:not(.loading):nth-child(22) { animation-delay: 5.5s; }
+.film-strip-container.visible .film-frame:not(.loading):nth-child(23) { animation-delay: 5.75s; }
+.film-strip-container.visible .film-frame:not(.loading):nth-child(24) { animation-delay: 6s; }
 
 /* Add particle effect for the hiding transition */
 .film-strip-container.hiding::before {
