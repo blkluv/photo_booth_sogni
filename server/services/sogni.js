@@ -435,7 +435,8 @@ export async function generateImage(client, params, progressCallback, localProje
       projectCompletionReceived: false,
       projectCompletionEvent: null,
       sendProjectCompletion: null,
-      jobIndexMap: new Map() // Track job ID to index mapping
+      jobIndexMap: new Map(), // Track job ID to index mapping
+      workerNameCache: new Map() // Track job ID to worker name mapping
     };
 
     // Store project details for event enrichment
@@ -466,8 +467,6 @@ export async function generateImage(client, params, progressCallback, localProje
             if (event.projectId !== project.id) {
               return;
             }
-            
-
             
             let progressEvent = null;
             
@@ -507,19 +506,31 @@ export async function generateImage(client, params, progressCallback, localProje
                   break;
                 }
                 
+                // Cache worker name if provided
+                if (event.workerName && event.jobId) {
+                  projectCompletionTracker.workerNameCache.set(event.jobId, event.workerName);
+                }
+                
+                // Get job index from our tracking
+                const jobIndex = projectCompletionTracker.jobIndexMap.get(event.jobId);
+                
                 progressEvent = {
                   type: event.type,
                   jobId: event.jobId,
                   projectId: projectDetails.localProjectId || event.projectId,
                   workerName: event.workerName || 'unknown',
                   positivePrompt: event.positivePrompt || projectDetails.positivePrompt,
-                  jobIndex: event.jobIndex
+                  jobIndex: jobIndex !== undefined ? jobIndex : 0
                 };
                 break;
                 
               case 'progress': {
                 if (event.step && event.stepCount) {
                   const progressPercent = Math.floor(event.step / event.stepCount * 100);
+                  
+                  // Get cached worker name for this job
+                  const cachedWorkerName = event.jobId ? projectCompletionTracker.workerNameCache.get(event.jobId) : null;
+                  const workerName = event.workerName || cachedWorkerName || 'unknown';
                   
                   progressEvent = {
                     type: 'progress',
@@ -528,7 +539,7 @@ export async function generateImage(client, params, progressCallback, localProje
                     stepCount: event.stepCount,
                     jobId: event.jobId,
                     projectId: projectDetails.localProjectId || event.projectId,
-                    workerName: event.workerName || 'unknown'
+                    workerName: workerName
                   };
                   
                   // Track job progress and set up fallback completion detection
@@ -597,12 +608,16 @@ export async function generateImage(client, params, progressCallback, localProje
                     break;
                   }
                   
+                  // Get cached worker name for this job
+                  const cachedWorkerName = event.jobId ? projectCompletionTracker.workerNameCache.get(event.jobId) : null;
+                  const workerName = event.workerName || cachedWorkerName || 'unknown';
+                  
                   progressEvent = {
                     type: 'progress',
                     progress: event.progress || 0,
                     jobId: event.jobId,
                     projectId: projectDetails.localProjectId || event.projectId,
-                    workerName: event.workerName || 'unknown'
+                    workerName: workerName
                   };
                 }
                 break;
@@ -707,33 +722,11 @@ export async function generateImage(client, params, progressCallback, localProje
           }
         };
         
-        // Handle job started events to assign job indices and send initiating/started events
+        // Handle job started events to assign job indices
         project.on('jobStarted', (job) => {
-          console.log(`[IMAGE] Job started: ${job.id}, workerName: ${job.workerName || 'unknown'}`);
-          
           // Assign job index and track it
           const jobIndex = nextJobIndex++;
           projectCompletionTracker.jobIndexMap.set(job.id, jobIndex);
-          
-          // Send initiating event first (job being assigned to worker)
-          progressCallback({ 
-            type: 'initiating', 
-            jobId: job.id,
-            projectId: projectDetails.localProjectId || project.id,
-            workerName: job.workerName || 'unknown',
-            positivePrompt: projectDetails.positivePrompt,
-            jobIndex: jobIndex
-          });
-          
-          // Then send started event (job actually starting)
-          progressCallback({ 
-            type: 'started', 
-            jobId: job.id,
-            projectId: projectDetails.localProjectId || project.id,
-            workerName: job.workerName || 'unknown',
-            positivePrompt: projectDetails.positivePrompt,
-            jobIndex: jobIndex
-          });
         });
       }
 
