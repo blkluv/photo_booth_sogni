@@ -149,11 +149,6 @@ export const CameraView: React.FC<CameraViewProps> = ({
   quirkDetectionComplete = false,
   lastPhotoData = null,
   onThumbnailClick,
-  stylePrompts,
-  cameraDevices = [],
-  selectedCameraDeviceId,
-  onCameraSelect,
-  tezdevTheme,
 }) => {
 
 
