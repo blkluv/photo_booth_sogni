@@ -24,6 +24,7 @@ export const FLUX_KONTEXT_PROMPTS = {
   makeMeTattooFlash: "Render the person as a traditional tattoo flash icon keep identity bold lines limited inks and parchment texture",
   makeMeOnTheMoon: "Teleport the person to the moon keep identity astronaut pose or casual stance lunar surface and earth in the sky",
   makeMeMinimalLineArt: "Reduce to elegant single line art keep identity clean contour and off white paper texture",
+  makeThemAngry: "Make them angry",
 }
 
 // Helper function to get Flux.1 Kontext prompts
