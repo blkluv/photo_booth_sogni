@@ -890,7 +890,8 @@ const PhotoGallery = ({
                   borderRadius: '2px',
                   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
                   display: 'flex',
-                  flexDirection: 'column'
+                  flexDirection: 'column',
+                  '--stagger-delay': `${index * 1}s` // Add staggered delay based on index
                 }}
               >
                 <div>

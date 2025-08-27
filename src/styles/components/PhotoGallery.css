@@ -13,6 +13,97 @@
   }
 }
 
+/* Subtle loading animation - only affects the image content */
+@keyframes subtle-image-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.3;
+    filter: brightness(1) saturate(1);
+  }
+  50% {
+    transform: scale(1.0107); /* 1.5x smaller than 1.016 (1.016/1.5 ≈ 1.0107) */
+    opacity: 0.4;
+    filter: brightness(1.1) saturate(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.3;
+    filter: brightness(1) saturate(1);
+  }
+}
+
+@keyframes gentle-glow {
+  0% {
+    box-shadow: inset 0 0 20px rgba(72, 227, 242, 0.1);
+  }
+  50% {
+    box-shadow: inset 0 0 30px rgba(72, 227, 242, 0.2);
+  }
+  100% {
+    box-shadow: inset 0 0 20px rgba(72, 227, 242, 0.1);
+  }
+}
+
+/* Apply subtle loading effects only to the placeholder image */
+.film-frame.loading .placeholder {
+  animation: 
+    subtle-image-pulse 3.75s ease-in-out infinite, /* 1.5x slower than 2.5s */
+    gentle-glow 4.5s ease-in-out infinite !important; /* 1.5x slower than 3s */
+  /* Use CSS custom property for staggered delays */
+  animation-delay: var(--stagger-delay, 0s), calc(var(--stagger-delay, 0s) + 1.2s);
+  /* Override any conflicting transitions during loading */
+  transition: none !important;
+}
+
+/* Debug: Add explicit stagger rules in case CSS custom properties aren't working */
+.film-frame.loading:nth-of-type(1) .placeholder { animation-delay: 0s, 1.2s !important; }
+.film-frame.loading:nth-of-type(2) .placeholder { animation-delay: 1s, 2.2s !important; }
+.film-frame.loading:nth-of-type(3) .placeholder { animation-delay: 2s, 3.2s !important; }
+.film-frame.loading:nth-of-type(4) .placeholder { animation-delay: 3s, 4.2s !important; }
+.film-frame.loading:nth-of-type(5) .placeholder { animation-delay: 4s, 5.2s !important; }
+.film-frame.loading:nth-of-type(6) .placeholder { animation-delay: 5s, 6.2s !important; }
+.film-frame.loading:nth-of-type(7) .placeholder { animation-delay: 6s, 7.2s !important; }
+.film-frame.loading:nth-of-type(8) .placeholder { animation-delay: 7s, 8.2s !important; }
+
+/* Ensure the frame itself stays stable during loading */
+.film-frame.loading {
+  /* Keep frame stable, only animate the content */
+}
+
+/* Ensure loaded frames transition smoothly from loading state */
+.film-frame.loaded {
+  animation: none;
+  filter: none;
+  /* Ensure frame stays visible during transition */
+  opacity: 1 !important;
+  visibility: visible !important;
+  transition: filter 0.3s ease-out, box-shadow 0.3s ease-out;
+}
+
+/* Ensure placeholder fades out smoothly when final image loads */
+.film-frame.loaded .placeholder {
+  animation: none !important;
+  opacity: 0 !important;
+  transition: opacity 0.2s ease-out !important;
+}
+
+/* Let the existing JavaScript fade-in logic work without interference */
+.film-frame.loaded img:not(.placeholder) {
+  /* Remove any CSS that might interfere with JavaScript fade-in */
+  /* The existing onLoad handler in PhotoGallery.jsx should handle this */
+}
+
+/* Prevent any frame disappearing during state transitions */
+.film-frame {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Remove holographic effects from placeholder image since we're applying to the frame */
+.placeholder-holographic {
+  /* Remove all animations - let the parent frame handle the effects */
+}
+
 .mobile-download-button {
   position: fixed;
   left: 50%;
