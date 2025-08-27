@@ -61,26 +61,55 @@ export const isFluxKontextModel = (modelValue: string): boolean => {
   return modelValue === "flux1-dev-kontext_fp8_scaled";
 };
 
-// Get model-specific default settings
-export const getModelDefaults = (modelValue: string) => {
+// Model parameter ranges and constraints
+export const getModelRanges = (modelValue: string) => {
   if (isFluxKontextModel(modelValue)) {
     return {
-      guidance: 3.5, // Range: 1-5, Default: 3.5 (Prompt Guidance)
-      inferenceSteps: 28, // Range: 18-28, Default: 28
-      scheduler: 'DPM++ SDE', // Default: DPM++ SDE
-      timeStepSpacing: 'Beta', // Default: Beta
-      numImages: 8, // Range: 1-8, Default: 8
+      guidance: { min: 1, max: 5, step: 0.1, default: 2.8 },
+      inferenceSteps: { min: 18, max: 40, step: 1, default: 28 },
+      numImages: { min: 1, max: 8, step: 1, default: 8 },
+      schedulerOptions: ['Euler', 'Euler a', 'DPM++ 2M'],
+      timeStepSpacingOptions: ['Simple', 'SGM Uniform', 'Beta', 'Normal', 'DDIM'],
+    };
+  }
+  
+  // Ranges for other models (SDXL-based)
+  return {
+    promptGuidance: { min: 1.8, max: 3, step: 0.1, default: 2 },
+    guidance: { min: 1, max: 5, step: 0.1, default: 3 }, // Not used but kept for consistency
+    controlNetStrength: { min: 0.4, max: 1, step: 0.1, default: 0.7 },
+    controlNetGuidanceEnd: { min: 0.2, max: 0.8, step: 0.1, default: 0.6 },
+    inferenceSteps: { min: 4, max: 10, step: 1, default: 7 },
+    numImages: { min: 1, max: 32, step: 1, default: 8 },
+    schedulerOptions: ['DPM++ SDE', 'DPM++ 2M SDE'],
+    timeStepSpacingOptions: ['Karras', 'SGM Uniform'],
+  };
+};
+
+// Get model-specific default settings
+export const getModelDefaults = (modelValue: string) => {
+  const ranges = getModelRanges(modelValue);
+  
+  if (isFluxKontextModel(modelValue)) {
+    return {
+      guidance: ranges.guidance.default,
+      inferenceSteps: ranges.inferenceSteps.default,
+      scheduler: 'DPM++ 2M', // Default scheduler
+      timeStepSpacing: 'Beta', // Default time step spacing
+      numImages: ranges.numImages.default,
     };
   }
   
   // Default settings for other models
   return {
-    promptGuidance: 2,
-    guidance: 3,
-    inferenceSteps: 7,
+    promptGuidance: ranges.promptGuidance?.default || 2,
+    guidance: ranges.guidance?.default || 3,
+    controlNetStrength: ranges.controlNetStrength?.default || 0.7,
+    controlNetGuidanceEnd: ranges.controlNetGuidanceEnd?.default || 0.6,
+    inferenceSteps: ranges.inferenceSteps?.default || 7,
     scheduler: 'DPM++ SDE',
     timeStepSpacing: 'Karras',
-    numImages: 8, // Default: 8
+    numImages: ranges.numImages?.default || 8,
   };
 };
 
@@ -101,32 +130,40 @@ export const getDefaultAspectRatio = (): AspectRatioOption => {
   return 'portrait';
 };
 
-export const DEFAULT_SETTINGS: Settings = {
-  selectedModel: "coreml-sogniXLturbo_alpha1_ad",
-  numImages: 8,
-  promptGuidance: 2,
-  controlNetStrength: 0.7,
-  controlNetGuidanceEnd: 0.6,
-  inferenceSteps: 7,
-  scheduler: 'DPM++ SDE',
-  timeStepSpacing: 'Karras',
-  // Flux.1 Kontext specific settings
-  guidance: 3,
-  flashEnabled: true,
-  keepOriginalPhoto: false,
-  selectedStyle: "randomMix",
-  positivePrompt: '',
-  stylePrompt: '',
-  negativePrompt: '',
-  seed: '',
-  soundEnabled: true,
-  slothicornAnimationEnabled: true,
-  backgroundAnimationsEnabled: true,
-  aspectRatio: getDefaultAspectRatio(),
-  tezdevTheme: 'off' as const,
-  outputFormat: 'jpg' as OutputFormat,
-  sensitiveContentFilter: false,
+// Create DEFAULT_SETTINGS using centralized defaults
+const createDefaultSettings = (): Settings => {
+  const defaultModel = "coreml-sogniXLturbo_alpha1_ad";
+  const modelDefaults = getModelDefaults(defaultModel);
+  
+  return {
+    selectedModel: defaultModel,
+    numImages: modelDefaults.numImages,
+    promptGuidance: modelDefaults.promptGuidance || 2,
+    controlNetStrength: modelDefaults.controlNetStrength || 0.7,
+    controlNetGuidanceEnd: modelDefaults.controlNetGuidanceEnd || 0.6,
+    inferenceSteps: modelDefaults.inferenceSteps,
+    scheduler: modelDefaults.scheduler,
+    timeStepSpacing: modelDefaults.timeStepSpacing,
+    // Flux.1 Kontext specific settings
+    guidance: modelDefaults.guidance || 3,
+    flashEnabled: true,
+    keepOriginalPhoto: false,
+    selectedStyle: "randomMix",
+    positivePrompt: '',
+    stylePrompt: '',
+    negativePrompt: '',
+    seed: '',
+    soundEnabled: true,
+    slothicornAnimationEnabled: true,
+    backgroundAnimationsEnabled: true,
+    aspectRatio: getDefaultAspectRatio(),
+    tezdevTheme: 'off' as const,
+    outputFormat: 'jpg' as OutputFormat,
+    sensitiveContentFilter: false,
+  };
 };
+
+export const DEFAULT_SETTINGS: Settings = createDefaultSettings();
 
 // Backend now handles all Sogni API communication, so we don't need these URLs in the frontend
 export const SOGNI_URLS = {

@@ -14,11 +14,10 @@ export const FLUX_KONTEXT_PROMPTS = {
   makeMeMarioKartInspired: "Place the person in a kart racing scene inspired by Super Mario Bros keeping their identity the same, bright track balloons and confetti",
   makeMeMinecraftInspired: "Voxelize the person and the scene into a Minecraft style keep identity squared features blocky environment and simple sky",
   makeMeWoWInspired: "Style the person as a fantasy World of Warcraft character while keeping their identity recognizable, ornate armor glowing runes and castle hall",
-  makeMeZeldaInspired: "Convert them into a heroic adventurer Link from Zelda while keeping their identity the same, cel shaded look forest temple background",
+  makeMeZeldaInspired: "Style them into a heroic adventurer from Zelda while keeping their identity the same, cel shaded look forest temple background",
   makeMePopArt: "Create a pop art portrait keep identity halftone dots flat primaries and burst background",
   makeMeUkiyoE: "Render the person as an ukiyo e print keep identity bold linework flat color planes and wave or cloud motifs",
   makeMeTattooFlash: "Render the person as a traditional tattoo flash icon keep identity bold lines limited inks and parchment texture",
-  makeMeMinimalLineArt: "Reduce to elegant single line art keep identity clean contour and off white paper texture",
   makeThemAngry: "Make them angry",
 }
 

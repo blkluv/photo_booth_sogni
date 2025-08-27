@@ -1,7 +1,7 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { AspectRatioOption, TezDevTheme, OutputFormat } from '../../types/index';
-import { isFluxKontextModel } from '../../constants/settings';
+import { isFluxKontextModel, getModelRanges, getModelDefaults } from '../../constants/settings';
 
 interface AdvancedSettingsProps {
   /** Whether the settings overlay is visible */
@@ -108,6 +108,9 @@ interface AdvancedSettingsProps {
  * AdvancedSettings component - reusable settings overlay for camera controls
  */
 export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
+  // Get current settings from context if not provided via props
+  const { settings, updateSetting } = useApp();
+
   const {
     visible,
     onClose,
@@ -122,21 +125,21 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
     modelOptions = [],
     selectedModel = '',
     onModelSelect,
-    numImages = 8,
+    numImages,
     onNumImagesChange,
-    promptGuidance = 2,
+    promptGuidance,
     onPromptGuidanceChange,
-    guidance = 3,
+    guidance,
     onGuidanceChange,
-    controlNetStrength = 0.7,
+    controlNetStrength,
     onControlNetStrengthChange,
-    controlNetGuidanceEnd = 0.6,
+    controlNetGuidanceEnd,
     onControlNetGuidanceEndChange,
-    inferenceSteps = 7,
+    inferenceSteps,
     onInferenceStepsChange,
-    scheduler = 'DPM++ SDE',
+    scheduler,
     onSchedulerChange,
-    timeStepSpacing = 'Karras',
+    timeStepSpacing,
     onTimeStepSpacingChange,
     flashEnabled = true,
     onFlashEnabledChange,
@@ -159,12 +162,23 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
     onSensitiveContentFilterChange,
   } = props;
 
+  // Determine the current model for getting defaults and ranges
+  const currentModel = selectedModel || settings.selectedModel || '';
+  const modelDefaults = getModelDefaults(currentModel);
+  const modelRanges = getModelRanges(currentModel);
 
-  // Get current settings from context if not provided via props
-  const { settings, updateSetting } = useApp();
+  // Apply defaults to props that weren't provided
+  const finalNumImages = numImages ?? modelDefaults.numImages ?? 8;
+  const finalPromptGuidance = promptGuidance ?? modelDefaults.promptGuidance ?? 2;
+  const finalGuidance = guidance ?? modelDefaults.guidance ?? 3;
+  const finalControlNetStrength = controlNetStrength ?? modelDefaults.controlNetStrength ?? 0.7;
+  const finalControlNetGuidanceEnd = controlNetGuidanceEnd ?? modelDefaults.controlNetGuidanceEnd ?? 0.6;
+  const finalInferenceSteps = inferenceSteps ?? modelDefaults.inferenceSteps ?? 7;
+  const finalScheduler = scheduler ?? modelDefaults.scheduler ?? 'DPM++ SDE';
+  const finalTimeStepSpacing = timeStepSpacing ?? modelDefaults.timeStepSpacing ?? 'Karras';
 
   // Check if current model is Flux.1 Kontext
-  const isFluxKontext = isFluxKontextModel(selectedModel || settings.selectedModel || '');
+  const isFluxKontext = isFluxKontextModel(currentModel);
   
 
 
@@ -400,14 +414,14 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
                     <div className="advanced-input-group">
                       <input
                         type="range"
-                        min={1}
-                        max={5}
-                        step={0.1}
-                        value={guidance}
+                        min={modelRanges.guidance?.min || 1}
+                        max={modelRanges.guidance?.max || 5}
+                        step={modelRanges.guidance?.step || 0.1}
+                        value={finalGuidance}
                         onChange={(e) => onGuidanceChange?.(Number(e.target.value))}
                         className="advanced-slider"
                       />
-                      <span className="advanced-value">{guidance}</span>
+                      <span className="advanced-value">{finalGuidance}</span>
                     </div>
                   </div>
                 ) : (
@@ -416,14 +430,14 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
                     <div className="advanced-input-group">
                       <input
                         type="range"
-                        min={1.8}
-                        max={3}
-                        step={0.1}
-                        value={promptGuidance}
+                        min={modelRanges.promptGuidance?.min || 1.8}
+                        max={modelRanges.promptGuidance?.max || 3}
+                        step={modelRanges.promptGuidance?.step || 0.1}
+                        value={finalPromptGuidance}
                         onChange={(e) => onPromptGuidanceChange?.(Number(e.target.value))}
                         className="advanced-slider"
                       />
-                      <span className="advanced-value">{promptGuidance.toFixed(1)}</span>
+                      <span className="advanced-value">{finalPromptGuidance.toFixed(1)}</span>
                     </div>
                   </div>
                 )}
@@ -437,14 +451,14 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
                       <div className="advanced-input-group">
                         <input
                           type="range"
-                          min={0.4}
-                          max={1}
-                          step={0.1}
-                          value={controlNetStrength}
+                          min={modelRanges.controlNetStrength?.min || 0.4}
+                          max={modelRanges.controlNetStrength?.max || 1}
+                          step={modelRanges.controlNetStrength?.step || 0.1}
+                          value={finalControlNetStrength}
                           onChange={(e) => onControlNetStrengthChange?.(Number(e.target.value))}
                           className="advanced-slider"
                         />
-                        <span className="advanced-value">{controlNetStrength.toFixed(1)}</span>
+                        <span className="advanced-value">{finalControlNetStrength.toFixed(1)}</span>
                       </div>
                     </div>
 
@@ -454,14 +468,14 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
                       <div className="advanced-input-group">
                         <input
                           type="range"
-                          min={0.2}
-                          max={0.8}
-                          step={0.1}
-                          value={controlNetGuidanceEnd}
+                          min={modelRanges.controlNetGuidanceEnd?.min || 0.2}
+                          max={modelRanges.controlNetGuidanceEnd?.max || 0.8}
+                          step={modelRanges.controlNetGuidanceEnd?.step || 0.1}
+                          value={finalControlNetGuidanceEnd}
                           onChange={(e) => onControlNetGuidanceEndChange?.(Number(e.target.value))}
                           className="advanced-slider"
                         />
-                        <span className="advanced-value">{controlNetGuidanceEnd.toFixed(1)}</span>
+                        <span className="advanced-value">{finalControlNetGuidanceEnd.toFixed(1)}</span>
                       </div>
                     </div>
                   </>
@@ -473,14 +487,14 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
                   <div className="advanced-input-group">
                     <input
                       type="range"
-                      min={isFluxKontext ? 18 : 4}
-                      max={isFluxKontext ? 40 : 10}
-                      step={1}
-                      value={inferenceSteps}
+                      min={modelRanges.inferenceSteps?.min || (isFluxKontext ? 18 : 4)}
+                      max={modelRanges.inferenceSteps?.max || (isFluxKontext ? 40 : 10)}
+                      step={modelRanges.inferenceSteps?.step || 1}
+                      value={finalInferenceSteps}
                       onChange={(e) => onInferenceStepsChange?.(Number(e.target.value))}
                       className="advanced-slider"
                     />
-                    <span className="advanced-value">{inferenceSteps}</span>
+                    <span className="advanced-value">{finalInferenceSteps}</span>
                   </div>
                 </div>
 
@@ -490,20 +504,13 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
                   <select
                     className="advanced-select"
                     onChange={(e) => onSchedulerChange?.(e.target.value)}
-                    value={scheduler}
+                    value={finalScheduler}
                   >
-                    {isFluxKontext ? (
-                      <>
-                        <option value="Euler">Euler</option>
-                        <option value="Euler a">Euler a</option>
-                        <option value="DPM++ 2M">DPM++ 2M</option>
-                      </>
-                    ) : (
-                      <>
-                        <option value="DPM++ SDE">DPM++ SDE</option>
-                        <option value="DPM++ 2M SDE">DPM++ 2M SDE</option>
-                      </>
-                    )}
+                    {(modelRanges.schedulerOptions || []).map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -513,22 +520,13 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
                   <select
                     className="advanced-select"
                     onChange={(e) => onTimeStepSpacingChange?.(e.target.value)}
-                    value={timeStepSpacing}
+                    value={finalTimeStepSpacing}
                   >
-                    {isFluxKontext ? (
-                      <>
-                        <option value="Simple">Simple</option>
-                        <option value="SGM Uniform">SGM Uniform</option>
-                        <option value="Beta">Beta</option>
-                        <option value="Normal">Normal</option>
-                        <option value="DDIM">DDIM</option>
-                      </>
-                    ) : (
-                      <>
-                        <option value="Karras">Karras</option>
-                        <option value="SGM Uniform">SGM Uniform</option>
-                      </>
-                    )}
+                    {(modelRanges.timeStepSpacingOptions || []).map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -541,14 +539,14 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
           <label className="control-label">Number of Images:</label>
           <input
             type="range"
-            min={1}
-            max={isFluxKontext ? 8 : 32}
-            step={1}
-            value={numImages}
+            min={modelRanges.numImages?.min || 1}
+            max={modelRanges.numImages?.max || (isFluxKontext ? 8 : 32)}
+            step={modelRanges.numImages?.step || 1}
+            value={finalNumImages}
             onChange={(e) => onNumImagesChange?.(Number(e.target.value))}
             className="slider-input"
           />
-          <span className="slider-value">{numImages}</span>
+          <span className="slider-value">{finalNumImages}</span>
         </div>
       
               {/* Positive Prompt */}

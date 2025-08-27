@@ -4,6 +4,7 @@ import AdvancedSettings from '../shared/AdvancedSettings';
 import AspectRatioDropdown from '../shared/AspectRatioDropdown';
 import { getCustomDimensions } from '../../utils/imageProcessing';
 import { AspectRatioOption } from '../../types/index';
+import { getModelDefaults } from '../../constants/settings';
 
 interface CameraViewProps {
   /** Video ref for the webcam stream */
@@ -106,50 +107,54 @@ interface CameraViewProps {
   tezdevTheme?: any;
 }
 
-export const CameraView: React.FC<CameraViewProps> = ({
-  videoRef,
-  isReady,
-  isDisabled = false,
-  buttonLabel = 'Take Photo',
-  onTakePhoto,
-  showPhotoGrid = false,
-  selectedStyle = '',
-  showSettings = false,
-  onToggleSettings = () => {},
-  testId,
-  onToggleCamera,
-  modelOptions = [],
-  selectedModel = '',
-  onModelSelect,
-  numImages = 8,
-  onNumImagesChange,
-  promptGuidance = 2,
-  onPromptGuidanceChange,
-  guidance = 3,
-  onGuidanceChange,
-  controlNetStrength = 0.8,
-  onControlNetStrengthChange,
-  controlNetGuidanceEnd = 0.6,
-  onControlNetGuidanceEndChange,
-  inferenceSteps = 7,
-  onInferenceStepsChange,
-  scheduler = 'DPM++ SDE',
-  onSchedulerChange,
-  timeStepSpacing = 'Karras',
-  onTimeStepSpacingChange,
-  flashEnabled = true,
-  onFlashEnabledChange,
-  keepOriginalPhoto = false,
-  onKeepOriginalPhotoChange,
-  onResetSettings,
-  isFrontCamera = true,
-  aspectRatio = 'square' as AspectRatioOption,
-  iosQuirkDetected = false,
-  actualCameraDimensions = null,
-  quirkDetectionComplete = false,
-  lastPhotoData = null,
-  onThumbnailClick,
-}) => {
+export const CameraView: React.FC<CameraViewProps> = (props) => {
+  // Get model defaults for the current model
+  const modelDefaults = getModelDefaults(props.selectedModel || '');
+
+  const {
+    videoRef,
+    isReady,
+    isDisabled = false,
+    buttonLabel = 'Take Photo',
+    onTakePhoto,
+    showPhotoGrid = false,
+    selectedStyle = '',
+    showSettings = false,
+    onToggleSettings = () => {},
+    testId,
+    onToggleCamera,
+    modelOptions = [],
+    selectedModel = '',
+    onModelSelect,
+    numImages = modelDefaults.numImages || 8,
+    onNumImagesChange,
+    promptGuidance = modelDefaults.promptGuidance || 2,
+    onPromptGuidanceChange,
+    guidance = modelDefaults.guidance || 3,
+    onGuidanceChange,
+    controlNetStrength = modelDefaults.controlNetStrength || 0.7,
+    onControlNetStrengthChange,
+    controlNetGuidanceEnd = modelDefaults.controlNetGuidanceEnd || 0.6,
+    onControlNetGuidanceEndChange,
+    inferenceSteps = modelDefaults.inferenceSteps || 7,
+    onInferenceStepsChange,
+    scheduler = modelDefaults.scheduler || 'DPM++ SDE',
+    onSchedulerChange,
+    timeStepSpacing = modelDefaults.timeStepSpacing || 'Karras',
+    onTimeStepSpacingChange,
+    flashEnabled = true,
+    onFlashEnabledChange,
+    keepOriginalPhoto = false,
+    onKeepOriginalPhotoChange,
+    onResetSettings,
+    isFrontCamera = true,
+    aspectRatio = 'square' as AspectRatioOption,
+    iosQuirkDetected = false,
+    actualCameraDimensions = null,
+    quirkDetectionComplete = false,
+    lastPhotoData = null,
+    onThumbnailClick,
+  } = props;
 
 
   // Use aspectRatio prop instead of context
