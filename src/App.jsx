@@ -44,7 +44,9 @@ import ImageAdjuster from './components/shared/ImageAdjuster';
 import UploadProgress from './components/shared/UploadProgress';
 import PromoPopup from './components/shared/PromoPopup';
 import NetworkStatus from './components/shared/NetworkStatus';
+import ConfettiCelebration from './components/shared/ConfettiCelebration';
 import { subscribeToConnectionState, getCurrentConnectionState } from './services/api';
+
 
 
 // Helper function to update URL with prompt parameter
@@ -267,6 +269,19 @@ const App = () => {
   const [connectionState, setConnectionState] = useState(getCurrentConnectionState());
   const [isGenerating, setIsGenerating] = useState(false);
   
+  // Add state for confetti celebration
+  const [showConfetti, setShowConfetti] = useState(false);
+  
+  // Track if confetti has been shown this session (using useRef to persist across renders)
+  const confettiShownThisSession = useRef(false);
+  
+  // Hide confetti immediately when background animations are disabled
+  useEffect(() => {
+    if (!backgroundAnimationsEnabled && showConfetti) {
+      setShowConfetti(false);
+    }
+  }, [backgroundAnimationsEnabled, showConfetti]);
+  
   // Helper function to trigger promotional popup after batch completion
   const triggerPromoPopupIfNeeded = () => {
     if (shouldShowPromoPopup()) {
@@ -277,9 +292,47 @@ const App = () => {
     }
   };
 
+  // Helper function to trigger confetti celebration when batch completes
+  const triggerBatchCelebration = () => {
+    // Only show confetti if background animations are enabled AND it hasn't been shown this session
+    if (backgroundAnimationsEnabled && !confettiShownThisSession.current) {
+      // Mark confetti as shown for this session
+      confettiShownThisSession.current = true;
+      
+      // Reset confetti state first, then trigger new animation
+      setShowConfetti(false);
+      // Small delay to let the final photos settle in and ensure state reset
+      setTimeout(() => {
+        setShowConfetti(true);
+      }, 600);
+    }
+  };
+
   // Add this for testing - you can call this from browser console
   window.showPromoPopupNow = () => {
     setShowPromoPopup(true);
+  };
+  
+  // Add testing function for confetti celebration
+  window.testConfettiCelebration = () => {
+    if (!backgroundAnimationsEnabled) {
+      console.log('🎊 Confetti is disabled. Enable "Background Animations" in settings to see confetti.');
+      return;
+    }
+    
+    if (confettiShownThisSession.current) {
+      console.log('🎊 Confetti has already been shown this session. It only shows on the first batch completion.');
+      console.log('💡 Tip: Refresh the page to reset the session and see confetti again.');
+      return;
+    }
+    
+    triggerBatchCelebration();
+  };
+  
+  // Add function to reset confetti session (for testing)
+  window.resetConfettiSession = () => {
+    confettiShownThisSession.current = false;
+    console.log('🎊 Confetti session reset! Next batch completion will show confetti.');
   };
   
   // Handle promotional popup close
@@ -2029,12 +2082,14 @@ const App = () => {
                 clearAllTimeouts();
                 activeProjectReference.current = null;
                 trackEvent('Generation', 'complete', selectedStyle);
+                triggerBatchCelebration();
               }, 7000); // Additional 7 second delay (10 total)
             } else {
               console.log('All jobs completed after delay, proceeding with project completion.');
               clearAllTimeouts();
               activeProjectReference.current = null;
               trackEvent('Generation', 'complete', selectedStyle);
+              triggerBatchCelebration();
             }
           }, 3000); // Initial 3 second delay
         } else {
@@ -2047,6 +2102,9 @@ const App = () => {
           
           // Track successful generation completion
           trackEvent('Generation', 'complete', selectedStyle);
+          
+          // Trigger celebration for successful batch completion
+          triggerBatchCelebration();
         }
       });
 
@@ -2192,47 +2250,77 @@ const App = () => {
         // FINAL IMAGE - handle hashtags and completion
         // Handle hashtag generation for final jobs
         let hashtag = '';
-        if (positivePrompt) {
+        
+        // Debug logging to understand what we're working with
+        console.log('📸 Hashtag debug:', { 
+          positivePrompt, 
+          stylePrompt: stylePrompt?.trim(), 
+          selectedStyle,
+          jobIndex
+        });
+        
+        // Strategy 1: Try to match positivePrompt from job
+        if (positivePrompt && !hashtag) {
           // First check current stylePrompts (which includes Flux prompts when appropriate)
           const foundKey = Object.entries(stylePrompts).find(([, value]) => value === positivePrompt)?.[0];
-          if (foundKey) {
+          if (foundKey && foundKey !== 'custom' && foundKey !== 'random' && foundKey !== 'randomMix') {
             hashtag = `#${foundKey}`;
-            console.log('📸 Found hashtag for completed job:', { positivePrompt, hashtag, foundKey });
+            console.log('📸 Found hashtag for completed job via positivePrompt:', { positivePrompt, hashtag, foundKey });
           }
           
           // Fallback to promptsData for backward compatibility
           if (!hashtag) {
             const fallbackKey = Object.entries(promptsData).find(([, value]) => value === positivePrompt)?.[0];
-            if (fallbackKey) {
+            if (fallbackKey && fallbackKey !== 'custom' && fallbackKey !== 'random' && fallbackKey !== 'randomMix') {
               hashtag = `#${fallbackKey}`;
-              console.log('📸 Found hashtag from promptsData fallback:', { positivePrompt, hashtag, fallbackKey });
+              console.log('📸 Found hashtag from promptsData fallback via positivePrompt:', { positivePrompt, hashtag, fallbackKey });
             }
           }
         }
         
-        // If we have a valid stylePrompt, use that to help with hashtag lookup
-        if (!hashtag && stylePrompt.trim()) {
+        // Strategy 2: If we have a valid stylePrompt, use that to help with hashtag lookup
+        if (!hashtag && stylePrompt && stylePrompt.trim()) {
+          const trimmedStylePrompt = stylePrompt.trim();
           // First check current stylePrompts
-          const styleKey = Object.entries(stylePrompts).find(([, value]) => value === stylePrompt.trim())?.[0];
-          if (styleKey) {
+          const styleKey = Object.entries(stylePrompts).find(([, value]) => value === trimmedStylePrompt)?.[0];
+          if (styleKey && styleKey !== 'custom' && styleKey !== 'random' && styleKey !== 'randomMix') {
             console.log('📸 Found hashtag from stylePrompt:', styleKey);
             hashtag = `#${styleKey}`;
           }
           
           // Fallback to promptsData
           if (!hashtag) {
-            const fallbackStyleKey = Object.entries(promptsData).find(([, value]) => value === stylePrompt.trim())?.[0];
-            if (fallbackStyleKey) {
+            const fallbackStyleKey = Object.entries(promptsData).find(([, value]) => value === trimmedStylePrompt)?.[0];
+            if (fallbackStyleKey && fallbackStyleKey !== 'custom' && fallbackStyleKey !== 'random' && fallbackStyleKey !== 'randomMix') {
               console.log('📸 Found hashtag from stylePrompt fallback:', fallbackStyleKey);
               hashtag = `#${fallbackStyleKey}`;
             }
           }
         }
         
-        // If we still don't have a hashtag but have a selectedStyle, use that
-        if (!hashtag && selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix') {
+        // Strategy 3: Fall back to selectedStyle if it's a valid style
+        if (!hashtag && selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix' && selectedStyle !== 'oneOfEach') {
           console.log('📸 Using selectedStyle for hashtag:', selectedStyle);
           hashtag = `#${selectedStyle}`;
+        }
+        
+        // Strategy 4: Final fallback - try to find ANY matching prompt in our style library
+        if (!hashtag && positivePrompt) {
+          // Check if the positive prompt contains any known style keywords
+          const allStyleKeys = [...Object.keys(stylePrompts), ...Object.keys(promptsData)];
+          const matchingKey = allStyleKeys.find(key => {
+            const promptValue = stylePrompts[key] || promptsData[key];
+            return promptValue && (
+              promptValue === positivePrompt ||
+              positivePrompt.includes(promptValue) ||
+              promptValue.includes(positivePrompt)
+            );
+          });
+          
+          if (matchingKey && matchingKey !== 'custom' && matchingKey !== 'random' && matchingKey !== 'randomMix') {
+            hashtag = `#${matchingKey}`;
+            console.log('📸 Found hashtag via fuzzy matching:', { matchingKey, hashtag });
+          }
         }
         
         // Load final image and update with completion status
@@ -2269,7 +2357,7 @@ const App = () => {
                 isPreview: false, // Clear preview flag so final image shows at full opacity
                 positivePrompt,
                 stylePrompt: stylePrompt.trim(),
-                statusText: hashtag || `#${(jobIndex || 0) + 1}`
+                statusText: hashtag || (selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix' ? `#${selectedStyle}` : `#${(jobIndex || 0) + 1}`)
               };
             }
             return updated;
@@ -4574,7 +4662,12 @@ const App = () => {
           }
         />
       )}
-      
+
+      {/* Confetti Celebration */}
+      <ConfettiCelebration 
+        isVisible={showConfetti && backgroundAnimationsEnabled}
+        onComplete={() => setShowConfetti(false)}
+      />
 
     </>
   );
