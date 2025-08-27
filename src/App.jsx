@@ -1856,7 +1856,8 @@ const App = () => {
             setPhotos(prev => {
               const updated = [...prev];
               if (updated[photoIndex] && !updated[photoIndex].permanentError) {
-                const cachedWorkerName = updated[photoIndex].workerName || 'unknown';
+                // Use workerName from current event if available, otherwise fall back to cached value
+                const currentWorkerName = workerName || updated[photoIndex].workerName || 'unknown';
                 const displayProgress = Math.round((progress ?? 0) * 100);
                 
                 updated[photoIndex] = {
@@ -1865,8 +1866,9 @@ const App = () => {
                   loading: true,
                   progress: displayProgress,
                   statusText: displayProgress > 0 
-                    ? `${cachedWorkerName} makin' art... ${displayProgress}%`
-                    : `${cachedWorkerName} makin' art...`,
+                    ? `${currentWorkerName} makin' art... ${displayProgress}%`
+                    : `${currentWorkerName} makin' art...`,
+                  workerName: currentWorkerName, // Update the cached worker name
                   jobId,
                   lastProgressTime: Date.now()
                 };

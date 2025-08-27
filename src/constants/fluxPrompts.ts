@@ -2,7 +2,7 @@
 export const FLUX_KONTEXT_PROMPTS = {
   makeMeLegos: "Preserve the person's face and identify, make them into a lego character while keeping the person's identity and facial characteristics identical",
   makeMeAstronautSuit: "Replace their clothes with a realistic NASA astronaut suit while keeping their face and identity the same",
-  makeMeBodybuilder: "Make the person have huge muscles while keeping their identity and the scene realistic",
+  makeMeBodybuilder: "keep the person's face the same, keep hair the same, keep nose and mouth the same, same face shape, same expression, Make the person have huge muscles that blend naturally into their face realistically while keeping their existing identity and characteristics",
   makeMeClaymation: "Model the person in a claymation look, keep their identity, finger dents, matte clay and diorama set",
   makeMeCloned: "Make the person appear multiple times in the image while keeping everything else the same",
   makeMeBobblehead: "Convert the person into a bobblehead figure. (Keep the person's face, hair, and identity the same). Oversized head spring base simple studio background",
@@ -19,6 +19,7 @@ export const FLUX_KONTEXT_PROMPTS = {
   makeMeUkiyoE: "Render the person as an ukiyo e print keep identity bold linework flat color planes and wave or cloud motifs",
   makeMeTattooFlash: "Render the person as a traditional tattoo flash icon keep identity bold lines limited inks and parchment texture",
   makeThemAngry: "Make them angry",
+  makeMeNeon: "keep their clothes the same, keep face the same, keep hair the same, keep nose and mouth the same, same face shape, same expression, aesthetic 9, reimagine this person while keeping their facial features intact, digital_drawing_(artwork), colorful, high_contrast, psychedelic illustration, surreal grotesque cartoon style, thick bold outlines, dripping and shiny, pink fleshy, exaggerated forms, neon palette (pink, green, yellow, purple), sticker-art aesthetic, vaporwave background with diagonal stripes, dynamic composition, urban street art vibe, inspired by graffiti and tattoo flash.",
 }
 
 // Helper function to get Flux.1 Kontext prompts
