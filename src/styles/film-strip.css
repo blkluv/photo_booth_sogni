@@ -202,7 +202,7 @@
   font-weight: 500 !important;
 }
 body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
-  font-size: 38px !important; /* Slightly smaller than desktop but still larger than base mobile */
+  font-size: 30px !important; /* Slightly smaller than desktop but still larger than base mobile */
 }
 
 /* Back to Camera button - ensure it stays fixed */

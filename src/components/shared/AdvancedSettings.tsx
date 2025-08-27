@@ -474,7 +474,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
                     <input
                       type="range"
                       min={isFluxKontext ? 18 : 4}
-                      max={isFluxKontext ? 28 : 10}
+                      max={isFluxKontext ? 40 : 10}
                       step={1}
                       value={inferenceSteps}
                       onChange={(e) => onInferenceStepsChange?.(Number(e.target.value))}

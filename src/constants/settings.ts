@@ -66,8 +66,8 @@ export const getModelDefaults = (modelValue: string) => {
   if (isFluxKontextModel(modelValue)) {
     return {
       guidance: 3.5, // Range: 1-5, Default: 3.5 (Prompt Guidance)
-      inferenceSteps: 22, // Range: 18-28, Default: 22
-      scheduler: 'Euler', // Default: Euler
+      inferenceSteps: 28, // Range: 18-28, Default: 28
+      scheduler: 'DPM++ SDE', // Default: DPM++ SDE
       timeStepSpacing: 'Beta', // Default: Beta
       numImages: 8, // Range: 1-8, Default: 8
     };
