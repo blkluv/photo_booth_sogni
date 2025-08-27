@@ -79,6 +79,7 @@ const App = () => {
   const cameraWindSoundReference = useRef(null);
   // const helloSoundReference = useRef(null);
   const slothicornReference = useRef(null);
+  const soundPlayedForPhotos = useRef(new Set()); // Track which photo IDs have already played sound
 
   useEffect(() => {
     const unlockAudio = () => {
@@ -2239,6 +2240,25 @@ const App = () => {
           setPhotos(previous => {
             const updated = [...previous];
             if (updated[photoIndex] && !updated[photoIndex].permanentError) {
+              const photoId = updated[photoIndex].id;
+              
+              // Play camera wind sound for this final image if we haven't already
+              if (soundEnabled && !soundPlayedForPhotos.current.has(photoId) && cameraWindSoundReference.current) {
+                soundPlayedForPhotos.current.add(photoId);
+                
+                // Reset to beginning to ensure sound plays every time
+                cameraWindSoundReference.current.currentTime = 0;
+                
+                try {
+                  cameraWindSoundReference.current.play();
+                } catch (error) {
+                  console.warn("Initial camera wind play attempt failed, trying promise-based approach:", error);
+                  cameraWindSoundReference.current.play().catch(error => {
+                    console.warn("Error playing camera wind sound:", error);
+                  });
+                }
+              }
+              
               updated[photoIndex] = {
                 ...updated[photoIndex],
                 images: [loadedImageUrl], // Replace preview with final image
@@ -3223,6 +3243,13 @@ const App = () => {
       return () => clearTimeout(timer);
     }
   }, [photos]);
+
+  // Clean up sound tracking when photos are cleared/reset
+  useEffect(() => {
+    if (photos.length === 0) {
+      soundPlayedForPhotos.current.clear();
+    }
+  }, [photos.length]);
 
   // Handle clicks in the photo viewer
   const handlePhotoViewerClick = (e) => {
