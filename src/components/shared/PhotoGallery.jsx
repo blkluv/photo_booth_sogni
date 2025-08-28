@@ -472,6 +472,7 @@ const PhotoGallery = ({
         await document.fonts.ready;
         
         // Create image with TezDev frame (no polaroid frame, just the TezDev overlay)
+        console.log('Creating framed image for download:', { tezdevTheme, aspectRatio, imageUrl });
         const framedImageUrl = await createPolaroidImage(imageUrl, '', {
           tezdevTheme,
           aspectRatio,
@@ -479,11 +480,20 @@ const PhotoGallery = ({
           frameTopWidth: 0,   // No polaroid frame
           frameBottomWidth: 0, // No polaroid frame
           frameColor: 'transparent', // No polaroid background
-          outputFormat
+          outputFormat,
+          // For Taipei theme, pass the current frame number to ensure consistency
+          taipeiFrameNumber: tezdevTheme === 'taipeiblockchain' ? taipeiFrameNumber : undefined
         });
+        console.log('Generated framed image URL:', framedImageUrl?.substring(0, 50) + '...');
       
-             // Handle download
-        downloadImage(framedImageUrl, filename);
+        // Ensure we have a valid data URL before downloading
+        if (framedImageUrl && framedImageUrl.startsWith('data:')) {
+          downloadImage(framedImageUrl, filename);
+        } else {
+          console.error('Invalid framed image URL generated:', framedImageUrl);
+          // Fallback to original image if frame generation fails
+          downloadImage(imageUrl, filename);
+        }
       } else {
         // Handle download without frame
        downloadImage(imageUrl, filename);

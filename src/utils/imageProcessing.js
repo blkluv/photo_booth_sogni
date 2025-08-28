@@ -427,8 +427,8 @@ async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, fram
         return;
       }
       
-      // Select a consistent frame based on canvas dimensions to ensure consistency
-      const frameNumber = ((imageWidth + imageHeight) % 6) + 1;
+      // Use provided frame number or fall back to consistent selection based on canvas dimensions
+      const frameNumber = options.taipeiFrameNumber || ((imageWidth + imageHeight) % 6) + 1;
       const taipeiFrame = new Image();
       taipeiFrame.crossOrigin = 'anonymous';
       
