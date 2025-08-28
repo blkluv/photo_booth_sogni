@@ -188,15 +188,25 @@ const PhotoGallery = ({
   
   const gmvnFrameSize = getGMVNFrameSize();
   
-  // Store random Taipei frame selection per photo selection (not per render)
-  const [taipeiFrameNumber, setTaipeiFrameNumber] = useState(1);
-  
-  // Update Taipei frame number when photo selection changes
+  // Ensure all photos have a Taipei frame number assigned (migration for existing photos)
   useEffect(() => {
-    if (selectedPhotoIndex !== null && tezdevTheme === 'taipeiblockchain') {
-      setTaipeiFrameNumber(Math.floor(Math.random() * 6) + 1);
+    const needsFrameNumbers = photos.some(photo => !photo.taipeiFrameNumber);
+    if (needsFrameNumbers) {
+      setPhotos(prev => prev.map((photo, index) => ({
+        ...photo,
+        taipeiFrameNumber: photo.taipeiFrameNumber || (index % 6) + 1
+      })));
     }
-  }, [selectedPhotoIndex, tezdevTheme]);
+  }, [photos, setPhotos]);
+
+  // Get the Taipei frame number for the currently selected photo (stored in photo data)
+  const getCurrentTaipeiFrameNumber = () => {
+    if (selectedPhotoIndex !== null && photos[selectedPhotoIndex] && photos[selectedPhotoIndex].taipeiFrameNumber) {
+      return photos[selectedPhotoIndex].taipeiFrameNumber;
+    }
+    // Fallback to frame 1 if not set (shouldn't happen with new photos)
+    return 1;
+  };
   
   const handlePhotoSelect = useCallback((index, e) => {
     const element = e.currentTarget;
@@ -358,7 +368,8 @@ const PhotoGallery = ({
       if (!imageUrl) return;
 
       // Create a unique key for this photo + theme + format combination
-      const frameKey = `${selectedPhotoIndex}-${currentSubIndex}-${tezdevTheme}-${taipeiFrameNumber}-${outputFormat}`;
+      const currentTaipeiFrameNumber = getCurrentTaipeiFrameNumber();
+      const frameKey = `${selectedPhotoIndex}-${currentSubIndex}-${tezdevTheme}-${currentTaipeiFrameNumber}-${outputFormat}`;
       
       // Skip if we already have this framed image
       if (framedImageUrls[frameKey]) {
@@ -380,7 +391,7 @@ const PhotoGallery = ({
           frameColor: 'transparent', // No polaroid background
           outputFormat: outputFormat, // Use the actual outputFormat setting to match framed downloads
           // For Taipei theme, pass the current frame number to ensure consistency
-          taipeiFrameNumber: tezdevTheme === 'taipeiblockchain' ? taipeiFrameNumber : undefined
+          taipeiFrameNumber: tezdevTheme === 'taipeiblockchain' ? currentTaipeiFrameNumber : undefined
         });
         
         // Store the framed image URL
@@ -395,14 +406,14 @@ const PhotoGallery = ({
     };
 
     generateFramedImage();
-  }, [selectedPhotoIndex, tezdevTheme, taipeiFrameNumber, selectedSubIndex, photos, aspectRatio, outputFormat, framedImageUrls]);
+  }, [selectedPhotoIndex, tezdevTheme, selectedSubIndex, photos, aspectRatio, outputFormat, framedImageUrls]);
 
   // Cleanup old framed image URLs to prevent memory leaks
   useEffect(() => {
     const cleanup = () => {
       const currentKeys = Object.keys(framedImageUrls);
-      if (currentKeys.length > 10) { // Keep only last 10 framed images
-        const keysToRemove = currentKeys.slice(0, -10);
+      if (currentKeys.length > 16) { // Keep only last 16 framed images
+        const keysToRemove = currentKeys.slice(0, -16);
         keysToRemove.forEach(key => {
           if (framedImageUrls[key] && framedImageUrls[key].startsWith('data:')) {
             // Revoke blob URLs to free memory (data URLs don't need revoking)
@@ -518,7 +529,7 @@ const PhotoGallery = ({
         frameColor: tezdevTheme === 'off' ? 'white' : 'transparent',
         outputFormat: outputFormat, // Use the actual outputFormat setting for framed downloads
         // For Taipei theme, pass the current frame number to ensure consistency
-        taipeiFrameNumber: tezdevTheme === 'taipeiblockchain' ? taipeiFrameNumber : undefined
+        taipeiFrameNumber: tezdevTheme === 'taipeiblockchain' ? photos[photoIndex].taipeiFrameNumber : undefined
       });
       
              // Handle download
@@ -1097,7 +1108,8 @@ const PhotoGallery = ({
                       const currentSubIndex = photo.enhanced && photo.enhancedImageUrl 
                         ? -1 // Special case for enhanced images
                         : (selectedSubIndex || 0);
-                      const frameKey = `${index}-${currentSubIndex}-${tezdevTheme}-${taipeiFrameNumber}-${outputFormat}`;
+                      const photoTaipeiFrameNumber = photo.taipeiFrameNumber || 1;
+                      const frameKey = `${index}-${currentSubIndex}-${tezdevTheme}-${photoTaipeiFrameNumber}-${outputFormat}`;
                       const framedImageUrl = framedImageUrls[frameKey];
                       if (framedImageUrl) {
                         return framedImageUrl;
@@ -1173,7 +1185,8 @@ const PhotoGallery = ({
                   const currentSubIndex = photo.enhanced && photo.enhancedImageUrl 
                     ? -1 // Special case for enhanced images
                     : (selectedSubIndex || 0);
-                  const frameKey = `${index}-${currentSubIndex}-${tezdevTheme}-${taipeiFrameNumber}-${outputFormat}`;
+                  const photoTaipeiFrameNumber = photo.taipeiFrameNumber || 1;
+                  const frameKey = `${index}-${currentSubIndex}-${tezdevTheme}-${photoTaipeiFrameNumber}-${outputFormat}`;
                   return framedImageUrls[frameKey];
                 })() && (
                   <>
@@ -1256,7 +1269,7 @@ const PhotoGallery = ({
                     {/* Taipei Blockchain Week Full Frame Overlay - only for narrow (2:3) aspect ratio */}
                     {tezdevTheme === 'taipeiblockchain' && aspectRatio === 'narrow' && (
                       <img
-                        src={`/events/taipei_blockchain_week_2025_${taipeiFrameNumber}.png`}
+                        src={`/events/taipei_blockchain_week_2025_${photo.taipeiFrameNumber || 1}.png`}
                         alt="Taipei Blockchain Week Frame"
                         style={{
                           position: 'absolute',

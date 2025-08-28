@@ -15,6 +15,9 @@ export interface Photo {
   jobStartTime?: number;
   lastProgressTime?: number;
   timedOut?: boolean;
+  
+  // Taipei Blockchain Week frame number (1-6) - assigned once per photo
+  taipeiFrameNumber?: number;
 }
 
 export interface ProjectState {

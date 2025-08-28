@@ -1766,6 +1766,9 @@ const App = () => {
                 originalDataUrl: existingPhoto.originalDataUrl || dataUrl
               });
             } else {
+              // Calculate the global photo index for frame assignment
+              const globalPhotoIndex = (keepOriginalPhoto ? 1 : 0) + index;
+              
               newPhotos.push({
                 id: Date.now() + index + 1,
                 generating: true,
@@ -1776,7 +1779,9 @@ const App = () => {
                 originalDataUrl: dataUrl, // Use reference photo as placeholder
                 newlyArrived: false,
                 statusText: 'Calling Art Robot...',
-                sourceType // Include sourceType in generated photos
+                sourceType, // Include sourceType in generated photos
+                // Assign Taipei frame number based on photo index for equal distribution (1-6)
+                taipeiFrameNumber: (globalPhotoIndex % 6) + 1
               });
             }
           }
@@ -3552,6 +3557,9 @@ const App = () => {
       const newPhotos = existingOriginalPhoto ? [existingOriginalPhoto] : [];
       
       for (let i = 0; i < numToGenerate; i++) {
+        // Calculate the global photo index for frame assignment based on existing photos
+        const globalPhotoIndex = (existingOriginalPhoto ? 1 : 0) + i;
+        
         newPhotos.push({
           id: Date.now() + i,
           generating: true,
@@ -3563,7 +3571,9 @@ const App = () => {
           newlyArrived: false,
           statusText: 'Calling Art Robot...',
           stylePrompt: '', // Use context stylePrompt here? Or keep empty?
-          sourceType: sourceType // Store sourceType in photo object for reference
+          sourceType: sourceType, // Store sourceType in photo object for reference
+          // Assign Taipei frame number based on photo index for equal distribution (1-6)
+          taipeiFrameNumber: (globalPhotoIndex % 6) + 1
         });
       }
       
@@ -3821,7 +3831,9 @@ const App = () => {
       originalDataUrl: null, // Will be updated with adjusted version
       newlyArrived: false,
       generationCountdown: 10,
-      sourceType: currentUploadedSource === 'camera' ? 'camera' : 'upload' // Set source type based on current mode
+      sourceType: currentUploadedSource === 'camera' ? 'camera' : 'upload', // Set source type based on current mode
+      // Assign Taipei frame number based on current photo count for equal distribution (1-6)
+      taipeiFrameNumber: (photos.length % 6) + 1
     };
     
     setPhotos((previous) => [...previous, newPhoto]);
