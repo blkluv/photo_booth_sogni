@@ -1127,7 +1127,7 @@ const PhotoGallery = ({
                     {/* Taipei Blockchain Week Full Frame Overlay - only for narrow (2:3) aspect ratio */}
                     {tezdevTheme === 'taipeiblockchain' && aspectRatio === 'narrow' && (
                       <img
-                        src={`/events/taipei_blockchain_week_2025_${((String(photo.id || '').charCodeAt(0) || index) % 6) + 1}.png`}
+                        src={`/events/taipei_blockchain_week_2025_${Math.floor(Math.random() * 6) + 1}.png`}
                         alt="Taipei Blockchain Week Frame"
                         style={{
                           position: 'absolute',
