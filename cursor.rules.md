@@ -71,6 +71,47 @@ Then document findings like:
 
 ---
 
+## UI/Visual Change Testing Protocol (MANDATORY)
+
+**CRITICAL RULE: For ANY change that affects visual appearance, user interface, or layout:**
+
+1. **MUST use Playwright to test the change**:
+   - Write a focused test script that reproduces the specific scenario
+   - Take before/after screenshots to verify the change works
+   - Test on both desktop and mobile viewports when applicable
+   - Include specific measurements and visual assertions
+
+2. **Test Script Requirements**:
+   - Navigate to the actual application URL: `https://photobooth-local.sogni.ai/`
+   - Handle welcome screens, file uploads, and user interactions automatically
+   - Use provided test images from `tests/images/` directory when needed
+   - Take screenshots with descriptive filenames showing the issue and fix
+   - Include console output showing measured dimensions, positions, etc.
+
+3. **Never assume CSS changes work without verification**:
+   - Visual bugs require visual testing
+   - Layout issues require layout measurement
+   - Responsive changes require testing multiple screen sizes
+   - User interaction changes require interaction testing
+
+4. **Example test for layout fix**:
+   ```javascript
+   // Navigate, upload image, click photo, measure selected view
+   const selectedFrame = await page.locator('.film-frame.selected');
+   const analysis = await selectedFrame.evaluate(el => {
+     const rect = el.getBoundingClientRect();
+     return { width: rect.width, height: rect.height, centered: ... };
+   });
+   console.log('Selected frame analysis:', analysis);
+   ```
+
+5. **Enforcement**:
+   - **NO visual/UI changes without Playwright verification**
+   - **Document test results in your response**
+   - **Show screenshots proving the fix works**
+
+---
+
 ## General Rules
 
 - Never rewrite or delete files unless explicitly asked

@@ -210,10 +210,12 @@ const PhotoGallery = ({
         // Animate to final position
         element.style.transition = 'transform 0.5s cubic-bezier(0.2, 0, 0.2, 1)';
         
-        // Clean up after animation
+        // Clean up after animation - but preserve CSS transform for selected state
         setTimeout(() => {
           element.style.transition = '';
-          element.style.transform = '';
+          if (!element.classList.contains('selected')) {
+            element.style.transform = '';
+          }
         }, 500);
       });
       return;
@@ -1160,6 +1162,7 @@ const PhotoGallery = ({
                     )}
                   </>
                 )}
+                {/* No special label for selected view - use standard grid label below */}
               </div>
               <div className="photo-label">
                 {photo.loading || photo.generating ? 

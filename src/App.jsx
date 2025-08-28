@@ -181,8 +181,11 @@ const App = () => {
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showPhotoGrid, setShowPhotoGrid] = useState(false);
   
-  // PWA install prompt state
-  const [showPWAPrompt, setShowPWAPrompt] = useState(true);
+  // PWA install prompt state - disable for testing with ?noPrompt=1
+  const [showPWAPrompt, setShowPWAPrompt] = useState(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('noPrompt') !== '1';
+  });
   
   // Add state for image adjustment
   const [showImageAdjuster, setShowImageAdjuster] = useState(false);
