@@ -83,23 +83,22 @@ const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ onClose }) => {
   return (
     <div className={`pwa-install-overlay ${isClosing ? 'closing' : ''}`}>
       <div className={`pwa-install-prompt ${isClosing ? 'slide-out' : 'slide-in'}`}>
+        <button className="pwa-install-close" onClick={handleClose}>
+          ×
+        </button>
+        
         <div className="pwa-install-header">
-          <div className="pwa-install-icon">
+          <div className="pwa-install-mascot">
             <img 
               src={`/slothicorn-camera.png?v=${Date.now()}`} 
               alt="Sogni Photobooth" 
-              width="32" 
-              height="32"
-              style={{ borderRadius: '8px' }}
+              className="pwa-install-icon"
             />
           </div>
           <div className="pwa-install-title">
             <h3>Install Sogni Photobooth</h3>
-            <p>Get the full app experience!</p>
+            <p>Get the full app experience on your device!</p>
           </div>
-          <button className="pwa-install-close" onClick={handleClose}>
-            ×
-          </button>
         </div>
 
         <div className="pwa-install-content">
@@ -137,11 +136,11 @@ const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ onClose }) => {
         </div>
 
         <div className="pwa-install-actions">
-          <button className="pwa-install-later" onClick={handleInstallLater}>
-            Maybe Later
-          </button>
           <button className="pwa-install-dismiss" onClick={handleClose}>
             Don&apos;t Show Again
+          </button>
+          <button className="pwa-install-later" onClick={handleInstallLater}>
+            Maybe Later
           </button>
         </div>
       </div>
