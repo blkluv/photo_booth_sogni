@@ -20,6 +20,8 @@ export const FLUX_KONTEXT_PROMPTS = {
   makeMeTattooFlash: "Render the person as a traditional tattoo flash icon keep identity bold lines limited inks and parchment texture",
   makeThemAngry: "Make them angry",
   makeMeNeon: "keep their clothes the same, keep face the same, keep hair the same, keep nose and mouth the same, same face shape, same expression, aesthetic 9, reimagine this person while keeping their facial features intact, digital_drawing_(artwork), colorful, high_contrast, psychedelic illustration, surreal grotesque cartoon style, thick bold outlines, dripping and shiny, pink fleshy, exaggerated forms, neon palette (pink, green, yellow, purple), sticker-art aesthetic, vaporwave background with diagonal stripes, dynamic composition, urban street art vibe, inspired by graffiti and tattoo flash.",
+  makeMeViking: "Change all the clothes to viking armor and viking hat with horns while keeping exact face and body size the same",
+  makeMeBox: "Turn me into a boxer wearing blue boxing gloves and a sports top that says 'BASE', art style will be similar to Fortnite Characters, background looks like a boxing ring"
 }
 
 // Helper function to get Flux.1 Kontext prompts

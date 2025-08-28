@@ -67,7 +67,7 @@ export const getModelRanges = (modelValue: string) => {
     return {
       guidance: { min: 1, max: 5, step: 0.1, default: 2.8 },
       inferenceSteps: { min: 18, max: 40, step: 1, default: 28 },
-      numImages: { min: 1, max: 8, step: 1, default: 8 },
+      numImages: { min: 1, max: 8, step: 1, default: 4 },
       schedulerOptions: ['Euler', 'Euler a', 'DPM++ 2M'],
       timeStepSpacingOptions: ['Simple', 'SGM Uniform', 'Beta', 'Normal', 'DDIM'],
     };
@@ -80,7 +80,7 @@ export const getModelRanges = (modelValue: string) => {
     controlNetStrength: { min: 0.4, max: 1, step: 0.1, default: 0.7 },
     controlNetGuidanceEnd: { min: 0.2, max: 0.8, step: 0.1, default: 0.6 },
     inferenceSteps: { min: 4, max: 10, step: 1, default: 7 },
-    numImages: { min: 1, max: 32, step: 1, default: 8 },
+    numImages: { min: 1, max: 16, step: 1, default: 8 },
     schedulerOptions: ['DPM++ SDE', 'DPM++ 2M SDE'],
     timeStepSpacingOptions: ['Karras', 'SGM Uniform'],
   };

@@ -609,9 +609,6 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
             onChange={(e) => handleTezDevThemeChange(e.target.value as TezDevTheme)}
             value={currentTezDevTheme}
           >
-            <option value="blue">Blue</option>
-            <option value="pink">Pink</option>
-            <option value="gmvietnam">GM Vietnam</option>
             <option value="supercasual">Super Casual</option>
             <option value="tezoswebx">Tezos WebX</option>
             <option value="taipeiblockchain">Taipei Blockchain Week 2025</option>
