@@ -479,6 +479,18 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
   right: 12px; /* Match padding */
   bottom: 40px; /* Leave space for label */
   z-index: 5;
+  pointer-events: none;
+  /* Warm wash that fades away as the image develops */
+  background: radial-gradient(120% 120% at 50% 30%, rgba(255, 248, 230, 0.55) 0%, rgba(255, 246, 220, 0.4) 28%, rgba(255, 246, 220, 0.25) 52%, rgba(255, 246, 220, 0.1) 72%, rgba(255, 246, 220, 0) 100%);
+  opacity: 1;
+  animation: film-wash 14s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes film-wash {
+  0%   { opacity: 1; }
+  40%  { opacity: 0.92; }
+  70%  { opacity: 0.45; }
+  100% { opacity: 0; }
 }
 
 /* Improved navigation buttons for photo viewer */
@@ -644,7 +656,8 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
 }
 
 /* Keep the placeholder visible during the transition */
-.film-frame.newly-arrived .placeholder {
+/* Keep the placeholder visible during the transition ONLY after loading completes */
+.film-frame.newly-arrived:not(.loading) .placeholder {
   opacity: 0.3 !important; /* Keep placeholder visible during transition */
   transition: opacity 1s ease-out 0.3s !important; /* Fade out to match faster image transition */
 }

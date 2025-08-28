@@ -28,6 +28,8 @@ const PlaceholderImage = memo(({ placeholderUrl }) => {
         e.stopPropagation();
       }}
       style={{
+        width: '100%',
+        height: '100%',
         objectFit: 'cover',
         position: 'relative',
         top: 0,
@@ -758,7 +760,6 @@ const PhotoGallery = ({
                         sogniClient,
                         setPhotos,
                         outputFormat: outputFormat,
-                        sensitiveContentFilter: sensitiveContentFilter,
                         onSetActiveProject: (projectId) => {
                           activeProjectReference.current = projectId;
                         }
@@ -884,8 +885,10 @@ const PhotoGallery = ({
                 data-enhanced={photo.enhanced ? 'true' : undefined}
   
                 onClick={() => isSelected ? setSelectedPhotoIndex(null) : setSelectedPhotoIndex(index)}
-                                style={{
-                ...dynamicStyle,
+                style={{
+                  width: '100%',
+                  margin: '0 auto',
+                  backgroundColor: 'white',
                   position: 'relative',
                   borderRadius: '2px',
                   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
@@ -894,7 +897,12 @@ const PhotoGallery = ({
                   '--stagger-delay': `${index * 1}s` // Add staggered delay based on index
                 }}
               >
-                <div>
+                <div style={{
+                  position: 'relative',
+                  width: '100%',
+                  aspectRatio: dynamicStyle.aspectRatio,
+                  overflow: 'hidden'
+                }}>
                   <PlaceholderImage placeholderUrl={placeholderUrl} />
                 </div>
                 <div className="photo-label">
@@ -956,7 +964,9 @@ const PhotoGallery = ({
               data-enhanced={photo.enhanced ? 'true' : undefined}
 
               style={{
-                ...dynamicStyle,
+                width: '100%',
+                margin: '0 auto',
+                backgroundColor: 'white',
                 position: 'relative',
                 borderRadius: '2px',
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
@@ -967,6 +977,8 @@ const PhotoGallery = ({
               <div style={{
                 position: 'relative',
                 width: '100%',
+                aspectRatio: dynamicStyle.aspectRatio,
+                overflow: 'hidden'
               }}>
                 <img 
                   src={thumbUrl}
@@ -981,7 +993,11 @@ const PhotoGallery = ({
                       img.classList.add('fade-in-complete');
                       
                       // For newly arrived photos, delay opacity setting to allow transition
-                      if (photo.newlyArrived) {
+                      // BUT: Don't set inline opacity on placeholder images during loading - let CSS animation control it
+                      if (img.classList.contains('placeholder') && photo.loading) {
+                        // Skip opacity setting for loading placeholders - CSS animation controls this
+                        console.log('Skipping inline opacity for loading placeholder - CSS animation controls it');
+                      } else if (photo.newlyArrived) {
                         // Start with opacity 0.01 (almost invisible but not completely transparent)
                         // This prevents white background from showing while keeping transition smooth
                         img.style.opacity = '0.01';
@@ -1196,6 +1212,7 @@ PhotoGallery.propTypes = {
   tezdevTheme: PropTypes.string,
   aspectRatio: PropTypes.string,
   handleRetryPhoto: PropTypes.func,
+  outputFormat: PropTypes.string,
 };
 
 export default React.memo(PhotoGallery); 

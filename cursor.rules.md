@@ -1,117 +1,81 @@
-## Cursor Project Rules – Sogni Photobooth
+# Cursor Rules for Sogni Photobooth Project
 
-1. All React components live in `src/components/`.
-2. Utility helpers live in `src/utils/` and must export pure functions.
-3. Global styling is `App.css`; **never** rename existing classes.
-4. Keep all audio / image imports (`*.mp3`, `*.png`) intact.
-5. When splitting a component  
-   – move only **one** unit per step,  
-   – copy its propTypes / TS types,  
-   – re-import `./App.css` in the new file.  
-6. After every edit, run  
+## CSS Modification Protocol (MANDATORY)
+
+**CRITICAL RULE: Before making ANY CSS changes, you MUST:**
+
+1. **SCAN ALL FILES** (not just .css) for existing rules that could conflict:
+   - **ALL CSS files**: Use `grep` across entire `src/` directory
+   - **INLINE STYLES**: Search for `style={{` in JSX/TSX files
+   - **CSS-IN-JS**: Search for CSS properties in JavaScript objects
+   - **COMPONENT STYLES**: Search for CSS modules, styled-components
+   - **DYNAMIC STYLES**: Search for programmatic style setting
+
+2. **COMPREHENSIVE SEARCH COMMANDS**:
    ```bash
-   pnpm lint && pnpm dev --once
-   ```  
-   and stop on any error.
-7. Never rewrite or delete files unless explicitly asked.
-9. **NEVER** duplicate large portions of code or create alternate versions of files. If a file needs refactoring:
-   - Create smaller, modular components
-   - Use proper React patterns like HOCs, render props, or hooks
-   - Document WHY the code exists in comments
-10. Always check if files are actually used in the codebase before modifying them.
-11. When creating experimental features, use feature flags instead of duplicate files.
-12. Maintain a single source of truth for all functionality.
-13. **IMPORTANT - CODE MIGRATION RULES**:
-    - **NEVER** create a component file without immediately importing and using it
-    - **NEVER** leave code in the original file after migrating it to a component (complete the migration)
-    - **NEVER** create both .tsx and .jsx versions of the same component
-    - **NEVER** create new CSS files that aren't immediately imported and used
-    - Any new component MUST be imported and used immediately or NOT created at all
-    - Only use TypeScript (.tsx) OR JavaScript (.jsx) for a component, never both
-    - Always verify the migration is complete by checking imports and removing the original code
-    - Before deleting ANY file, check that it isn't referenced in imports or directly used by the app
-    - If creating a new CSS file, make sure it's imported in the component or in the global index.css
-14. Every PR should result in LESS code, not more duplicated code.
-15. **MEMORY PERSISTENCE AND EFFICIENCY RULES**:
-    - Maintain memory of files already examined in the current session
-    - Never re-check if a file exists after its existence has been confirmed
-    - Keep track of file contents that have been viewed and refer to stored information
-    - Avoid redundant tool calls to check for the same information repeatedly
-    - Before using tools to find information, check if that information has already been discovered
-    - Maintain conversational context and user history to prevent repetitive work
-    - Use information persistence to minimize response time and redundant operations
+   # Search ALL files for CSS property (not just .css)
+   grep -r "opacity" src/ --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" --include="*.css"
+   grep -r "placeholder" src/ --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" --include="*.css"
+   grep -r "style.*opacity" src/
+   grep -r "\.style\.opacity" src/
+   grep -r "opacity:" src/
+   ```
 
-- Note: App.jsx is over 3000 lines. Always consider this when making changes or reviewing the file.
+3. **ANALYZE CSS SPECIFICITY** for every conflicting rule found:
+   - Calculate specificity scores (IDs=100, Classes=10, Elements=1, !important=1000)
+   - **Inline styles = 1000** (same as !important)
+   - Identify which rules will actually take precedence
+   - Document all conflicting rules before making changes
 
-## React Performance Rules (Learned from Jan 2025 optimization)
+4. **DOCUMENT CONFLICTS** in your response:
+   - List ALL conflicting CSS rules found (CSS files + inline styles + JS)
+   - Show file paths and line numbers for every conflict
+   - Explain why your new rule will/won't override existing ones
+   - Show specificity calculations when needed
 
-**🚨 CRITICAL: Always check these patterns before making React changes**
+5. **USE SURGICAL PRECISION**:
+   - Only add the minimum specificity needed to override conflicts
+   - Account for inline styles (specificity 1000)
+   - Prefer more specific selectors over `!important` when possible
 
-16. **PREVENT EXCESSIVE RE-RENDERS:**
-    - **Timers/Intervals**: Return same reference when no actual changes needed
-    - **Context Providers**: Always memoize context value objects with `useMemo()`
-    - **User Interactions**: Use direct DOM manipulation + debounced state updates, NOT state updates on every event
-    - **useCallback Dependencies**: Use refs for condition checking to avoid unstable dependencies
-    - **useEffect Chains**: Combine related effects to prevent cascading updates
-    - **Progress Updates**: NEVER update state on every progress event - use throttling
+6. **VERIFY NO SIDE EFFECTS**:
+   - Check if your changes affect other components using similar selectors
+   - Test that your changes don't break existing functionality
+   - Consider responsive breakpoints and state variations
 
-17. **PERFORMANCE ANTI-PATTERNS TO AVOID:**
-    - ❌ `setPhotos(prev => prev.map(...))` in timers without checking if changes are needed
-    - ❌ Context value objects recreated on every render: `value={{ photos, setPhotos }}`
-    - ❌ `onChange={e => setState(e.target.value)}` for sliders/drag interactions
-    - ❌ useCallback with changing dependencies that cause effect re-runs
-    - ❌ Cascading useEffect hooks that trigger each other
-    - ❌ **CRITICAL**: `useRef.current` as useEffect dependency (causes infinite loops)
-    - ❌ **CRITICAL**: Immediate state updates on every SSE/WebSocket message
-    - ❌ **CRITICAL**: useEffect running on every array change without checking actual differences
-    - ❌ **CRITICAL**: `setInterval()` that runs even when no work is needed (check conditions first)
-    - ❌ **CRITICAL**: Multiple `setPhotos()` calls per progress update (causes cascade renders)
+## Example COMPLETE CSS Analysis Required:
 
-18. **PERFORMANCE PATTERNS TO USE:**
-    - ✅ Check for actual changes before updating state: `if (!hasChanges) return previousState`
-    - ✅ Memoize context values: `useMemo(() => ({ photos, setPhotos }), [photos])`
-    - ✅ Direct DOM updates during interactions: `element.style.transform = ...`
-    - ✅ Debounce state updates: `setTimeout(() => setState(value), 150)`
-    - ✅ Use refs for stable condition checking: `conditionsRef.current = { state }`
-    - ✅ **THROTTLE PROGRESS UPDATES**: `setTimeout(() => setState(...), 100)` for progress events
-    - ✅ **BATCH OPERATIONS**: Combine multiple state updates in single setTimeout
-    - ✅ **SMART useEffect**: Only run when meaningful changes occur, not on every dependency change
-    - ✅ **LAZY LOADING PATTERN**: Only fetch data when component expands/opens (see MetricsBar optimization)
-    - ✅ **CONDITIONAL INTERVALS**: `if (!hasActiveWork) return; setInterval(...)` pattern
+Before changing `.placeholder { opacity: 0.5; }`, you must:
 
-19. **REAL-TIME DATA PERFORMANCE RULES:**
-    - **SSE/WebSocket Events**: ALWAYS throttle high-frequency events (progress, download, etc.)
-    - **Progress Updates**: Max 10 updates/second (100ms throttle), immediate for completion (100%)
-    - **Event Batching**: Group related events (progress + watchdog timer) in single update
-    - **State Comparison**: Only update state when values actually change: `if (newValue !== oldValue)`
-    - **Completion Events**: Clear pending throttled updates before final state update
-    - **Download Progress**: Throttle intermediate updates, immediate for 0% and 100%
+```bash
+# Search ALL file types for opacity and placeholder
+grep -r "opacity" src/ --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" --include="*.css"
+grep -r "placeholder" src/ --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" --include="*.css"
+grep -r "style.*opacity" src/
+grep -r "\.style\.opacity" src/
+grep -r "style={{.*opacity" src/
+```
 
-20. **DEBUGGING PERFORMANCE ISSUES:**
-    - Add temporary logging: `console.log('🔍 [PERFORMANCE DEBUG] Component render')`
-    - Track useEffect triggers: `console.log('useEffect triggered - dependency:', dependency)`
-    - Monitor state update frequency: Count renders per second during operations
-    - Use React DevTools Profiler to identify expensive renders
-    - **REMOVE DEBUG LOGGING** after fixing issues
+Then document findings like:
+- `film-strip.css:648` sets `.film-frame.newly-arrived .placeholder { opacity: 0.3 !important }` (Specificity: 1030)
+- `PhotoGallery.jsx:35` sets `style={{ opacity: 0.25 }}` (Specificity: 1000 - inline style)
+- `SomeComponent.tsx:42` sets `element.style.opacity = "0.5"` (Specificity: 1000 - programmatic)
+- New rule needs specificity > 1030 to override ALL conflicts
 
-**Remember: React performance is about preventing unnecessary work, not just optimizing necessary work. One excessive re-render can cause cascade effects that multiply the performance impact.**
+## Enforcement
 
-## Sogni API Integration Rules
+- **NO CSS changes without this analysis**
+- **Document your grep searches in every CSS modification**
+- **Show specificity calculations when conflicts exist**
+- **This prevents the "million overrides" problem**
 
-21. **SOGNI API PARAMETER PROPAGATION:**
-    - When adding new settings/parameters that affect image generation, update ALL three integration points:
-      1. **Frontend Direct Calls**: `src/App.jsx` - direct sogniClient.projects.create() calls
-      2. **API Service Layer**: `src/services/api.ts` - createProject() function parameter mapping
-      3. **Backend Service**: `server/services/sogni.js` - generateImage() function projectOptions
-    - **NEVER** add a new setting without updating all three layers
-    - Always check both enhancement and generation code paths
-    - Test that new parameters flow from UI → Frontend → API → Backend → Sogni SDK
+---
 
-22. **LOGGING AND DEBUG PRACTICES:**
-    - **NEVER** log raw image data (Uint8Array, ArrayBuffer, base64 strings, etc.) as it clogs logs
-    - Use `server/utils/logRedaction.js` utilities to redact image data from logs:
-      - `redactImageData()` for general objects with image fields
-      - `redactProjectResult()` for Sogni project results  
-      - `redactRequestParams()` for request parameters
-    - Log image sizes, formats, and metadata instead of raw data
-    - Example: `<REDACTED: 1024 bytes>` instead of the actual byte array
+## General Rules
+
+- Never rewrite or delete files unless explicitly asked
+- If a change breaks TypeScript / ESLint / tests, STOP and ask first
+- When refactoring, move only one logical unit per step
+- Preserve import paths & CSS class names exactly
+- Always use 2 space soft tabs
+- Check and enforce all project lint rules
