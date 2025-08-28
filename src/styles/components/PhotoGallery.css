@@ -32,29 +32,29 @@
     opacity: 0.15;
     filter: brightness(2.5) contrast(0.3) saturate(0.4) sepia(0.2) hue-rotate(-10deg) blur(8px);
     background-color: rgba(240, 240, 242, 0.6);
-    animation-timing-function: ease-in-out;
+    animation-timing-function: ease-in;
   }
   20% {
     opacity: 0.18;
     filter: brightness(2.2) contrast(0.38) saturate(0.5) sepia(0.16) hue-rotate(-8deg) blur(6.5px);
     background-color: rgba(240, 240, 242, 0.5);
-    animation-timing-function: ease-in-out;
+    animation-timing-function: ease-in;
   }
   50% {
     opacity: 0.32;
     filter: brightness(1.6) contrast(0.7) saturate(0.8) sepia(0.1) hue-rotate(-4deg) blur(3px);
     background-color: rgba(240, 240, 242, 0.2);
-    animation-timing-function: ease-in-out;
+    animation-timing-function: ease-out;
   }
   100% {
     opacity: 0.4;
     filter: brightness(1.35) contrast(0.85) saturate(0.9) sepia(0.06) hue-rotate(-2deg) blur(1.5px);
     background-color: rgba(240, 240, 242, 0.12);
-    animation-timing-function: ease-in-out;
+    animation-timing-function: ease-out;
   }
 }
 
-/* Continuous subtle pulse between 30%-40% exposure */
+/* Continuous pulse from max exposure down to 0 and back */
 @keyframes polaroid-pulse {
   0% {
     opacity: 0.4;
@@ -62,14 +62,42 @@
     background-color: rgba(240, 240, 242, 0.12);
   }
   50% {
-    opacity: 0.3;
-    filter: brightness(1.45) contrast(0.8) saturate(0.85) sepia(0.08) hue-rotate(-3deg) blur(2px);
-    background-color: rgba(240, 240, 242, 0.16);
+    opacity: 0;
+    filter: brightness(3) contrast(0.2) saturate(0.3) sepia(0.3) hue-rotate(-15deg) blur(10px);
+    background-color: rgba(240, 240, 242, 0.8);
   }
   100% {
     opacity: 0.4;
     filter: brightness(1.35) contrast(0.85) saturate(0.9) sepia(0.06) hue-rotate(-2deg) blur(1.5px);
     background-color: rgba(240, 240, 242, 0.12);
+  }
+}
+
+/* Alternative exposure animation for newly-arrived frames */
+@keyframes polaroid-exposure {
+  0% {
+    opacity: 0.15;
+    filter: brightness(2.5) contrast(0.3) saturate(0.4) sepia(0.2) hue-rotate(-10deg) blur(8px);
+    background-color: rgba(240, 240, 242, 0.6);
+    animation-timing-function: ease-in;
+  }
+  30% {
+    opacity: 0.2;
+    filter: brightness(2.1) contrast(0.4) saturate(0.55) sepia(0.15) hue-rotate(-7deg) blur(5px);
+    background-color: rgba(240, 240, 242, 0.45);
+    animation-timing-function: ease-in;
+  }
+  70% {
+    opacity: 0.35;
+    filter: brightness(1.5) contrast(0.75) saturate(0.85) sepia(0.08) hue-rotate(-3deg) blur(2px);
+    background-color: rgba(240, 240, 242, 0.15);
+    animation-timing-function: ease-out;
+  }
+  100% {
+    opacity: 0.4;
+    filter: brightness(1.35) contrast(0.85) saturate(0.9) sepia(0.06) hue-rotate(-2deg) blur(1.5px);
+    background-color: rgba(240, 240, 242, 0.12);
+    animation-timing-function: ease-out;
   }
 }
 
@@ -127,8 +155,8 @@
 .film-frame.loading .placeholder {
   will-change: opacity, filter, background-color;
   animation:
-    polaroid-develop 8s cubic-bezier(0.22, 1, 0.36, 1) forwards,
-    polaroid-pulse 6s ease-in-out 8s infinite;
+    polaroid-develop 10s cubic-bezier(0.05, 0.7, 0.4, 1) forwards,
+    polaroid-pulse 7.5s ease-in-out 10s infinite;
   mix-blend-mode: normal;
   /* Ensure placeholder is below the crisp shadow overlay */
   z-index: 5;
@@ -152,7 +180,7 @@
 
 /* Ensure newly-arrived loading frames don't clamp placeholder opacity */
 .film-frame.loading.newly-arrived .placeholder {
-  animation: polaroid-exposure 7s ease-out forwards !important;
+  animation: polaroid-exposure 8.75s ease-out forwards !important;
 }
 
 /* Ensure loaded frames transition smoothly from loading state - remove transitions that cause pulse - EXCEPT newly arrived */
