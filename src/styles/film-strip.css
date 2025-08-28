@@ -932,8 +932,7 @@ body .film-frame.selected.taipei-blockchain-theme,
 @media (max-width: 768px) {
   .photo-action-buttons {
     flex-wrap: wrap;
-    padding: 0 10px;
-    gap: 8px;
+    gap: 3px;
   }
   
   .action-button {
