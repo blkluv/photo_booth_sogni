@@ -89,6 +89,9 @@ const PhotoGallery = ({
   // State to track when to show the "more" button during generation
   const [showMoreButtonDuringGeneration, setShowMoreButtonDuringGeneration] = useState(false);
   
+  // State to track composite framed images for right-click save compatibility
+  const [framedImageUrls, setFramedImageUrls] = useState({});
+  
   // Effect to handle the 10-second timeout for showing the "more" button during generation
   useEffect(() => {
     if (isGenerating && selectedPhotoIndex === null) {
@@ -335,6 +338,88 @@ const PhotoGallery = ({
     };
   }, [selectedPhotoIndex]);
 
+  // Generate composite framed image when photo is selected with decorative theme
+  useEffect(() => {
+    const generateFramedImage = async () => {
+      // Only generate for selected photos with decorative themes
+      if (selectedPhotoIndex === null || tezdevTheme === 'off' || !photos[selectedPhotoIndex]) {
+        return;
+      }
+
+      const photo = photos[selectedPhotoIndex];
+      const currentSubIndex = photo.enhanced && photo.enhancedImageUrl 
+        ? -1 // Special case for enhanced images
+        : (selectedSubIndex || 0);
+        
+      const imageUrl = currentSubIndex === -1
+        ? photo.enhancedImageUrl
+        : photo.images[currentSubIndex];
+      
+      if (!imageUrl) return;
+
+      // Create a unique key for this photo + theme + format combination
+      const frameKey = `${selectedPhotoIndex}-${currentSubIndex}-${tezdevTheme}-${taipeiFrameNumber}-${outputFormat}`;
+      
+      // Skip if we already have this framed image
+      if (framedImageUrls[frameKey]) {
+        return;
+      }
+
+      try {
+        // Wait for fonts to load
+        await document.fonts.ready;
+        
+        // Create composite framed image using the same logic as download
+        // Use the actual outputFormat setting to match framed downloads (not Twitter sharing)
+        const framedImageUrl = await createPolaroidImage(imageUrl, '', {
+          tezdevTheme,
+          aspectRatio,
+          frameWidth: 0,      // No polaroid frame for decorative themes
+          frameTopWidth: 0,   // No polaroid frame for decorative themes  
+          frameBottomWidth: 0, // No polaroid frame for decorative themes
+          frameColor: 'transparent', // No polaroid background
+          outputFormat: outputFormat, // Use the actual outputFormat setting to match framed downloads
+          // For Taipei theme, pass the current frame number to ensure consistency
+          taipeiFrameNumber: tezdevTheme === 'taipeiblockchain' ? taipeiFrameNumber : undefined
+        });
+        
+        // Store the framed image URL
+        setFramedImageUrls(prev => ({
+          ...prev,
+          [frameKey]: framedImageUrl
+        }));
+        
+      } catch (error) {
+        console.error('Error generating framed image for right-click save:', error);
+      }
+    };
+
+    generateFramedImage();
+  }, [selectedPhotoIndex, tezdevTheme, taipeiFrameNumber, selectedSubIndex, photos, aspectRatio, outputFormat, framedImageUrls]);
+
+  // Cleanup old framed image URLs to prevent memory leaks
+  useEffect(() => {
+    const cleanup = () => {
+      const currentKeys = Object.keys(framedImageUrls);
+      if (currentKeys.length > 10) { // Keep only last 10 framed images
+        const keysToRemove = currentKeys.slice(0, -10);
+        keysToRemove.forEach(key => {
+          if (framedImageUrls[key] && framedImageUrls[key].startsWith('data:')) {
+            // Revoke blob URLs to free memory (data URLs don't need revoking)
+            URL.revokeObjectURL(framedImageUrls[key]);
+          }
+        });
+        setFramedImageUrls(prev => {
+          const cleaned = { ...prev };
+          keysToRemove.forEach(key => delete cleaned[key]);
+          return cleaned;
+        });
+      }
+    };
+
+    cleanup();
+  }, [framedImageUrls]);
+
   // Universal download function that works on all devices
   const downloadImage = async (imageUrl, filename) => {
     try {
@@ -405,9 +490,10 @@ const PhotoGallery = ({
       const photoNumberLabel = photos[photoIndex]?.statusText?.split('#')[0]?.trim() || photos[photoIndex]?.label || '';
       const photoLabel = photoNumberLabel + (styleHashtag ? ` ${styleHashtag}` : '');
       
-      // Generate filename - Frame downloads are always JPG
+      // Generate filename based on outputFormat setting
       const cleanHashtag = styleHashtag ? styleHashtag.replace('#', '').toLowerCase() : 'sogni';
-      const filename = `sogni-photobooth-${cleanHashtag}-framed.jpg`;
+      const fileExtension = outputFormat === 'png' ? '.png' : '.jpg';
+      const filename = `sogni-photobooth-${cleanHashtag}-framed${fileExtension}`;
       
       // Ensure font is loaded
       if (!document.querySelector('link[href*="Permanent+Marker"]')) {
@@ -421,6 +507,7 @@ const PhotoGallery = ({
       await document.fonts.ready;
       
       // Create framed image: custom theme frame OR default polaroid frame
+      // Use the outputFormat setting for framed downloads (unlike Twitter which always uses JPG)
       const polaroidUrl = await createPolaroidImage(imageUrl, tezdevTheme === 'off' ? photoLabel : '', {
         tezdevTheme,
         aspectRatio,
@@ -429,7 +516,7 @@ const PhotoGallery = ({
         frameTopWidth: tezdevTheme === 'off' ? 56 : 0,
         frameBottomWidth: tezdevTheme === 'off' ? 196 : 0,
         frameColor: tezdevTheme === 'off' ? 'white' : 'transparent',
-        outputFormat: 'jpg',
+        outputFormat: outputFormat, // Use the actual outputFormat setting for framed downloads
         // For Taipei theme, pass the current frame number to ensure consistency
         taipeiFrameNumber: tezdevTheme === 'taipeiblockchain' ? taipeiFrameNumber : undefined
       });
@@ -462,10 +549,35 @@ const PhotoGallery = ({
       // Generate filename with correct extension based on outputFormat
       const styleHashtag = getPhotoHashtag(photos[photoIndex]);
       const cleanHashtag = styleHashtag ? styleHashtag.replace('#', '').toLowerCase() : 'sogni';
-      const fileExtension = outputFormat === 'jpg' ? '.jpg' : '.png';
-      const filename = `sogni-photobooth-${cleanHashtag}-raw${fileExtension}`;
       
-      // Raw download is ALWAYS the original image without any frames
+      // For raw downloads, ensure we preserve the original format from the server
+      // First, try to detect the actual format from the image URL or by fetching it
+      let actualExtension = outputFormat === 'jpg' ? '.jpg' : '.png';
+      
+      try {
+        // If this is a blob URL, we can fetch it to check the MIME type
+        if (imageUrl.startsWith('blob:') || imageUrl.startsWith('http')) {
+          const response = await fetch(imageUrl);
+          const contentType = response.headers.get('content-type');
+          if (contentType) {
+            if (contentType.includes('image/png')) {
+              actualExtension = '.png';
+            } else if (contentType.includes('image/jpeg') || contentType.includes('image/jpg')) {
+              actualExtension = '.jpg';
+            }
+            console.log(`[RAW DOWNLOAD] Detected image format: ${contentType}, using extension: ${actualExtension}`);
+          }
+          // Don't consume the response body, just use the headers
+        }
+      } catch (formatDetectionError) {
+        console.warn('Could not detect image format, using outputFormat setting:', formatDetectionError);
+        // Fall back to outputFormat setting
+      }
+      
+      const filename = `sogni-photobooth-${cleanHashtag}-raw${actualExtension}`;
+      
+      // Raw download is ALWAYS the original image without any frames or processing
+      console.log(`[RAW DOWNLOAD] Downloading original image as: ${filename}`);
       downloadImage(imageUrl, filename);
     } catch (error) {
       console.error('Error downloading raw photo:', error);
@@ -979,7 +1091,21 @@ const PhotoGallery = ({
                 overflow: 'hidden'
               }}>
                 <img 
-                  src={thumbUrl}
+                  src={(() => {
+                    // For selected photos with decorative themes, use composite framed image if available
+                    if (isSelected && tezdevTheme !== 'off') {
+                      const currentSubIndex = photo.enhanced && photo.enhancedImageUrl 
+                        ? -1 // Special case for enhanced images
+                        : (selectedSubIndex || 0);
+                      const frameKey = `${index}-${currentSubIndex}-${tezdevTheme}-${taipeiFrameNumber}-${outputFormat}`;
+                      const framedImageUrl = framedImageUrls[frameKey];
+                      if (framedImageUrl) {
+                        return framedImageUrl;
+                      }
+                    }
+                    // Default to original image
+                    return thumbUrl;
+                  })()}
                   alt={`Generated #${index}`}
                   onLoad={e => {
                     // Enable mobile-optimized download functionality when image loads
@@ -1041,8 +1167,15 @@ const PhotoGallery = ({
                   }}
                 />
                 
-                {/* Event Theme Overlays - Only show on selected (popup) view */}
-                {thumbUrl && isLoaded && isSelected && tezdevTheme !== 'off' && (
+                {/* Event Theme Overlays - Only show on selected (popup) view when not using composite framed image */}
+                {thumbUrl && isLoaded && isSelected && tezdevTheme !== 'off' && !(() => {
+                  // Check if we have a composite framed image for this photo
+                  const currentSubIndex = photo.enhanced && photo.enhancedImageUrl 
+                    ? -1 // Special case for enhanced images
+                    : (selectedSubIndex || 0);
+                  const frameKey = `${index}-${currentSubIndex}-${tezdevTheme}-${taipeiFrameNumber}-${outputFormat}`;
+                  return framedImageUrls[frameKey];
+                })() && (
                   <>
                     {/* GM Vietnam Corner Frame Overlay */}
                     {tezdevTheme === 'gmvietnam' && (
