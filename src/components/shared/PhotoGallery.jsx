@@ -185,6 +185,16 @@ const PhotoGallery = ({
   
   const gmvnFrameSize = getGMVNFrameSize();
   
+  // Store random Taipei frame selection per photo selection (not per render)
+  const [taipeiFrameNumber, setTaipeiFrameNumber] = useState(1);
+  
+  // Update Taipei frame number when photo selection changes
+  useEffect(() => {
+    if (selectedPhotoIndex !== null && tezdevTheme === 'taipeiblockchain') {
+      setTaipeiFrameNumber(Math.floor(Math.random() * 6) + 1);
+    }
+  }, [selectedPhotoIndex, tezdevTheme]);
+  
   const handlePhotoSelect = useCallback((index, e) => {
     const element = e.currentTarget;
     
@@ -483,8 +493,15 @@ const PhotoGallery = ({
     }
   };
 
+  // Detect if running as PWA
+  const isPWA = useMemo(() => {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+           window.navigator.standalone ||
+           document.referrer.includes('android-app://');
+  }, []);
+
   return (
-    <div className={`film-strip-container ${showPhotoGrid ? 'visible' : 'hiding'} ${selectedPhotoIndex === null ? '' : 'has-selected'}`}
+    <div className={`film-strip-container ${showPhotoGrid ? 'visible' : 'hiding'} ${selectedPhotoIndex === null ? '' : 'has-selected'} ${isPWA ? 'pwa-mode' : ''}`}
       style={{
         background: 'rgba(248, 248, 248, 0.85)',
         backgroundImage: `
@@ -493,7 +510,7 @@ const PhotoGallery = ({
           repeating-linear-gradient(-45deg, rgba(255,255,255,0.15) 0px, rgba(255,255,255,0.15) 2px, transparent 2px, transparent 4px)
         `,
         backgroundSize: '400% 400%, 20px 20px, 20px 20px',
-        animation: backgroundAnimationsEnabled ? 'psychedelic-shift 15s ease infinite' : 'none',
+        animation: backgroundAnimationsEnabled && !isPWA ? 'psychedelic-shift 15s ease infinite' : 'none',
       }}
     >
       <button
@@ -1127,7 +1144,7 @@ const PhotoGallery = ({
                     {/* Taipei Blockchain Week Full Frame Overlay - only for narrow (2:3) aspect ratio */}
                     {tezdevTheme === 'taipeiblockchain' && aspectRatio === 'narrow' && (
                       <img
-                        src={`/events/taipei_blockchain_week_2025_${Math.floor(Math.random() * 6) + 1}.png`}
+                        src={`/events/taipei_blockchain_week_2025_${taipeiFrameNumber}.png`}
                         alt="Taipei Blockchain Week Frame"
                         style={{
                           position: 'absolute',
