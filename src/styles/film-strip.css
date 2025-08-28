@@ -382,7 +382,7 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
   }
   .film-frame.selected img {
     border: 20px solid white !important;
-    border-bottom: 40px solid white !important; /* Match grid label space */
+    border-bottom: 70px solid white !important; /* Match desktop polaroid proportion */
     width: 100% !important;  /* Fill aspect-ratio container */
     height: 100% !important; /* Maintain aspect ratio via parent */
     max-height: 80vh !important;
@@ -413,7 +413,7 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
   
   body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
     font-size: 30px !important;
-    bottom: 46px !important; /* Align with 40px border plus spacing */
+    bottom: 57px !important; /* Align with 70px bottom border proportion */
   }
   
 
