@@ -274,13 +274,13 @@ body .film-frame.selected,
   left: 50% !important;
   transform: translate(-50%, -50%) !important;
   -webkit-transform: translate(-50%, -50%) !important;
-  width: 100vw !important;
+  width: auto !important;
   height: auto !important;
-  max-width: none !important;
+  max-width: min(90vw, 800px) !important;
   max-height: 85vh !important;
   margin: 0 !important;
-  padding: 16px !important;
-  padding-bottom: 56px !important; /* Bottom space for label */
+  padding: var(--polaroid-side-border) !important;
+  padding-bottom: var(--polaroid-bottom-border) !important; /* Bottom space for label */
   box-sizing: border-box !important;
   z-index: 9998 !important;
   display: block !important;
@@ -310,7 +310,7 @@ body .film-frame.selected,
   width: 100% !important;
   height: auto !important;
   max-width: 100% !important;
-  max-height: calc(85vh - 100px) !important; /* Account for padding and label space */
+  max-height: calc(85vh - var(--polaroid-side-border) - var(--polaroid-bottom-border)) !important; /* Account for proper padding and label space */
   object-fit: contain !important;
   aspect-ratio: auto !important;
   border-radius: 2px !important;
@@ -333,7 +333,7 @@ body .film-frame.selected,
 /* Selected photo label positioned at bottom of polaroid */
 .film-frame.selected .photo-label {
   position: absolute !important;
-  bottom: 10px !important;
+  bottom: 26px !important;
   left: 0 !important;
   right: 0 !important;
   height: 40px !important;
@@ -435,8 +435,8 @@ body .film-frame.selected.taipei-blockchain-theme,
     max-width: none !important;
     max-height: 85vh !important;
     margin: 0 !important;
-    padding: 16px !important;
-    padding-bottom: 56px !important; /* Mobile bottom space */
+    padding: var(--polaroid-side-border) !important;
+    padding-bottom: var(--polaroid-bottom-border) !important; /* Mobile bottom space */
     box-sizing: border-box !important;
     display: block !important;
     background: white !important; /* White polaroid background */
@@ -448,7 +448,7 @@ body .film-frame.selected.taipei-blockchain-theme,
     width: 100% !important;
     height: auto !important;
     max-width: 100% !important;
-    max-height: calc(85vh - 90px) !important; /* Account for padding and label space */
+    max-height: calc(85vh - var(--polaroid-side-border) - var(--polaroid-bottom-border)) !important; /* Account for proper padding and label space */
     object-fit: contain !important;
     background: transparent !important;
     box-sizing: border-box !important;
