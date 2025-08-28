@@ -401,6 +401,23 @@ body .film-frame.selected.tezos-webx-theme,
   display: none !important;
 }
 
+/* Remove white polaroid frame for Taipei Blockchain Week theme */
+body .film-frame.selected.taipei-blockchain-theme.loaded,
+body .film-frame.selected.taipei-blockchain-theme,
+.film-frame.selected.taipei-blockchain-theme {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.film-frame.selected.taipei-blockchain-theme img {
+  border: none !important;
+  background: transparent !important;
+}
+/* Hide polaroid label for Taipei Blockchain Week theme */
+.film-frame.selected.taipei-blockchain-theme .photo-label {
+  display: none !important;
+}
+
 
 
 /* Add responsive styles for selected photo view on mobile/portrait */
@@ -496,6 +513,23 @@ body .film-frame.selected.tezos-webx-theme,
   }
   /* Hide polaroid label for Tezos WebX theme on mobile */
   .film-frame.selected.tezos-webx-theme .photo-label {
+    display: none !important;
+  }
+  
+  /* Remove white polaroid frame for Taipei Blockchain Week theme on mobile */
+  body .film-frame.selected.taipei-blockchain-theme.loaded,
+  body .film-frame.selected.taipei-blockchain-theme,
+  .film-frame.selected.taipei-blockchain-theme {
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+  .film-frame.selected.taipei-blockchain-theme img {
+    border: none !important;
+    background: transparent !important;
+  }
+  /* Hide polaroid label for Taipei Blockchain Week theme on mobile */
+  .film-frame.selected.taipei-blockchain-theme .photo-label {
     display: none !important;
   }
   

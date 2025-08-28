@@ -614,6 +614,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
             <option value="gmvietnam">GM Vietnam</option>
             <option value="supercasual">Super Casual</option>
             <option value="tezoswebx">Tezos WebX</option>
+            <option value="taipeiblockchain">Taipei Blockchain Week 2025</option>
             <option value="off">Off</option>
           </select>
         </div>

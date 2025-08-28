@@ -44,7 +44,7 @@ export interface ModelOption {
 
 export type AspectRatioOption = 'portrait' | 'landscape' | 'square' | 'narrow' | 'wide' | 'ultrawide' | 'ultranarrow';
 
-export type TezDevTheme = 'blue' | 'pink' | 'gmvietnam' | 'supercasual' | 'tezoswebx' | 'off';
+export type TezDevTheme = 'blue' | 'pink' | 'gmvietnam' | 'supercasual' | 'tezoswebx' | 'taipeiblockchain' | 'off';
 
 export type OutputFormat = 'png' | 'jpg';
 

@@ -646,8 +646,28 @@ const ImageAdjuster = ({
               />
             )}
             
-            {/* Default frame corners - only show when not using GMVN, Super Casual, or Tezos WebX themes */}
-            {tezdevTheme !== 'gmvietnam' && tezdevTheme !== 'supercasual' && tezdevTheme !== 'tezoswebx' && (
+            {/* Taipei Blockchain Week Full Frame Overlay - only for narrow (2:3) aspect ratio */}
+            {tezdevTheme === 'taipeiblockchain' && aspectRatio === 'narrow' && (
+              <div
+                className="taipei-blockchain-frame-overlay"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  backgroundImage: `url(/events/taipei_blockchain_week_2025_${Math.floor(Math.random() * 6) + 1}.png)`,
+                  backgroundSize: 'contain',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
+                  pointerEvents: 'none',
+                  zIndex: 2
+                }}
+              />
+            )}
+            
+            {/* Default frame corners - only show when not using GMVN, Super Casual, Tezos WebX, or Taipei Blockchain Week themes */}
+            {tezdevTheme !== 'gmvietnam' && tezdevTheme !== 'supercasual' && tezdevTheme !== 'tezoswebx' && tezdevTheme !== 'taipeiblockchain' && (
               <>
                 <div className="frame-corner top-left"></div>
                 <div className="frame-corner top-right"></div>

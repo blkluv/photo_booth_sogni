@@ -418,6 +418,50 @@ async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, fram
       return;
     }
     
+    // Handle Taipei Blockchain Week theme - only for narrow (2:3) aspect ratio
+    if (theme === 'taipeiblockchain') {
+      // Only apply Taipei Blockchain Week theme to narrow (2:3) aspect ratio
+      if (aspectRatio !== 'narrow') {
+        console.log('Taipei Blockchain Week theme only applies to narrow (2:3) aspect ratio');
+        resolve();
+        return;
+      }
+      
+      // Select a consistent frame based on canvas dimensions to ensure consistency
+      const frameNumber = ((imageWidth + imageHeight) % 6) + 1;
+      const taipeiFrame = new Image();
+      taipeiFrame.crossOrigin = 'anonymous';
+      
+      taipeiFrame.onload = () => {
+        // Scale the frame to fit the image area
+        const maxWidth = imageWidth;
+        const maxHeight = imageHeight;
+        
+        const scaleX = maxWidth / taipeiFrame.naturalWidth;
+        const scaleY = maxHeight / taipeiFrame.naturalHeight;
+        const scale = Math.min(scaleX, scaleY);
+        
+        const scaledWidth = taipeiFrame.naturalWidth * scale;
+        const scaledHeight = taipeiFrame.naturalHeight * scale;
+        
+        // Center the frame over the image
+        const frameX = frameOffsetX + (imageWidth - scaledWidth) / 2;
+        const frameY = frameOffsetY + (imageHeight - scaledHeight) / 2;
+        
+        ctx.drawImage(taipeiFrame, frameX, frameY, scaledWidth, scaledHeight);
+        console.log(`Applied Taipei Blockchain Week frame ${frameNumber} overlay`);
+        resolve();
+      };
+      
+      taipeiFrame.onerror = (err) => {
+        console.error(`Failed to load Taipei Blockchain Week frame ${frameNumber}:`, err);
+        reject(err);
+      };
+      
+      taipeiFrame.src = `/events/taipei_blockchain_week_2025_${frameNumber}.png`;
+      return;
+    }
+    
     // Handle original blue/pink themes with corner pieces
     let loadedImages = 0;
     const totalImages = 2;

@@ -959,7 +959,7 @@ const PhotoGallery = ({
           return (
             <div 
               key={photo.id}
-              className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''} ${isLoaded ? 'loaded' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && tezdevTheme === 'gmvietnam' ? 'gm-vietnam-theme' : ''} ${isSelected && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''}`}
+              className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''} ${isLoaded ? 'loaded' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && tezdevTheme === 'gmvietnam' ? 'gm-vietnam-theme' : ''} ${isSelected && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''} ${isSelected && tezdevTheme === 'taipeiblockchain' ? 'taipei-blockchain-theme' : ''}`}
               onClick={e => isSelected ? handlePhotoViewerClick(e) : handlePhotoSelect(index, e)}
               data-enhancing={photo.enhancing ? 'true' : undefined}
               data-error={photo.error ? 'true' : undefined}
@@ -1044,6 +1044,7 @@ const PhotoGallery = ({
                     opacity: 0 // Start invisible, will be set to 1 immediately via onLoad without transition
                   }}
                 />
+                
                 {/* Event Theme Overlays - Only show on selected (popup) view */}
                 {thumbUrl && isLoaded && isSelected && tezdevTheme !== 'off' && (
                   <>
@@ -1087,17 +1088,17 @@ const PhotoGallery = ({
                     
                     {/* Super Casual Full Frame Overlay - only for narrow (2:3) aspect ratio */}
                     {tezdevTheme === 'supercasual' && aspectRatio === 'narrow' && (
-                      <div
+                      <img
+                        src="/events/super-casual.png"
+                        alt="Super Casual Frame"
                         style={{
                           position: 'absolute',
                           top: 0,
                           left: 0,
                           width: '100%',
                           height: '100%',
-                          backgroundImage: `url(/events/super-casual.png)`,
-                          backgroundSize: 'contain',
-                          backgroundPosition: 'center',
-                          backgroundRepeat: 'no-repeat',
+                          objectFit: 'contain',
+                          objectPosition: 'center',
                           pointerEvents: 'none',
                           zIndex: 2
                         }}
@@ -1117,6 +1118,25 @@ const PhotoGallery = ({
                           backgroundSize: 'contain',
                           backgroundPosition: 'center',
                           backgroundRepeat: 'no-repeat',
+                          pointerEvents: 'none',
+                          zIndex: 2
+                        }}
+                      />
+                    )}
+                    
+                    {/* Taipei Blockchain Week Full Frame Overlay - only for narrow (2:3) aspect ratio */}
+                    {tezdevTheme === 'taipeiblockchain' && aspectRatio === 'narrow' && (
+                      <img
+                        src={`/events/taipei_blockchain_week_2025_${((String(photo.id || '').charCodeAt(0) || index) % 6) + 1}.png`}
+                        alt="Taipei Blockchain Week Frame"
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'contain',
+                          objectPosition: 'center',
                           pointerEvents: 'none',
                           zIndex: 2
                         }}
@@ -1162,8 +1182,8 @@ const PhotoGallery = ({
                     )}
                   </>
                 )}
-                {/* No special label for selected view - use standard grid label below */}
               </div>
+              {/* No special label for selected view - use standard grid label below */}
               <div className="photo-label">
                 {photo.loading || photo.generating ? 
                   (photo.statusText || labelText) 
