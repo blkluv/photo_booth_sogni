@@ -401,13 +401,13 @@ const PhotoGallery = ({
       // Get hashtag from photo data
       const styleHashtag = getPhotoHashtag(photos[photoIndex]);
       
-      // Determine photo label
+      // Determine photo label (only used for default polaroid frame)
       const photoNumberLabel = photos[photoIndex]?.statusText?.split('#')[0]?.trim() || photos[photoIndex]?.label || '';
       const photoLabel = photoNumberLabel + (styleHashtag ? ` ${styleHashtag}` : '');
       
-      // Generate filename - Polaroid downloads are always JPG
+      // Generate filename - Frame downloads are always JPG
       const cleanHashtag = styleHashtag ? styleHashtag.replace('#', '').toLowerCase() : 'sogni';
-      const filename = `sogni-photobooth-${cleanHashtag}-style.jpg`;
+      const filename = `sogni-photobooth-${cleanHashtag}-framed.jpg`;
       
       // Ensure font is loaded
       if (!document.querySelector('link[href*="Permanent+Marker"]')) {
@@ -420,11 +420,18 @@ const PhotoGallery = ({
       // Wait for fonts to load
       await document.fonts.ready;
       
-      // Create polaroid image - always use JPG format for Polaroid downloads
-      const polaroidUrl = await createPolaroidImage(imageUrl, photoLabel, {
+      // Create framed image: custom theme frame OR default polaroid frame
+      const polaroidUrl = await createPolaroidImage(imageUrl, tezdevTheme === 'off' ? photoLabel : '', {
         tezdevTheme,
         aspectRatio,
-        outputFormat: 'jpg'
+        // If custom theme is off, use default polaroid frame; otherwise no polaroid frame
+        frameWidth: tezdevTheme === 'off' ? 56 : 0,
+        frameTopWidth: tezdevTheme === 'off' ? 56 : 0,
+        frameBottomWidth: tezdevTheme === 'off' ? 196 : 0,
+        frameColor: tezdevTheme === 'off' ? 'white' : 'transparent',
+        outputFormat: 'jpg',
+        // For Taipei theme, pass the current frame number to ensure consistency
+        taipeiFrameNumber: tezdevTheme === 'taipeiblockchain' ? taipeiFrameNumber : undefined
       });
       
              // Handle download
@@ -434,7 +441,7 @@ const PhotoGallery = ({
     }
   };
 
-  // Handle download raw photo with optional TezDev frame
+  // Handle download raw photo WITHOUT any frame theme (pure original image)
   const handleDownloadRawPhoto = async (photoIndex) => {
     if (!photos[photoIndex] || !photos[photoIndex].images || photos[photoIndex].images.length === 0) {
       return;
@@ -458,46 +465,8 @@ const PhotoGallery = ({
       const fileExtension = outputFormat === 'jpg' ? '.jpg' : '.png';
       const filename = `sogni-photobooth-${cleanHashtag}-raw${fileExtension}`;
       
-      // Apply TezDev frame if theme is enabled (works on all aspect ratios now)
-      if (tezdevTheme !== 'off') {
-        // Ensure font is loaded
-        if (!document.querySelector('link[href*="Permanent+Marker"]')) {
-          const fontLink = document.createElement('link');
-          fontLink.href = 'https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap';
-          fontLink.rel = 'stylesheet';
-          document.head.appendChild(fontLink);
-        }
-        
-        // Wait for fonts to load
-        await document.fonts.ready;
-        
-        // Create image with TezDev frame (no polaroid frame, just the TezDev overlay)
-        console.log('Creating framed image for download:', { tezdevTheme, aspectRatio, imageUrl });
-        const framedImageUrl = await createPolaroidImage(imageUrl, '', {
-          tezdevTheme,
-          aspectRatio,
-          frameWidth: 0,      // No polaroid frame
-          frameTopWidth: 0,   // No polaroid frame
-          frameBottomWidth: 0, // No polaroid frame
-          frameColor: 'transparent', // No polaroid background
-          outputFormat,
-          // For Taipei theme, pass the current frame number to ensure consistency
-          taipeiFrameNumber: tezdevTheme === 'taipeiblockchain' ? taipeiFrameNumber : undefined
-        });
-        console.log('Generated framed image URL:', framedImageUrl?.substring(0, 50) + '...');
-      
-        // Ensure we have a valid data URL before downloading
-        if (framedImageUrl && framedImageUrl.startsWith('data:')) {
-          downloadImage(framedImageUrl, filename);
-        } else {
-          console.error('Invalid framed image URL generated:', framedImageUrl);
-          // Fallback to original image if frame generation fails
-          downloadImage(imageUrl, filename);
-        }
-      } else {
-        // Handle download without frame
-       downloadImage(imageUrl, filename);
-      }
+      // Raw download is ALWAYS the original image without any frames
+      downloadImage(imageUrl, filename);
     } catch (error) {
       console.error('Error downloading raw photo:', error);
     }
@@ -706,7 +675,7 @@ const PhotoGallery = ({
             {tezdevTheme !== 'off' ? 'Get your print!' : 'Share'}
           </button>
 
-          {/* Download Polaroid Button - Always show */}
+          {/* Download Framed Button - Always show */}
           <button
             className="action-button download-btn"
             onClick={(e) => {
@@ -722,7 +691,7 @@ const PhotoGallery = ({
             }
           >
             <span>💾</span>
-            Polaroid
+            Framed
           </button>
 
           {/* Download Raw Button - Always show */}

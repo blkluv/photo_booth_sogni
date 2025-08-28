@@ -160,7 +160,7 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
       
       // Apply TezDev frame if enabled (works on all aspect ratios now)
       if (tezdevTheme !== 'off') {
-        applyTezDevFrame(ctx, imageWidth, imageHeight, frameWidth, frameTopWidth, tezdevTheme, aspectRatio)
+        applyTezDevFrame(ctx, imageWidth, imageHeight, frameWidth, frameTopWidth, tezdevTheme, aspectRatio, options)
           .then(() => {
             finalizePolaroid();
           })
@@ -247,7 +247,7 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
  * @param {number} frameOffsetY - Y offset of the image from canvas edge
  * @param {string} theme - TezDev theme ('blue', 'pink', or 'gmvietnam')
  */
-async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, frameOffsetY, theme, aspectRatio) {
+async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, frameOffsetY, theme, aspectRatio, options = {}) {
   return new Promise((resolve, reject) => {
     // Handle GM Vietnam theme with corner frames
     if (theme === 'gmvietnam') {
