@@ -551,13 +551,6 @@ body .film-frame.selected.taipei-blockchain-theme,
     position: fixed !important;
     right: -23px !important;
   }
-  /* Override negative positioning for PWA mode */
-  .film-strip-container.pwa-mode.has-selected .photo-nav-btn.prev {
-    left: 20px !important;
-  }
-  .film-strip-container.pwa-mode.has-selected .photo-nav-btn.next {
-    right: 20px !important;
-  }
   .corner-btn {
     z-index: 998 !important;
   }
