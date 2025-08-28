@@ -197,6 +197,20 @@
     transform: translateY(-50%) !important;
     min-width: 44px !important;
     min-height: 44px !important;
+    /* Ensure buttons are visible and properly styled */
+    background: rgba(255, 255, 255, 0.9) !important;
+    color: #FF69B4 !important;
+    border: 2px solid #FF69B4 !important;
+    width: 60px !important;
+    height: 60px !important;
+    border-radius: 50% !important;
+    font-size: 48px !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    cursor: pointer !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+    transition: all 0.2s ease !important;
   }
 
   .photo-nav-btn.prev {
@@ -205,6 +219,29 @@
 
   .photo-nav-btn.next {
     right: max(20px, env(safe-area-inset-right) + 10px) !important;
+  }
+
+  /* Override the mobile negative positioning specifically in PWA mode */
+  .film-strip-container.pwa-mode.has-selected .photo-nav-btn.prev {
+    left: max(20px, env(safe-area-inset-left) + 10px) !important;
+    position: fixed !important;
+  }
+
+  .film-strip-container.pwa-mode.has-selected .photo-nav-btn.next {
+    right: max(20px, env(safe-area-inset-right) + 10px) !important;
+    position: fixed !important;
+  }
+
+  /* Ensure navigation buttons work on hover/active in PWA */
+  .photo-nav-btn:hover {
+    background: rgba(255, 255, 255, 1) !important;
+    transform: translateY(-50%) scale(1.1) !important;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4) !important;
+  }
+
+  .photo-nav-btn:active {
+    background: rgba(255, 255, 255, 1) !important;
+    transform: translateY(-50%) scale(1.3) !important;
   }
 
   /* Fix selected photo z-index - ensure it's above overlay */
