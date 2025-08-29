@@ -94,6 +94,13 @@ const PhotoGallery = ({
   // State to track composite framed images for right-click save compatibility
   const [framedImageUrls, setFramedImageUrls] = useState({});
   
+  // State to track which photos are currently generating frames to prevent flicker
+  const [generatingFrames, setGeneratingFrames] = useState(new Set());
+  
+  // State to hold the previous framed image during transitions to prevent flicker
+  const [previousFramedImage, setPreviousFramedImage] = useState(null);
+  const [previousSelectedIndex, setPreviousSelectedIndex] = useState(null);
+  
   // Keep track of the previous photos array length to detect new batches
   const [previousPhotosLength, setPreviousPhotosLength] = useState(0);
   
@@ -352,9 +359,12 @@ const PhotoGallery = ({
     const currentTaipeiFrameNumber = photo.taipeiFrameNumber || ((photoIndex % 6) + 1);
     const frameKey = `${photoIndex}-${currentSubIndex}-${tezdevTheme}-${currentTaipeiFrameNumber}-${outputFormat}-${aspectRatio}`;
     
-    // Only generate if we don't already have this framed image
-    if (!framedImageUrls[frameKey]) {
+    // Only generate if we don't already have this framed image and it's not already being generated
+    if (!framedImageUrls[frameKey] && !generatingFrames.has(frameKey)) {
       try {
+        // Mark this frame as generating to prevent flicker
+        setGeneratingFrames(prev => new Set(prev).add(frameKey));
+        
         // Wait for fonts to load
         await document.fonts.ready;
         
@@ -376,11 +386,24 @@ const PhotoGallery = ({
           ...prev,
           [frameKey]: framedImageUrl
         }));
+        
+        // Remove from generating set
+        setGeneratingFrames(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(frameKey);
+          return newSet;
+        });
       } catch (error) {
         console.error('Error pre-generating framed image:', error);
+        // Remove from generating set even on error
+        setGeneratingFrames(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(frameKey);
+          return newSet;
+        });
       }
     }
-  }, [isThemeSupported, photos, selectedSubIndex, outputFormat, framedImageUrls, aspectRatio]);
+  }, [isThemeSupported, photos, selectedSubIndex, outputFormat, framedImageUrls, generatingFrames, aspectRatio]);
 
   // Expose the pre-generation function to parent component
   useEffect(() => {
@@ -561,6 +584,9 @@ const PhotoGallery = ({
       }
 
       try {
+        // Mark this frame as generating to prevent flicker
+        setGeneratingFrames(prev => new Set(prev).add(frameKey));
+        
         // Wait for fonts to load
         await document.fonts.ready;
         
@@ -584,13 +610,46 @@ const PhotoGallery = ({
           [frameKey]: framedImageUrl
         }));
         
+        // Remove from generating set
+        setGeneratingFrames(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(frameKey);
+          return newSet;
+        });
+        
       } catch (error) {
         console.error('Error generating framed image for right-click save:', error);
+        // Remove from generating set even on error
+        setGeneratingFrames(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(frameKey);
+          return newSet;
+        });
       }
     };
 
     generateFramedImage();
   }, [selectedPhotoIndex, selectedSubIndex, photos, aspectRatio, outputFormat, framedImageUrls, isThemeSupported]);
+
+  // Track photo selection changes to manage smooth transitions
+  useEffect(() => {
+    if (selectedPhotoIndex !== previousSelectedIndex && isThemeSupported()) {
+      // Store the current framed image before switching
+      if (previousSelectedIndex !== null && photos[previousSelectedIndex]) {
+        const prevPhoto = photos[previousSelectedIndex];
+        const prevSubIndex = prevPhoto.enhanced && prevPhoto.enhancedImageUrl ? -1 : (selectedSubIndex || 0);
+        const prevTaipeiFrameNumber = prevPhoto.taipeiFrameNumber || 1;
+        const prevFrameKey = `${previousSelectedIndex}-${prevSubIndex}-${tezdevTheme}-${prevTaipeiFrameNumber}-${outputFormat}-${aspectRatio}`;
+        const prevFramedImageUrl = framedImageUrls[prevFrameKey];
+        
+        if (prevFramedImageUrl) {
+          setPreviousFramedImage(prevFramedImageUrl);
+        }
+      }
+      
+      setPreviousSelectedIndex(selectedPhotoIndex);
+    }
+  }, [selectedPhotoIndex, previousSelectedIndex, photos, selectedSubIndex, tezdevTheme, outputFormat, aspectRatio, framedImageUrls, isThemeSupported]);
 
   // Cleanup old framed image URLs to prevent memory leaks
   useEffect(() => {
@@ -1305,9 +1364,23 @@ const PhotoGallery = ({
                       const photoTaipeiFrameNumber = photo.taipeiFrameNumber || 1;
                       const frameKey = `${index}-${currentSubIndex}-${tezdevTheme}-${photoTaipeiFrameNumber}-${outputFormat}-${aspectRatio}`;
                       const framedImageUrl = framedImageUrls[frameKey];
+                      const isGeneratingFrame = generatingFrames.has(frameKey);
+                      
                       if (framedImageUrl) {
+                        // Clear previous framed image since we have the new one
+                        if (previousFramedImage) {
+                          setPreviousFramedImage(null);
+                        }
                         return framedImageUrl;
                       }
+                      
+                      // If we're generating a frame and have a previous framed image, use that to prevent flicker
+                      if (isGeneratingFrame && previousFramedImage) {
+                        return previousFramedImage;
+                      }
+                      
+                      // Fall back to original image
+                      return thumbUrl;
                     }
                     // Default to original image
                     return thumbUrl;
@@ -1379,6 +1452,7 @@ const PhotoGallery = ({
                       const photoTaipeiFrameNumber = photo.taipeiFrameNumber || 1;
                       const frameKey = `${index}-${currentSubIndex}-${tezdevTheme}-${photoTaipeiFrameNumber}-${outputFormat}-${aspectRatio}`;
                       const hasFramedImage = framedImageUrls[frameKey];
+                      const isGeneratingFrame = generatingFrames.has(frameKey);
                       
                       if (!hasFramedImage) {
                         // No composite image yet, so check for frame padding and adjust
@@ -1391,9 +1465,26 @@ const PhotoGallery = ({
                             width: `calc(100% - ${framePadding * 2}px)`,
                             height: `calc(100% - ${framePadding * 2}px)`,
                             top: borderPercent,
-                            left: borderPercent
+                            left: borderPercent,
+                            // Add a subtle loading state when framed image is not ready
+                            filter: isGeneratingFrame ? 'brightness(0.8) saturate(0.8)' : 'brightness(0.9) saturate(0.9)',
+                            transition: 'filter 0.3s ease'
+                          };
+                        } else {
+                          // No frame padding but still loading framed image
+                          return {
+                            ...baseStyle,
+                            filter: isGeneratingFrame ? 'brightness(0.8) saturate(0.8)' : 'brightness(0.9) saturate(0.9)',
+                            transition: 'filter 0.3s ease'
                           };
                         }
+                      } else {
+                        // Framed image is ready, remove any loading effects
+                        return {
+                          ...baseStyle,
+                          filter: 'none',
+                          transition: 'filter 0.3s ease'
+                        };
                       }
                     }
                     
