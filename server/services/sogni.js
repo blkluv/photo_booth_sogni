@@ -369,7 +369,7 @@ export async function generateImage(client, params, progressCallback, localProje
       
       // For enhancement, startingImage should be a direct Uint8Array, not a structured object
       projectOptions.startingImage = imageData;
-      projectOptions.startingImageStrength = params.startingImageStrength || 0.85; // Separate parameter
+      projectOptions.startingImageStrength = params.startingImageStrength || 0.80; // Separate parameter
       
       console.log(`[IMAGE] Enhancement image: ${(imageData.length / 1024 / 1024).toFixed(2)}MB`);
     } else if (params.contextImages && Array.isArray(params.contextImages)) {

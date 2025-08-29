@@ -1050,7 +1050,7 @@ const PhotoGallery = ({
             </button>
           ) : (
             <button
-              className="action-button enhance-btn"
+              className={`action-button enhance-btn ${photos[selectedPhotoIndex].enhancing ? 'loading' : ''}`}
               onClick={(e) => {
                 e.stopPropagation();
                 
@@ -1085,9 +1085,9 @@ const PhotoGallery = ({
                   return currentPhotos; // Don't modify photos array here
                 });
               }}
-              disabled={photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error}
+              disabled={photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing}
             >
-              ✨ Enhance
+              <span>✨ {photos[selectedPhotoIndex].enhancing ? 'Enhancing...' : 'Enhance'}</span>
             </button>
           )}
         </div>

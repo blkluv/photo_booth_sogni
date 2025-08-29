@@ -162,6 +162,9 @@
   margin: 0 !important;
   padding: 0 !important;
   transition: opacity 100ms ease-in !important;
+  /* Prevent pixelation during image loading */
+  image-rendering: -webkit-optimize-contrast !important;
+  image-rendering: auto !important;
   /* Enable native context menu and long press for image downloads */
   -webkit-user-select: auto !important;
   user-select: auto !important;
@@ -320,6 +323,9 @@ body .film-frame.selected,
   display: block !important;
   transition: none !important;
   background: transparent !important;
+  /* Prevent pixelation during image loading */
+  image-rendering: -webkit-optimize-contrast !important;
+  image-rendering: auto !important;
   /* Enable native context menu and long press for image downloads */
   -webkit-user-select: auto !important;
   user-select: auto !important;

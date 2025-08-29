@@ -30,6 +30,8 @@ export const enhancePhoto = async (options) => {
     // onSetActiveProject - not used for enhancement to avoid interfering with main generation
   } = options;
 
+  let timeoutId; // Declare timeoutId in outer scope
+
   try {
     console.log(`🚀 [ENHANCE-DEBUG] UPDATED PhotoEnhancer.js loaded! Starting enhancement for photo #${photoIndex}`, { photo, width, height, outputFormat });
     console.log(`[ENHANCE] Photo state:`, {
@@ -82,6 +84,22 @@ export const enhancePhoto = async (options) => {
       };
       return updated;
     });
+
+    // Set a timeout fallback to reset enhancing state if something goes wrong
+    timeoutId = setTimeout(() => {
+      console.warn(`[ENHANCE] Enhancement timeout reached for photo #${photoIndex}, resetting state`);
+      setPhotos(prev => {
+        const updated = [...prev];
+        if (!updated[photoIndex]) return prev;
+        updated[photoIndex] = {
+          ...updated[photoIndex],
+          loading: false,
+          enhancing: false,
+          error: 'ENHANCEMENT FAILED: timeout'
+        };
+        return updated;
+      });
+    }, 120000); // 2 minute timeout
     
     // Start enhancement
     const arrayBuffer = await imageBlob.arrayBuffer();
@@ -95,13 +113,13 @@ export const enhancePhoto = async (options) => {
     const project = await sogniClient.projects.create({
       testnet: false,
       tokenType: 'spark',
-      modelId: "flux1-schnell-fp8",
-      positivePrompt: `Detailed portrait, ${photo.positivePrompt || 'Portrait masterpiece'}`,
+      modelId: "flux1-krea-dev_fp8_scaled",
+      positivePrompt: `(Extra detailed and contrasty portrait) ${photo.positivePrompt || 'Portrait masterpiece'}`,
       sizePreset: 'custom',
       width,
       height,
-      steps: 4,
-      guidance: 1,
+      steps: 30,
+      guidance: 5.5,
       numberOfImages: 1,
       outputFormat: outputFormat || 'jpg', // Use settings from context
       sensitiveContentFilter: false, // enhance jobs are not sensitive content
@@ -110,6 +128,7 @@ export const enhancePhoto = async (options) => {
       startingImage: new Uint8Array(arrayBuffer),
       startingImageStrength: 0.75,
       sourceType: 'enhancement', // Add sourceType for backend tracking
+      // scheduler: 'Euler a',
     });
       
       // Wait for upload completion like regular generation does
@@ -183,32 +202,76 @@ export const enhancePhoto = async (options) => {
         // Don't clear activeProjectReference since we didn't set it for enhancement
         // onSetActiveProject(null); // Commented out since we don't set it
         if (job.resultUrl) {
-          // Clear frame cache for this photo since the image has changed
-          if (clearFrameCache) {
-            clearFrameCache(photoIndex);
-          }
+          // Clear timeout since enhancement is completing
+          clearTimeout(timeoutId);
           
-          setPhotos(prev => {
-            const updated = [...prev];
-            if (!updated[photoIndex]) return prev;
-            const updatedImages = [...updated[photoIndex].images];
-            const indexToReplace = subIndex < updatedImages.length ? subIndex : updatedImages.length - 1;
-            if (indexToReplace >= 0) {
-              updatedImages[indexToReplace] = job.resultUrl;
-            } else {
-              updatedImages.push(job.resultUrl);
+          // Preload the enhanced image to prevent pixelation during loading
+          const preloadImage = new Image();
+          preloadImage.onload = () => {
+            console.log(`[ENHANCE] Enhanced image preloaded successfully: ${job.resultUrl.substring(0, 100)}...`);
+            
+            // Clear frame cache for this photo since the image has changed
+            if (clearFrameCache) {
+              clearFrameCache(photoIndex);
             }
-            updated[photoIndex] = {
-              ...updated[photoIndex],
-              loading: false,
-              enhancing: false,
-              images: updatedImages,
-              newlyArrived: true,
-              enhanced: true
-            };
-            return updated;
-          });
+            
+            setPhotos(prev => {
+              const updated = [...prev];
+              if (!updated[photoIndex]) return prev;
+              const updatedImages = [...updated[photoIndex].images];
+              const indexToReplace = subIndex < updatedImages.length ? subIndex : updatedImages.length - 1;
+              if (indexToReplace >= 0) {
+                updatedImages[indexToReplace] = job.resultUrl;
+              } else {
+                updatedImages.push(job.resultUrl);
+              }
+              updated[photoIndex] = {
+                ...updated[photoIndex],
+                loading: false,
+                enhancing: false,
+                images: updatedImages,
+                newlyArrived: true,
+                enhanced: true
+              };
+              return updated;
+            });
+          };
+          
+          preloadImage.onerror = () => {
+            console.error(`[ENHANCE] Failed to preload enhanced image: ${job.resultUrl}`);
+            // Still update the state even if preload fails
+            if (clearFrameCache) {
+              clearFrameCache(photoIndex);
+            }
+            
+            setPhotos(prev => {
+              const updated = [...prev];
+              if (!updated[photoIndex]) return prev;
+              const updatedImages = [...updated[photoIndex].images];
+              const indexToReplace = subIndex < updatedImages.length ? subIndex : updatedImages.length - 1;
+              if (indexToReplace >= 0) {
+                updatedImages[indexToReplace] = job.resultUrl;
+              } else {
+                updatedImages.push(job.resultUrl);
+              }
+              updated[photoIndex] = {
+                ...updated[photoIndex],
+                loading: false,
+                enhancing: false,
+                images: updatedImages,
+                newlyArrived: true,
+                enhanced: true
+              };
+              return updated;
+            });
+          };
+          
+          // Start preloading the image
+          preloadImage.src = job.resultUrl;
         } else {
+          // Clear timeout since enhancement is completing (even with error)
+          clearTimeout(timeoutId);
+          
           setPhotos(prev => {
             const updated = [...prev];
             if (!updated[photoIndex]) return prev;
@@ -226,6 +289,8 @@ export const enhancePhoto = async (options) => {
       // Listen for jobFailed event (not failed)
       project.on('jobFailed', (job) => {
         console.error('Enhance jobFailed full payload:', job);
+        // Clear timeout since enhancement is failing
+        clearTimeout(timeoutId);
         // Don't clear activeProjectReference since we didn't set it for enhancement
         // onSetActiveProject(null); // Commented out since we don't set it
         setPhotos(prev => {
@@ -243,6 +308,9 @@ export const enhancePhoto = async (options) => {
       
   } catch (error) {
     console.error(`[ENHANCE] Error enhancing image:`, error);
+    // Clear timeout since enhancement is failing
+    clearTimeout(timeoutId);
+    
     setPhotos(prev => {
       const updated = [...prev];
       if (!updated[photoIndex]) return prev;
