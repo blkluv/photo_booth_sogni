@@ -35,7 +35,7 @@ export const getPhotoHashtag = (photo) => {
  * @param {string} [params.shareUrl] - Optional URL to include in the tweet
  * @param {number} [params.maxRetries=2] - Maximum number of retries for network errors
  * @param {Function} [params.onSuccess] - Callback function for direct share success
- * @param {string} [params.tezdevTheme='off'] - TezDev theme ('blue', 'pink', or 'off')
+ * @param {string} [params.tezdevTheme='off'] - TezDev theme or 'off'
  * @param {string} [params.aspectRatio] - Aspect ratio of the image
  * @param {string} [params.outputFormat='png'] - Output format ('png' or 'jpg') - Note: Twitter always uses JPG regardless of this setting
  * @returns {Promise<void>}

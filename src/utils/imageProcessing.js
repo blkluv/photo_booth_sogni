@@ -77,7 +77,7 @@ export async function resizeDataUrl(dataUrl, width, height) {
  * @param {string} options.frameColor - Color of the polaroid frame (default: white)
  * @param {string} options.labelFont - Font for the label (default: 16px "Permanent Marker", cursive)
  * @param {string} options.labelColor - Color for the label text (default: #333)
- * @param {string} options.tezdevTheme - TezDev theme ('blue', 'pink', or 'off')
+ * @param {string} options.tezdevTheme - TezDev theme or 'off'
  * @param {string} options.aspectRatio - Aspect ratio of the original image
  * @param {string} options.outputFormat - Output format ('png' or 'jpg', default: 'png')
  * @returns {Promise<string>} Data URL of the generated polaroid image
@@ -271,7 +271,7 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
  * @param {number} imageHeight - Height of the image area  
  * @param {number} frameOffsetX - X offset of the image from canvas edge
  * @param {number} frameOffsetY - Y offset of the image from canvas edge
- * @param {string} theme - TezDev theme ('blue', 'pink', or 'gmvietnam')
+ * @param {string} theme - TezDev theme (dynamic themes supported)
  */
 async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, frameOffsetY, theme, aspectRatio, options = {}) {
   return new Promise(async (resolve, reject) => {
@@ -330,82 +330,9 @@ async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, fram
       return;
     }
     
-    // Handle original blue/pink themes with corner pieces
-    let loadedImages = 0;
-    const totalImages = 2;
-    let hasError = false;
-
-    const onImageLoad = () => {
-      loadedImages++;
-      if (loadedImages === totalImages && !hasError) {
-        console.log(`Applied TezDev ${theme} corner frame overlays`);
-        resolve();
-      }
-    };
-
-    const onImageError = (err, position) => {
-      if (!hasError) {
-        hasError = true;
-        console.error(`Failed to load TezDev ${theme} ${position} corner frame:`, err);
-        reject(err);
-      }
-    };
-
-    // Load top-right corner piece
-    const trCorner = new Image();
-    trCorner.crossOrigin = 'anonymous';
-    
-    trCorner.onload = () => {
-      // Calculate scaled dimensions to match gallery view sizing
-      // Use consistent 75% to match gallery thumbnails
-      const maxWidth = imageWidth * 0.75;
-      const maxHeight = imageHeight * 0.75;
-      
-      const scaleX = maxWidth / trCorner.naturalWidth;
-      const scaleY = maxHeight / trCorner.naturalHeight;
-      const scale = Math.min(scaleX, scaleY);
-      
-      const scaledWidth = trCorner.naturalWidth * scale;
-      const scaledHeight = trCorner.naturalHeight * scale;
-      
-      // Position at top-right corner of image area
-      const trX = frameOffsetX + imageWidth - scaledWidth;
-      const trY = frameOffsetY;
-      
-      ctx.drawImage(trCorner, trX, trY, scaledWidth, scaledHeight);
-      onImageLoad();
-    };
-    
-    trCorner.onerror = (err) => onImageError(err, 'top-right');
-    trCorner.src = `/tezos/tz_${theme}_photoframe-TR.png`;
-
-    // Load bottom-left corner piece  
-    const blCorner = new Image();
-    blCorner.crossOrigin = 'anonymous';
-    
-    blCorner.onload = () => {
-      // Calculate scaled dimensions to match gallery view sizing
-      // Use 75% width, 80% height to match gallery thumbnails
-      const maxWidth = imageWidth * 0.75;
-      const maxHeight = imageHeight * 0.80;
-      
-      const scaleX = maxWidth / blCorner.naturalWidth;
-      const scaleY = maxHeight / blCorner.naturalHeight;
-      const scale = Math.min(scaleX, scaleY);
-      
-      const scaledWidth = blCorner.naturalWidth * scale;
-      const scaledHeight = blCorner.naturalHeight * scale;
-      
-      // Position at bottom-left corner of image area
-      const blX = frameOffsetX;
-      const blY = frameOffsetY + imageHeight - scaledHeight;
-      
-      ctx.drawImage(blCorner, blX, blY, scaledWidth, scaledHeight);
-      onImageLoad();
-    };
-    
-    blCorner.onerror = (err) => onImageError(err, 'bottom-left');
-    blCorner.src = `/tezos/tz_${theme}_photoframe-BL.png`;
+    // No legacy corner frame themes supported anymore
+    console.log(`No legacy corner frame support for theme: ${theme}`);
+    resolve();
   });
 }
 

@@ -227,14 +227,7 @@ const PhotoGallery = ({
   
   const dynamicStyle = getAspectRatioStyle();
   
-  // Calculate GMVN frame size based on aspect ratio
-  // Use 50% for 1:1 or wider ratios, 100% for portrait ratios
-  const getGMVNFrameSize = () => {
-    const wideAspectRatios = ['square', 'landscape', 'wide', 'ultrawide'];
-    return wideAspectRatios.includes(aspectRatio) ? '50%' : '100%';
-  };
-  
-  const gmvnFrameSize = getGMVNFrameSize();
+
   
   // Ensure all photos have a Taipei frame number and frame padding assigned (migration for existing photos)
   useEffect(() => {
@@ -1077,7 +1070,7 @@ const PhotoGallery = ({
             return (
               <div
                 key={photo.id}
-                className={`film-frame loading ${isSelected ? 'selected' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && tezdevTheme === 'gmvietnam' ? 'gm-vietnam-theme' : ''} ${isSelected && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''}`}
+                className={`film-frame loading ${isSelected ? 'selected' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''}`}
                 data-enhancing={photo.enhancing ? 'true' : undefined}
                 data-error={photo.error ? 'true' : undefined}
                 data-enhanced={photo.enhanced ? 'true' : undefined}
@@ -1155,7 +1148,7 @@ const PhotoGallery = ({
           return (
             <div 
               key={photo.id}
-              className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''} ${isLoaded ? 'loaded' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && tezdevTheme === 'gmvietnam' ? 'gm-vietnam-theme' : ''} ${isSelected && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''} ${isSelected && tezdevTheme === 'taipeiblockchain' ? 'taipei-blockchain-theme' : ''}`}
+              className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''} ${isLoaded ? 'loaded' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''} ${isSelected && tezdevTheme === 'taipeiblockchain' ? 'taipei-blockchain-theme' : ''}`}
               onClick={e => isSelected ? handlePhotoViewerClick(e) : handlePhotoSelect(index, e)}
               data-enhancing={photo.enhancing ? 'true' : undefined}
               data-error={photo.error ? 'true' : undefined}
@@ -1301,44 +1294,7 @@ const PhotoGallery = ({
                   return framedImageUrls[frameKey];
                 })() && (
                   <>
-                    {/* GM Vietnam Corner Frame Overlay */}
-                    {tezdevTheme === 'gmvietnam' && (
-                      <>
-                        {/* Top-Left Corner */}
-                        <div
-                          style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: gmvnFrameSize,
-                            height: gmvnFrameSize,
-                            backgroundImage: `url(/tezos/GMVN-FRAME-TL.png)`,
-                            backgroundSize: 'contain',
-                            backgroundPosition: 'top left',
-                            backgroundRepeat: 'no-repeat',
-                            pointerEvents: 'none',
-                            zIndex: 2
-                          }}
-                        />
-                        {/* Bottom-Left Corner */}
-                        <div
-                          style={{
-                            position: 'absolute',
-                            bottom: 0,
-                            left: 0,
-                            width: gmvnFrameSize,
-                            height: gmvnFrameSize,
-                            backgroundImage: `url(/tezos/GMVN-FRAME-BL.png)`,
-                            backgroundSize: 'contain',
-                            backgroundPosition: 'bottom left',
-                            backgroundRepeat: 'no-repeat',
-                            pointerEvents: 'none',
-                            zIndex: 2
-                          }}
-                        />
-                      </>
-                    )}
-                    
+
                     {/* Super Casual Full Frame Overlay - only for narrow (2:3) aspect ratio */}
                     {tezdevTheme === 'supercasual' && aspectRatio === 'narrow' && (
                       <img
@@ -1368,7 +1324,7 @@ const PhotoGallery = ({
                           width: '100%',
                           height: '100%',
                           backgroundImage: `url(/events/tz_webx.png)`,
-                          backgroundSize: 'contain',
+                          backgroundSize: 'cover',
                           backgroundPosition: 'center',
                           backgroundRepeat: 'no-repeat',
                           pointerEvents: 'none',
@@ -1380,7 +1336,7 @@ const PhotoGallery = ({
                     {/* Taipei Blockchain Week Full Frame Overlay - only for narrow (2:3) aspect ratio */}
                     {tezdevTheme === 'taipeiblockchain' && aspectRatio === 'narrow' && (
                       <img
-                        src={`/events/taipei_blockchain_week_2025_${photo.taipeiFrameNumber || 1}.png`}
+                        src={`/events/taipei-blockchain-2025/narrow_${photo.taipeiFrameNumber || 1}.png`}
                         alt="Taipei Blockchain Week Frame"
                         style={{
                           position: 'absolute',
@@ -1388,7 +1344,7 @@ const PhotoGallery = ({
                           left: 0,
                           width: '100%',
                           height: '100%',
-                          objectFit: 'contain',
+                          objectFit: 'cover',
                           objectPosition: 'center',
                           pointerEvents: 'none',
                           zIndex: 2
@@ -1396,43 +1352,7 @@ const PhotoGallery = ({
                       />
                     )}
                     
-                    {/* Blue/Pink Corner Frame Overlays */}
-                    {(tezdevTheme === 'blue' || tezdevTheme === 'pink') && (
-                      <>
-                        {/* Top-Right Corner */}
-                        <div
-                          style={{
-                            position: 'absolute',
-                            top: 0,
-                            right: 0,
-                            width: '75%',
-                            height: '75%',
-                            backgroundImage: `url(/tezos/tz_${tezdevTheme}_photoframe-TR.png)`,
-                            backgroundSize: 'contain',
-                            backgroundPosition: 'top right',
-                            backgroundRepeat: 'no-repeat',
-                            pointerEvents: 'none',
-                            zIndex: 2
-                          }}
-                        />
-                        {/* Bottom-Left Corner */}
-                        <div
-                          style={{
-                            position: 'absolute',
-                            bottom: 0,
-                            left: 0,
-                            width: '75%',
-                            height: '80%',
-                            backgroundImage: `url(/tezos/tz_${tezdevTheme}_photoframe-BL.png)`,
-                            backgroundSize: 'contain',
-                            backgroundPosition: 'bottom left',
-                            backgroundRepeat: 'no-repeat',
-                            pointerEvents: 'none',
-                            zIndex: 2
-                          }}
-                        />
-                      </>
-                    )}
+
                   </>
                 )}
               </div>

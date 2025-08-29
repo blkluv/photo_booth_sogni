@@ -13,7 +13,7 @@ const getTezDevThemeFromCookie = () => {
   
   if (!migrationCompleted) {
     // This is the one-time migration - reset any existing theme to 'off'
-    if (savedTheme === 'pink' || savedTheme === 'blue' || savedTheme === 'gmvietnam' || savedTheme === 'supercasual') {
+    if (savedTheme === 'supercasual') {
       // Save the new default and mark migration as completed
       saveSettingsToCookies({ tezdevTheme: 'off' });
       localStorage.setItem('sogni_theme_migration_v2', 'completed');

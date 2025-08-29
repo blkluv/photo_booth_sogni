@@ -350,22 +350,7 @@ body .film-frame.selected,
   z-index: 10000 !important; /* Higher z-index to ensure visibility */
 }
 
-/* Remove white polaroid frame for GM Vietnam theme */
-body .film-frame.selected.gm-vietnam-theme.loaded,
-body .film-frame.selected.gm-vietnam-theme,
-.film-frame.selected.gm-vietnam-theme {
-  background: transparent !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-}
-.film-frame.selected.gm-vietnam-theme img {
-  border: none !important;
-  background: transparent !important;
-}
-/* Hide polaroid label for GM Vietnam theme */
-.film-frame.selected.gm-vietnam-theme .photo-label {
-  display: none !important;
-}
+
 
 /* Remove white polaroid frame for Super Casual theme */
 body .film-frame.selected.super-casual-theme.loaded,
@@ -465,22 +450,7 @@ body .film-frame.selected.taipei-blockchain-theme,
   /* Selected photo label uses same positioning as grid view on mobile */
   /* Label positioning handled by .photo-label-overlay only (see below) */
   
-  /* Remove white polaroid frame for GM Vietnam theme on mobile */
-  body .film-frame.selected.gm-vietnam-theme.loaded,
-  body .film-frame.selected.gm-vietnam-theme,
-  .film-frame.selected.gm-vietnam-theme {
-    background: transparent !important;
-    box-shadow: none !important;
-    padding: 0 !important;
-  }
-  .film-frame.selected.gm-vietnam-theme img {
-    border: none !important;
-    background: transparent !important;
-  }
-  /* Hide polaroid label for GM Vietnam theme on mobile */
-  .film-frame.selected.gm-vietnam-theme .photo-label {
-    display: none !important;
-  }
+
   
   /* Remove white polaroid frame for Super Casual theme on mobile */
   body .film-frame.selected.super-casual-theme.loaded,
