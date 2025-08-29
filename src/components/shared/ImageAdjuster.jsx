@@ -179,8 +179,8 @@ const ImageAdjuster = ({
       }
       
       setContainerStyle({
-        width: `${containerWidth}px`,
-        height: `${containerHeight}px`,
+        width: `${Math.round(containerWidth)}px`,
+        height: `${Math.round(containerHeight)}px`,
         aspectRatio: `${currentDimensions.width}/${currentDimensions.height}`
       });
     };
@@ -600,16 +600,18 @@ const ImageAdjuster = ({
                 className="dynamic-theme-frame-overlay"
                 style={{
                   position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
+                  top: '-1px',
+                  left: '-1px',
+                  width: 'calc(100% + 2px)',
+                  height: 'calc(100% + 2px)',
                   backgroundImage: `url(${frameUrls[0]})`, // Use first frame for preview
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                   backgroundRepeat: 'no-repeat',
                   pointerEvents: 'none',
-                  zIndex: 2
+                  zIndex: 2,
+                  borderRadius: '5px',
+                  transform: 'translateZ(0)' // Force GPU acceleration for crisp rendering
                 }}
               />
             )}
