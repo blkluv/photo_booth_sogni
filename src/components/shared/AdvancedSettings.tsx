@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { AspectRatioOption, TezDevTheme, OutputFormat } from '../../types/index';
 import { isFluxKontextModel, getModelRanges, getModelDefaults } from '../../constants/settings';
+import { themeConfigService } from '../../services/themeConfig';
 
 interface AdvancedSettingsProps {
   /** Whether the settings overlay is visible */
@@ -110,6 +111,11 @@ interface AdvancedSettingsProps {
 export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
   // Get current settings from context if not provided via props
   const { settings, updateSetting } = useApp();
+  
+  // State for dynamic themes
+  const [availableThemes, setAvailableThemes] = useState<Array<{value: string, label: string, defaultAspectRatio?: string}>>([]);
+  const [themesLoading, setThemesLoading] = useState(false);
+  const [themesError, setThemesError] = useState<string | null>(null);
 
   const {
     visible,
@@ -226,7 +232,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
     }
   };
 
-  const handleTezDevThemeChange = (newTheme: TezDevTheme) => {
+  const handleTezDevThemeChange = async (newTheme: TezDevTheme) => {
     // Use the provided handler or fallback to context
     if (onTezDevThemeChange) {
       onTezDevThemeChange(newTheme);
@@ -234,11 +240,47 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
       updateSetting('tezdevTheme', newTheme);
     }
     
-    // Automatically switch to narrow (2:3) aspect ratio for GM Vietnam, Super Casual, and Tezos WebX themes
-    if (newTheme === 'gmvietnam' || newTheme === 'supercasual' || newTheme === 'tezoswebx') {
-      handleAspectRatioChange('narrow');
+    // For dynamic themes, switch to their default aspect ratio
+    if (newTheme !== 'off') {
+      try {
+        const theme = await themeConfigService.getTheme(newTheme);
+        if (theme && 'defaultAspectRatio' in theme && theme.defaultAspectRatio) {
+          handleAspectRatioChange(theme.defaultAspectRatio as AspectRatioOption);
+        }
+      } catch (error) {
+        console.warn('Could not load theme default aspect ratio:', error);
+      }
     }
   };
+
+  // Load themes when component mounts or when visible changes
+  useEffect(() => {
+    const loadThemes = async () => {
+      if (!visible) return; // Only load when settings panel is open
+      
+      setThemesLoading(true);
+      setThemesError(null);
+      
+      try {
+        const themeOptions = await themeConfigService.getThemeOptions();
+        setAvailableThemes(themeOptions);
+        
+        // Check if we should set a default theme on first load
+        const defaultTheme = await themeConfigService.getDefaultTheme();
+        if (defaultTheme && currentTezDevTheme === 'off') {
+          void handleTezDevThemeChange(defaultTheme as TezDevTheme);
+        }
+      } catch (error) {
+        console.error('Failed to load themes:', error);
+        setThemesError('Failed to load themes');
+        setAvailableThemes([]);
+      } finally {
+        setThemesLoading(false);
+      }
+    };
+
+    void loadThemes();
+  }, [visible]); // Reload when settings panel opens
 
   const handleOutputFormatChange = (newFormat: OutputFormat) => {
     // Use the provided handler or fallback to context
@@ -604,16 +646,28 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
         {/* Event Theme selector */}
         <div className="control-option">
           <label className="control-label">Event Theme:</label>
-          <select
-            className="model-select"
-            onChange={(e) => handleTezDevThemeChange(e.target.value as TezDevTheme)}
-            value={currentTezDevTheme}
-          >
-            <option value="supercasual">Super Casual</option>
-            <option value="tezoswebx">Tezos WebX</option>
-            <option value="taipeiblockchain">Taipei Blockchain Week 2025</option>
-            <option value="off">Off</option>
-          </select>
+          {themesLoading ? (
+            <div className="model-select" style={{ color: '#666', fontStyle: 'italic' }}>
+              Loading themes...
+            </div>
+          ) : themesError ? (
+            <div className="model-select" style={{ color: '#666', fontStyle: 'italic' }}>
+              No themes available
+            </div>
+          ) : (
+            <select
+              className="model-select"
+              onChange={(e) => void handleTezDevThemeChange(e.target.value as TezDevTheme)}
+              value={currentTezDevTheme}
+            >
+              {availableThemes.map(theme => (
+                <option key={theme.value} value={theme.value}>
+                  {theme.label}
+                </option>
+              ))}
+              <option value="off">Off</option>
+            </select>
+          )}
         </div>
 
         {/* Output Type selector */}

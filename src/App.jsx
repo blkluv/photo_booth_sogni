@@ -13,6 +13,7 @@ import { initializeSogniClient } from './services/sogni';
 import { isNetworkError } from './services/api';
 import { enhancePhoto, undoEnhancement } from './services/PhotoEnhancer';
 import { shareToTwitter } from './services/TwitterShare';
+import { themeConfigService } from './services/themeConfig';
 import { trackPageView, initializeGA, trackEvent } from './utils/analytics';
 import clickSound from './click.mp3';
 import cameraWindSound from './camera-wind.mp3';
@@ -423,6 +424,55 @@ const App = () => {
   useEffect(() => {
     loadPromptsForModel(selectedModel);
   }, [selectedModel]);
+
+  // Load themes on startup and set default theme if needed
+  useEffect(() => {
+    const loadDefaultTheme = async () => {
+      try {
+        // Pre-load theme configuration
+        await themeConfigService.loadConfig();
+        
+        // Set default theme if current theme is 'off' and there's a default configured
+        if (tezdevTheme === 'off') {
+          const defaultTheme = await themeConfigService.getDefaultTheme();
+          if (defaultTheme) {
+            console.log('Setting default theme:', defaultTheme);
+            updateSetting('tezdevTheme', defaultTheme);
+            saveSettingsToCookies({ tezdevTheme: defaultTheme });
+            
+            // Set default aspect ratio for the theme
+            const theme = await themeConfigService.getTheme(defaultTheme);
+            if (theme?.defaultAspectRatio) {
+              updateSetting('aspectRatio', theme.defaultAspectRatio);
+              saveSettingsToCookies({ aspectRatio: theme.defaultAspectRatio });
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Could not load default theme:', error);
+      }
+    };
+
+    loadDefaultTheme();
+  }, []); // Only run on mount
+
+  // Update CSS variables when theme changes
+  useEffect(() => {
+    const updatePolaroidBorders = () => {
+      const root = document.documentElement;
+      if (tezdevTheme !== 'off') {
+        // Theme frame is active - remove polaroid borders since theme provides its own
+        root.style.setProperty('--polaroid-side-border', '0px');
+        root.style.setProperty('--polaroid-bottom-border', '0px');
+      } else {
+        // No theme frame - use default polaroid borders
+        root.style.setProperty('--polaroid-side-border', '28px');
+        root.style.setProperty('--polaroid-bottom-border', '90px');
+      }
+    };
+
+    updatePolaroidBorders();
+  }, [tezdevTheme]);
 
   // At the top of App component, add a new ref for tracking project state
   const projectStateReference = useRef({
@@ -1781,7 +1831,8 @@ const App = () => {
                 statusText: 'Calling Art Robot...',
                 sourceType, // Include sourceType in generated photos
                 // Assign Taipei frame number based on photo index for equal distribution (1-6)
-                taipeiFrameNumber: (globalPhotoIndex % 6) + 1
+                taipeiFrameNumber: (globalPhotoIndex % 6) + 1,
+                framePadding: 0 // Will be updated by migration effect in PhotoGallery
               });
             }
           }
@@ -3573,7 +3624,8 @@ const App = () => {
           stylePrompt: '', // Use context stylePrompt here? Or keep empty?
           sourceType: sourceType, // Store sourceType in photo object for reference
           // Assign Taipei frame number based on photo index for equal distribution (1-6)
-          taipeiFrameNumber: (globalPhotoIndex % 6) + 1
+          taipeiFrameNumber: (globalPhotoIndex % 6) + 1,
+          framePadding: 0 // Will be updated by migration effect in PhotoGallery
         });
       }
       
@@ -3833,7 +3885,8 @@ const App = () => {
       generationCountdown: 10,
       sourceType: currentUploadedSource === 'camera' ? 'camera' : 'upload', // Set source type based on current mode
       // Assign Taipei frame number based on current photo count for equal distribution (1-6)
-      taipeiFrameNumber: (photos.length % 6) + 1
+      taipeiFrameNumber: (photos.length % 6) + 1,
+      framePadding: 0 // Will be updated by migration effect in PhotoGallery
     };
     
     setPhotos((previous) => [...previous, newPhoto]);
@@ -4028,16 +4081,34 @@ const App = () => {
             updateSetting('aspectRatio', value);
             saveSettingsToCookies({ aspectRatio: value });
           }}
-          onTezDevThemeChange={(value) => {
+          onTezDevThemeChange={async (value) => {
             updateSetting('tezdevTheme', value);
             saveSettingsToCookies({ tezdevTheme: value });
             
-            // Automatically switch to narrow (2:3) aspect ratio for GM Vietnam, Super Casual, and Tezos WebX themes
-            if (value === 'gmvietnam' || value === 'supercasual' || value === 'tezoswebx') {
-              updateSetting('aspectRatio', 'narrow');
-              saveSettingsToCookies({ aspectRatio: 'narrow' });
-              // Update CSS variables to match the new aspect ratio
-              document.documentElement.style.setProperty('--current-aspect-ratio', '832/1216');
+            // For dynamic themes, switch to their default aspect ratio
+            if (value !== 'off') {
+              try {
+                const theme = await themeConfigService.getTheme(value);
+                if (theme?.defaultAspectRatio) {
+                  updateSetting('aspectRatio', theme.defaultAspectRatio);
+                  saveSettingsToCookies({ aspectRatio: theme.defaultAspectRatio });
+                  
+                  // Update CSS variables to match the new aspect ratio
+                  const aspectRatioMap = {
+                    'ultranarrow': '768/1344',
+                    'narrow': '832/1216',
+                    'portrait': '896/1152',
+                    'square': '1024/1024',
+                    'landscape': '1152/896',
+                    'wide': '1216/832',
+                    'ultrawide': '1344/768'
+                  };
+                  const cssRatio = aspectRatioMap[theme.defaultAspectRatio] || '1024/1024';
+                  document.documentElement.style.setProperty('--current-aspect-ratio', cssRatio);
+                }
+              } catch (error) {
+                console.warn('Could not load theme default aspect ratio:', error);
+              }
             }
           }}
           soundEnabled={soundEnabled}

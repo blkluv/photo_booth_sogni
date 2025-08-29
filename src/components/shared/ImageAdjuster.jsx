@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { getCustomDimensions } from '../../utils/imageProcessing';
 import { useApp } from '../../context/AppContext.tsx';
+import { themeConfigService } from '../../services/themeConfig';
 import '../../styles/components/ImageAdjuster.css';
 
 /**
@@ -47,9 +48,36 @@ const ImageAdjuster = ({
       sliderRef.current.value = defaultScale;
     }
   }, [initialPosition.x, initialPosition.y, defaultScale]);
+
+  // Load theme frame URLs and padding when theme or aspect ratio changes
+  useEffect(() => {
+    const loadThemeFrames = async () => {
+      if (tezdevTheme !== 'off') {
+        try {
+          const urls = await themeConfigService.getFrameUrls(tezdevTheme, aspectRatio);
+          const padding = await themeConfigService.getFramePadding(tezdevTheme);
+          setFrameUrls(urls);
+          setFramePadding(padding);
+        } catch (error) {
+          console.warn('Could not load theme frame URLs:', error);
+          setFrameUrls([]);
+          setFramePadding(0);
+        }
+      } else {
+        setFrameUrls([]);
+        setFramePadding(0);
+      }
+    };
+
+    loadThemeFrames();
+  }, [tezdevTheme, aspectRatio]);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [imageLoaded, setImageLoaded] = useState(false);
+  
+  // For dynamic theme frame URLs
+  const [frameUrls, setFrameUrls] = useState([]);
+  const [framePadding, setFramePadding] = useState(0);
   
   // For pinch zoom gesture
   const [isPinching, setIsPinching] = useState(false);
@@ -566,57 +594,17 @@ const ImageAdjuster = ({
             />
           </div>
           <div className="image-frame-overlay">
-            {/* GM Vietnam Frame Overlay */}
-            {tezdevTheme === 'gmvietnam' && (
-              <>
-                {/* Top-Left Corner */}
-                <div
-                  className="gmvn-frame-corner gmvn-frame-top-left"
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: frameSize,
-                    height: frameSize,
-                    backgroundImage: `url(/tezos/GMVN-FRAME-TL.png)`,
-                    backgroundSize: 'contain',
-                    backgroundPosition: 'top left',
-                    backgroundRepeat: 'no-repeat',
-                    pointerEvents: 'none',
-                    zIndex: 2
-                  }}
-                />
-                {/* Bottom-Left Corner */}
-                <div
-                  className="gmvn-frame-corner gmvn-frame-bottom-left"
-                  style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    width: frameSize,
-                    height: frameSize,
-                    backgroundImage: `url(/tezos/GMVN-FRAME-BL.png)`,
-                    backgroundSize: 'contain',
-                    backgroundPosition: 'bottom left',
-                    backgroundRepeat: 'no-repeat',
-                    pointerEvents: 'none',
-                    zIndex: 2
-                  }}
-                />
-              </>
-            )}
-            
-            {/* Super Casual Full Frame Overlay - only for narrow (2:3) aspect ratio */}
-            {tezdevTheme === 'supercasual' && aspectRatio === 'narrow' && (
+            {/* Dynamic Theme Frame Overlay */}
+            {frameUrls.length > 0 && (
               <div
-                className="super-casual-frame-overlay"
+                className="dynamic-theme-frame-overlay"
                 style={{
                   position: 'absolute',
                   top: 0,
                   left: 0,
                   width: '100%',
                   height: '100%',
-                  backgroundImage: `url(/events/super-casual.png)`,
+                  backgroundImage: `url(${frameUrls[0]})`, // Use first frame for preview
                   backgroundSize: 'contain',
                   backgroundPosition: 'center',
                   backgroundRepeat: 'no-repeat',
@@ -626,48 +614,8 @@ const ImageAdjuster = ({
               />
             )}
             
-            {/* Tezos WebX Full Frame Overlay - only for narrow (2:3) aspect ratio */}
-            {tezdevTheme === 'tezoswebx' && aspectRatio === 'narrow' && (
-              <div
-                className="tezos-webx-frame-overlay"
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  backgroundImage: `url(/events/tz_webx.png)`,
-                  backgroundSize: 'contain',
-                  backgroundPosition: 'center',
-                  backgroundRepeat: 'no-repeat',
-                  pointerEvents: 'none',
-                  zIndex: 2
-                }}
-              />
-            )}
-            
-            {/* Taipei Blockchain Week Full Frame Overlay - only for narrow (2:3) aspect ratio */}
-            {tezdevTheme === 'taipeiblockchain' && aspectRatio === 'narrow' && (
-              <div
-                className="taipei-blockchain-frame-overlay"
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  backgroundImage: `url(/events/taipei_blockchain_week_2025_${Math.floor(Math.random() * 6) + 1}.png)`,
-                  backgroundSize: 'contain',
-                  backgroundPosition: 'center',
-                  backgroundRepeat: 'no-repeat',
-                  pointerEvents: 'none',
-                  zIndex: 2
-                }}
-              />
-            )}
-            
-            {/* Default frame corners - only show when not using GMVN, Super Casual, Tezos WebX, or Taipei Blockchain Week themes */}
-            {tezdevTheme !== 'gmvietnam' && tezdevTheme !== 'supercasual' && tezdevTheme !== 'tezoswebx' && tezdevTheme !== 'taipeiblockchain' && (
+            {/* Default frame corners - only show when no theme is active */}
+            {tezdevTheme === 'off' && (
               <>
                 <div className="frame-corner top-left"></div>
                 <div className="frame-corner top-right"></div>
@@ -676,6 +624,7 @@ const ImageAdjuster = ({
               </>
             )}
           </div>
+
         </div>
         
         <div className="image-adjustment-controls">

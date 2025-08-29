@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import '../../styles/components/TwitterShareModal.css';
 import { createPolaroidImage } from '../../utils/imageProcessing';
 import { getPhotoHashtag } from '../../services/TwitterShare';
+import { themeConfigService } from '../../services/themeConfig';
 
 // Helper to ensure Permanent Marker font is loaded
 const ensureFontLoaded = () => {
@@ -44,38 +45,41 @@ const TwitterShareModal = ({
   
   // Initialize message with default and hashtag when modal opens
   useEffect(() => {
-    if (isOpen) {
-      if (tezdevTheme === 'tezoswebx') {
-        // Use Tezos WebX-specific message format
-        const styleTag = styleHashtag ? styleHashtag.replace('#', '') : '';
-        const tezosWebXMessage = `Just took my photo at the @sogni_protocol photobooth at the @Tezos booth at G-79 @WebX_Asia! #SogniAtWebXAsia #${styleTag} @tzapac @etherlink https://photobooth.sogni.ai/?prompt=${styleTag}`;
-        setMessage(tezosWebXMessage);
-      } else if (tezdevTheme !== 'off') {
-        // Use TezDev-specific message format
-        const styleTag = styleHashtag ? styleHashtag.replace('#', '') : '';
-        const tezdevMessage = `Just took my photo at the @sogni_protocol photobooth #${styleTag} with @tzapac @tezos @etherlink
-https://photobooth.sogni.ai/?prompt=${styleTag}`;
-        setMessage(tezdevMessage);
-      } else {
-        // Original behavior for non-TezDev themes
-        // get the current page url with deeplink
-        const currentUrl = window.location.href;
+    const loadMessage = async () => {
+      if (isOpen) {
+        if (tezdevTheme !== 'off') {
+          // Use dynamic theme-specific message format
+          try {
+            const styleTag = styleHashtag ? styleHashtag.replace('#', '') : '';
+            const themeTemplate = await themeConfigService.getTweetTemplate(tezdevTheme, styleTag);
+            setMessage(themeTemplate);
+          } catch (error) {
+            console.warn('Could not load theme tweet template, using default:', error);
+            setMessage(defaultMessage);
+          }
+        } else {
+          // Original behavior for non-TezDev themes
+          // get the current page url with deeplink
+          const currentUrl = window.location.href;
         
         const initialMessage = styleHashtag 
           ? `${defaultMessage} ${styleHashtag} ${currentUrl.split('?')[0]}?prompt=${styleHashtag.replace('#', '')}`
           : `${defaultMessage} ${currentUrl}`;
         
-        setMessage(initialMessage);
-      }
-      
-      // Focus the textarea
-      setTimeout(() => {
-        if (textareaRef.current) {
-          textareaRef.current.focus();
-          textareaRef.current.select();
+          setMessage(initialMessage);
         }
-      }, 100);
-    }
+        
+        // Focus the textarea
+        setTimeout(() => {
+          if (textareaRef.current) {
+            textareaRef.current.focus();
+            textareaRef.current.select();
+          }
+        }, 100);
+      }
+    };
+
+    loadMessage();
   }, [isOpen, defaultMessage, styleHashtag, tezdevTheme]);
 
   // Ensure font is loaded when component mounts

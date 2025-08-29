@@ -29,10 +29,10 @@
     position: relative !important;
     transform: translateY(calc(env(safe-area-inset-bottom) / -2)) !important;
     margin: 0 auto !important;
-    max-height: 85vh !important;
-    max-height: calc((var(--vh, 1vh) * 85) - env(safe-area-inset-bottom)) !important;
+    max-height: 86vh !important;
+    max-height: calc((var(--vh, 1vh) * 95) - env(safe-area-inset-bottom)) !important;
     /* Ensure polaroid frame width is not too wide on mobile portrait */
-    max-width: 92vw !important;
+    max-width: 100vw !important;
     width: auto !important;
   }
 

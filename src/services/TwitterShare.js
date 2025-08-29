@@ -4,6 +4,7 @@
  */
 import config from '../config';
 import { createPolaroidImage } from '../utils/imageProcessing';
+import { themeConfigService } from './themeConfig';
 
 /**
  * Extract hashtag from photo data
@@ -84,22 +85,21 @@ export const shareToTwitter = async ({
   // Determine the appropriate message format based on TezDev theme
   let twitterMessage = customMessage;
   
-  if (tezdevTheme === 'tezoswebx') {
-    // Use Tezos WebX-specific message format
-    const hashtag = getPhotoHashtag(photo);
-    const styleTag = hashtag ? hashtag.replace('#', '') : 'vaporwave';
-    
-    twitterMessage = `Just took my photo at the @sogni_protocol photobooth at the @Tezos booth at G-79 @WebX_Asia! #SogniAtWebXAsia #${styleTag} @tzapac @etherlink https://photobooth.sogni.ai/?prompt=${styleTag}`;
-  } else if (tezdevTheme !== 'off') {
-    // Use TezDev-specific message format
-    const hashtag = getPhotoHashtag(photo);
-    const styleTag = hashtag ? hashtag.replace('#', '') : 'vaporwave';
-    
-    twitterMessage = `Just took my photo at the @Sogni_protocol photobooth at TezDev 2025! #SogniAtTezDev2025 #${styleTag}
-@tzapac @tezos @etherlink
-https://photobooth.sogni.ai/?prompt=${styleTag}`;
+  if (tezdevTheme !== 'off') {
+    // Use dynamic theme-specific message format
+    try {
+      const hashtag = getPhotoHashtag(photo);
+      const styleTag = hashtag ? hashtag.replace('#', '') : 'vaporwave';
+      
+      const themeTemplate = await themeConfigService.getTweetTemplate(tezdevTheme, styleTag);
+      twitterMessage = themeTemplate;
+    } catch (error) {
+      console.warn('Could not load theme tweet template, using fallback:', error);
+      // Fallback to default message
+      twitterMessage = "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨";
+    }
   } else if (!twitterMessage) {
-    // Use default message for non-TezDev themes
+    // Use default message for no theme
     twitterMessage = "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨";
   }
 

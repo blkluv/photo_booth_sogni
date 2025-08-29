@@ -7,6 +7,7 @@ import { createPolaroidImage } from '../../utils/imageProcessing';
 import { getPhotoHashtag } from '../../services/TwitterShare';
 import { downloadImageMobile, enableMobileImageDownload } from '../../utils/mobileDownload';
 import { isMobile } from '../../utils/index';
+import { themeConfigService } from '../../services/themeConfig';
 
 // Memoized placeholder image component to prevent blob reloading
 const PlaceholderImage = memo(({ placeholderUrl }) => {
@@ -92,6 +93,44 @@ const PhotoGallery = ({
   // State to track composite framed images for right-click save compatibility
   const [framedImageUrls, setFramedImageUrls] = useState({});
   
+  // Keep track of the previous photos array length to detect new batches
+  const [previousPhotosLength, setPreviousPhotosLength] = useState(0);
+  
+  // Clear framed image cache when new photos are generated or theme changes
+  useEffect(() => {
+    const shouldClearCache = 
+      // New batch detected (photos array got smaller, indicating a reset)
+      photos.length < previousPhotosLength ||
+      // Or if we have a significant change in photos (new batch)
+      (photos.length > 0 && previousPhotosLength > 0 && Math.abs(photos.length - previousPhotosLength) >= 3);
+    
+    if (shouldClearCache) {
+      console.log('Clearing framed image cache due to new photo batch');
+      // Clean up existing blob URLs
+      Object.values(framedImageUrls).forEach(url => {
+        if (url && url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+      setFramedImageUrls({});
+    }
+    
+    // Update the previous length
+    setPreviousPhotosLength(photos.length);
+  }, [photos.length, previousPhotosLength, framedImageUrls]);
+
+  // Clear framed image cache when theme changes
+  useEffect(() => {
+    console.log('Clearing framed image cache due to theme change');
+    // Clean up existing blob URLs
+    Object.values(framedImageUrls).forEach(url => {
+      if (url && url.startsWith('blob:')) {
+        URL.revokeObjectURL(url);
+      }
+    });
+    setFramedImageUrls({});
+  }, [tezdevTheme]);
+  
   // Effect to handle the 10-second timeout for showing the "more" button during generation
   useEffect(() => {
     if (isGenerating && selectedPhotoIndex === null) {
@@ -112,6 +151,15 @@ const PhotoGallery = ({
 
   // Handler for the "more" button that can either generate more or cancel current generation
   const handleMoreButtonClick = useCallback(async () => {
+    // Clear framed image cache when generating more photos
+    console.log('Clearing framed image cache due to "More" button click');
+    Object.values(framedImageUrls).forEach(url => {
+      if (url && url.startsWith('blob:')) {
+        URL.revokeObjectURL(url);
+      }
+    });
+    setFramedImageUrls({});
+    
     if (isGenerating && activeProjectReference.current) {
       // Cancel current project and immediately start new batch
       console.log('Cancelling current project from more button:', activeProjectReference.current);
@@ -133,7 +181,7 @@ const PhotoGallery = ({
       // Normal "generate more photos" behavior
       handleGenerateMorePhotos();
     }
-  }, [isGenerating, activeProjectReference, sogniClient, handleGenerateMorePhotos]);
+  }, [isGenerating, activeProjectReference, sogniClient, handleGenerateMorePhotos, framedImageUrls]);
 
   // Skip rendering if there are no photos or the grid is hidden
   if (photos.length === 0 || !showPhotoGrid) return null;
@@ -188,16 +236,45 @@ const PhotoGallery = ({
   
   const gmvnFrameSize = getGMVNFrameSize();
   
-  // Ensure all photos have a Taipei frame number assigned (migration for existing photos)
+  // Ensure all photos have a Taipei frame number and frame padding assigned (migration for existing photos)
   useEffect(() => {
     const needsFrameNumbers = photos.some(photo => !photo.taipeiFrameNumber);
-    if (needsFrameNumbers) {
-      setPhotos(prev => prev.map((photo, index) => ({
-        ...photo,
-        taipeiFrameNumber: photo.taipeiFrameNumber || (index % 6) + 1
-      })));
+    const needsFramePadding = photos.some(photo => photo.framePadding === undefined);
+    
+    if (needsFrameNumbers || needsFramePadding) {
+      const migratePhotos = async () => {
+        const updatedPhotos = await Promise.all(
+          photos.map(async (photo, index) => {
+            const updatedPhoto = { ...photo };
+            
+            // Add frame number if missing
+            if (!updatedPhoto.taipeiFrameNumber) {
+              updatedPhoto.taipeiFrameNumber = (index % 6) + 1;
+            }
+            
+            // Add frame padding if missing and we have a theme
+            if (updatedPhoto.framePadding === undefined && tezdevTheme !== 'off') {
+              try {
+                const padding = await themeConfigService.getFramePadding(tezdevTheme);
+                updatedPhoto.framePadding = padding;
+              } catch (error) {
+                console.warn('Could not get frame padding for photo migration:', error);
+                updatedPhoto.framePadding = 0;
+              }
+            } else if (updatedPhoto.framePadding === undefined) {
+              updatedPhoto.framePadding = 0;
+            }
+            
+            return updatedPhoto;
+          })
+        );
+        
+        setPhotos(updatedPhotos);
+      };
+      
+      void migratePhotos();
     }
-  }, [photos, setPhotos]);
+  }, [photos, setPhotos, tezdevTheme]);
 
   // Get the Taipei frame number for the currently selected photo (stored in photo data)
   const getCurrentTaipeiFrameNumber = () => {
@@ -1168,15 +1245,49 @@ const PhotoGallery = ({
                     // Allow native context menu for image downloads
                     e.stopPropagation();
                   }}
-                  style={{
-                    width: '100%',
-                    objectFit: 'cover',
-                    position: 'relative',
-                    top: 0,
-                    left: 0,
-                    display: 'block',
-                    opacity: 0 // Start invisible, will be set to 1 immediately via onLoad without transition
-                  }}
+                  style={(() => {
+                    const baseStyle = {
+                      objectFit: 'cover',
+                      position: 'relative',
+                      display: 'block',
+                      opacity: 0 // Start invisible, will be set to 1 immediately via onLoad without transition
+                    };
+                    
+                    // For themes with frame padding, account for the border
+                    if (isSelected && tezdevTheme !== 'off') {
+                      // Check if we have a composite framed image - if so, use full size
+                      const currentSubIndex = photo.enhanced && photo.enhancedImageUrl 
+                        ? -1 // Special case for enhanced images
+                        : (selectedSubIndex || 0);
+                      const photoTaipeiFrameNumber = photo.taipeiFrameNumber || 1;
+                      const frameKey = `${index}-${currentSubIndex}-${tezdevTheme}-${photoTaipeiFrameNumber}-${outputFormat}`;
+                      const hasFramedImage = framedImageUrls[frameKey];
+                      
+                      if (!hasFramedImage) {
+                        // No composite image yet, so check for frame padding and adjust
+                        // Use cached frame padding from photo data or get it dynamically
+                        const framePadding = photo.framePadding || 0;
+                        if (framePadding > 0) {
+                          const borderPercent = `${framePadding}px`;
+                          return {
+                            ...baseStyle,
+                            width: `calc(100% - ${framePadding * 2}px)`,
+                            height: `calc(100% - ${framePadding * 2}px)`,
+                            top: borderPercent,
+                            left: borderPercent
+                          };
+                        }
+                      }
+                    }
+                    
+                    // Default styling for all other cases
+                    return {
+                      ...baseStyle,
+                      width: '100%',
+                      top: 0,
+                      left: 0
+                    };
+                  })()}
                 />
                 
                 {/* Event Theme Overlays - Only show on selected (popup) view when not using composite framed image */}

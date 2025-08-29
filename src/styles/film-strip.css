@@ -1,7 +1,7 @@
 /* Polaroid frame sizing variables */
 :root {
   --polaroid-side-border: 28px;
-  --polaroid-bottom-border: 98px;
+  --polaroid-bottom-border: 90px;
 }
 /* -----------------------------------
    Film Strip Thumbnail Viewer Styles
@@ -277,7 +277,7 @@ body .film-frame.selected,
   width: auto !important;
   height: auto !important;
   max-width: min(90vw, 800px) !important;
-  max-height: 85vh !important;
+  max-height: 86vh !important;
   margin: 0 !important;
   padding: var(--polaroid-side-border) !important;
   padding-bottom: var(--polaroid-bottom-border) !important; /* Bottom space for label */
@@ -286,7 +286,7 @@ body .film-frame.selected,
   display: block !important;
   background: white !important; /* White polaroid background */
   box-shadow: 0 8px 30px rgba(0,0,0,0.3) !important;
-  border-radius: 4px !important;
+  border-radius: 3px !important;
   border: none !important;
   cursor: zoom-out !important;
   transition: none !important;
@@ -310,7 +310,7 @@ body .film-frame.selected,
   width: 100% !important;
   height: auto !important;
   max-width: 100% !important;
-  max-height: calc(85vh - var(--polaroid-side-border) - var(--polaroid-bottom-border)) !important; /* Account for proper padding and label space */
+  max-height: calc(86vh - var(--polaroid-side-border) - var(--polaroid-bottom-border)) !important; /* Account for proper padding and label space */
   object-fit: contain !important;
   aspect-ratio: auto !important;
   border-radius: 2px !important;
@@ -433,7 +433,7 @@ body .film-frame.selected.taipei-blockchain-theme,
     width: 100vw !important;
     height: auto !important;
     max-width: none !important;
-    max-height: 85vh !important;
+    max-height: 86vh !important;
     margin: 0 !important;
     padding: var(--polaroid-side-border) !important;
     padding-bottom: var(--polaroid-bottom-border) !important; /* Mobile bottom space */
@@ -441,14 +441,14 @@ body .film-frame.selected.taipei-blockchain-theme,
     display: block !important;
     background: white !important; /* White polaroid background */
     box-shadow: 0 8px 30px rgba(0,0,0,0.3) !important;
-    border-radius: 4px !important;
+    border-radius: 3px !important;
   }
   .film-frame.selected img {
     border: none !important;
     width: 100% !important;
     height: auto !important;
     max-width: 100% !important;
-    max-height: calc(85vh - var(--polaroid-side-border) - var(--polaroid-bottom-border)) !important; /* Account for proper padding and label space */
+    max-height: calc(86vh - var(--polaroid-side-border) - var(--polaroid-bottom-border)) !important; /* Account for proper padding and label space */
     object-fit: contain !important;
     background: transparent !important;
     box-sizing: border-box !important;

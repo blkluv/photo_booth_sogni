@@ -1,3 +1,5 @@
+import { themeConfigService } from '../services/themeConfig';
+
 /**
  * Returns dimensions based on the selected aspect ratio or device orientation.
  * @param {string} aspectRatio - 'portrait', 'narrow', 'ultranarrow', 'landscape', 'wide', 'ultrawide', or 'square'
@@ -81,7 +83,7 @@ export async function resizeDataUrl(dataUrl, width, height) {
  * @returns {Promise<string>} Data URL of the generated polaroid image
  */
 export async function createPolaroidImage(imageUrl, label, options = {}) {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     const {
       frameWidth = 56,
       frameTopWidth = 56,
@@ -108,7 +110,7 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
     const img = new Image();
     img.crossOrigin = 'anonymous'; // Handle CORS for image loading
     
-    img.onload = () => {
+    img.onload = async () => {
       // Ensure any text to draw exists
       const textToDraw = label ? label.trim() : '';
       console.log(`Drawing polaroid with label: "${textToDraw}"`);
@@ -156,7 +158,31 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
       ctx.fillRect(0, 0, polaroidWidth, polaroidHeight);
       
       // Draw the image centered in the frame
-      ctx.drawImage(img, frameWidth, frameTopWidth, imageWidth, imageHeight);
+      // For themes with frame padding, account for the border baked into the frame
+      if (tezdevTheme !== 'off') {
+        try {
+          const framePadding = await themeConfigService.getFramePadding(tezdevTheme);
+          if (framePadding > 0) {
+            // Reduce image size to account for the border
+            const adjustedImageWidth = imageWidth - (framePadding * 2);
+            const adjustedImageHeight = imageHeight - (framePadding * 2);
+            // Center the smaller image within the original bounds
+            const adjustedX = frameWidth + framePadding;
+            const adjustedY = frameTopWidth + framePadding;
+            ctx.drawImage(img, adjustedX, adjustedY, adjustedImageWidth, adjustedImageHeight);
+            console.log(`Drew image with ${tezdevTheme} frame padding adjustment (${framePadding}px): ${adjustedImageWidth}x${adjustedImageHeight} at (${adjustedX}, ${adjustedY})`);
+          } else {
+            // No padding needed for this theme
+            ctx.drawImage(img, frameWidth, frameTopWidth, imageWidth, imageHeight);
+          }
+        } catch (error) {
+          console.warn('Could not load theme frame padding, using standard image drawing:', error);
+          ctx.drawImage(img, frameWidth, frameTopWidth, imageWidth, imageHeight);
+        }
+      } else {
+        // Standard image drawing for no theme
+        ctx.drawImage(img, frameWidth, frameTopWidth, imageWidth, imageHeight);
+      }
       
       // Apply TezDev frame if enabled (works on all aspect ratios now)
       if (tezdevTheme !== 'off') {
@@ -248,217 +274,59 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
  * @param {string} theme - TezDev theme ('blue', 'pink', or 'gmvietnam')
  */
 async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, frameOffsetY, theme, aspectRatio, options = {}) {
-  return new Promise((resolve, reject) => {
-    // Handle GM Vietnam theme with corner frames
-    if (theme === 'gmvietnam') {
-      let loadedImages = 0;
-      const totalImages = 2;
-      let hasError = false;
-      
-      // Calculate frame size based on aspect ratio
-      // Use 50% for 1:1 or wider ratios, 100% for portrait ratios
-      const wideAspectRatios = ['square', 'landscape', 'wide', 'ultrawide'];
-      const frameScale = wideAspectRatios.includes(aspectRatio) ? 0.5 : 1.0;
-
-      const onImageLoad = () => {
-        loadedImages++;
-        if (loadedImages === totalImages && !hasError) {
-          console.log('Applied GM Vietnam corner frame overlay');
-          resolve();
-        }
-      };
-
-      const onImageError = (err, position) => {
-        if (!hasError) {
-          hasError = true;
-          console.error(`Failed to load GM Vietnam ${position} frame:`, err);
-          reject(err);
-        }
-      };
-
-      // Load top-left corner frame
-      const tlCorner = new Image();
-      tlCorner.crossOrigin = 'anonymous';
-      
-      tlCorner.onload = () => {
-        // Calculate scaled dimensions based on aspect ratio
-        // Use frameScale (75% for wide ratios, 100% for portrait ratios)
-        const maxWidth = imageWidth * frameScale;
-        const maxHeight = imageHeight * frameScale;
-        
-        const scaleX = maxWidth / tlCorner.naturalWidth;
-        const scaleY = maxHeight / tlCorner.naturalHeight;
-        const scale = Math.min(scaleX, scaleY);
-        
-        const scaledWidth = tlCorner.naturalWidth * scale;
-        const scaledHeight = tlCorner.naturalHeight * scale;
-        
-        // Position at top-left corner of image area
-        const tlX = frameOffsetX;
-        const tlY = frameOffsetY;
-        
-        ctx.drawImage(tlCorner, tlX, tlY, scaledWidth, scaledHeight);
-        onImageLoad();
-      };
-      
-      tlCorner.onerror = (err) => onImageError(err, 'top-left');
-      tlCorner.src = '/tezos/GMVN-FRAME-TL.png';
-
-      // Load bottom-left corner frame
-      const blCorner = new Image();
-      blCorner.crossOrigin = 'anonymous';
-      
-      blCorner.onload = () => {
-        // Calculate scaled dimensions based on aspect ratio
-        // Use frameScale (75% for wide ratios, 100% for portrait ratios)
-        const maxWidth = imageWidth * frameScale;
-        const maxHeight = imageHeight * frameScale;
-        
-        const scaleX = maxWidth / blCorner.naturalWidth;
-        const scaleY = maxHeight / blCorner.naturalHeight;
-        const scale = Math.min(scaleX, scaleY);
-        
-        const scaledWidth = blCorner.naturalWidth * scale;
-        const scaledHeight = blCorner.naturalHeight * scale;
-        
-        // Position at bottom-left corner of image area
-        const blX = frameOffsetX;
-        const blY = frameOffsetY + imageHeight - scaledHeight;
-        
-        ctx.drawImage(blCorner, blX, blY, scaledWidth, scaledHeight);
-        onImageLoad();
-      };
-      
-      blCorner.onerror = (err) => onImageError(err, 'bottom-left');
-      blCorner.src = '/tezos/GMVN-FRAME-BL.png';
-      return;
-    }
-    
-    // Handle Super Casual theme - only for narrow (2:3) aspect ratio
-    if (theme === 'supercasual') {
-      // Only apply Super Casual theme to narrow (2:3) aspect ratio
-      if (aspectRatio !== 'narrow') {
-        console.log('Super Casual theme only applies to narrow (2:3) aspect ratio');
+  return new Promise(async (resolve, reject) => {
+    // Handle dynamic themes
+    try {
+      const frameUrls = await themeConfigService.getFrameUrls(theme, aspectRatio);
+      if (frameUrls.length === 0) {
+        console.log(`No frame URLs found for theme ${theme} with aspect ratio ${aspectRatio}`);
         resolve();
         return;
       }
-      
-      const superCasualFrame = new Image();
-      superCasualFrame.crossOrigin = 'anonymous';
-      
-      superCasualFrame.onload = () => {
-        // Scale the frame to fit the image area
-        const maxWidth = imageWidth;
-        const maxHeight = imageHeight;
-        
-        const scaleX = maxWidth / superCasualFrame.naturalWidth;
-        const scaleY = maxHeight / superCasualFrame.naturalHeight;
-        const scale = Math.min(scaleX, scaleY);
-        
-        const scaledWidth = superCasualFrame.naturalWidth * scale;
-        const scaledHeight = superCasualFrame.naturalHeight * scale;
-        
-        // Center the frame over the image
-        const frameX = frameOffsetX + (imageWidth - scaledWidth) / 2;
-        const frameY = frameOffsetY + (imageHeight - scaledHeight) / 2;
-        
-        ctx.drawImage(superCasualFrame, frameX, frameY, scaledWidth, scaledHeight);
-        console.log('Applied Super Casual frame overlay');
-        resolve();
-      };
-      
-      superCasualFrame.onerror = (err) => {
-        console.error('Failed to load Super Casual frame:', err);
-        reject(err);
-      };
-      
-      superCasualFrame.src = '/events/super-casual.png';
-      return;
-    }
-    
-    // Handle Tezos WebX theme - only for narrow (2:3) aspect ratio
-    if (theme === 'tezoswebx') {
-      // Only apply Tezos WebX theme to narrow (2:3) aspect ratio
-      if (aspectRatio !== 'narrow') {
-        console.log('Tezos WebX theme only applies to narrow (2:3) aspect ratio');
-        resolve();
-        return;
+
+      // Determine which frame to use
+      let frameUrl;
+      if (frameUrls.length === 1) {
+        frameUrl = frameUrls[0];
+      } else {
+        // Multiple frames available, use provided frame number or calculate one
+        const frameIndex = options.taipeiFrameNumber ? (options.taipeiFrameNumber - 1) : ((imageWidth + imageHeight) % frameUrls.length);
+        frameUrl = frameUrls[frameIndex] || frameUrls[0];
       }
+
+      const themeFrame = new Image();
+      themeFrame.crossOrigin = 'anonymous';
       
-      const tezosWebXFrame = new Image();
-      tezosWebXFrame.crossOrigin = 'anonymous';
-      
-      tezosWebXFrame.onload = () => {
-        // Scale the frame to fit the image area
-        const maxWidth = imageWidth;
-        const maxHeight = imageHeight;
-        
-        const scaleX = maxWidth / tezosWebXFrame.naturalWidth;
-        const scaleY = maxHeight / tezosWebXFrame.naturalHeight;
+      themeFrame.onload = () => {
+        // Scale the frame to match the full image area
+        const scaleX = imageWidth / themeFrame.naturalWidth;
+        const scaleY = imageHeight / themeFrame.naturalHeight;
         const scale = Math.min(scaleX, scaleY);
         
-        const scaledWidth = tezosWebXFrame.naturalWidth * scale;
-        const scaledHeight = tezosWebXFrame.naturalHeight * scale;
+        const scaledFrameWidth = themeFrame.naturalWidth * scale;
+        const scaledFrameHeight = themeFrame.naturalHeight * scale;
         
-        // Center the frame over the image
-        const frameX = frameOffsetX + (imageWidth - scaledWidth) / 2;
-        const frameY = frameOffsetY + (imageHeight - scaledHeight) / 2;
+        // Position the frame to cover the entire image area
+        const frameX = frameOffsetX + (imageWidth - scaledFrameWidth) / 2;
+        const frameY = frameOffsetY + (imageHeight - scaledFrameHeight) / 2;
         
-        ctx.drawImage(tezosWebXFrame, frameX, frameY, scaledWidth, scaledHeight);
-        console.log('Applied Tezos WebX frame overlay');
+        // Draw the frame
+        ctx.drawImage(themeFrame, frameX, frameY, scaledFrameWidth, scaledFrameHeight);
+        console.log(`Applied ${theme} theme frame: ${frameUrl}`);
         resolve();
       };
       
-      tezosWebXFrame.onerror = (err) => {
-        console.error('Failed to load Tezos WebX frame:', err);
+      themeFrame.onerror = (err) => {
+        console.error(`Failed to load ${theme} theme frame: ${frameUrl}`, err);
         reject(err);
       };
       
-      tezosWebXFrame.src = '/events/tz_webx.png';
+      themeFrame.src = frameUrl;
       return;
-    }
-    
-    // Handle Taipei Blockchain Week theme - only for narrow (2:3) aspect ratio
-    if (theme === 'taipeiblockchain') {
-      // Only apply Taipei Blockchain Week theme to narrow (2:3) aspect ratio
-      if (aspectRatio !== 'narrow') {
-        console.log('Taipei Blockchain Week theme only applies to narrow (2:3) aspect ratio');
-        resolve();
-        return;
-      }
       
-      // Use provided frame number or fall back to consistent selection based on canvas dimensions
-      const frameNumber = options.taipeiFrameNumber || ((imageWidth + imageHeight) % 6) + 1;
-      const taipeiFrame = new Image();
-      taipeiFrame.crossOrigin = 'anonymous';
-      
-      taipeiFrame.onload = () => {
-        // Scale the frame to fit the image area
-        const maxWidth = imageWidth;
-        const maxHeight = imageHeight;
-        
-        const scaleX = maxWidth / taipeiFrame.naturalWidth;
-        const scaleY = maxHeight / taipeiFrame.naturalHeight;
-        const scale = Math.min(scaleX, scaleY);
-        
-        const scaledWidth = taipeiFrame.naturalWidth * scale;
-        const scaledHeight = taipeiFrame.naturalHeight * scale;
-        
-        // Center the frame over the image
-        const frameX = frameOffsetX + (imageWidth - scaledWidth) / 2;
-        const frameY = frameOffsetY + (imageHeight - scaledHeight) / 2;
-        
-        ctx.drawImage(taipeiFrame, frameX, frameY, scaledWidth, scaledHeight);
-        console.log(`Applied Taipei Blockchain Week frame ${frameNumber} overlay`);
-        resolve();
-      };
-      
-      taipeiFrame.onerror = (err) => {
-        console.error(`Failed to load Taipei Blockchain Week frame ${frameNumber}:`, err);
-        reject(err);
-      };
-      
-      taipeiFrame.src = `/events/taipei_blockchain_week_2025_${frameNumber}.png`;
+    } catch (error) {
+      console.error(`Error loading theme configuration for ${theme}:`, error);
+      resolve(); // Continue without frame
       return;
     }
     
