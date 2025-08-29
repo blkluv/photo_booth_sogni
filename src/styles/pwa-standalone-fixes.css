@@ -59,28 +59,13 @@
     /* Remove min-height and contain that break the grid */
   }
 
-  /* Fix photo grid animations in PWA mode */
-  .film-frame.loading:not(.selected):not(.newly-arrived) {
-    /* Disable complex animations that cause issues in PWA */
-    animation: none !important;
-    transition: opacity 0.3s ease !important;
-  }
 
-  /* Simplify loading placeholder animations for PWA */
-  .film-frame.loading .placeholder {
-    animation: simple-fade-in 0.5s ease forwards !important;
-  }
-
-  @keyframes simple-fade-in {
-    from { opacity: 0.1; }
-    to { opacity: 0.3; }
-  }
 
   /* CAMERA POSITIONING - Adjust to better position (reduce from 300px) */
   [class*="cameraContainer"] {
     align-items: flex-start !important;
     justify-content: center !important;
-    padding-top: max(180px, env(safe-area-inset-top) + 160px) !important;
+    padding-top: max(180px, env(safe-area-inset-top) + 120px) !important;
     padding-bottom: max(40px, env(safe-area-inset-bottom) + 30px) !important;
     height: unset !important;
   }
@@ -157,7 +142,7 @@
 
   /* Fix photo close button positioning - move down from status bar */
   .photo-close-btn {
-    top: max(60px, env(safe-area-inset-top) + 50px) !important;
+    top: max(60px, env(safe-area-inset-top) + 15px) !important;
     right: max(20px, env(safe-area-inset-right) + 10px) !important;
     /* Ensure it's in a touchable area */
     min-width: 44px !important;
@@ -242,13 +227,5 @@
     will-change: auto !important;
   }
 
-  .film-strip-container.pwa-mode .film-frame.loading {
-    /* Simplified loading states for better PWA performance */
-    transition: opacity 0.3s ease !important;
-  }
 
-  .film-strip-container.pwa-mode .film-frame.loading .placeholder {
-    /* Disable complex animations in PWA mode */
-    animation: simple-fade-in 0.5s ease forwards !important;
-  }
 }
