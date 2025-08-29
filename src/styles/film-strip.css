@@ -502,7 +502,6 @@ body .film-frame.selected.taipei-blockchain-theme,
   .film-frame.selected.taipei-blockchain-theme .photo-label {
     display: none !important;
   }
-  
 
   
   body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {

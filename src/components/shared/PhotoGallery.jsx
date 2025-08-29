@@ -221,6 +221,25 @@ const PhotoGallery = ({
   // Skip rendering if there are no photos or the grid is hidden
   if (photos.length === 0 || !showPhotoGrid) return null;
   
+  // Helper function to check if current theme supports the current aspect ratio
+  const isThemeSupported = useCallback(() => {
+    if (tezdevTheme === 'off') return false;
+    
+    // Check hardcoded theme aspect ratio requirements
+    switch (tezdevTheme) {
+      case 'supercasual':
+      case 'tezoswebx':
+      case 'taipeiblockchain': {
+        return aspectRatio === 'narrow';
+      }
+      default:
+        // For dynamic themes, assume they support all aspect ratios
+        // The actual validation happens in applyTezDevFrame() which checks
+        // themeConfigService.getFrameUrls() and gracefully handles unsupported combinations
+        return true;
+    }
+  }, [tezdevTheme, aspectRatio]);
+  
   // Calculate proper aspect ratio style based on the selected aspect ratio
   const getAspectRatioStyle = () => {
     let aspectRatioValue = '1/1'; // Default to square
@@ -315,7 +334,7 @@ const PhotoGallery = ({
 
   // Helper function to pre-generate framed image for a specific photo index
   const preGenerateFrameForPhoto = useCallback(async (photoIndex) => {
-    if (tezdevTheme === 'off' || !photos[photoIndex]) {
+    if (!isThemeSupported() || !photos[photoIndex]) {
       return;
     }
 
@@ -361,7 +380,7 @@ const PhotoGallery = ({
         console.error('Error pre-generating framed image:', error);
       }
     }
-  }, [tezdevTheme, photos, selectedSubIndex, outputFormat, framedImageUrls, aspectRatio]);
+  }, [isThemeSupported, photos, selectedSubIndex, outputFormat, framedImageUrls, aspectRatio]);
 
   // Expose the pre-generation function to parent component
   useEffect(() => {
@@ -516,8 +535,8 @@ const PhotoGallery = ({
   // Generate composite framed image when photo is selected with decorative theme
   useEffect(() => {
     const generateFramedImage = async () => {
-      // Only generate for selected photos with decorative themes
-      if (selectedPhotoIndex === null || tezdevTheme === 'off' || !photos[selectedPhotoIndex]) {
+      // Only generate for selected photos with supported themes
+      if (selectedPhotoIndex === null || !isThemeSupported() || !photos[selectedPhotoIndex]) {
         return;
       }
 
@@ -571,7 +590,7 @@ const PhotoGallery = ({
     };
 
     generateFramedImage();
-  }, [selectedPhotoIndex, tezdevTheme, selectedSubIndex, photos, aspectRatio, outputFormat, framedImageUrls]);
+  }, [selectedPhotoIndex, selectedSubIndex, photos, aspectRatio, outputFormat, framedImageUrls, isThemeSupported]);
 
   // Cleanup old framed image URLs to prevent memory leaks
   useEffect(() => {
@@ -682,19 +701,20 @@ const PhotoGallery = ({
       // Wait for fonts to load
       await document.fonts.ready;
       
-      // Create framed image: custom theme frame OR default polaroid frame
+      // Create framed image: supported custom theme frame OR default polaroid frame
       // Use the outputFormat setting for framed downloads (unlike Twitter which always uses JPG)
-      const polaroidUrl = await createPolaroidImage(imageUrl, tezdevTheme === 'off' ? photoLabel : '', {
-        tezdevTheme,
+      const useTheme = isThemeSupported();
+      const polaroidUrl = await createPolaroidImage(imageUrl, !useTheme ? photoLabel : '', {
+        tezdevTheme: useTheme ? tezdevTheme : 'off',
         aspectRatio,
-        // If custom theme is off, use default polaroid frame; otherwise no polaroid frame
-        frameWidth: tezdevTheme === 'off' ? 56 : 0,
-        frameTopWidth: tezdevTheme === 'off' ? 56 : 0,
-        frameBottomWidth: tezdevTheme === 'off' ? 196 : 0,
-        frameColor: tezdevTheme === 'off' ? 'white' : 'transparent',
+        // If theme is not supported, use default polaroid frame; otherwise no polaroid frame
+        frameWidth: !useTheme ? 56 : 0,
+        frameTopWidth: !useTheme ? 56 : 0,
+        frameBottomWidth: !useTheme ? 196 : 0,
+        frameColor: !useTheme ? 'white' : 'transparent',
         outputFormat: outputFormat, // Use the actual outputFormat setting for framed downloads
         // For Taipei theme, pass the current frame number to ensure consistency
-        taipeiFrameNumber: tezdevTheme === 'taipeiblockchain' ? photos[photoIndex].taipeiFrameNumber : undefined
+        taipeiFrameNumber: useTheme && tezdevTheme === 'taipeiblockchain' ? photos[photoIndex].taipeiFrameNumber : undefined
       });
       
              // Handle download
@@ -1174,7 +1194,7 @@ const PhotoGallery = ({
             return (
               <div
                 key={photo.id}
-                className={`film-frame loading ${isSelected ? 'selected' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''}`}
+                className={`film-frame loading ${isSelected ? 'selected' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''}`}
                 data-enhancing={photo.enhancing ? 'true' : undefined}
                 data-error={photo.error ? 'true' : undefined}
                 data-enhanced={photo.enhanced ? 'true' : undefined}
@@ -1252,7 +1272,7 @@ const PhotoGallery = ({
           return (
             <div 
               key={photo.id}
-              className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''} ${isLoaded ? 'loaded' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''} ${isSelected && tezdevTheme === 'taipeiblockchain' ? 'taipei-blockchain-theme' : ''}`}
+              className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''} ${isLoaded ? 'loaded' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'taipeiblockchain' ? 'taipei-blockchain-theme' : ''}`}
               onClick={e => isSelected ? handlePhotoViewerClick(e) : handlePhotoSelect(index, e)}
               data-enhancing={photo.enhancing ? 'true' : undefined}
               data-error={photo.error ? 'true' : undefined}
@@ -1277,8 +1297,8 @@ const PhotoGallery = ({
               }}>
                 <img 
                   src={(() => {
-                    // For selected photos with decorative themes, use composite framed image if available
-                    if (isSelected && tezdevTheme !== 'off') {
+                    // For selected photos with supported themes, use composite framed image if available
+                    if (isSelected && isThemeSupported()) {
                       const currentSubIndex = photo.enhanced && photo.enhancedImageUrl 
                         ? -1 // Special case for enhanced images
                         : (selectedSubIndex || 0);
@@ -1350,8 +1370,8 @@ const PhotoGallery = ({
                       opacity: 0 // Start invisible, will be set to 1 immediately via onLoad without transition
                     };
                     
-                    // For themes with frame padding, account for the border
-                    if (isSelected && tezdevTheme !== 'off') {
+                    // For supported themes with frame padding, account for the border
+                    if (isSelected && isThemeSupported()) {
                       // Check if we have a composite framed image - if so, use full size
                       const currentSubIndex = photo.enhanced && photo.enhancedImageUrl 
                         ? -1 // Special case for enhanced images
@@ -1387,8 +1407,8 @@ const PhotoGallery = ({
                   })()}
                 />
                 
-                {/* Event Theme Overlays - Only show on selected (popup) view when not using composite framed image */}
-                {thumbUrl && isLoaded && isSelected && tezdevTheme !== 'off' && !(() => {
+                {/* Event Theme Overlays - Only show on selected (popup) view when theme is supported and not using composite framed image */}
+                {thumbUrl && isLoaded && isSelected && isThemeSupported() && !(() => {
                   // Check if we have a composite framed image for this photo
                   const currentSubIndex = photo.enhanced && photo.enhancedImageUrl 
                     ? -1 // Special case for enhanced images
