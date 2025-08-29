@@ -131,6 +131,18 @@ const PhotoGallery = ({
     });
     setFramedImageUrls({});
   }, [tezdevTheme]);
+
+  // Clear framed image cache when aspect ratio changes
+  useEffect(() => {
+    console.log('Clearing framed image cache due to aspect ratio change');
+    // Clean up existing blob URLs
+    Object.values(framedImageUrls).forEach(url => {
+      if (url && url.startsWith('blob:')) {
+        URL.revokeObjectURL(url);
+      }
+    });
+    setFramedImageUrls({});
+  }, [aspectRatio]);
   
   // Effect to handle the 10-second timeout for showing the "more" button during generation
   useEffect(() => {
@@ -319,7 +331,7 @@ const PhotoGallery = ({
     if (!imageUrl) return;
 
     const currentTaipeiFrameNumber = photo.taipeiFrameNumber || ((photoIndex % 6) + 1);
-    const frameKey = `${photoIndex}-${currentSubIndex}-${tezdevTheme}-${currentTaipeiFrameNumber}-${outputFormat}`;
+    const frameKey = `${photoIndex}-${currentSubIndex}-${tezdevTheme}-${currentTaipeiFrameNumber}-${outputFormat}-${aspectRatio}`;
     
     // Only generate if we don't already have this framed image
     if (!framedImageUrls[frameKey]) {
@@ -522,7 +534,7 @@ const PhotoGallery = ({
 
       // Create a unique key for this photo + theme + format combination
       const currentTaipeiFrameNumber = getCurrentTaipeiFrameNumber();
-      const frameKey = `${selectedPhotoIndex}-${currentSubIndex}-${tezdevTheme}-${currentTaipeiFrameNumber}-${outputFormat}`;
+      const frameKey = `${selectedPhotoIndex}-${currentSubIndex}-${tezdevTheme}-${currentTaipeiFrameNumber}-${outputFormat}-${aspectRatio}`;
       
       // Skip if we already have this framed image
       if (framedImageUrls[frameKey]) {
@@ -1271,7 +1283,7 @@ const PhotoGallery = ({
                         ? -1 // Special case for enhanced images
                         : (selectedSubIndex || 0);
                       const photoTaipeiFrameNumber = photo.taipeiFrameNumber || 1;
-                      const frameKey = `${index}-${currentSubIndex}-${tezdevTheme}-${photoTaipeiFrameNumber}-${outputFormat}`;
+                      const frameKey = `${index}-${currentSubIndex}-${tezdevTheme}-${photoTaipeiFrameNumber}-${outputFormat}-${aspectRatio}`;
                       const framedImageUrl = framedImageUrls[frameKey];
                       if (framedImageUrl) {
                         return framedImageUrl;
@@ -1345,7 +1357,7 @@ const PhotoGallery = ({
                         ? -1 // Special case for enhanced images
                         : (selectedSubIndex || 0);
                       const photoTaipeiFrameNumber = photo.taipeiFrameNumber || 1;
-                      const frameKey = `${index}-${currentSubIndex}-${tezdevTheme}-${photoTaipeiFrameNumber}-${outputFormat}`;
+                      const frameKey = `${index}-${currentSubIndex}-${tezdevTheme}-${photoTaipeiFrameNumber}-${outputFormat}-${aspectRatio}`;
                       const hasFramedImage = framedImageUrls[frameKey];
                       
                       if (!hasFramedImage) {
@@ -1382,7 +1394,7 @@ const PhotoGallery = ({
                     ? -1 // Special case for enhanced images
                     : (selectedSubIndex || 0);
                   const photoTaipeiFrameNumber = photo.taipeiFrameNumber || 1;
-                  const frameKey = `${index}-${currentSubIndex}-${tezdevTheme}-${photoTaipeiFrameNumber}-${outputFormat}`;
+                  const frameKey = `${index}-${currentSubIndex}-${tezdevTheme}-${photoTaipeiFrameNumber}-${outputFormat}-${aspectRatio}`;
                   return framedImageUrls[frameKey];
                 })() && (
                   <>
