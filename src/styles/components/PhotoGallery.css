@@ -54,22 +54,17 @@
   }
 }
 
-/* Continuous pulse from max exposure down to 0 and back */
+/* Continuous pulse from max exposure down to 7% below max and back */
 @keyframes polaroid-pulse {
   0% {
     opacity: 0.4;
     filter: brightness(1.35) contrast(0.85) saturate(0.9) sepia(0.06) hue-rotate(-2deg) blur(1.5px);
     background-color: rgba(240, 240, 242, 0.12);
   }
-  30% {
-    opacity: 0.1;
-    filter: brightness(2.5) contrast(0.4) saturate(0.4) sepia(0.25) hue-rotate(-12deg) blur(8px);
-    background-color: rgba(240, 240, 242, 0.6);
-  }
-  70% {
-    opacity: 0;
-    filter: brightness(3) contrast(0.2) saturate(0.3) sepia(0.3) hue-rotate(-15deg) blur(10px);
-    background-color: rgba(240, 240, 242, 0.8);
+  50% {
+    opacity: 0.33;
+    filter: brightness(1.45) contrast(0.8) saturate(0.85) sepia(0.08) hue-rotate(-3deg) blur(2px);
+    background-color: rgba(240, 240, 242, 0.18);
   }
   100% {
     opacity: 0.4;
