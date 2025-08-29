@@ -184,6 +184,28 @@ const PhotoGallery = ({
     }
   }, [isGenerating, activeProjectReference, sogniClient, handleGenerateMorePhotos, framedImageUrls]);
 
+  // Utility function to clear frame cache for a specific photo
+  const clearFrameCacheForPhoto = useCallback((photoIndex) => {
+    console.log(`Clearing frame cache for photo #${photoIndex}`);
+    const keysToRemove = Object.keys(framedImageUrls).filter(key => 
+      key.startsWith(`${photoIndex}-`)
+    );
+    
+    keysToRemove.forEach(key => {
+      if (framedImageUrls[key] && framedImageUrls[key].startsWith('blob:')) {
+        URL.revokeObjectURL(framedImageUrls[key]);
+      }
+    });
+    
+    if (keysToRemove.length > 0) {
+      setFramedImageUrls(prev => {
+        const cleaned = { ...prev };
+        keysToRemove.forEach(key => delete cleaned[key]);
+        return cleaned;
+      });
+    }
+  }, [framedImageUrls]);
+
   // Skip rendering if there are no photos or the grid is hidden
   if (photos.length === 0 || !showPhotoGrid) return null;
   
@@ -981,7 +1003,8 @@ const PhotoGallery = ({
                       undoEnhancement({
                         photoIndex: currentPhotoIndex,
                         subIndex: selectedSubIndex || 0,
-                        setPhotos
+                        setPhotos,
+                        clearFrameCache: clearFrameCacheForPhoto
                       });
                     }, 0);
                   }
@@ -997,10 +1020,18 @@ const PhotoGallery = ({
             <button
               className="action-button enhance-btn"
               onClick={(e) => {
+                e.stopPropagation();
+                
+                // Prevent double-clicking by checking if already enhancing
+                if (photos[selectedPhotoIndex].enhancing) {
+                  console.log('[ENHANCE] Already enhancing, ignoring click');
+                  return;
+                }
+                
                 // Use the functional form of setPhotos to get the latest state
                 setPhotos(currentPhotos => {
                   const currentPhotoIndex = selectedPhotoIndex;
-                  if (currentPhotoIndex !== null && currentPhotos[currentPhotoIndex]) {
+                  if (currentPhotoIndex !== null && currentPhotos[currentPhotoIndex] && !currentPhotos[currentPhotoIndex].enhancing) {
                     // Call enhance photo in the next tick to ensure we have the latest state
                     setTimeout(() => {
                       enhancePhoto({
@@ -1012,6 +1043,7 @@ const PhotoGallery = ({
                         sogniClient,
                         setPhotos,
                         outputFormat: outputFormat,
+                        clearFrameCache: clearFrameCacheForPhoto,
                         onSetActiveProject: (projectId) => {
                           activeProjectReference.current = projectId;
                         }
@@ -1020,7 +1052,6 @@ const PhotoGallery = ({
                   }
                   return currentPhotos; // Don't modify photos array here
                 });
-                e.stopPropagation();
               }}
               disabled={photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error}
             >

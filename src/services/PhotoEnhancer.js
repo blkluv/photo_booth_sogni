@@ -26,14 +26,35 @@ export const enhancePhoto = async (options) => {
     sogniClient,
     setPhotos,
     outputFormat,
-    onSetActiveProject
+    clearFrameCache,
+    // onSetActiveProject - not used for enhancement to avoid interfering with main generation
   } = options;
 
   try {
-    // Get image data
-    const imageUrl = photo.images[subIndex] || photo.originalDataUrl;
+    console.log(`🚀 [ENHANCE-DEBUG] UPDATED PhotoEnhancer.js loaded! Starting enhancement for photo #${photoIndex}`, { photo, width, height, outputFormat });
+    console.log(`[ENHANCE] Photo state:`, {
+      enhanced: photo.enhanced,
+      hasOriginalEnhancedImage: !!photo.originalEnhancedImage,
+      imagesLength: photo.images?.length,
+      hasOriginalDataUrl: !!photo.originalDataUrl
+    });
+    
+    // Get image data - always use the original generated image for enhancement, not the current (potentially enhanced) image
+    // Priority: 1) stored original from first enhancement, 2) generated image from grid, 3) fallback to camera original
+    const imageUrl = photo.originalEnhancedImage || photo.images[subIndex] || photo.originalDataUrl;
+    console.log(`[ENHANCE] Using image URL: ${imageUrl?.substring(0, 100)}...`);
+    console.log(`[ENHANCE] Image source priority: originalEnhancedImage=${!!photo.originalEnhancedImage}, images[${subIndex}]=${!!photo.images[subIndex]}, originalDataUrl=${!!photo.originalDataUrl}`);
+    
+    if (!imageUrl) {
+      throw new Error(`No image URL found for enhancement. Photo #${photoIndex}, subIndex: ${subIndex}`);
+    }
+    
     const response = await fetch(imageUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+    }
     const imageBlob = await response.blob();
+    console.log(`[ENHANCE] Image blob size: ${imageBlob.size} bytes`);
     
     // Set loading state
     setPhotos(prev => {
@@ -43,7 +64,12 @@ export const enhancePhoto = async (options) => {
       // Store the original image if not already stored
       let originalImage = null;
       if (!updated[photoIndex].originalEnhancedImage) {
+        // Store the generated image from the grid (not the raw camera image) for consistent enhancement
         originalImage = updated[photoIndex].images[subIndex] || updated[photoIndex].originalDataUrl;
+        console.log(`[ENHANCE] Storing original generated image for first enhancement: ${originalImage?.substring(0, 100)}...`);
+        console.log(`[ENHANCE] Original source priority: images[${subIndex}]=${!!updated[photoIndex].images[subIndex]}, originalDataUrl=${!!updated[photoIndex].originalDataUrl}`);
+      } else {
+        console.log(`[ENHANCE] Original image already stored: ${updated[photoIndex].originalEnhancedImage?.substring(0, 100)}...`);
       }
       
       updated[photoIndex] = {
@@ -59,7 +85,11 @@ export const enhancePhoto = async (options) => {
     
     // Start enhancement
     const arrayBuffer = await imageBlob.arrayBuffer();
-    console.log(`[ENHANCE] Creating enhancement project with Sogni API`, photo, width, height);
+    console.log(`[ENHANCE] Creating enhancement project with Sogni API`, { photoIndex, width, height, arrayBufferSize: arrayBuffer.byteLength });
+    
+    if (!sogniClient || !sogniClient.projects || !sogniClient.projects.create) {
+      throw new Error('Sogni client is not properly initialized');
+    }
     
     // Use the same API path as regular generation to get proper upload handling
     const project = await sogniClient.projects.create({
@@ -79,6 +109,7 @@ export const enhancePhoto = async (options) => {
       // so we don't override them here
       startingImage: new Uint8Array(arrayBuffer),
       startingImageStrength: 0.75,
+      sourceType: 'enhancement', // Add sourceType for backend tracking
     });
       
       // Wait for upload completion like regular generation does
@@ -108,9 +139,9 @@ export const enhancePhoto = async (options) => {
         }, 5000); // 5 second timeout
       });
       
-      // Track progress
-      onSetActiveProject(project.id);
-      console.log(`[ENHANCE] Project created with ID: ${project.id}`);
+      // Don't set activeProjectReference for enhancement to avoid interfering with main generation
+      // onSetActiveProject(project.id); // Commented out to prevent interference
+      console.log(`[ENHANCE] Enhancement project created with ID: ${project.id} (not setting as active to avoid interference)`);
       
       // Now update with project ID after creation
       setPhotos(prev => {
@@ -149,8 +180,14 @@ export const enhancePhoto = async (options) => {
       // Listen for jobCompleted event (not completed)
       project.on('jobCompleted', (job) => {
         console.log('Enhance jobCompleted full payload:', job);
-        onSetActiveProject(null);
+        // Don't clear activeProjectReference since we didn't set it for enhancement
+        // onSetActiveProject(null); // Commented out since we don't set it
         if (job.resultUrl) {
+          // Clear frame cache for this photo since the image has changed
+          if (clearFrameCache) {
+            clearFrameCache(photoIndex);
+          }
+          
           setPhotos(prev => {
             const updated = [...prev];
             if (!updated[photoIndex]) return prev;
@@ -189,7 +226,8 @@ export const enhancePhoto = async (options) => {
       // Listen for jobFailed event (not failed)
       project.on('jobFailed', (job) => {
         console.error('Enhance jobFailed full payload:', job);
-        onSetActiveProject(null);
+        // Don't clear activeProjectReference since we didn't set it for enhancement
+        // onSetActiveProject(null); // Commented out since we don't set it
         setPhotos(prev => {
           const updated = [...prev];
           if (!updated[photoIndex]) return prev;
@@ -232,15 +270,23 @@ export const enhancePhoto = async (options) => {
  * @param {(updater: (prev: any[]) => any[]) => void} options.setPhotos - React setState function for photos
  * @returns {void}
  */
-export const undoEnhancement = ({ photoIndex, subIndex, setPhotos }) => {
+export const undoEnhancement = ({ photoIndex, subIndex, setPhotos, clearFrameCache }) => {
   console.log(`[ENHANCE] Undoing enhancement for photo #${photoIndex}`);
+  
+  // Clear frame cache for this photo since the image is changing back
+  if (clearFrameCache) {
+    clearFrameCache(photoIndex);
+  }
   setPhotos(prev => {
     const updated = [...prev];
     const photo = updated[photoIndex];
     
     // Restore the original image if we have it
     if (photo.originalEnhancedImage) {
+      console.log(`[ENHANCE] Restoring original image: ${photo.originalEnhancedImage.substring(0, 100)}...`);
       const updatedImages = [...photo.images];
+      console.log(`[ENHANCE] Current enhanced image being replaced: ${updatedImages[subIndex]?.substring(0, 100)}...`);
+      
       // Make sure we have a valid subIndex
       const indexToRestore = subIndex < updatedImages.length 
         ? subIndex 
@@ -248,12 +294,14 @@ export const undoEnhancement = ({ photoIndex, subIndex, setPhotos }) => {
       
       if (indexToRestore >= 0) {
         updatedImages[indexToRestore] = photo.originalEnhancedImage;
+        console.log(`[ENHANCE] Restored image at index ${indexToRestore}`);
       }
       
       updated[photoIndex] = {
         ...photo,
         enhanced: false,
         images: updatedImages
+        // Keep originalEnhancedImage for future enhancements
       };
     } else {
       // If we don't have the original, just remove the enhanced flag

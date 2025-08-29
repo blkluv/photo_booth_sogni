@@ -441,8 +441,10 @@ export class BackendSogniClient {
     // Debug log to track sourceType
     console.log(`BackendSogniClient.createProject called with sourceType: ${typeof params.sourceType === 'string' ? params.sourceType : 'undefined'}`);
     
-    // Clean up old projects to prevent timeout conflicts (for "more" functionality)
-    if (this.activeProjects.size > 0) {
+    // Only clean up old projects for non-enhancement requests to prevent timeout conflicts
+    // Enhancement projects should run independently without interfering with main generation
+    const isEnhancement = params.sourceType === 'enhancement';
+    if (this.activeProjects.size > 0 && !isEnhancement) {
       console.log(`Cleaning up ${this.activeProjects.size} old projects before starting new one`);
       for (const [oldProjectId, oldProject] of this.activeProjects.entries()) {
         try {
@@ -455,6 +457,8 @@ export class BackendSogniClient {
         }
       }
       this.activeProjects.clear();
+    } else if (isEnhancement) {
+      console.log(`Creating enhancement project without cleaning up existing ${this.activeProjects.size} projects`);
     }
     
     // Create a new project object to return to the caller
