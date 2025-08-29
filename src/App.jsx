@@ -1301,19 +1301,35 @@ const App = () => {
   const photosRef = useRef(photos);
   photosRef.current = photos;
 
+  // Ref to store the frame pre-generation function from PhotoGallery
+  const preGenerateFrameRef = useRef(null);
+
+  // Callback to receive the frame pre-generation function from PhotoGallery
+  const handlePreGenerateFrameCallback = useCallback((preGenerateFunction) => {
+    preGenerateFrameRef.current = preGenerateFunction;
+  }, []);
+
   // Updated to use the utility function - using refs to avoid dependencies
-  const handlePreviousPhoto = useCallback(() => {
+  const handlePreviousPhoto = useCallback(async () => {
     const newIndex = goToPreviousPhoto(photosRef.current, selectedPhotoIndex);
     if (newIndex !== selectedPhotoIndex) {
+      // Pre-generate frame for new photo if needed
+      if (preGenerateFrameRef.current) {
+        await preGenerateFrameRef.current(newIndex);
+      }
       setSelectedPhotoIndex(newIndex);
       setSelectedSubIndex(0);
     }
   }, [selectedPhotoIndex]);
 
   // Updated to use the utility function - using refs to avoid dependencies  
-  const handleNextPhoto = useCallback(() => {
+  const handleNextPhoto = useCallback(async () => {
     const newIndex = goToNextPhoto(photosRef.current, selectedPhotoIndex);
     if (newIndex !== selectedPhotoIndex) {
+      // Pre-generate frame for new photo if needed
+      if (preGenerateFrameRef.current) {
+        await preGenerateFrameRef.current(newIndex);
+      }
       setSelectedPhotoIndex(newIndex);
       setSelectedSubIndex(0);
     }
@@ -4344,6 +4360,7 @@ const App = () => {
           tezdevTheme={tezdevTheme}
           aspectRatio={aspectRatio}
           handleRetryPhoto={handleRetryPhoto}
+          onPreGenerateFrame={handlePreGenerateFrameCallback}
         />
           </div>
         )}

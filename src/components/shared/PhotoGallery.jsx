@@ -84,6 +84,7 @@ const PhotoGallery = ({
   tezdevTheme = 'off',
   aspectRatio = null,
   handleRetryPhoto,
+  onPreGenerateFrame, // New prop to handle frame pre-generation from parent
 }) => {
 
   
@@ -277,8 +278,65 @@ const PhotoGallery = ({
     // Fallback to frame 1 if not set (shouldn't happen with new photos)
     return 1;
   };
+
+  // Helper function to pre-generate framed image for a specific photo index
+  const preGenerateFrameForPhoto = useCallback(async (photoIndex) => {
+    if (tezdevTheme === 'off' || !photos[photoIndex]) {
+      return;
+    }
+
+    const photo = photos[photoIndex];
+    const currentSubIndex = photo.enhanced && photo.enhancedImageUrl 
+      ? -1 // Special case for enhanced images
+      : (selectedSubIndex || 0);
+      
+    const imageUrl = currentSubIndex === -1
+      ? photo.enhancedImageUrl
+      : photo.images[currentSubIndex];
+    
+    if (!imageUrl) return;
+
+    const currentTaipeiFrameNumber = photo.taipeiFrameNumber || ((photoIndex % 6) + 1);
+    const frameKey = `${photoIndex}-${currentSubIndex}-${tezdevTheme}-${currentTaipeiFrameNumber}-${outputFormat}`;
+    
+    // Only generate if we don't already have this framed image
+    if (!framedImageUrls[frameKey]) {
+      try {
+        // Wait for fonts to load
+        await document.fonts.ready;
+        
+        // Create composite framed image
+        const framedImageUrl = await createPolaroidImage(imageUrl, '', {
+          tezdevTheme,
+          aspectRatio,
+          frameWidth: 0,      // No polaroid frame for decorative themes
+          frameTopWidth: 0,   // No polaroid frame for decorative themes  
+          frameBottomWidth: 0, // No polaroid frame for decorative themes
+          frameColor: 'transparent', // No polaroid background
+          outputFormat: outputFormat,
+          // For Taipei theme, pass the current frame number to ensure consistency
+          taipeiFrameNumber: tezdevTheme === 'taipeiblockchain' ? currentTaipeiFrameNumber : undefined
+        });
+        
+        // Store the framed image URL
+        setFramedImageUrls(prev => ({
+          ...prev,
+          [frameKey]: framedImageUrl
+        }));
+      } catch (error) {
+        console.error('Error pre-generating framed image:', error);
+      }
+    }
+  }, [tezdevTheme, photos, selectedSubIndex, outputFormat, framedImageUrls, aspectRatio]);
+
+  // Expose the pre-generation function to parent component
+  useEffect(() => {
+    if (onPreGenerateFrame) {
+      onPreGenerateFrame(preGenerateFrameForPhoto);
+    }
+  }, [onPreGenerateFrame, preGenerateFrameForPhoto]);
   
-  const handlePhotoSelect = useCallback((index, e) => {
+  const handlePhotoSelect = useCallback(async (index, e) => {
     const element = e.currentTarget;
     
     if (selectedPhotoIndex === index) {
@@ -321,6 +379,9 @@ const PhotoGallery = ({
     // Capture starting position
     const first = element.getBoundingClientRect();
     
+    // Pre-generate framed image if using decorative theme before showing popup
+    await preGenerateFrameForPhoto(index);
+    
     // Update state to mark as selected
     setSelectedPhotoIndex(index);
     
@@ -341,7 +402,7 @@ const PhotoGallery = ({
       // Animate to final position
       element.style.transition = 'transform 0.5s cubic-bezier(0.2, 0, 0.2, 1)';
     });
-  }, [selectedPhotoIndex, setSelectedPhotoIndex]);
+  }, [selectedPhotoIndex, setSelectedPhotoIndex, preGenerateFrameForPhoto]);
 
   // Create memoized hashtags for all photos
   const photoHashtags = useMemo(() => {
@@ -1409,6 +1470,7 @@ PhotoGallery.propTypes = {
   aspectRatio: PropTypes.string,
   handleRetryPhoto: PropTypes.func,
   outputFormat: PropTypes.string,
+  onPreGenerateFrame: PropTypes.func, // New prop for frame pre-generation callback
 };
 
 export default React.memo(PhotoGallery); 
