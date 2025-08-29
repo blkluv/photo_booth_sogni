@@ -466,8 +466,8 @@ const App = () => {
         root.style.setProperty('--polaroid-bottom-border', '0px');
       } else {
         // No theme frame - use default polaroid borders
-        root.style.setProperty('--polaroid-side-border', '28px');
-        root.style.setProperty('--polaroid-bottom-border', '90px');
+        root.style.setProperty('--polaroid-side-border', '24px');
+        root.style.setProperty('--polaroid-bottom-border', '84px');
       }
     };
 
@@ -4270,7 +4270,7 @@ const App = () => {
                 <h2 className="marker-font">Photobooth Tips</h2>
                 <ul className="marker-font">
                   <li>Generated compositions reuses the same face size, position, and orientation as the camera snapshot so step back and get creative!</li>
-                  <li>Only one face at a time! If multiple faces the biggest one in frame is used.</li>
+                  <li>Only one face at a time unless using Flux.1 Kontext! If multiple faces the biggest one in frame is used.</li>
                   <li>The more light / dark depth on your face the better, flat even light results can be subpar.</li>
                   <li>Try using the Custom Prompt feature and providing your own prompt!</li>
                   <li>You can even drag a photo into the camera window to use as a reference!</li>
@@ -4454,17 +4454,7 @@ const App = () => {
         styleElement.textContent = `
           /* ------- FIX 1: Style dropdown ------- */
           .style-dropdown {
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
-            max-height: 380px;
-            width: 240px;
-            overflow-y: auto;
-            padding: 8px;
-            z-index: 1000;
-            position: absolute;
             animation: dropdownAppear 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards;
-            border: 1px solid rgba(0,0,0,0.1);
           }
           
           /* Position variations */

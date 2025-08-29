@@ -138,17 +138,10 @@
   
   /* Main content area fix to center properly with safe area insets */
   .main-content-area {
-    height: calc(var(--vh, 1vh) * 100) !important;
+    max-height: calc((var(--vh, 1vh) * 100) - env(safe-area-inset-bottom)) !important;
     padding-bottom: env(safe-area-inset-bottom);
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-  }
-  
-  /* Fix for global photobooth frame centering */
-  .polaroidFrame, [class*="polaroidFrame"] {
-    margin: 0 auto !important;
-    max-height: calc((var(--vh, 1vh) * 85) - env(safe-area-inset-bottom)) !important;
-    transform: translateY(calc(env(safe-area-inset-bottom) / -2.5)) !important;
   }
 } 

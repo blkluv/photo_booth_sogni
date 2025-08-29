@@ -96,7 +96,7 @@
 
 .twitter-message {
   width: 100%;
-  min-height: 100px;
+  min-height: 120px;
   padding: 12px;
   border: 1px solid #ddd;
   border-radius: 8px;
@@ -134,14 +134,6 @@
   position: relative;
 }
 
-.twitter-image-preview img {
-  max-width: 100%;
-  max-height: 300px;
-  object-fit: contain;
-  border-radius: 4px;
-  display: block;
-}
-
 /* Styling for polaroid image container */
 .polaroid-container {
   display: flex;
@@ -155,10 +147,8 @@
 .polaroid-container img {
   /* For polaroid data URLs */
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  margin: 12px 0;
-  max-height: 400px; /* Increased from 360px to accommodate larger bottom border */
-  border-radius: 4px;
   object-fit: contain;
+  max-height: 48vh;
 }
 
 /* Debug label - hidden in production */
@@ -288,16 +278,8 @@
     max-height: calc(85vh - 140px);
   }
   
-  .twitter-message {
-    min-height: 80px;
-  }
-  
   .twitter-image-preview {
     min-height: 180px;
-  }
-  
-  .twitter-image-preview img {
-    max-height: 250px;
   }
 }
 
@@ -336,9 +318,5 @@
   .twitter-image-preview {
     padding: 8px;
     min-height: 150px;
-  }
-  
-  .twitter-image-preview img[src^="data:image"] {
-    max-height: 320px;
   }
 } 

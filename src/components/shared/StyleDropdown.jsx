@@ -37,7 +37,7 @@ const StyleDropdown = ({
       const styleButton = document.querySelector(triggerButtonClass) || document.querySelector('.grid-style-btn');
       if (styleButton) {
         const rect = styleButton.getBoundingClientRect();
-        const dropdownWidth = 240;
+        const dropdownWidth = 300;
         const dropdownHeight = 450; // Increased to accommodate theme section
         
         // Calculate safe left position to prevent off-screen rendering

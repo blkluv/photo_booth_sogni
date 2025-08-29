@@ -676,26 +676,6 @@
   z-index: 1010;
 }
 
-/* iOS Safari specific fixes */
-@supports (-webkit-touch-callout: none) {
-  /* Enhanced vertical positioning for iOS Safari with bottom bar */
-  @media (orientation: portrait) {
-    .cameraContainer {
-      height: calc(var(--vh, 1vh) * 100) !important;
-      padding-bottom: env(safe-area-inset-bottom) !important;
-    }
-    
-    .polaroidFrame {
-      transform: translateY(calc(env(safe-area-inset-bottom) / -2.5)) !important;
-      max-height: calc((var(--vh, 1vh) * 85) - env(safe-area-inset-bottom)) !important;
-    }
-    
-    .bottomControls {
-      bottom: max(12px, calc(env(safe-area-inset-bottom) - 5px)) !important;
-    }
-  }
-}
-
 /* Thumbnail button styles */
 .thumbnailButton {
   background: white;

@@ -1,7 +1,7 @@
 /* Polaroid frame sizing variables */
 :root {
-  --polaroid-side-border: 28px;
-  --polaroid-bottom-border: 90px;
+  --polaroid-side-border: 24px;
+  --polaroid-bottom-border: 84px;
 }
 /* -----------------------------------
    Film Strip Thumbnail Viewer Styles

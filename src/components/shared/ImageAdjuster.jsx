@@ -602,8 +602,8 @@ const ImageAdjuster = ({
                   position: 'absolute',
                   top: '-1px',
                   left: '-1px',
-                  width: 'calc(100% + 2px)',
                   height: 'calc(100% + 2px)',
+                  width: 'calc(100% + 2px)',
                   backgroundImage: `url(${frameUrls[0]})`, // Use first frame for preview
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',

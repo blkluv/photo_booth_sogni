@@ -10,19 +10,19 @@
 
 /* Dropdown styling */
 .style-dropdown {
-  position: fixed;
-  width: 240px;
-  max-height: 450px;
+  position: absolute;
+  width: 280px;
   background: white;
   border-radius: 8px;
   box-shadow: 0 6px 24px rgba(0,0,0,0.25);
-  overflow: auto;
+  overflow-y: auto;
   z-index: 10000;
   border: 1px solid rgba(0,0,0,0.1);
   font-family: "Permanent Marker", cursive;
   font-size: 14px;
   padding: 8px;
   transform: translateX(-50%);
+  max-height: 80vh;
 }
 
 /* Position variations */
@@ -154,11 +154,6 @@
 
 /* Responsive styles */
 @media (max-width: 600px), (orientation: portrait) and (max-device-width: 1024px) {
-  .style-dropdown {
-    width: 200px;
-    max-height: 320px; /* Increased to accommodate theme section */
-  }
-  
   .style-option {
     font-size: 13px;
     padding: 8px 10px;
