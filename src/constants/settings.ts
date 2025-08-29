@@ -126,8 +126,8 @@ export const getDefaultAspectRatio = (): AspectRatioOption => {
     return savedAspectRatio as AspectRatioOption;
   }
   
-  // For new users, default to portrait (3:4) 
-  return 'portrait';
+  // For new users, default to narrow (2:3) 
+  return 'narrow';
 };
 
 // Create DEFAULT_SETTINGS using centralized defaults
