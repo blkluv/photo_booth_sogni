@@ -73,6 +73,7 @@ const PhotoGallery = ({
   stylePrompts,
   enhancePhoto,
   undoEnhancement,
+  redoEnhancement,
   sogniClient,
   desiredWidth,
   desiredHeight,
@@ -103,6 +104,26 @@ const PhotoGallery = ({
   
   // Keep track of the previous photos array length to detect new batches
   const [previousPhotosLength, setPreviousPhotosLength] = useState(0);
+  
+  // Auto-dismiss enhancement errors after 5 seconds
+  useEffect(() => {
+    if (selectedPhotoIndex !== null && photos[selectedPhotoIndex]?.enhancementError) {
+      const timer = setTimeout(() => {
+        setPhotos(prev => {
+          const updated = [...prev];
+          if (updated[selectedPhotoIndex]) {
+            updated[selectedPhotoIndex] = {
+              ...updated[selectedPhotoIndex],
+              enhancementError: null
+            };
+          }
+          return updated;
+        });
+      }, 5000); // 5 seconds
+
+      return () => clearTimeout(timer);
+    }
+  }, [selectedPhotoIndex, photos[selectedPhotoIndex]?.enhancementError, setPhotos]);
   
   // Clear framed image cache when new photos are generated or theme changes
   useEffect(() => {
@@ -1080,75 +1101,193 @@ const PhotoGallery = ({
             Raw
           </button>
 
-          {/* Enhance Button - only show if canEnhance is true */}
-          {photos[selectedPhotoIndex].enhanced ? (
-            <button
-              className="action-button enhance-btn"
-              onClick={(e) => {
-                // Use the functional form of setPhotos to get the latest state
-                setPhotos(currentPhotos => {
-                  const currentPhotoIndex = selectedPhotoIndex;
-                  if (currentPhotoIndex !== null) {
-                    // Call undo enhancement in the next tick to ensure we have the latest state
-                    setTimeout(() => {
-                      undoEnhancement({
-                        photoIndex: currentPhotoIndex,
-                        subIndex: selectedSubIndex || 0,
-                        setPhotos,
-                        clearFrameCache: clearFrameCacheForPhoto
-                      });
-                    }, 0);
+          {/* Enhanced Enhance Button with Undo/Redo functionality */}
+          <div className="enhance-button-container" style={{ position: 'relative', display: 'inline-block' }}>
+            {photos[selectedPhotoIndex].enhanced ? (
+              <button
+                className="action-button enhance-btn"
+                onClick={(e) => {
+                  // Use the functional form of setPhotos to get the latest state
+                  setPhotos(currentPhotos => {
+                    const currentPhotoIndex = selectedPhotoIndex;
+                    if (currentPhotoIndex !== null) {
+                      // Call undo enhancement in the next tick to ensure we have the latest state
+                      setTimeout(() => {
+                        undoEnhancement({
+                          photoIndex: currentPhotoIndex,
+                          subIndex: selectedSubIndex || 0,
+                          setPhotos,
+                          clearFrameCache: clearFrameCacheForPhoto
+                        });
+                      }, 0);
+                    }
+                    return currentPhotos; // Don't modify photos array here
+                  });
+                  e.stopPropagation();
+                }}
+                disabled={photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error}
+              >
+                ↩️ Undo
+              </button>
+            ) : photos[selectedPhotoIndex].canRedo ? (
+              // Show both Redo and Enhance buttons when redo is available
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  className="action-button enhance-btn redo-btn"
+                  onClick={(e) => {
+                    setPhotos(currentPhotos => {
+                      const currentPhotoIndex = selectedPhotoIndex;
+                      if (currentPhotoIndex !== null) {
+                        setTimeout(() => {
+                          redoEnhancement({
+                            photoIndex: currentPhotoIndex,
+                            subIndex: selectedSubIndex || 0,
+                            setPhotos,
+                            clearFrameCache: clearFrameCacheForPhoto
+                          });
+                        }, 0);
+                      }
+                      return currentPhotos;
+                    });
+                    e.stopPropagation();
+                  }}
+                  disabled={photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing}
+                >
+                  ↪️ Redo
+                </button>
+                <button
+                  className={`action-button enhance-btn ${photos[selectedPhotoIndex].enhancing ? 'loading' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    
+                    // Prevent double-clicking by checking if already enhancing
+                    if (photos[selectedPhotoIndex].enhancing) {
+                      console.log('[ENHANCE] Already enhancing, ignoring click');
+                      return;
+                    }
+                    
+                    // Use the functional form of setPhotos to get the latest state
+                    setPhotos(currentPhotos => {
+                      const currentPhotoIndex = selectedPhotoIndex;
+                      if (currentPhotoIndex !== null && currentPhotos[currentPhotoIndex] && !currentPhotos[currentPhotoIndex].enhancing) {
+                        // Call enhance photo in the next tick to ensure we have the latest state
+                        setTimeout(() => {
+                          enhancePhoto({
+                            photo: currentPhotos[currentPhotoIndex],
+                            photoIndex: currentPhotoIndex,
+                            subIndex: selectedSubIndex || 0,
+                            width: desiredWidth,
+                            height: desiredHeight,
+                            sogniClient,
+                            setPhotos,
+                            outputFormat: outputFormat,
+                            clearFrameCache: clearFrameCacheForPhoto,
+                            onSetActiveProject: (projectId) => {
+                              activeProjectReference.current = projectId;
+                            }
+                          });
+                        }, 0);
+                      }
+                      return currentPhotos; // Don't modify photos array here
+                    });
+                  }}
+                  disabled={photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing}
+                >
+                  <span>✨ {photos[selectedPhotoIndex].enhancing ? 
+                    (photos[selectedPhotoIndex].enhancementProgress !== undefined ? 
+                      `Enhancing ${Math.round((photos[selectedPhotoIndex].enhancementProgress || 0) * 100)}%` : 
+                      'Enhancing') : 
+                    'Enhance'}</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                className={`action-button enhance-btn ${photos[selectedPhotoIndex].enhancing ? 'loading' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  
+                  // Prevent double-clicking by checking if already enhancing
+                  if (photos[selectedPhotoIndex].enhancing) {
+                    console.log('[ENHANCE] Already enhancing, ignoring click');
+                    return;
                   }
-                  return currentPhotos; // Don't modify photos array here
-                });
-                e.stopPropagation();
-              }}
-              disabled={photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error}
-            >
-              ↩️ Undo
-            </button>
-          ) : (
-            <button
-              className={`action-button enhance-btn ${photos[selectedPhotoIndex].enhancing ? 'loading' : ''}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                
-                // Prevent double-clicking by checking if already enhancing
-                if (photos[selectedPhotoIndex].enhancing) {
-                  console.log('[ENHANCE] Already enhancing, ignoring click');
-                  return;
-                }
-                
-                // Use the functional form of setPhotos to get the latest state
-                setPhotos(currentPhotos => {
-                  const currentPhotoIndex = selectedPhotoIndex;
-                  if (currentPhotoIndex !== null && currentPhotos[currentPhotoIndex] && !currentPhotos[currentPhotoIndex].enhancing) {
-                    // Call enhance photo in the next tick to ensure we have the latest state
-                    setTimeout(() => {
-                      enhancePhoto({
-                        photo: currentPhotos[currentPhotoIndex],
-                        photoIndex: currentPhotoIndex,
-                        subIndex: selectedSubIndex || 0,
-                        width: desiredWidth,
-                        height: desiredHeight,
-                        sogniClient,
-                        setPhotos,
-                        outputFormat: outputFormat,
-                        clearFrameCache: clearFrameCacheForPhoto,
-                        onSetActiveProject: (projectId) => {
-                          activeProjectReference.current = projectId;
-                        }
-                      });
-                    }, 0);
-                  }
-                  return currentPhotos; // Don't modify photos array here
-                });
-              }}
-              disabled={photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing}
-            >
-              <span>✨ {photos[selectedPhotoIndex].enhancing ? 'Enhancing...' : 'Enhance'}</span>
-            </button>
-          )}
+                  
+                  // Use the functional form of setPhotos to get the latest state
+                  setPhotos(currentPhotos => {
+                    const currentPhotoIndex = selectedPhotoIndex;
+                    if (currentPhotoIndex !== null && currentPhotos[currentPhotoIndex] && !currentPhotos[currentPhotoIndex].enhancing) {
+                      // Call enhance photo in the next tick to ensure we have the latest state
+                      setTimeout(() => {
+                        enhancePhoto({
+                          photo: currentPhotos[currentPhotoIndex],
+                          photoIndex: currentPhotoIndex,
+                          subIndex: selectedSubIndex || 0,
+                          width: desiredWidth,
+                          height: desiredHeight,
+                          sogniClient,
+                          setPhotos,
+                          outputFormat: outputFormat,
+                          clearFrameCache: clearFrameCacheForPhoto,
+                          onSetActiveProject: (projectId) => {
+                            activeProjectReference.current = projectId;
+                          }
+                        });
+                      }, 0);
+                    }
+                    return currentPhotos; // Don't modify photos array here
+                  });
+                }}
+                disabled={photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing}
+              >
+                <span>✨ {photos[selectedPhotoIndex].enhancing ? 
+                  (photos[selectedPhotoIndex].enhancementProgress !== undefined ? 
+                    `Enhancing ${Math.round((photos[selectedPhotoIndex].enhancementProgress || 0) * 100)}%` : 
+                    'Enhancing') : 
+                  'Enhance'}</span>
+              </button>
+            )}
+
+            
+            {/* Error message */}
+            {photos[selectedPhotoIndex].enhancementError && (
+              <div 
+                className="enhancement-error" 
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: '0',
+                  right: '0',
+                  marginTop: '4px',
+                  background: 'rgba(255, 0, 0, 0.9)',
+                  color: 'white',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  textAlign: 'center',
+                  zIndex: 10,
+                  maxWidth: '200px',
+                  wordWrap: 'break-word',
+                  cursor: 'pointer'
+                }}
+                onClick={() => {
+                  // Allow users to dismiss error by clicking
+                  setPhotos(prev => {
+                    const updated = [...prev];
+                    if (updated[selectedPhotoIndex]) {
+                      updated[selectedPhotoIndex] = {
+                        ...updated[selectedPhotoIndex],
+                        enhancementError: null
+                      };
+                    }
+                    return updated;
+                  });
+                }}
+                title="Click to dismiss"
+              >
+                {photos[selectedPhotoIndex].enhancementError}
+              </div>
+            )}
+          </div>
         </div>
       )}
       {/* Settings button when viewing a photo */}
@@ -1613,6 +1752,7 @@ PhotoGallery.propTypes = {
   stylePrompts: PropTypes.object,
   enhancePhoto: PropTypes.func.isRequired,
   undoEnhancement: PropTypes.func.isRequired,
+  redoEnhancement: PropTypes.func.isRequired,
   sogniClient: PropTypes.object.isRequired,
   desiredWidth: PropTypes.number.isRequired,
   desiredHeight: PropTypes.number.isRequired,

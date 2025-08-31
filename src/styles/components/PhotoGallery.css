@@ -340,6 +340,35 @@
   100% { transform: rotate(360deg); }
 }
 
+/* Enhancement progress indicator - removed, now shown in button text */
+
+/* Enhancement error message */
+.enhancement-error {
+  animation: fadeInError 0.3s ease-out;
+  box-shadow: 0 2px 8px rgba(255, 0, 0, 0.3);
+}
+
+@keyframes fadeInError {
+  0% { 
+    opacity: 0; 
+    transform: translateY(-10px); 
+  }
+  100% { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+/* Redo button styling - use same style as other action buttons */
+.redo-btn {
+  /* Remove custom green background, use default action button styling */
+}
+
+/* Enhancement button container */
+.enhance-button-container {
+  min-height: 40px; /* Ensure space for error messages */
+}
+
 /* Special styling for mobile layout */
 @media (max-width: 768px) {
   .photo-action-buttons {

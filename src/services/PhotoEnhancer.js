@@ -79,7 +79,9 @@ export const enhancePhoto = async (options) => {
         loading: true,
         enhancing: true,
         progress: 0,
+        enhancementProgress: 0,
         error: null, // Clear any previous errors
+        enhancementError: null, // Clear any previous enhancement errors
         originalEnhancedImage: originalImage || updated[photoIndex].originalEnhancedImage, // Store original for undo
       };
       return updated;
@@ -95,7 +97,8 @@ export const enhancePhoto = async (options) => {
           ...updated[photoIndex],
           loading: false,
           enhancing: false,
-          error: 'ENHANCEMENT FAILED: timeout'
+          error: 'ENHANCEMENT FAILED: timeout',
+          enhancementError: 'Enhancement timed out. Please try again.'
         };
         return updated;
       });
@@ -174,15 +177,41 @@ export const enhancePhoto = async (options) => {
         return updated;
       });
       
-      // Set up listeners for the backend proxy client
+      // Set up listeners for the backend proxy client - listen to job events like main generation
+      project.on('job', (event) => {
+        const { type, jobId, progress } = event;
+        
+        console.log(`[ENHANCE] Job event received:`, { type, jobId, progress, projectId: project.id });
+        
+        // Handle progress events
+        if (type === 'progress' && progress !== undefined) {
+          const progressValue = typeof progress === 'number' ? progress : 0;
+          const progressPercent = Math.floor(progressValue * 100);
+          console.log(`[ENHANCE] Job progress: ${progressPercent}%`);
+          
+          setPhotos(prev => {
+            const updated = [...prev];
+            if (!updated[photoIndex]) return prev;
+            
+            updated[photoIndex] = {
+              ...updated[photoIndex],
+              progress: progressValue,
+              enhancementProgress: progressValue
+            };
+            return updated;
+          });
+        }
+      });
+      
+      // Also listen to project-level progress events as fallback
       project.on('progress', (progress) => {
         // Ensure progress is a number between 0-1
         const progressValue = typeof progress === 'number' ? progress : 
           (typeof progress === 'object' && progress.progress !== undefined) ? progress.progress : 0;
         
-        console.log('Job progress full payload:', { jobId: project.id, progress: progressValue });
+        console.log('[ENHANCE] Project progress full payload:', { projectId: project.id, progress: progressValue });
         const progressPercent = Math.floor(progressValue * 100);
-        console.log(`[ENHANCE] Progress: ${progressPercent}%`);
+        console.log(`[ENHANCE] Project progress: ${progressPercent}%`);
         
         setPhotos(prev => {
           const updated = [...prev];
@@ -190,7 +219,8 @@ export const enhancePhoto = async (options) => {
           
           updated[photoIndex] = {
             ...updated[photoIndex],
-            progress: progressValue
+            progress: progressValue,
+            enhancementProgress: progressValue
           };
           return updated;
         });
@@ -231,7 +261,10 @@ export const enhancePhoto = async (options) => {
                 enhancing: false,
                 images: updatedImages,
                 newlyArrived: true,
-                enhanced: true
+                enhanced: true,
+                enhancementProgress: 1,
+                enhancementError: null,
+                canRedo: false // Reset redo state when new enhancement completes
               };
               return updated;
             });
@@ -300,7 +333,8 @@ export const enhancePhoto = async (options) => {
             ...updated[photoIndex],
             loading: false,
             enhancing: false,
-            error: 'ENHANCEMENT FAILED: processing error'
+            error: 'ENHANCEMENT FAILED: processing error',
+            enhancementError: 'Enhancement failed during processing. Please try again.'
           };
           return updated;
         });
@@ -319,13 +353,13 @@ export const enhancePhoto = async (options) => {
         ...updated[photoIndex],
         loading: false,
         enhancing: false,
-        error: error?.message && error.message.includes('Insufficient') ? 'ENHANCEMENT FAILED: replenish tokens' : 'ENHANCEMENT FAILED: processing error'
+        error: error?.message && error.message.includes('Insufficient') ? 'ENHANCEMENT FAILED: replenish tokens' : 'ENHANCEMENT FAILED: processing error',
+        enhancementError: error?.message && error.message.includes('Insufficient') ? 'Insufficient tokens. Please replenish your account.' : `Enhancement failed: ${error?.message || 'Unknown error'}`
       };
       return updated;
     });
     
-    // Add visual indicator of failure
-    alert(`Enhancement error: ${error?.message || 'Unknown error'}`);
+    // Error message is now displayed inline in the UI instead of alert
   }
 };
 
@@ -360,6 +394,9 @@ export const undoEnhancement = ({ photoIndex, subIndex, setPhotos, clearFrameCac
         ? subIndex 
         : updatedImages.length - 1;
       
+      // Store the enhanced image URL for redo functionality BEFORE restoring
+      const enhancedImageUrl = indexToRestore >= 0 ? updatedImages[indexToRestore] : null;
+      
       if (indexToRestore >= 0) {
         updatedImages[indexToRestore] = photo.originalEnhancedImage;
         console.log(`[ENHANCE] Restored image at index ${indexToRestore}`);
@@ -368,14 +405,68 @@ export const undoEnhancement = ({ photoIndex, subIndex, setPhotos, clearFrameCac
       updated[photoIndex] = {
         ...photo,
         enhanced: false,
-        images: updatedImages
+        images: updatedImages,
+        canRedo: true,
+        enhancedImageUrl: enhancedImageUrl, // Store for redo
+        enhancementError: null // Clear any error when undoing
         // Keep originalEnhancedImage for future enhancements
       };
     } else {
       // If we don't have the original, just remove the enhanced flag
       updated[photoIndex] = {
         ...photo,
-        enhanced: false
+        enhanced: false,
+        canRedo: false,
+        enhancementError: null
+      };
+    }
+    
+    return updated;
+  });
+};
+
+/**
+ * Redoes enhancement by restoring the previously enhanced image
+ * 
+ * @param {Object} options
+ * @param {number} options.photoIndex - Index of the photo in the photos array
+ * @param {number} options.subIndex - Sub-index of the image within the photo
+ * @param {(updater: (prev: any[]) => any[]) => void} options.setPhotos - React setState function for photos
+ * @returns {void}
+ */
+export const redoEnhancement = ({ photoIndex, subIndex, setPhotos, clearFrameCache }) => {
+  console.log(`[ENHANCE] Redoing enhancement for photo #${photoIndex}`);
+  
+  // Clear frame cache for this photo since the image is changing
+  if (clearFrameCache) {
+    clearFrameCache(photoIndex);
+  }
+  
+  setPhotos(prev => {
+    const updated = [...prev];
+    const photo = updated[photoIndex];
+    
+    // Restore the enhanced image if we have it
+    if (photo.enhancedImageUrl && photo.canRedo) {
+      console.log(`[ENHANCE] Restoring enhanced image: ${photo.enhancedImageUrl.substring(0, 100)}...`);
+      const updatedImages = [...photo.images];
+      
+      // Make sure we have a valid subIndex
+      const indexToRestore = subIndex < updatedImages.length 
+        ? subIndex 
+        : updatedImages.length - 1;
+      
+      if (indexToRestore >= 0) {
+        updatedImages[indexToRestore] = photo.enhancedImageUrl;
+        console.log(`[ENHANCE] Restored enhanced image at index ${indexToRestore}`);
+      }
+      
+      updated[photoIndex] = {
+        ...photo,
+        enhanced: true,
+        images: updatedImages,
+        canRedo: false, // Can't redo again until next undo
+        enhancementError: null
       };
     }
     

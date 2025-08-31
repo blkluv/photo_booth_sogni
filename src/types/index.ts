@@ -18,6 +18,15 @@ export interface Photo {
   
   // Taipei Blockchain Week frame number (1-6) - assigned once per photo
   taipeiFrameNumber?: number;
+
+  // Enhancement-specific fields
+  enhancing?: boolean;
+  enhanced?: boolean;
+  enhancementProgress?: number;
+  enhancementError?: string;
+  canRedo?: boolean;
+  originalEnhancedImage?: string;
+  enhancedImageUrl?: string;
 }
 
 export interface ProjectState {

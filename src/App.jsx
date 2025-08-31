@@ -11,7 +11,7 @@ import { getDefaultThemeGroupState, getEnabledPrompts, getOneOfEachPrompts } fro
 import { getThemeGroupPreferences } from './utils/cookies';
 import { initializeSogniClient } from './services/sogni';
 import { isNetworkError } from './services/api';
-import { enhancePhoto, undoEnhancement } from './services/PhotoEnhancer';
+import { enhancePhoto, undoEnhancement, redoEnhancement } from './services/PhotoEnhancer';
 import { shareToTwitter } from './services/TwitterShare';
 import { themeConfigService } from './services/themeConfig';
 import { trackPageView, initializeGA, trackEvent } from './utils/analytics';
@@ -4348,6 +4348,7 @@ const App = () => {
           stylePrompts={stylePrompts}
           enhancePhoto={enhancePhoto}
           undoEnhancement={undoEnhancement}
+          redoEnhancement={redoEnhancement}
           sogniClient={sogniClient}
           desiredWidth={desiredWidth}
           desiredHeight={desiredHeight}
