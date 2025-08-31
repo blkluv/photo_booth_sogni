@@ -1197,7 +1197,7 @@ const PhotoGallery = ({
           </button>
 
           {/* Enhanced Enhance Button with Undo/Redo functionality */}
-          <div className="enhance-button-container" style={{ position: 'relative', display: 'inline-block' }}>
+          <div className="enhance-button-container" style={{ position: 'relative', display: 'inline-block', zIndex: 2147483646 }}>
             {photos[selectedPhotoIndex].enhanced ? (
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button
@@ -1319,7 +1319,7 @@ const PhotoGallery = ({
                   borderRadius: '8px',
                   boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                   overflow: 'hidden',
-                  zIndex: 10000,
+                  zIndex: 2147483647,
                   minWidth: '310px',
                   border: '1px solid rgba(0,0,0,0.1)'
                 }}
@@ -1861,7 +1861,7 @@ const PhotoGallery = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 100000,
+            zIndex: 2147483647,
             padding: '20px'
           }}
           onClick={handlePromptCancel}
