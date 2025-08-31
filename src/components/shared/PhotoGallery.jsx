@@ -105,6 +105,11 @@ const PhotoGallery = ({
   // Keep track of the previous photos array length to detect new batches
   const [previousPhotosLength, setPreviousPhotosLength] = useState(0);
   
+  // State for enhancement options dropdown and prompt modal
+  const [showEnhanceDropdown, setShowEnhanceDropdown] = useState(false);
+  const [showPromptModal, setShowPromptModal] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState('');
+  
   // Auto-dismiss enhancement errors after 5 seconds
   useEffect(() => {
     if (selectedPhotoIndex !== null && photos[selectedPhotoIndex]?.enhancementError) {
@@ -146,7 +151,7 @@ const PhotoGallery = ({
     
     // Update the previous length
     setPreviousPhotosLength(photos.length);
-  }, [photos.length, previousPhotosLength, framedImageUrls]);
+  }, [photos.length, previousPhotosLength]);
 
   // Clear framed image cache when theme changes
   useEffect(() => {
@@ -227,24 +232,113 @@ const PhotoGallery = ({
   // Utility function to clear frame cache for a specific photo
   const clearFrameCacheForPhoto = useCallback((photoIndex) => {
     console.log(`Clearing frame cache for photo #${photoIndex}`);
-    const keysToRemove = Object.keys(framedImageUrls).filter(key => 
-      key.startsWith(`${photoIndex}-`)
-    );
-    
-    keysToRemove.forEach(key => {
-      if (framedImageUrls[key] && framedImageUrls[key].startsWith('blob:')) {
-        URL.revokeObjectURL(framedImageUrls[key]);
-      }
-    });
-    
-    if (keysToRemove.length > 0) {
-      setFramedImageUrls(prev => {
-        const cleaned = { ...prev };
-        keysToRemove.forEach(key => delete cleaned[key]);
-        return cleaned;
+    setFramedImageUrls(prev => {
+      const keysToRemove = Object.keys(prev).filter(key => key.startsWith(`${photoIndex}-`));
+      if (keysToRemove.length === 0) return prev;
+      // Revoke any blob URLs
+      keysToRemove.forEach(key => {
+        const url = prev[key];
+        if (url && typeof url === 'string' && url.startsWith('blob:')) {
+          try { URL.revokeObjectURL(url); } catch (e) { /* no-op */ }
+        }
       });
-    }
-  }, [framedImageUrls]);
+      const cleaned = { ...prev };
+      keysToRemove.forEach(key => delete cleaned[key]);
+      return cleaned;
+    });
+  }, []);
+
+  // Handle enhancement with Krea (default behavior)
+  const handleEnhanceWithKrea = useCallback(() => {
+    setShowEnhanceDropdown(false);
+    
+    // Use the functional form of setPhotos to get the latest state
+    setPhotos(currentPhotos => {
+      const currentPhotoIndex = selectedPhotoIndex;
+      if (currentPhotoIndex !== null && currentPhotos[currentPhotoIndex] && !currentPhotos[currentPhotoIndex].enhancing) {
+        // Call enhance photo in the next tick to ensure we have the latest state
+        setTimeout(() => {
+          enhancePhoto({
+            photo: currentPhotos[currentPhotoIndex],
+            photoIndex: currentPhotoIndex,
+            subIndex: selectedSubIndex || 0,
+            width: desiredWidth,
+            height: desiredHeight,
+            sogniClient,
+            setPhotos,
+            outputFormat: outputFormat,
+            clearFrameCache: clearFrameCacheForPhoto,
+            onSetActiveProject: (projectId) => {
+              activeProjectReference.current = projectId;
+            }
+          });
+        }, 0);
+      }
+      return currentPhotos; // Don't modify photos array here
+    });
+  }, [selectedPhotoIndex, selectedSubIndex, desiredWidth, desiredHeight, sogniClient, setPhotos, outputFormat, clearFrameCacheForPhoto, activeProjectReference, enhancePhoto]);
+
+  // Handle enhancement with Kontext (with custom prompt)
+  const handleEnhanceWithKontext = useCallback(() => {
+    setShowEnhanceDropdown(false);
+    setShowPromptModal(true);
+    setCustomPrompt('');
+  }, []);
+
+  // Handle prompt modal submission
+  const handlePromptSubmit = useCallback(() => {
+    if (!customPrompt.trim()) return;
+    
+    setShowPromptModal(false);
+    
+    // Use the functional form of setPhotos to get the latest state
+    setPhotos(currentPhotos => {
+      const currentPhotoIndex = selectedPhotoIndex;
+      if (currentPhotoIndex !== null && currentPhotos[currentPhotoIndex] && !currentPhotos[currentPhotoIndex].enhancing) {
+        // Call enhance photo with Kontext in the next tick to ensure we have the latest state
+        setTimeout(() => {
+          enhancePhoto({
+            photo: currentPhotos[currentPhotoIndex],
+            photoIndex: currentPhotoIndex,
+            subIndex: selectedSubIndex || 0,
+            width: desiredWidth,
+            height: desiredHeight,
+            sogniClient,
+            setPhotos,
+            outputFormat: outputFormat,
+            clearFrameCache: clearFrameCacheForPhoto,
+            onSetActiveProject: (projectId) => {
+              activeProjectReference.current = projectId;
+            },
+            // Pass Kontext-specific parameters
+            useKontext: true,
+            customPrompt: customPrompt.trim()
+          });
+        }, 0);
+      }
+      return currentPhotos; // Don't modify photos array here
+    });
+  }, [selectedPhotoIndex, selectedSubIndex, desiredWidth, desiredHeight, sogniClient, setPhotos, outputFormat, clearFrameCacheForPhoto, activeProjectReference, enhancePhoto, customPrompt]);
+
+  // Handle prompt modal cancel
+  const handlePromptCancel = useCallback(() => {
+    setShowPromptModal(false);
+    setCustomPrompt('');
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showEnhanceDropdown && !event.target.closest('.enhance-button-container')) {
+        setShowEnhanceDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showEnhanceDropdown]);
 
   // Skip rendering if there are no photos or the grid is hidden
   if (photos.length === 0 || !showPhotoGrid) return null;
@@ -424,7 +518,7 @@ const PhotoGallery = ({
         });
       }
     }
-  }, [isThemeSupported, photos, selectedSubIndex, outputFormat, framedImageUrls, generatingFrames, aspectRatio]);
+  }, [isThemeSupported, photos, selectedSubIndex, outputFormat, aspectRatio]);
 
   // Expose the pre-generation function to parent component
   useEffect(() => {
@@ -565,6 +659,7 @@ const PhotoGallery = ({
     return photoHashtags[photo.id] || '';
   }, [photoHashtags]);
 
+
   useEffect(() => {
     if (selectedPhotoIndex !== null) {
       document.body.classList.add('has-selected-photo');
@@ -693,7 +788,7 @@ const PhotoGallery = ({
     };
 
     cleanup();
-  }, [framedImageUrls]);
+  }, []);
 
   // Universal download function that works on all devices
   const downloadImage = async (imageUrl, filename) => {
@@ -1104,52 +1199,59 @@ const PhotoGallery = ({
           {/* Enhanced Enhance Button with Undo/Redo functionality */}
           <div className="enhance-button-container" style={{ position: 'relative', display: 'inline-block' }}>
             {photos[selectedPhotoIndex].enhanced ? (
-              <button
-                className="action-button enhance-btn"
-                onClick={(e) => {
-                  // Use the functional form of setPhotos to get the latest state
-                  setPhotos(currentPhotos => {
-                    const currentPhotoIndex = selectedPhotoIndex;
-                    if (currentPhotoIndex !== null) {
-                      // Call undo enhancement in the next tick to ensure we have the latest state
-                      setTimeout(() => {
-                        undoEnhancement({
-                          photoIndex: currentPhotoIndex,
-                          subIndex: selectedSubIndex || 0,
-                          setPhotos,
-                          clearFrameCache: clearFrameCacheForPhoto
-                        });
-                      }, 0);
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  className="action-button enhance-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    
+                    if (selectedPhotoIndex !== null) {
+                      undoEnhancement({
+                        photoIndex: selectedPhotoIndex,
+                        subIndex: selectedSubIndex || 0,
+                        setPhotos,
+                        clearFrameCache: clearFrameCacheForPhoto
+                      });
                     }
-                    return currentPhotos; // Don't modify photos array here
-                  });
-                  e.stopPropagation();
-                }}
-                disabled={photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error}
-              >
-                ↩️ Undo
-              </button>
+                  }}
+                  disabled={photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing || photos[selectedPhotoIndex].error}
+                >
+                  ↩️ Undo
+                </button>
+                <button
+                  className={`action-button enhance-btn ${photos[selectedPhotoIndex].enhancing ? 'loading' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    
+                    if (photos[selectedPhotoIndex].enhancing) return;
+                    // Show the enhance options dropdown (Krea/Kontext)
+                    setShowEnhanceDropdown(prev => !prev);
+                  }}
+                  disabled={photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing}
+                >
+                  <span>✨ {photos[selectedPhotoIndex].enhancing ? 
+                    (photos[selectedPhotoIndex].enhancementProgress !== undefined ? 
+                      `Enhancing ${Math.round((photos[selectedPhotoIndex].enhancementProgress || 0) * 100)}%` : 
+                      'Enhancing') : 
+                    'Enhance'}</span>
+                </button>
+              </div>
             ) : photos[selectedPhotoIndex].canRedo ? (
               // Show both Redo and Enhance buttons when redo is available
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button
                   className="action-button enhance-btn redo-btn"
                   onClick={(e) => {
-                    setPhotos(currentPhotos => {
-                      const currentPhotoIndex = selectedPhotoIndex;
-                      if (currentPhotoIndex !== null) {
-                        setTimeout(() => {
-                          redoEnhancement({
-                            photoIndex: currentPhotoIndex,
-                            subIndex: selectedSubIndex || 0,
-                            setPhotos,
-                            clearFrameCache: clearFrameCacheForPhoto
-                          });
-                        }, 0);
-                      }
-                      return currentPhotos;
-                    });
                     e.stopPropagation();
+                    
+                    if (selectedPhotoIndex !== null) {
+                      redoEnhancement({
+                        photoIndex: selectedPhotoIndex,
+                        subIndex: selectedSubIndex || 0,
+                        setPhotos,
+                        clearFrameCache: clearFrameCacheForPhoto
+                      });
+                    }
                   }}
                   disabled={photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing}
                 >
@@ -1166,30 +1268,8 @@ const PhotoGallery = ({
                       return;
                     }
                     
-                    // Use the functional form of setPhotos to get the latest state
-                    setPhotos(currentPhotos => {
-                      const currentPhotoIndex = selectedPhotoIndex;
-                      if (currentPhotoIndex !== null && currentPhotos[currentPhotoIndex] && !currentPhotos[currentPhotoIndex].enhancing) {
-                        // Call enhance photo in the next tick to ensure we have the latest state
-                        setTimeout(() => {
-                          enhancePhoto({
-                            photo: currentPhotos[currentPhotoIndex],
-                            photoIndex: currentPhotoIndex,
-                            subIndex: selectedSubIndex || 0,
-                            width: desiredWidth,
-                            height: desiredHeight,
-                            sogniClient,
-                            setPhotos,
-                            outputFormat: outputFormat,
-                            clearFrameCache: clearFrameCacheForPhoto,
-                            onSetActiveProject: (projectId) => {
-                              activeProjectReference.current = projectId;
-                            }
-                          });
-                        }, 0);
-                      }
-                      return currentPhotos; // Don't modify photos array here
-                    });
+                    // Show dropdown menu (same as single enhance button)
+                    setShowEnhanceDropdown(prev => !prev);
                   }}
                   disabled={photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing}
                 >
@@ -1212,30 +1292,8 @@ const PhotoGallery = ({
                     return;
                   }
                   
-                  // Use the functional form of setPhotos to get the latest state
-                  setPhotos(currentPhotos => {
-                    const currentPhotoIndex = selectedPhotoIndex;
-                    if (currentPhotoIndex !== null && currentPhotos[currentPhotoIndex] && !currentPhotos[currentPhotoIndex].enhancing) {
-                      // Call enhance photo in the next tick to ensure we have the latest state
-                      setTimeout(() => {
-                        enhancePhoto({
-                          photo: currentPhotos[currentPhotoIndex],
-                          photoIndex: currentPhotoIndex,
-                          subIndex: selectedSubIndex || 0,
-                          width: desiredWidth,
-                          height: desiredHeight,
-                          sogniClient,
-                          setPhotos,
-                          outputFormat: outputFormat,
-                          clearFrameCache: clearFrameCacheForPhoto,
-                          onSetActiveProject: (projectId) => {
-                            activeProjectReference.current = projectId;
-                          }
-                        });
-                      }, 0);
-                    }
-                    return currentPhotos; // Don't modify photos array here
-                  });
+                  // Show dropdown menu
+                  setShowEnhanceDropdown(prev => !prev);
                 }}
                 disabled={photos[selectedPhotoIndex].loading || photos[selectedPhotoIndex].enhancing}
               >
@@ -1247,6 +1305,68 @@ const PhotoGallery = ({
               </button>
             )}
 
+            {/* Enhancement Options Dropdown */}
+            {showEnhanceDropdown && !photos[selectedPhotoIndex].enhancing && (
+              <div 
+                className="enhance-dropdown"
+                style={{
+                  position: 'absolute',
+                  bottom: '100%',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  marginBottom: '8px',
+                  background: 'white',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  overflow: 'hidden',
+                  zIndex: 10000,
+                  minWidth: '310px',
+                  border: '1px solid rgba(0,0,0,0.1)'
+                }}
+              >
+                <button
+                  className="dropdown-option"
+                  onClick={handleEnhanceWithKrea}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: 'none',
+                    background: 'transparent',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#333',
+                    transition: 'background-color 0.2s ease'
+                  }}
+                  onMouseOver={e => e.target.style.backgroundColor = '#f5f5f5'}
+                  onMouseOut={e => e.target.style.backgroundColor = 'transparent'}
+                >
+                  ✨ Enhance with Flux.1 Krea
+                </button>
+                <button
+                  className="dropdown-option"
+                  onClick={handleEnhanceWithKontext}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: 'none',
+                    background: 'transparent',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#333',
+                    transition: 'background-color 0.2s ease',
+                    borderTop: '1px solid rgba(0,0,0,0.1)'
+                  }}
+                  onMouseOver={e => e.target.style.backgroundColor = '#f5f5f5'}
+                  onMouseOut={e => e.target.style.backgroundColor = 'transparent'}
+                >
+                  🎨 Modify with Flux.1 Kontext
+                </button>
+              </div>
+            )}
             
             {/* Error message */}
             {photos[selectedPhotoIndex].enhancementError && (
@@ -1724,6 +1844,146 @@ const PhotoGallery = ({
       {slothicornAnimationEnabled && (
         <div className="slothicorn-container">
           {/* Slothicorn content */}
+        </div>
+      )}
+
+      {/* Custom Prompt Modal for Kontext Enhancement */}
+      {showPromptModal && (
+        <div 
+          className="prompt-modal-overlay"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100000,
+            padding: '20px'
+          }}
+          onClick={handlePromptCancel}
+        >
+          <div 
+            className="prompt-modal"
+            style={{
+              background: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '500px',
+              width: '100%',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+              position: 'relative',
+              color: '#222'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 style={{
+              margin: '0 0 16px 0',
+              fontSize: '18px',
+              fontWeight: '600',
+              color: '#333',
+              textAlign: 'center'
+            }}>
+              Modify with Flux.1 Kontext
+            </h3>
+            
+            <p style={{
+              margin: '0 0 16px 0',
+              fontSize: '14px',
+              color: '#666',
+              textAlign: 'center',
+              lineHeight: '1.4'
+            }}>
+              Type what you want to change in the picture
+            </p>
+            
+            <textarea
+              value={customPrompt}
+              onChange={e => setCustomPrompt(e.target.value)}
+              placeholder="e.g., zoom out, recreate the scene in legos, add a speach bubble"
+              style={{
+                width: '100%',
+                minHeight: '100px',
+                padding: '12px',
+                border: '2px solid #e0e0e0',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontFamily: 'inherit',
+                resize: 'vertical',
+                outline: 'none',
+                transition: 'border-color 0.2s ease',
+                color: '#222',
+                backgroundColor: '#fff'
+              }}
+              onFocus={e => e.target.style.borderColor = '#4bbbd3'}
+              onBlur={e => e.target.style.borderColor = '#e0e0e0'}
+              autoFocus
+            />
+            
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              marginTop: '20px',
+              justifyContent: 'center'
+            }}>
+              <button
+                onClick={handlePromptCancel}
+                style={{
+                  padding: '10px 20px',
+                  border: '2px solid #ddd',
+                  background: 'white',
+                  color: '#666',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseOver={e => {
+                  e.target.style.backgroundColor = '#f5f5f5';
+                  e.target.style.borderColor = '#ccc';
+                }}
+                onMouseOut={e => {
+                  e.target.style.backgroundColor = 'white';
+                  e.target.style.borderColor = '#ddd';
+                }}
+              >
+                Cancel
+              </button>
+              
+              <button
+                onClick={handlePromptSubmit}
+                disabled={!customPrompt.trim()}
+                style={{
+                  padding: '10px 20px',
+                  border: 'none',
+                  background: customPrompt.trim() ? 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)' : '#ccc',
+                  color: 'white',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: customPrompt.trim() ? 'pointer' : 'not-allowed',
+                  transition: 'all 0.2s ease',
+                  opacity: customPrompt.trim() ? 1 : 0.6
+                }}
+                onMouseOver={e => {
+                  if (customPrompt.trim()) {
+                    e.target.style.transform = 'translateY(-1px)';
+                    e.target.style.boxShadow = '0 4px 12px rgba(255, 107, 107, 0.3)';
+                  }
+                }}
+                onMouseOut={e => {
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = 'none';
+                }}
+              >
+                🎨 Change It!
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

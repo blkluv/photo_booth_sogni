@@ -28,6 +28,8 @@ export const enhancePhoto = async (options) => {
     outputFormat,
     clearFrameCache,
     // onSetActiveProject - not used for enhancement to avoid interfering with main generation
+    useKontext = false,
+    customPrompt = ''
   } = options;
 
   let timeoutId; // Declare timeoutId in outer scope
@@ -41,11 +43,17 @@ export const enhancePhoto = async (options) => {
       hasOriginalDataUrl: !!photo.originalDataUrl
     });
     
-    // Get image data - always use the original generated image for enhancement, not the current (potentially enhanced) image
-    // Priority: 1) stored original from first enhancement, 2) generated image from grid, 3) fallback to camera original
-    const imageUrl = photo.originalEnhancedImage || photo.images[subIndex] || photo.originalDataUrl;
+    // Choose the source image for enhancement.
+    // IMPORTANT: When enhancing again without undo, we want to enhance the LATEST version (the currently enhanced image),
+    // not the originally generated image. Priority:
+    // 1) enhancedImageUrl if present (latest enhanced)
+    // 2) current grid image at subIndex
+    // 3) fallback to camera original
+    const latestEnhanced = photo.enhanced ? photo.enhancedImageUrl : null; // Only prefer enhanced when it's the current view
+    const currentGridImage = photo.images?.[subIndex];
+    const imageUrl = latestEnhanced || currentGridImage || photo.originalDataUrl;
     console.log(`[ENHANCE] Using image URL: ${imageUrl?.substring(0, 100)}...`);
-    console.log(`[ENHANCE] Image source priority: originalEnhancedImage=${!!photo.originalEnhancedImage}, images[${subIndex}]=${!!photo.images[subIndex]}, originalDataUrl=${!!photo.originalDataUrl}`);
+    console.log(`[ENHANCE] Image source priority: usingEnhanced=${!!latestEnhanced}, images[${subIndex}]=${!!currentGridImage}, originalDataUrl=${!!photo.originalDataUrl}`);
     
     if (!imageUrl) {
       throw new Error(`No image URL found for enhancement. Photo #${photoIndex}, subIndex: ${subIndex}`);
@@ -63,17 +71,13 @@ export const enhancePhoto = async (options) => {
       console.log(`[ENHANCE] Setting loading state for photo #${photoIndex}`);
       const updated = [...prev];
       
-      // Store the original image if not already stored
+      // Persist the very first generated/original image ONCE so Undo can return to it reliably.
       let originalImage = null;
       if (!updated[photoIndex].originalEnhancedImage) {
-        // Store the generated image from the grid (not the raw camera image) for consistent enhancement
         originalImage = updated[photoIndex].images[subIndex] || updated[photoIndex].originalDataUrl;
-        console.log(`[ENHANCE] Storing original generated image for first enhancement: ${originalImage?.substring(0, 100)}...`);
-        console.log(`[ENHANCE] Original source priority: images[${subIndex}]=${!!updated[photoIndex].images[subIndex]}, originalDataUrl=${!!updated[photoIndex].originalDataUrl}`);
-      } else {
-        console.log(`[ENHANCE] Original image already stored: ${updated[photoIndex].originalEnhancedImage?.substring(0, 100)}...`);
+        console.log(`[ENHANCE] Capturing original baseline for undo: ${originalImage?.substring(0, 100)}...`);
       }
-      
+
       updated[photoIndex] = {
         ...updated[photoIndex],
         loading: true,
@@ -83,6 +87,7 @@ export const enhancePhoto = async (options) => {
         error: null, // Clear any previous errors
         enhancementError: null, // Clear any previous enhancement errors
         originalEnhancedImage: originalImage || updated[photoIndex].originalEnhancedImage, // Store original for undo
+        enhanceTimeoutId: null, // Will be set after timeout is created
       };
       return updated;
     });
@@ -93,16 +98,32 @@ export const enhancePhoto = async (options) => {
       setPhotos(prev => {
         const updated = [...prev];
         if (!updated[photoIndex]) return prev;
-        updated[photoIndex] = {
-          ...updated[photoIndex],
-          loading: false,
-          enhancing: false,
-          error: 'ENHANCEMENT FAILED: timeout',
-          enhancementError: 'Enhancement timed out. Please try again.'
-        };
+        // Only show timeout error if the photo is still enhancing (not undone)
+        if (updated[photoIndex].enhancing) {
+          updated[photoIndex] = {
+            ...updated[photoIndex],
+            loading: false,
+            enhancing: false,
+            error: 'ENHANCEMENT FAILED: timeout',
+            enhancementError: 'Enhancement timed out. Please try again.',
+            enhanceTimeoutId: null
+          };
+        }
         return updated;
       });
     }, 120000); // 2 minute timeout
+    
+    // Store timeout ID in photo state for cleanup
+    setPhotos(prev => {
+      const updated = [...prev];
+      if (updated[photoIndex]) {
+        updated[photoIndex] = {
+          ...updated[photoIndex],
+          enhanceTimeoutId: timeoutId
+        };
+      }
+      return updated;
+    });
     
     // Start enhancement
     const arrayBuffer = await imageBlob.arrayBuffer();
@@ -112,27 +133,50 @@ export const enhancePhoto = async (options) => {
       throw new Error('Sogni client is not properly initialized');
     }
     
+    // Configure project parameters based on model type
+    let projectConfig;
+    
+    if (useKontext) {
+      // Use Flux.1 Kontext for custom modifications
+      projectConfig = {
+        testnet: false,
+        tokenType: 'spark',
+        modelId: "flux1-dev-kontext_fp8_scaled",
+        positivePrompt: customPrompt || 'Enhance the image',
+        sizePreset: 'custom',
+        width,
+        height,
+        steps: 30,
+        guidance: 5.5,
+        numberOfImages: 1,
+        outputFormat: outputFormat || 'jpg',
+        sensitiveContentFilter: false,
+        contextImages: [new Uint8Array(arrayBuffer)], // Kontext uses contextImages array
+        sourceType: 'enhancement-kontext', // Track Kontext enhancements separately
+      };
+    } else {
+      // Use Flux.1 Krea for standard enhancement
+      projectConfig = {
+        testnet: false,
+        tokenType: 'spark',
+        modelId: "flux1-krea-dev_fp8_scaled",
+        positivePrompt: `(Extra detailed and contrasty portrait) ${photo.positivePrompt || 'Portrait masterpiece'}`,
+        sizePreset: 'custom',
+        width,
+        height,
+        steps: 30,
+        guidance: 5.5,
+        numberOfImages: 1,
+        outputFormat: outputFormat || 'jpg',
+        sensitiveContentFilter: false,
+        startingImage: new Uint8Array(arrayBuffer),
+        startingImageStrength: 0.75,
+        sourceType: 'enhancement', // Add sourceType for backend tracking
+      };
+    }
+    
     // Use the same API path as regular generation to get proper upload handling
-    const project = await sogniClient.projects.create({
-      testnet: false,
-      tokenType: 'spark',
-      modelId: "flux1-krea-dev_fp8_scaled",
-      positivePrompt: `(Extra detailed and contrasty portrait) ${photo.positivePrompt || 'Portrait masterpiece'}`,
-      sizePreset: 'custom',
-      width,
-      height,
-      steps: 30,
-      guidance: 5.5,
-      numberOfImages: 1,
-      outputFormat: outputFormat || 'jpg', // Use settings from context
-      sensitiveContentFilter: false, // enhance jobs are not sensitive content
-      // Note: Flux models use their own optimal scheduler/timeStepSpacing defaults
-      // so we don't override them here
-      startingImage: new Uint8Array(arrayBuffer),
-      startingImageStrength: 0.75,
-      sourceType: 'enhancement', // Add sourceType for backend tracking
-      // scheduler: 'Euler a',
-    });
+    const project = await sogniClient.projects.create(projectConfig);
       
       // Wait for upload completion like regular generation does
       await new Promise((resolve) => {
@@ -264,7 +308,9 @@ export const enhancePhoto = async (options) => {
                 enhanced: true,
                 enhancementProgress: 1,
                 enhancementError: null,
-                canRedo: false // Reset redo state when new enhancement completes
+                enhancedImageUrl: job.resultUrl, // Store enhanced image URL for redo functionality
+                canRedo: false, // Reset redo state when new enhancement completes
+                enhanceTimeoutId: null // Clear timeout ID since enhancement completed successfully
               };
               return updated;
             });
@@ -293,7 +339,12 @@ export const enhancePhoto = async (options) => {
                 enhancing: false,
                 images: updatedImages,
                 newlyArrived: true,
-                enhanced: true
+                enhanced: true,
+                enhancementProgress: 1,
+                enhancementError: null,
+                enhancedImageUrl: job.resultUrl, // Store enhanced image URL for redo functionality
+                canRedo: false, // Reset redo state when new enhancement completes
+                enhanceTimeoutId: null // Clear timeout ID since enhancement completed successfully
               };
               return updated;
             });
@@ -373,16 +424,35 @@ export const enhancePhoto = async (options) => {
  * @returns {void}
  */
 export const undoEnhancement = ({ photoIndex, subIndex, setPhotos, clearFrameCache }) => {
+  console.log(`[ENHANCE] ✅ STARTED undo operation for photo #${photoIndex}`);
+  
   console.log(`[ENHANCE] Undoing enhancement for photo #${photoIndex}`);
   
   // Clear frame cache for this photo since the image is changing back
   if (clearFrameCache) {
     clearFrameCache(photoIndex);
   }
+
+  // Single state update: clear timeout and apply undo atomically
   setPhotos(prev => {
     const updated = [...prev];
     const photo = updated[photoIndex];
     
+    if (!photo) return prev;
+
+    // Idempotence guard: if already undone for this sub-index, do nothing
+    const idxForCheck = subIndex < (photo.images?.length || 0) ? subIndex : (photo.images?.length || 1) - 1;
+    if (!photo.enhanced && idxForCheck >= 0 && photo.images && photo.originalEnhancedImage && photo.images[idxForCheck] === photo.originalEnhancedImage) {
+      return prev;
+    }
+
+    // Clear any pending enhancement timeout to prevent false timeout errors
+    if (photo.enhanceTimeoutId) {
+      try {
+        clearTimeout(photo.enhanceTimeoutId);
+      } catch (e) { /* no-op */ }
+    }
+
     // Restore the original image if we have it
     if (photo.originalEnhancedImage) {
       console.log(`[ENHANCE] Restoring original image: ${photo.originalEnhancedImage.substring(0, 100)}...`);
@@ -394,8 +464,16 @@ export const undoEnhancement = ({ photoIndex, subIndex, setPhotos, clearFrameCac
         ? subIndex 
         : updatedImages.length - 1;
       
+      // If image is already original at target index, no-op
+      if (indexToRestore >= 0 && updatedImages[indexToRestore] === photo.originalEnhancedImage) {
+        return prev;
+      }
+
       // Store the enhanced image URL for redo functionality BEFORE restoring
-      const enhancedImageUrl = indexToRestore >= 0 ? updatedImages[indexToRestore] : null;
+      // Prioritize existing enhancedImageUrl, fallback to current image in array
+      const enhancedImageUrl = photo.enhancedImageUrl || (indexToRestore >= 0 ? updatedImages[indexToRestore] : null);
+      console.log(`[ENHANCE] Storing enhanced image URL for redo: ${enhancedImageUrl?.substring(0, 100)}...`);
+      console.log(`[ENHANCE] Source: ${photo.enhancedImageUrl ? 'existing enhancedImageUrl' : 'current image in array'}`);
       
       if (indexToRestore >= 0) {
         updatedImages[indexToRestore] = photo.originalEnhancedImage;
@@ -408,8 +486,8 @@ export const undoEnhancement = ({ photoIndex, subIndex, setPhotos, clearFrameCac
         images: updatedImages,
         canRedo: true,
         enhancedImageUrl: enhancedImageUrl, // Store for redo
-        enhancementError: null // Clear any error when undoing
-        // Keep originalEnhancedImage for future enhancements
+        enhancementError: null,
+        enhanceTimeoutId: null
       };
     } else {
       // If we don't have the original, just remove the enhanced flag
@@ -417,10 +495,11 @@ export const undoEnhancement = ({ photoIndex, subIndex, setPhotos, clearFrameCac
         ...photo,
         enhanced: false,
         canRedo: false,
-        enhancementError: null
+        enhancementError: null,
+        enhanceTimeoutId: null // Clear timeout ID when undoing
       };
     }
-    
+
     return updated;
   });
 };
@@ -435,6 +514,8 @@ export const undoEnhancement = ({ photoIndex, subIndex, setPhotos, clearFrameCac
  * @returns {void}
  */
 export const redoEnhancement = ({ photoIndex, subIndex, setPhotos, clearFrameCache }) => {
+  console.log(`[ENHANCE] ✅ STARTED redo operation for photo #${photoIndex}`);
+  
   console.log(`[ENHANCE] Redoing enhancement for photo #${photoIndex}`);
   
   // Clear frame cache for this photo since the image is changing
@@ -446,7 +527,10 @@ export const redoEnhancement = ({ photoIndex, subIndex, setPhotos, clearFrameCac
     const updated = [...prev];
     const photo = updated[photoIndex];
     
+    if (!photo) return prev;
+
     // Restore the enhanced image if we have it
+    console.log(`[ENHANCE] Redo check: enhancedImageUrl=${!!photo.enhancedImageUrl}, canRedo=${photo.canRedo}`);
     if (photo.enhancedImageUrl && photo.canRedo) {
       console.log(`[ENHANCE] Restoring enhanced image: ${photo.enhancedImageUrl.substring(0, 100)}...`);
       const updatedImages = [...photo.images];
@@ -456,20 +540,31 @@ export const redoEnhancement = ({ photoIndex, subIndex, setPhotos, clearFrameCac
         ? subIndex 
         : updatedImages.length - 1;
       
+      // Idempotence guard: if already enhanced at index, no-op
+      if (indexToRestore >= 0 && updatedImages[indexToRestore] === photo.enhancedImageUrl) {
+        return prev;
+      }
+
       if (indexToRestore >= 0) {
         updatedImages[indexToRestore] = photo.enhancedImageUrl;
         console.log(`[ENHANCE] Restored enhanced image at index ${indexToRestore}`);
       }
       
-      updated[photoIndex] = {
+      const next = {
         ...photo,
         enhanced: true,
         images: updatedImages,
         canRedo: false, // Can't redo again until next undo
         enhancementError: null
       };
+      updated[photoIndex] = next;
+      console.log('[ENHANCE] ✅ REDO applied state:', {
+        enhanced: next.enhanced,
+        canRedo: next.canRedo,
+        imageAtIndex: updatedImages[indexToRestore]?.substring(0, 100),
+        enhancedImageUrl: next.enhancedImageUrl?.substring(0, 100)
+      });
     }
-    
     return updated;
   });
 }; 

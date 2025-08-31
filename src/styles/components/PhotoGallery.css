@@ -364,6 +364,19 @@
   /* Remove custom green background, use default action button styling */
 }
 
+/* Fix layout for when redo and enhance buttons are both shown */
+.enhance-button-container > div[style*="display: flex"] {
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+}
+
+/* Ensure both buttons in the redo/enhance pair have consistent sizing */
+.enhance-button-container .action-button {
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
 /* Enhancement button container */
 .enhance-button-container {
   min-height: 40px; /* Ensure space for error messages */
