@@ -275,8 +275,14 @@
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 99999;
+  /* Ensure action bar and its dropdowns sit above any selected frame content even in PWA */
+  z-index: 2147483646;
   width: 100%;
+}
+
+/* Ensure the Enhance dropdown always layers above the image/frame overlays */
+.enhance-button-container .enhance-dropdown {
+  z-index: 2147483647 !important;
 }
 
 .action-button {

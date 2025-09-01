@@ -1,4 +1,5 @@
 import React, { useMemo, useCallback, useEffect, useState, memo } from 'react';
+import { createPortal } from 'react-dom';
 
 import PropTypes from 'prop-types';
 import '../../styles/film-strip.css'; // Using film-strip.css which contains the gallery styles
@@ -326,17 +327,21 @@ const PhotoGallery = ({
     setCustomPrompt('');
   }, []);
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking outside (but allow clicks inside the portal dropdown)
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (showEnhanceDropdown && !event.target.closest('.enhance-button-container')) {
+      if (!showEnhanceDropdown) return;
+      const target = event.target;
+      const inButtonContainer = !!target.closest('.enhance-button-container');
+      const inDropdown = !!target.closest('.enhance-dropdown');
+      if (!inButtonContainer && !inDropdown) {
         setShowEnhanceDropdown(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('click', handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('click', handleClickOutside);
     };
   }, [showEnhanceDropdown]);
 
@@ -1137,7 +1142,8 @@ const PhotoGallery = ({
           position: 'fixed',
           left: '50%',
           transform: 'translateX(-50%)',
-          zIndex: 99999,
+          // Ensure this toolbar and its popups are above the selected film-frame in PWA and desktop
+          zIndex: 2147483646,
         }}>
           {/* Share to X Button */}
           <button
@@ -1197,7 +1203,7 @@ const PhotoGallery = ({
           </button>
 
           {/* Enhanced Enhance Button with Undo/Redo functionality */}
-          <div className="enhance-button-container" style={{ position: 'relative', display: 'inline-block', zIndex: 2147483646 }}>
+          <div className="enhance-button-container" style={{ position: 'relative', display: 'inline-block' }}>
             {photos[selectedPhotoIndex].enhanced ? (
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button
@@ -1305,67 +1311,69 @@ const PhotoGallery = ({
               </button>
             )}
 
-            {/* Enhancement Options Dropdown */}
-            {showEnhanceDropdown && !photos[selectedPhotoIndex].enhancing && (
-              <div 
-                className="enhance-dropdown"
-                style={{
-                  position: 'absolute',
-                  bottom: '100%',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  marginBottom: '8px',
-                  background: 'white',
-                  borderRadius: '8px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                  overflow: 'hidden',
-                  zIndex: 2147483647,
-                  minWidth: '310px',
-                  border: '1px solid rgba(0,0,0,0.1)'
-                }}
-              >
-                <button
-                  className="dropdown-option"
-                  onClick={handleEnhanceWithKrea}
+            {/* Enhancement Options Dropdown rendered in a portal to escape any stacking context */}
+            {showEnhanceDropdown && !photos[selectedPhotoIndex].enhancing && createPortal(
+              (
+                <div 
+                  className="enhance-dropdown"
                   style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    border: 'none',
-                    background: 'transparent',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: '#333',
-                    transition: 'background-color 0.2s ease'
+                    position: 'fixed',
+                    bottom: 88,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: 'white',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+                    overflow: 'hidden',
+                    zIndex: 2147483647,
+                    minWidth: '310px',
+                    border: '1px solid rgba(0,0,0,0.1)'
                   }}
-                  onMouseOver={e => e.target.style.backgroundColor = '#f5f5f5'}
-                  onMouseOut={e => e.target.style.backgroundColor = 'transparent'}
                 >
-                  ✨ Enhance with Flux.1 Krea
-                </button>
-                <button
-                  className="dropdown-option"
-                  onClick={handleEnhanceWithKontext}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    border: 'none',
-                    background: 'transparent',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: '#333',
-                    transition: 'background-color 0.2s ease',
-                    borderTop: '1px solid rgba(0,0,0,0.1)'
-                  }}
-                  onMouseOver={e => e.target.style.backgroundColor = '#f5f5f5'}
-                  onMouseOut={e => e.target.style.backgroundColor = 'transparent'}
-                >
-                  🎨 Modify with Flux.1 Kontext
-                </button>
-              </div>
+                  <button
+                    className="dropdown-option"
+                    onClick={(e) => { e.stopPropagation(); setShowEnhanceDropdown(false); handleEnhanceWithKrea(); }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: 'none',
+                      background: 'transparent',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#333',
+                      transition: 'background-color 0.2s ease'
+                    }}
+                    onMouseOver={e => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                    onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    ✨ Enhance with Flux.1 Krea
+                  </button>
+                  <button
+                    className="dropdown-option"
+                    onClick={(e) => { e.stopPropagation(); setShowEnhanceDropdown(false); handleEnhanceWithKontext(); }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: 'none',
+                      background: 'transparent',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#333',
+                      transition: 'background-color 0.2s ease',
+                      borderTop: '1px solid rgba(0,0,0,0.1)'
+                    }}
+                    onMouseOver={e => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                    onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    🎨 Modify with Flux.1 Kontext
+                  </button>
+                </div>
+              ),
+              document.body
             )}
             
             {/* Error message */}
