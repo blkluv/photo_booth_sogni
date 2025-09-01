@@ -1388,10 +1388,10 @@ const PhotoGallery = ({
                 className="enhancement-error" 
                 style={{
                   position: 'absolute',
-                  top: '100%',
+                  bottom: '100%',
                   left: '0',
                   right: '0',
-                  marginTop: '4px',
+                  marginBottom: '4px',
                   background: 'rgba(255, 0, 0, 0.9)',
                   color: 'white',
                   padding: '4px 8px',
