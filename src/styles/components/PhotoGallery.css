@@ -207,10 +207,7 @@
 }
 
 /* Let the existing JavaScript fade-in logic work without interference */
-.film-frame.loaded img:not(.placeholder) {
-  /* Remove any CSS that might interfere with JavaScript fade-in */
-  /* The existing onLoad handler in PhotoGallery.jsx should handle this */
-}
+/* The existing onLoad handler in PhotoGallery.jsx handles fade-in */
 
 /* Prevent any frame disappearing during state transitions */
 .film-frame {
@@ -225,9 +222,7 @@
 }
 
 /* Remove holographic effects from placeholder image since we're applying to the frame */
-.placeholder-holographic {
-  /* Remove all animations - let the parent frame handle the effects */
-}
+/* All animations handled by the parent frame */
 
 .mobile-download-button {
   position: fixed;
@@ -269,8 +264,9 @@
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
-  gap: 14px;
+  gap: 12px;
   justify-content: center;
+  align-items: center;
   position: fixed;
   bottom: 20px;
   left: 50%;
@@ -278,6 +274,9 @@
   /* Ensure action bar and its dropdowns sit above any selected frame content even in PWA */
   z-index: 2147483646;
   width: 100%;
+  max-width: 800px;
+  padding: 0 20px;
+  box-sizing: border-box;
 }
 
 /* Ensure the Enhance dropdown always layers above the image/frame overlays */
@@ -290,8 +289,8 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-width: 0;
-  flex: 1;
+  min-width: 100px;
+  flex: 0 1 auto;
   padding: 10px 16px;
   border-radius: 0; /* Square corners */
   font-weight: bold;
@@ -300,6 +299,7 @@
   font-size: 14px;
   cursor: pointer;
   color: white;
+  white-space: nowrap;
 }
 
 .action-button:hover {
@@ -366,9 +366,7 @@
 }
 
 /* Redo button styling - use same style as other action buttons */
-.redo-btn {
-  /* Remove custom green background, use default action button styling */
-}
+/* Uses default action button styling */
 
 /* Fix layout for when redo and enhance buttons are both shown */
 .enhance-button-container > div[style*="display: flex"] {
@@ -378,9 +376,21 @@
 }
 
 /* Ensure both buttons in the redo/enhance pair have consistent sizing */
+.enhance-button-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.enhance-buttons-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .enhance-button-container .action-button {
-  min-width: 120px;
-  flex-shrink: 0;
+  min-width: 100px;
+  flex: 0 0 auto;
 }
 
 /* Enhancement button container */
@@ -392,10 +402,33 @@
 @media (max-width: 768px) {
   .photo-action-buttons {
     bottom: 0px !important;
+    gap: 4px;
+    padding: 0 8px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
   }
   
   .action-button {
-    font-size: 12px;
-    padding: 8px 6px;
+    font-size: 11px;
+    padding: 8px 4px;
+    min-width: 70px;
+    flex-shrink: 0;
+  }
+  
+  /* Larger Twitter icon on mobile */
+  .action-button svg {
+    width: 14px !important;
+    height: 14px !important;
+    margin-right: 3px !important;
+  }
+  
+  .enhance-buttons-group {
+    gap: 4px;
+    display: flex;
+    flex-shrink: 0;
+  }
+  
+  .enhance-buttons-group .action-button {
+    min-width: 65px;
   }
 }

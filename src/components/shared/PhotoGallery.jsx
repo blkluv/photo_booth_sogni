@@ -1181,9 +1181,9 @@ const PhotoGallery = ({
           </button>
 
           {/* Enhanced Enhance Button with Undo/Redo functionality */}
-          <div className="enhance-button-container" style={{ position: 'relative', display: 'inline-block' }}>
+          <div className="enhance-button-container">
             {photos[selectedPhotoIndex].enhanced ? (
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div className="enhance-buttons-group">
                 <button
                   className="action-button enhance-btn"
                   onClick={(e) => {
@@ -1222,7 +1222,7 @@ const PhotoGallery = ({
               </div>
             ) : photos[selectedPhotoIndex].canRedo ? (
               // Show both Redo and Enhance buttons when redo is available
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div className="enhance-buttons-group">
                 <button
                   className="action-button enhance-btn redo-btn"
                   onClick={(e) => {
@@ -1504,7 +1504,7 @@ const PhotoGallery = ({
       </button>
       <div className={`film-strip-content ${selectedPhotoIndex === null ? '' : 'has-selected'}`} style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
         gap: '32px',
         justifyItems: 'center',
         alignItems: 'center',

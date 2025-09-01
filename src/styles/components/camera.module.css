@@ -493,16 +493,6 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
-:global(.settings-title) {
-  text-align: center;
-  color: white;
-  font-family: "Impact", "Arial Black", sans-serif;
-  font-size: 32px;
-  margin: 0 0 20px 0;
-  text-shadow: 2px 2px 0 #ff3366, 4px 4px 0 rgba(0, 0, 0, 0.2);
-  letter-spacing: 2px;
-}
-
 :global(.dismiss-overlay-btn) {
   position: absolute;
   top: 10px;
@@ -608,11 +598,15 @@
 :global(.slider-input::-webkit-slider-runnable-track) {
   height: 16px;
   border-radius: 8px;
+  background: linear-gradient(to right, #ff3366, #7132e8);
+  border: none;
 }
 
 :global(.slider-input::-moz-range-track) {
   height: 16px;
   border-radius: 8px;
+  background: linear-gradient(to right, #ff3366, #7132e8);
+  border: none;
 }
 
 .cameraFlipButton {

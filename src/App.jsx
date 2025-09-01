@@ -26,6 +26,7 @@ import './styles/ios-chrome-fixes.css';
 import './styles/mobile-portrait-fixes.css'; // New critical mobile portrait fixes
 import './styles/mobile-chrome-fixes.css'; // Chrome mobile context menu fixes
 import './styles/pwa-standalone-fixes.css'; // PWA standalone mode fixes
+import './styles/high-resolution-displays.css'; // High resolution display optimizations
 import CameraView from './components/camera/CameraView';
 import CameraStartMenu from './components/camera/CameraStartMenu';
 import StyleDropdown from './components/shared/StyleDropdown';

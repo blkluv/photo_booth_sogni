@@ -2,6 +2,33 @@
 @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Permanent+Marker&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap');
 
+/* Base high-resolution display improvements */
+@media (min-width: 1920px) or (min-height: 1080px) {
+  /* Improve font rendering on high-DPI displays */
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  
+  /* Better base font sizes for large displays */
+  html {
+    font-size: 18px; /* Increase base font size */
+  }
+  
+  /* Ensure all interactive elements meet touch target guidelines */
+  button, [role="button"], input, select, textarea {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Better focus indicators for large displays */
+  *:focus {
+    outline-width: 3px;
+    outline-offset: 2px;
+  }
+}
+
 /* Remove all thought bubble related styles */
 
 /* Remove the animation */
