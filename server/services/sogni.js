@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import process from 'process';
-import { redactImageData } from '../utils/logRedaction.js';
+// import { redactImageData } from '../utils/logRedaction.js'; // Unused import
 
 // Import SogniClient dynamically to avoid issues
 let SogniClient;
@@ -381,7 +381,6 @@ export async function generateImage(client, params, progressCallback, localProje
       // For Flux.1 Kontext, use contextImages as the direct parameter (array)
       projectOptions.contextImages = contextImagesData;
       
-      console.log(`[IMAGE] Context images: ${contextImagesData.length} image(s), total ${(contextImagesData.reduce((sum, img) => sum + img.length, 0) / 1024 / 1024).toFixed(2)}MB`);
     } else if (params.imageData) {
       const imageData = params.imageData instanceof Uint8Array 
         ? params.imageData 
@@ -398,18 +397,7 @@ export async function generateImage(client, params, progressCallback, localProje
       console.log(`[IMAGE] ControlNet image: ${(imageData.length / 1024 / 1024).toFixed(2)}MB`);
     }
 
-    // Debug: Show exactly what's being sent to Sogni SDK
-    if (isEnhancement) {
-      console.log('[IMAGE DEBUG] About to call sogniClient.projects.create with:', {
-        isEnhancement: true,
-        hasStartingImage: !!projectOptions.startingImage,
-        modelId: projectOptions.modelId,
-        startingImageSize: projectOptions.startingImage ? projectOptions.startingImage.length : 0
-      });
-      console.log('[IMAGE DEBUG] Exact projectOptions keys:', Object.keys(projectOptions));
-      console.log('[IMAGE DEBUG] startingImage exists:', !!projectOptions.startingImage);
-      console.log('[IMAGE DEBUG] startingImage value type:', typeof projectOptions.startingImage);
-    }
+
 
     // Create project
     const project = await sogniClient.projects.create(projectOptions);
@@ -468,10 +456,12 @@ export async function generateImage(client, params, progressCallback, localProje
             
             let progressEvent = null;
             
+
             // Process different event types with original data structure
             switch (event.type) {
               case 'preview':
                 // Handle preview events
+                
                 if (!event.jobId || !event.url) {
                   console.log(`[IMAGE] Skipping preview event - missing jobId or url:`, { jobId: event.jobId, hasUrl: !!event.url });
                   break;
@@ -491,8 +481,11 @@ export async function generateImage(client, params, progressCallback, localProje
                   previewUrl: event.url,
                   resultUrl: event.url, // Also set as resultUrl for compatibility
                   positivePrompt: event.positivePrompt || projectDetails.positivePrompt,
-                  jobIndex: event.jobIndex
+                  jobIndex: event.jobIndex,
+                  imgID: event.imgID // Include imgID for debugging
                 };
+                
+
 
                 break;
                 
@@ -509,17 +502,19 @@ export async function generateImage(client, params, progressCallback, localProje
                   projectCompletionTracker.workerNameCache.set(event.jobId, event.workerName);
                 }
                 
-                // Get job index from our tracking
-                const jobIndex = projectCompletionTracker.jobIndexMap.get(event.jobId);
-                
-                progressEvent = {
-                  type: event.type,
-                  jobId: event.jobId,
-                  projectId: projectDetails.localProjectId || event.projectId,
-                  workerName: event.workerName || 'unknown',
-                  positivePrompt: event.positivePrompt || projectDetails.positivePrompt,
-                  jobIndex: jobIndex !== undefined ? jobIndex : 0
-                };
+                {
+                  // Get job index from our tracking
+                  const jobIndex = projectCompletionTracker.jobIndexMap.get(event.jobId);
+                  
+                  progressEvent = {
+                    type: event.type,
+                    jobId: event.jobId,
+                    projectId: projectDetails.localProjectId || event.projectId,
+                    workerName: event.workerName || 'unknown',
+                    positivePrompt: event.positivePrompt || projectDetails.positivePrompt,
+                    jobIndex: jobIndex !== undefined ? jobIndex : 0
+                  };
+                }
                 break;
                 
               case 'progress': {
@@ -606,17 +601,19 @@ export async function generateImage(client, params, progressCallback, localProje
                     break;
                   }
                   
-                  // Get cached worker name for this job
-                  const cachedWorkerName = event.jobId ? projectCompletionTracker.workerNameCache.get(event.jobId) : null;
-                  const workerName = event.workerName || cachedWorkerName || 'unknown';
-                  
-                  progressEvent = {
-                    type: 'progress',
-                    progress: event.progress || 0,
-                    jobId: event.jobId,
-                    projectId: projectDetails.localProjectId || event.projectId,
-                    workerName: workerName
-                  };
+                  {
+                    // Get cached worker name for this job
+                    const cachedWorkerName = event.jobId ? projectCompletionTracker.workerNameCache.get(event.jobId) : null;
+                    const workerName = event.workerName || cachedWorkerName || 'unknown';
+                    
+                    progressEvent = {
+                      type: 'progress',
+                      progress: event.progress || 0,
+                      jobId: event.jobId,
+                      projectId: projectDetails.localProjectId || event.projectId,
+                      workerName: workerName
+                    };
+                  }
                 }
                 break;
               }

@@ -156,7 +156,6 @@ const PhotoGallery = ({
 
   // Clear framed image cache when theme changes
   useEffect(() => {
-    console.log('Clearing framed image cache due to theme change');
     // Clean up existing blob URLs
     Object.values(framedImageUrls).forEach(url => {
       if (url && url.startsWith('blob:')) {
@@ -168,7 +167,6 @@ const PhotoGallery = ({
 
   // Clear framed image cache when aspect ratio changes
   useEffect(() => {
-    console.log('Clearing framed image cache due to aspect ratio change');
     // Clean up existing blob URLs
     Object.values(framedImageUrls).forEach(url => {
       if (url && url.startsWith('blob:')) {
@@ -770,30 +768,10 @@ const PhotoGallery = ({
       
       setPreviousSelectedIndex(selectedPhotoIndex);
     }
-  }, [selectedPhotoIndex, previousSelectedIndex, photos, selectedSubIndex, tezdevTheme, outputFormat, aspectRatio, framedImageUrls, isThemeSupported]);
+  }, [selectedPhotoIndex, previousSelectedIndex, photos, selectedSubIndex, tezdevTheme, outputFormat, aspectRatio, isThemeSupported]);
 
-  // Cleanup old framed image URLs to prevent memory leaks
-  useEffect(() => {
-    const cleanup = () => {
-      const currentKeys = Object.keys(framedImageUrls);
-      if (currentKeys.length > 16) { // Keep only last 16 framed images
-        const keysToRemove = currentKeys.slice(0, -16);
-        keysToRemove.forEach(key => {
-          if (framedImageUrls[key] && framedImageUrls[key].startsWith('data:')) {
-            // Revoke blob URLs to free memory (data URLs don't need revoking)
-            URL.revokeObjectURL(framedImageUrls[key]);
-          }
-        });
-        setFramedImageUrls(prev => {
-          const cleaned = { ...prev };
-          keysToRemove.forEach(key => delete cleaned[key]);
-          return cleaned;
-        });
-      }
-    };
-
-    cleanup();
-  }, []);
+  // Cleanup old framed image URLs to prevent memory leaks - removed automatic cleanup to avoid continuous re-renders
+  // Manual cleanup can be added if needed in specific scenarios
 
   // Universal download function that works on all devices
   const downloadImage = async (imageUrl, filename) => {
@@ -1318,9 +1296,37 @@ const PhotoGallery = ({
                   className="enhance-dropdown"
                   style={{
                     position: 'fixed',
-                    bottom: 88,
-                    left: '50%',
-                    transform: 'translateX(-50%)',
+                    bottom: (() => {
+                      // Position dropdown above the enhance button
+                      const enhanceButton = document.querySelector('.enhance-button-container');
+                      if (enhanceButton) {
+                        const rect = enhanceButton.getBoundingClientRect();
+                        return window.innerHeight - rect.top + 10; // 10px gap above the button
+                      }
+                      return 88; // fallback
+                    })(),
+                    left: (() => {
+                      // Position dropdown aligned with the enhance button
+                      const enhanceButton = document.querySelector('.enhance-button-container');
+                      if (enhanceButton) {
+                        const rect = enhanceButton.getBoundingClientRect();
+                        const dropdownWidth = 310;
+                        let leftPos = rect.left + (rect.width / 2) - (dropdownWidth / 2);
+                        
+                        // Ensure dropdown doesn't go off-screen
+                        if (leftPos < 10) leftPos = 10;
+                        if (leftPos + dropdownWidth > window.innerWidth - 10) {
+                          leftPos = window.innerWidth - dropdownWidth - 10;
+                        }
+                        
+                        return leftPos;
+                      }
+                      return '50%'; // fallback
+                    })(),
+                    transform: (() => {
+                      const enhanceButton = document.querySelector('.enhance-button-container');
+                      return enhanceButton ? 'none' : 'translateX(-50%)'; // Only center if no button found
+                    })(),
                     background: 'white',
                     borderRadius: '8px',
                     boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
@@ -1590,9 +1596,9 @@ const PhotoGallery = ({
               </div>
             );
           }
-          // Show completed image
-          const thumbUrl = photo.images[0] || '';
-          // Determine if photo is fully loaded - simplified condition for better theme switching
+          // Show completed image - prefer enhanced image if available
+          const thumbUrl = (photo.enhanced && photo.enhancedImageUrl) ? photo.enhancedImageUrl : (photo.images[0] || '');
+          // Determine if photo is fully loaded - simplified condition for better theme switching  
           const isLoaded = (!photo.loading && !photo.generating && photo.images.length > 0 && thumbUrl);
           
           return (
@@ -1622,6 +1628,7 @@ const PhotoGallery = ({
                 overflow: 'hidden'
               }}>
                 <img 
+                  key={`${photo.id}-${photo.isPreview ? 'preview' : 'final'}`} // Force re-render when preview state changes
                   src={(() => {
                     // For selected photos with supported themes, use composite framed image if available
                     if (isSelected && isThemeSupported()) {
@@ -1668,15 +1675,32 @@ const PhotoGallery = ({
                         // Skip opacity setting for loading placeholders - CSS animation controls this
                         console.log('Skipping inline opacity for loading placeholder - CSS animation controls it');
                       } else if (photo.newlyArrived) {
+                        // For preview images, use a faster transition to handle rapid updates
+                        const transitionDelay = photo.isPreview ? 5 : 10;
                         // Start with opacity 0.01 (almost invisible but not completely transparent)
                         // This prevents white background from showing while keeping transition smooth
                         img.style.opacity = '0.01';
                         setTimeout(() => {
                           img.style.opacity = photo.isPreview ? '0.25' : '1';
-                        }, 10);
+                          // Add smooth transition for preview updates
+                          if (photo.isPreview) {
+                            img.style.transition = 'opacity 0.2s ease-in-out';
+                          }
+                        }, transitionDelay);
                       } else {
                         // Set opacity immediately without animation to prevent pulse
-                        img.style.opacity = photo.isPreview ? '0.25' : '1';
+                        const targetOpacity = photo.isPreview ? '0.25' : '1';
+                        img.style.opacity = targetOpacity;
+                        
+
+                        
+                        // Add smooth transition for preview updates
+                        if (photo.isPreview) {
+                          img.style.transition = 'opacity 0.2s ease-in-out';
+                        } else {
+                          // Remove transition for final images to ensure immediate full opacity
+                          img.style.transition = 'none';
+                        }
                       }
                     }
                   }}
@@ -1707,7 +1731,13 @@ const PhotoGallery = ({
                       objectFit: 'cover',
                       position: 'relative',
                       display: 'block',
-                      opacity: 0 // Start invisible, will be set to 1 immediately via onLoad without transition
+                      opacity: 0, // Start invisible, will be set to 1 immediately via onLoad without transition
+                      // Add strong anti-aliasing for crisp thumbnail rendering
+                      imageRendering: 'high-quality',
+                      WebkitImageSmoothing: true,
+                      MozImageSmoothing: true,
+                      msImageSmoothing: true,
+                      imageSmoothing: true
                     };
                     
                     // For supported themes with frame padding, account for the border

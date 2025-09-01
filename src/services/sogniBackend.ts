@@ -732,21 +732,104 @@ export class BackendSogniClient {
             case 'preview':
               if (targetJob) {
                 const previewUrl = event.previewUrl as string || event.resultUrl as string;
+                const jobId = event.jobId as string;
+                const imgId = event.imgID as string;
+                
+
                 
                 if (previewUrl) {
+                  // Check if this is a direct URL or needs to be constructed
+                  let finalPreviewUrl = previewUrl;
+                  
+                  // If it's not a full URL, construct it via the API endpoint
+                  if (!previewUrl.startsWith('http') && imgId && jobId) {
+
+                    
+                    // Construct the preview download URL via the API
+                    const constructPreviewUrl = async () => {
+                      try {
+                        const response = await fetch('/api/sogni/image/downloadUrl', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            jobId: jobId,
+                            imageId: imgId,
+                            type: 'preview'
+                          })
+                        });
+                        
+                        if (response.ok) {
+                          const data = await response.json();
+                          const downloadUrl = data?.data?.downloadUrl;
+                          
+
+                          
+                          if (downloadUrl) {
+                            // Update the job with the constructed URL
+                            targetJob.previewUrl = downloadUrl;
+                            
+                            // Emit the event with the proper URL
+                            project.emit('jobCompleted', {
+                              ...targetJob,
+                              resultUrl: downloadUrl,
+                              previewUrl: downloadUrl,
+                              isPreview: true
+                            });
+                          } else {
+
+                          }
+                        } else {
+
+                          // Fallback: try using the original preview URL as-is
+
+                          targetJob.previewUrl = previewUrl;
+                          project.emit('jobCompleted', {
+                            ...targetJob,
+                            resultUrl: previewUrl,
+                            previewUrl: previewUrl,
+                            isPreview: true
+                          });
+                        }
+                      } catch (error) {
+
+                        // Fallback: try using the original preview URL as-is
+
+                        targetJob.previewUrl = previewUrl;
+                        project.emit('jobCompleted', {
+                          ...targetJob,
+                          resultUrl: previewUrl,
+                          previewUrl: previewUrl,
+                          isPreview: true
+                        });
+                      }
+                    };
+                    
+                    // Call async function
+                    constructPreviewUrl();
+                    return; // Don't emit event yet, wait for URL construction
+                  }
+                  
                   // Set ONLY the preview URL - DO NOT set resultUrl (that would mark job as completed)
-                  targetJob.previewUrl = previewUrl;
+                  targetJob.previewUrl = finalPreviewUrl;
+                  
+
                   
                   // Emit a jobCompleted-like event but mark it as preview
                   project.emit('jobCompleted', {
                     ...targetJob,
-                    resultUrl: previewUrl, // Pass preview URL as resultUrl for the event only
-                    previewUrl: previewUrl,
+                    resultUrl: finalPreviewUrl, // Pass preview URL as resultUrl for the event only
+                    previewUrl: finalPreviewUrl,
                     isPreview: true
                   });
                   
 
+                } else {
+                  console.warn(`[PREVIEW DEBUG] Preview event received but no previewUrl found:`, event);
                 }
+              } else {
+                console.warn(`[PREVIEW DEBUG] Preview event received but no target job found for jobId:`, event.jobId);
               }
               break;
               

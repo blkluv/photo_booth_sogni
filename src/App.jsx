@@ -2273,6 +2273,7 @@ const App = () => {
       });
 
       // Listen to project updates to get job progress and preview images
+      
 
 
       // Handle job completion for cleanup and final processing
@@ -2296,29 +2297,70 @@ const App = () => {
         
         // Handle preview vs final image loading
         if (isPreview) {
+          console.log(`[PREVIEW DEBUG] Processing preview for photo ${photoIndex}:`, {
+            jobId: job.id,
+            resultUrl: job.resultUrl,
+            previewUrl: job.previewUrl,
+            isPreview,
+            jobKeys: Object.keys(job)
+          });
+          
           // PREVIEW IMAGE - load immediately without affecting status text
           fetch(job.resultUrl)
-            .then(response => response.blob())
+            .then(response => {
+              console.log(`[PREVIEW DEBUG] Fetch response for photo ${photoIndex}:`, {
+                status: response.status,
+                statusText: response.statusText,
+                headers: Object.fromEntries(response.headers.entries()),
+                url: response.url
+              });
+              
+              if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+              }
+              
+              return response.blob();
+            })
             .then(blob => {
+              console.log(`[PREVIEW DEBUG] Blob created for photo ${photoIndex}:`, {
+                size: blob.size,
+                type: blob.type
+              });
+              
               const objectUrl = URL.createObjectURL(blob);
               
               setPhotos(previous => {
                 const updated = [...previous];
                 if (updated[photoIndex] && !updated[photoIndex].permanentError) {
+                  // Clean up previous preview image URL to prevent memory leaks with frequent previews
+                  const currentImages = updated[photoIndex].images;
+                  if (currentImages && currentImages.length > 0 && updated[photoIndex].isPreview) {
+                    currentImages.forEach(imageUrl => {
+                      if (imageUrl && imageUrl.startsWith('blob:')) {
+                        URL.revokeObjectURL(imageUrl);
+                      }
+                    });
+                  }
+                  
+                  const newPreviewCount = (updated[photoIndex].previewUpdateCount || 0) + 1;
+                  
                   updated[photoIndex] = {
                     ...updated[photoIndex],
                     images: [objectUrl], // Show preview
                     newlyArrived: true,
-                    isPreview: true // Mark as preview for styling
+                    isPreview: true, // Mark as preview for styling
+                    previewUpdateCount: newPreviewCount // Track preview updates
                     // Keep existing generating: true and progress from generation events
                     // Don't override loading or statusText
                   };
+                  
+
                 }
                 return updated;
               });
             })
-            .catch(error => {
-              console.error('Preview image load failed:', error);
+            .catch(() => {
+              // Don't update the photo state on preview load failure
             });
           
           return; // Don't process hashtags for previews
