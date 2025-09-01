@@ -33,7 +33,7 @@
 
 .film-strip-content {
   display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)) !important;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
   gap: 32px !important;
   justify-content: center !important;
   justify-items: center !important;
@@ -84,8 +84,8 @@
 
 /* Enhanced grid layout for better high-resolution display support */
 .film-strip-content {
-  /* Ensure minimum viable photo size on any display - optimized for modern screens */
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)) !important;
+  /* Ensure minimum 4 columns on desktop landscape - optimized for modern screens */
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
   /* Better responsive behavior for different screen sizes */
   container-type: inline-size;
 }
@@ -120,6 +120,61 @@
     grid-template-columns: repeat(auto-fill, minmax(700px, 1fr)) !important;
   }
 }
+
+/* Container queries for portrait orientation - override the above when in portrait */
+@container (max-width: 768px) {
+  .film-strip-content {
+    /* Force 2 columns on small containers (mobile) */
+    grid-template-columns: repeat(auto-fill, minmax(min(40vw, 250px), 1fr)) !important;
+    gap: 20px !important;
+  }
+}
+
+/* Force 2 columns on mobile portrait orientation */
+@media (max-width: 768px) and (orientation: portrait), 
+       (max-device-width: 768px) and (orientation: portrait),
+       screen and (max-width: 480px) {
+  .film-strip-content {
+    /* Force exactly 2 equal-width columns */
+    grid-template-columns: calc(50% - 8px) calc(50% - 8px) !important;
+    gap: 16px !important;
+  }
+}
+
+/* Force 2 columns on mobile/narrow screens */
+@media screen and (max-width: 600px) {
+  .film-strip-container {
+    /* Match the gutter to the gap between images */
+    padding: 10px 16px 20px 16px !important;
+  }
+  
+  .film-strip-content {
+    /* Force exactly 2 equal-width columns using full width */
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 16px !important; /* Uniform gap between all photos */
+    /* Match the content padding to the gap between images */
+    padding: 60px 16px 20px 16px !important;
+  }
+  
+  /* Remove any conflicting margins */
+  .film-frame:not(.selected) {
+    margin: 0 !important;
+  }
+  
+  /* Multiple selectors to ensure it works */
+  .film-strip-container .film-strip-content {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 16px !important;
+    padding: 60px 16px 20px 16px !important;
+  }
+  
+  [class*="film-strip-content"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 16px !important;
+    padding: 60px 16px 20px 16px !important;
+  }
+}
+
 @keyframes photoGridReveal {
   0% {
     opacity: 0;
@@ -212,6 +267,32 @@
   -webkit-user-drag: auto !important;
   user-drag: auto !important;
   pointer-events: auto !important;
+}
+
+/* Ensure minimum 4 images per row on desktop landscape */
+@media (orientation: landscape) and (min-width: 1200px) {
+  .film-strip-content {
+    /* Force minimum 4 columns on desktop landscape */
+    grid-template-columns: repeat(auto-fill, minmax(min(22vw, 280px), 1fr)) !important;
+  }
+}
+
+/* Ensure minimum 2 images per row in portrait orientation */
+@media (orientation: portrait) {
+  .film-strip-content {
+    /* Force at least 2 columns by limiting max column width */
+    grid-template-columns: repeat(auto-fill, minmax(min(45vw, 300px), 1fr)) !important;
+  }
+}
+
+/* More aggressive 2-column layout for mobile portrait - use same media query pattern as existing rules */
+@media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
+  .film-strip-content {
+    /* Force 2 columns on mobile by using smaller max width */
+    grid-template-columns: repeat(auto-fill, minmax(min(40vw, 250px), 1fr)) !important;
+    /* Reduce gap slightly on mobile for better fit */
+    gap: 20px !important;
+  }
 }
 
 .film-frame.loading.selected img {
@@ -326,8 +407,9 @@ body .film-frame.selected,
   -webkit-transform: translate(-50%, -50%) !important;
   width: auto !important;
   height: auto !important;
-  max-width: 90vw !important;
-  max-height: 86vh !important;
+  /* Allow full resolution display with padding for controls */
+  max-width: 94vw !important;
+  max-height: 88vh !important;
   margin: 0 !important;
   padding: var(--polaroid-side-border) !important;
   padding-bottom: var(--polaroid-bottom-border) !important; /* Bottom space for label */
@@ -336,11 +418,30 @@ body .film-frame.selected,
   display: block !important;
   background: white !important; /* White polaroid background */
   box-shadow: 0 8px 30px rgba(0,0,0,0.3) !important;
-  border-radius: 3px !important;
   border: none !important;
   cursor: zoom-out !important;
   transition: none !important;
   overflow: visible !important;
+}
+
+/* Landscape layout: maximize selected photo size with bottom-right action bar */
+@media (orientation: landscape) and (min-width: 1024px) {
+  body .film-frame.selected.loaded,
+  body .film-frame.selected,
+  .film-frame.selected {
+    /* Keep centered horizontally since action bar is now bottom-right */
+    left: 50% !important;
+    /* Offset upwards to give more room for bottom action bar */
+    top: 48% !important; /* Moved up from 50% to give more bottom space */
+    /* Maximize available space - action bar no longer blocks center bottom */
+    max-width: 98vw !important; /* Increased from 96vw */
+    max-height: 96vh !important; /* Much larger height since no center bottom overlap */
+  }
+  
+  .film-frame.selected img {
+    max-width: calc(98vw - var(--polaroid-side-border) * 2) !important;
+    max-height: calc(96vh - var(--polaroid-side-border) - var(--polaroid-bottom-border)) !important;
+  }
 }
 
 /* Selected photo label is rendered inside the frame container now.
@@ -357,10 +458,12 @@ body .film-frame.selected,
 }
 
 .film-frame.selected img {
-  width: 100% !important;
+  /* Display at full resolution within available frame space */
+  width: auto !important;
   height: auto !important;
-  max-width: 100% !important;
-  max-height: calc(86vh - var(--polaroid-side-border) - var(--polaroid-bottom-border)) !important; /* Account for proper padding and label space */
+  max-width: calc(94vw - var(--polaroid-side-border) * 2) !important;
+  max-height: calc(88vh - var(--polaroid-side-border) - var(--polaroid-bottom-border)) !important;
+  /* Use contain to preserve aspect ratio while maximizing size */
   object-fit: contain !important;
   aspect-ratio: auto !important;
   border-radius: 2px !important;
@@ -468,10 +571,10 @@ body .film-frame.selected.taipei-blockchain-theme,
     left: 50% !important;
     transform: translate(-50%, -50%) !important;
     -webkit-transform: translate(-50%, -50%) !important;
-    width: 100vw !important;
+    width: auto !important;
     height: auto !important;
-    max-width: none !important;
-    max-height: 86vh !important;
+    max-width: 94vw !important;
+    max-height: 88vh !important;
     margin: 0 !important;
     padding: var(--polaroid-side-border) !important;
     padding-bottom: var(--polaroid-bottom-border) !important; /* Mobile bottom space */
@@ -479,14 +582,13 @@ body .film-frame.selected.taipei-blockchain-theme,
     display: block !important;
     background: white !important; /* White polaroid background */
     box-shadow: 0 8px 30px rgba(0,0,0,0.3) !important;
-    border-radius: 3px !important;
   }
   .film-frame.selected img {
     border: none !important;
-    width: 100% !important;
+    width: auto !important;
     height: auto !important;
-    max-width: 100% !important;
-    max-height: calc(86vh - var(--polaroid-side-border) - var(--polaroid-bottom-border)) !important; /* Account for proper padding and label space */
+    max-width: calc(94vw - var(--polaroid-side-border) * 2) !important;
+    max-height: calc(88vh - var(--polaroid-side-border) - var(--polaroid-bottom-border)) !important;
     object-fit: contain !important;
     background: transparent !important;
     box-sizing: border-box !important;

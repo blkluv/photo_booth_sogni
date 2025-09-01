@@ -133,7 +133,6 @@
   pointer-events: none;
   z-index: 10; /* Above all images including final loaded image */
   box-shadow: inset 0 0 6px 2px rgba(0, 0, 0, 0.08), inset 0 0 4px 1px rgba(180, 180, 180, 0.15);
-  border-radius: 2px;
   /* Ensure this element is not affected by any filters */
   filter: none !important;
   backdrop-filter: none !important;
@@ -147,7 +146,6 @@
 
 .film-frame.loading > div {
   overflow: hidden;
-  border-radius: 2px;
   position: relative;
 }
 
@@ -277,6 +275,33 @@
   max-width: none;
   padding: 0 20px;
   box-sizing: border-box;
+}
+
+/* Landscape layout: align action bar horizontally to bottom right */
+@media (orientation: landscape) and (min-width: 1024px) {
+  .photo-action-buttons {
+    flex-direction: row !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+    right: 20px !important;
+    left: auto !important;
+    bottom: 20px !important;
+    top: auto !important;
+    transform: none !important;
+    width: auto !important;
+    max-width: none !important;
+    padding: 0 !important;
+    gap: 12px !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    border-radius: 0 !important;
+  }
+  
+  .photo-action-buttons .action-button {
+    width: auto !important;
+    justify-content: center !important;
+    min-width: 100px !important;
+  }
 }
 
 /* Ensure the Enhance dropdown always layers above the image/frame overlays */

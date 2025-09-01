@@ -1504,7 +1504,7 @@ const PhotoGallery = ({
       </button>
       <div className={`film-strip-content ${selectedPhotoIndex === null ? '' : 'has-selected'}`} style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+        // Remove inline gridTemplateColumns to let CSS media queries work
         gap: '32px',
         justifyItems: 'center',
         alignItems: 'center',
