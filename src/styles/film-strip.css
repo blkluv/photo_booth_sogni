@@ -33,14 +33,14 @@
 
 .film-strip-content {
   display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)) !important;
   gap: 32px !important;
   justify-content: center !important;
   justify-items: center !important;
   align-content: flex-start !important;
   align-items: center !important;
   width: 100% !important;
-  max-width: 1600px !important;
+  max-width: none !important;
   margin: 0 auto !important;
   padding: 60px 20px 20px 20px !important;
   overflow: visible !important;
@@ -84,8 +84,8 @@
 
 /* Enhanced grid layout for better high-resolution display support */
 .film-strip-content {
-  /* Ensure minimum viable photo size on any display - 4 columns max */
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+  /* Ensure minimum viable photo size on any display - optimized for modern screens */
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)) !important;
   /* Better responsive behavior for different screen sizes */
   container-type: inline-size;
 }
@@ -93,19 +93,31 @@
 /* Container queries for better responsive behavior */
 @container (min-width: 1200px) {
   .film-strip-content {
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)) !important;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)) !important;
   }
 }
 
 @container (min-width: 1600px) {
   .film-strip-content {
-    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)) !important;
+    grid-template-columns: repeat(auto-fill, minmax(450px, 1fr)) !important;
   }
 }
 
 @container (min-width: 2000px) {
   .film-strip-content {
-    grid-template-columns: repeat(auto-fill, minmax(450px, 1fr)) !important;
+    grid-template-columns: repeat(auto-fill, minmax(520px, 1fr)) !important;
+  }
+}
+
+@container (min-width: 2560px) {
+  .film-strip-content {
+    grid-template-columns: repeat(auto-fill, minmax(600px, 1fr)) !important;
+  }
+}
+
+@container (min-width: 3200px) {
+  .film-strip-content {
+    grid-template-columns: repeat(auto-fill, minmax(700px, 1fr)) !important;
   }
 }
 @keyframes photoGridReveal {
@@ -253,7 +265,6 @@ body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
   cursor: pointer;
   /* Ensure adequate touch target size */
-  min-width: 120px;
   min-height: 44px;
   display: flex;
   align-items: center;
@@ -315,7 +326,7 @@ body .film-frame.selected,
   -webkit-transform: translate(-50%, -50%) !important;
   width: auto !important;
   height: auto !important;
-  max-width: min(90vw, 800px) !important;
+  max-width: 90vw !important;
   max-height: 86vh !important;
   margin: 0 !important;
   padding: var(--polaroid-side-border) !important;
@@ -708,7 +719,6 @@ body .film-frame.selected.taipei-blockchain-theme,
     right: 10px;
     bottom: 10px;
     border-radius: 16px;
-    max-width: 120px;
   }
 }
 

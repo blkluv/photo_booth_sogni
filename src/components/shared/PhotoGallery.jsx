@@ -1510,7 +1510,7 @@ const PhotoGallery = ({
         alignItems: 'center',
         justifyContent: 'center',
         width: '100%',
-        maxWidth: '1600px',
+        maxWidth: 'none',
         margin: '0 auto',
         padding: '32px'
       }}>
