@@ -358,7 +358,24 @@
 }
 body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty),
 body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label:not(:empty) {
-  font-size: 30px !important; /* Slightly smaller than desktop but still larger than base mobile */
+  font-size: 32px !important; /* Slightly smaller than desktop but still larger than base mobile */
+}
+
+/* Mobile portrait: reduce font sizes for grid view only (not popup/selected view) */
+/* Use more specific media query to override existing mobile styles */
+@media (max-width: 768px) and (orientation: portrait), (orientation: portrait) and (max-device-width: 768px) {
+  /* Reduce base font size for loading photos in grid view - higher specificity */
+  .film-frame:not(.selected) .photo-label {
+    font-size: 10px !important;
+  }
+  
+  /* Reduce font size for completed photos in grid view - higher specificity */
+  .film-frame:not(.selected).loaded .photo-label:not(:empty) {
+    font-size: 14px !important;
+  }
+  
+  /* Keep selected photo labels at original size for popup view */
+  /* The existing rules for .selected photos will override these */
 }
 
 /* Back to Camera button - ensure it stays fixed */
@@ -412,11 +429,14 @@ body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label
 }
 
 /* Remove the "hovered" class approach completely and use only pure CSS - but don't interfere with loading animations or selected frames */
-.film-frame:not(.loading):not(.selected):hover {
-  transform: translateY(-10px) translateZ(0) !important;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4) !important;
-  z-index: 10 !important;
-  transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s cubic-bezier(0.23, 1, 0.32, 1) !important;
+/* Only apply hover effects on devices that support hover (not touch devices) */
+@media (hover: hover) and (pointer: fine) {
+  .film-frame:not(.loading):not(.selected):hover {
+    transform: translateY(-10px) translateZ(0) !important;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4) !important;
+    z-index: 10 !important;
+    transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s cubic-bezier(0.23, 1, 0.32, 1) !important;
+  }
 }
 
 .film-frame {
@@ -690,7 +710,7 @@ body .film-frame.selected.taipei-blockchain-theme,
   
   body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty),
   body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label:not(:empty) {
-    font-size: 30px !important;
+    font-size: 32px !important;
   }
   
 

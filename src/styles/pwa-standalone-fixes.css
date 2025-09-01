@@ -52,7 +52,7 @@
     height: 100vh !important;
   }
 
-  .film-strip-content {
+  html body .film-strip-container.visible .film-strip-content {
     /* Keep the original grid layout - don't override it */
     padding-top: max(110px, env(safe-area-inset-top)) !important;
     padding-bottom: max(60px, env(safe-area-inset-bottom)) !important;

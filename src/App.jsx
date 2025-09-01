@@ -4688,17 +4688,20 @@ const App = () => {
           }
           
           /* Only apply transitions on hover/active for deliberate interaction, but not on loading frames */
-          .film-frame:not(.selected):not(.loading):hover {
-            transform: scale(1.05) translateZ(0) !important;
-            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25) !important;
-            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), 
-                        box-shadow 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
-          }
-          
-          .film-frame:not(.selected):not(.loading):active {
-            transform: scale(0.98) translateZ(0) !important;
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2) !important;
-            transition: all 0.1s ease-out !important;
+          /* Only apply hover effects on devices that support hover (not touch devices) */
+          @media (hover: hover) and (pointer: fine) {
+            .film-frame:not(.selected):not(.loading):hover {
+              transform: scale(1.05) translateZ(0) !important;
+              box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25) !important;
+              transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), 
+                          box-shadow 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+            }
+            
+            .film-frame:not(.selected):not(.loading):active {
+              transform: scale(0.98) translateZ(0) !important;
+              box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2) !important;
+              transition: all 0.1s ease-out !important;
+            }
           }
           
           /* Ensure only the deliberately selected photo animates */
