@@ -2049,7 +2049,9 @@ const App = () => {
                 };
               } else if (type === 'queued') {
                 const currentStatusText = updated[photoIndex].statusText || 'Calling Art Robot...';
-                if (currentStatusText.includes('Calling Art Robot') || currentStatusText.includes('In queue')) {
+                // Only update with queue position if it's greater than 1
+                // Queue position 1 means it's next/being processed, so keep the worker assignment label
+                if ((currentStatusText.includes('Calling Art Robot') || currentStatusText.includes('In queue')) && queuePosition > 1) {
                   updated[photoIndex] = {
                     ...updated[photoIndex],
                     generating: true,
