@@ -28,8 +28,9 @@
   margin: 0 auto;
   position: relative;
   box-shadow: 0 6px 12px rgba(0,0,0,0.3);
-  width: 66.67%; /* reduced by one-third */
-  max-width: 66.67%;
+  /* Allow dynamic sizing like ImageAdjuster - remove fixed width constraints */
+  width: auto;
+  max-width: none;
 }
 
 /* Mobile portrait optimization */
@@ -74,4 +75,13 @@
   max-width: 66.67% !important;
   height: auto !important;
   padding-bottom: 0 !important; /* cancel ratio padding from legacy css */
+}
+
+/* HIGH RESOLUTION SCALING - Allow camera to scale like ImageAdjuster */
+/* Override the 66.67% constraint for better high-resolution scaling */
+.photobooth-app .photobooth-frame > .photobooth-screen {
+  width: auto !important;
+  max-width: none !important;
+  height: auto !important;
+  margin: 0 auto !important;
 } 

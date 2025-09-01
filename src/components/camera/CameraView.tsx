@@ -224,9 +224,9 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
       } else {
         console.log(`📐 CameraView: Using requested ${aspectRatio} dimensions ${currentDimensions.width}x${currentDimensions.height}`);
       }
-      // Get viewport dimensions (accounting for header and controls)
-      const viewportWidth = window.innerWidth * 0.9; // 90% of viewport width
-      const viewportHeight = window.innerHeight * 0.9; // 90% of viewport height to account for header/controls
+      // Get viewport dimensions - use same approach as ImageAdjuster for consistent scaling
+      const viewportWidth = window.innerWidth * 0.9; 
+      const viewportHeight = window.innerHeight * 0.9; 
       
       let containerWidth, containerHeight;
       
@@ -236,7 +236,8 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
       
       if (isPortraitLike) {
         // Portrait-like modes (ultranarrow, narrow, portrait) - prioritize height
-        containerHeight = Math.min(viewportHeight, 600);
+        // Use ImageAdjuster approach: no hardcoded pixel limits, use actual dimensions
+        containerHeight = Math.min(viewportHeight * 0.8, currentDimensions.height);
         containerWidth = containerHeight * currentAspectRatio;
         // Check if width exceeds viewport width
         if (containerWidth > viewportWidth) {
@@ -245,25 +246,25 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
         }
       } 
       else if (isSquareLike) {
-        // Square mode - try to fit within viewport
-        const size = Math.min(viewportWidth, viewportHeight, 600);
+        // Square mode - try to fit within viewport (match ImageAdjuster)
+        const size = Math.min(viewportWidth, viewportHeight * 0.9);
         containerWidth = size;
         containerHeight = size;
       }
       else {
         // Landscape-like modes (landscape, wide, ultrawide) - prioritize width
-        containerWidth = Math.min(viewportWidth, 800);
+        containerWidth = Math.min(viewportWidth, currentDimensions.width);
         containerHeight = containerWidth / currentAspectRatio;
       }
       
-      // Final common constraints for all modes
+      // Final common constraints for all modes - match ImageAdjuster exactly
       if (containerWidth > viewportWidth) {
         containerWidth = viewportWidth;
         containerHeight = containerWidth / currentAspectRatio;
       }
       
-      if (containerHeight > viewportHeight) {
-        containerHeight = viewportHeight;
+      if (containerHeight > viewportHeight * 0.75) {
+        containerHeight = viewportHeight * 0.75;
         containerWidth = containerHeight * currentAspectRatio;
       }
       
