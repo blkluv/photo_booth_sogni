@@ -205,7 +205,8 @@
   .film-frame.loaded .photo-label:not(:empty) {
     font-size: 16px !important; /* Slightly smaller than desktop but still larger than base mobile */
   }
-  body.has-selected-photo .film-frame.loaded .photo-label:not(:empty) {
+  body.has-selected-photo .film-frame.loaded .photo-label:not(:empty),
+  body.has-selected-photo .film-frame[data-enhancing="true"] .photo-label:not(:empty) {
     font-size: 24px !important; /* Slightly smaller than desktop but still larger than base mobile */
   }
 
@@ -355,7 +356,8 @@
   font-size: 18px !important;
   font-weight: 500 !important;
 }
-body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
+body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty),
+body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label:not(:empty) {
   font-size: 30px !important; /* Slightly smaller than desktop but still larger than base mobile */
 }
 
@@ -686,7 +688,8 @@ body .film-frame.selected.taipei-blockchain-theme,
   }
 
   
-  body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty) {
+  body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty),
+  body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label:not(:empty) {
     font-size: 30px !important;
   }
   

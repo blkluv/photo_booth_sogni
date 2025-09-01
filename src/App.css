@@ -15,12 +15,7 @@
   html {
     font-size: 18px; /* Increase base font size */
   }
-  
-  /* Ensure all interactive elements meet touch target guidelines */
-  button, [role="button"], input, select, textarea {
-    min-height: 44px;
-    min-width: 44px;
-  }
+
   
   /* Better focus indicators for large displays */
   *:focus {
