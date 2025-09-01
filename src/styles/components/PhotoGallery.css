@@ -269,8 +269,8 @@
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
-  /* Ensure action bar and its dropdowns sit above any selected frame content even in PWA */
-  z-index: 2147483646;
+  /* Ensure action bar sits above sloth mascot animation */
+  z-index: 999999 !important;
   width: 100%;
   max-width: none;
   padding: 0 20px;
@@ -304,9 +304,23 @@
   }
 }
 
-/* Ensure the Enhance dropdown always layers above the image/frame overlays */
+/* Ensure the Enhance dropdown always layers above sloth mascot */
 .enhance-button-container .enhance-dropdown {
-  z-index: 2147483647 !important;
+  z-index: 9999999 !important;
+}
+
+/* Force action buttons above sloth with maximum specificity */
+body .photo-action-buttons,
+html body .photo-action-buttons,
+.photobooth-app .photo-action-buttons {
+  z-index: 999999 !important;
+}
+
+/* Force individual action buttons above sloth */
+body .photo-action-buttons .action-button,
+html body .photo-action-buttons .action-button,
+.photobooth-app .photo-action-buttons .action-button {
+  z-index: 999999 !important;
 }
 
 .action-button {
@@ -427,17 +441,21 @@
 @media (max-width: 768px) {
   .photo-action-buttons {
     bottom: 0px !important;
-    gap: 4px;
+    gap: 0;
     padding: 0 8px;
     flex-wrap: nowrap;
     overflow-x: auto;
+    justify-content: space-evenly !important;
+    z-index: 999999 !important;
   }
   
   .action-button {
     font-size: 11px;
     padding: 8px 4px;
     min-width: 70px;
+    flex: 1;
     flex-shrink: 0;
+    max-width: calc(25% - 4px);
   }
   
   /* Larger Twitter icon on mobile */
@@ -448,12 +466,39 @@
   }
   
   .enhance-buttons-group {
-    gap: 4px;
+    gap: 0;
     display: flex;
+    flex: 1;
     flex-shrink: 0;
+    max-width: calc(25% - 4px);
   }
   
   .enhance-buttons-group .action-button {
     min-width: 65px;
+    flex: 1;
+    max-width: none;
+  }
+}
+
+/* Extra specific styling for mobile portrait */
+@media (max-width: 768px) and (orientation: portrait) {
+  .photo-action-buttons {
+    justify-content: space-evenly !important;
+    width: 100% !important;
+    padding: 0 4px !important;
+    z-index: 999999 !important;
+  }
+  
+  .action-button {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    margin: 0 2px !important;
+  }
+  
+  .enhance-buttons-group {
+    flex: 1 1 0 !important;
+    max-width: none !important;
+    margin: 0 2px !important;
   }
 }

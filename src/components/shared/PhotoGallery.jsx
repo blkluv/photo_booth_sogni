@@ -1120,8 +1120,8 @@ const PhotoGallery = ({
           position: 'fixed',
           left: '50%',
           transform: 'translateX(-50%)',
-          // Ensure this toolbar and its popups are above the selected film-frame in PWA and desktop
-          zIndex: 2147483646,
+          // Ensure this toolbar and its popups are above sloth mascot
+          zIndex: 999999,
         }}>
           {/* Share to X Button */}
           <button
@@ -1331,7 +1331,7 @@ const PhotoGallery = ({
                     borderRadius: '8px',
                     boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
                     overflow: 'hidden',
-                    zIndex: 2147483647,
+                    zIndex: 9999999,
                     minWidth: '310px',
                     border: '1px solid rgba(0,0,0,0.1)'
                   }}
@@ -1899,7 +1899,7 @@ const PhotoGallery = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 2147483647,
+            zIndex: 9999999,
             padding: '20px'
           }}
           onClick={handlePromptCancel}

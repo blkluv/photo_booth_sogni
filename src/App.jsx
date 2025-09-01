@@ -768,6 +768,19 @@ const App = () => {
     }
   }, []);
 
+  // Hide slothicorn when photo is selected to prevent overlap with action buttons
+  useEffect(() => {
+    if (slothicornReference.current) {
+      if (selectedPhotoIndex !== null) {
+        // Photo is selected - hide sloth completely
+        slothicornReference.current.style.display = 'none';
+      } else {
+        // No photo selected - show sloth
+        slothicornReference.current.style.display = 'block';
+      }
+    }
+  }, [selectedPhotoIndex]);
+
   // Add state for backend connection errors
   const [backendError, setBackendError] = useState(null);
 
@@ -2768,7 +2781,7 @@ const App = () => {
         if (index === 2 && slothicornReference.current && isFrontCamera) {
           // Force the slothicorn to be visible and animated
           slothicornReference.current.style.position = 'fixed'; // Ensure it's fixed positioning
-          slothicornReference.current.style.zIndex = '999999'; // Very high z-index to appear above everything
+          slothicornReference.current.style.zIndex = '5000'; // Above photo grid but below action buttons
           slothicornReference.current.style.setProperty('bottom', '-360px', 'important');
           slothicornReference.current.style.transition = 'none';
           slothicornReference.current.classList.add('animating');
@@ -2802,7 +2815,7 @@ const App = () => {
             slothicornReference.current.style.transition = 'none';
             slothicornReference.current.classList.remove('animating');
             // Reset z-index after animation completes
-            slothicornReference.current.style.zIndex = '10';
+            slothicornReference.current.style.zIndex = '5000';
           }, 1500);
         }
       }, 1200);
@@ -4425,7 +4438,7 @@ const App = () => {
               transform: 'translateX(-50%) scale(1.5)',
               width: '200px',
               height: 'auto',
-              zIndex: 10,
+              zIndex: 5000,
               pointerEvents: 'none'
             }}
           >

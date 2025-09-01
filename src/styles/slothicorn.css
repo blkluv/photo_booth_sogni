@@ -11,7 +11,7 @@
   transform-origin: bottom center !important;
   width: 200px !important;
   height: auto !important;
-  z-index: 100000 !important; /* Ensure this is higher than any other z-index in the app */
+  z-index: 5000 !important; /* Above photo grid but below action buttons */
   pointer-events: none !important;
   will-change: auto;
 }
@@ -20,7 +20,7 @@
 .slothicorn-container.animating {
   animation: none !important;
   bottom: -360px; /* Starting position, will be overridden by JS */
-  z-index: 999999 !important; /* Extremely high z-index to appear above everything during animation */
+  z-index: 5000 !important; /* Above photo grid but below action buttons during animation */
   will-change: transform, bottom; /* Enable GPU acceleration only when animating */
 }
 

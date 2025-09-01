@@ -4,6 +4,7 @@ import '../../styles/components/PromoPopup.css';
 
 const PromoPopup = ({ isOpen, onClose }) => {
   const modalRef = useRef(null);
+  const overlayRef = useRef(null);
 
   // Handle click outside to close
   useEffect(() => {
@@ -39,6 +40,48 @@ const PromoPopup = ({ isOpen, onClose }) => {
     };
   }, [isOpen, onClose]);
 
+  // Fix viewport height for incognito mode and ensure popup is visible
+  useEffect(() => {
+    if (isOpen && overlayRef.current) {
+      // Update CSS custom property for accurate viewport height
+      const updateViewportHeight = () => {
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+      };
+      
+      // Set initial viewport height
+      updateViewportHeight();
+      
+      // Ensure popup is scrolled into view if it's positioned off-screen
+      const ensureVisibility = () => {
+        if (overlayRef.current) {
+          const rect = overlayRef.current.getBoundingClientRect();
+          if (rect.top < 0 || rect.bottom > window.innerHeight) {
+            overlayRef.current.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center' 
+            });
+          }
+        }
+      };
+      
+      // Small delay to ensure DOM is updated
+      const timer = setTimeout(() => {
+        ensureVisibility();
+      }, 100);
+      
+      // Listen for resize events while popup is open
+      window.addEventListener('resize', updateViewportHeight);
+      window.addEventListener('orientationchange', updateViewportHeight);
+      
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('resize', updateViewportHeight);
+        window.removeEventListener('orientationchange', updateViewportHeight);
+      };
+    }
+  }, [isOpen]);
+
   const handleSignupClick = () => {
     window.open('https://app.sogni.ai/create?code=PHOTOBOOTH', '_blank');
     onClose();
@@ -47,7 +90,7 @@ const PromoPopup = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="promo-modal-overlay">
+    <div className="promo-modal-overlay" ref={overlayRef}>
       <div className="promo-modal" ref={modalRef}>
         <button className="promo-modal-close" onClick={onClose}>×</button>
         
