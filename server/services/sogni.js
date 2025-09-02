@@ -337,6 +337,8 @@ export async function generateImage(client, params, progressCallback, localProje
 
     // Prepare project options in the correct format for the Sogni SDK
     const isEnhancement = params.startingImage !== undefined;
+    const isKreaUpscaling = isEnhancement && params.selectedModel === 'flux1-krea-dev_fp8_scaled';
+    
     const projectOptions = {
       modelId: params.selectedModel,
       positivePrompt: params.positivePrompt || '',
@@ -348,7 +350,7 @@ export async function generateImage(client, params, progressCallback, localProje
       steps: params.inferenceSteps || (isEnhancement ? 4 : 7),
       guidance: params.promptGuidance || (isEnhancement ? 1 : 2),
       numberOfImages: params.numberImages || 1,
-      numberOfPreviews: 10,
+      numberOfPreviews: isKreaUpscaling ? 0 : 10, // Disable previews for Krea upscaling
       scheduler: params.scheduler || 'DPM++ SDE',
       timeStepSpacing: params.timeStepSpacing || 'Karras',
       disableNSFWFilter: params.sensitiveContentFilter ? false : true,
