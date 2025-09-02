@@ -10,7 +10,7 @@
  * @returns {Promise<string>} - Promise that resolves to the permanent image URL
  */
 export const uploadBlobImage = async (blobUrl, filename = null) => {
-  console.log(`[Image Upload] Starting upload for blob URL (${blobUrl.length} chars)`);
+  console.log(`[Image Upload] Starting upload for URL (${blobUrl.length} chars)`);
   
   try {
     // Fetch the blob data
@@ -100,13 +100,22 @@ export const isBlobUrl = (url) => {
 };
 
 /**
+ * Check if a URL is a data URL
+ * @param {string} url - URL to check
+ * @returns {boolean} - True if it's a data URL
+ */
+export const isDataUrl = (url) => {
+  return typeof url === 'string' && url.startsWith('data:');
+};
+
+/**
  * Convert blob URL to permanent URL if needed
  * @param {string} url - URL to process
  * @returns {Promise<string>} - Promise that resolves to permanent URL
  */
 export const ensurePermanentUrl = async (url) => {
-  if (isBlobUrl(url)) {
-    console.log(`[Image Upload] Converting blob URL to permanent URL`);
+  if (isBlobUrl(url) || isDataUrl(url)) {
+    console.log(`[Image Upload] Converting temporary URL (blob/data) to permanent URL`);
     return await uploadBlobImage(url);
   }
   
@@ -118,5 +127,6 @@ export default {
   uploadBlobImage,
   uploadMultipleBlobImages,
   isBlobUrl,
+  isDataUrl,
   ensurePermanentUrl
 };

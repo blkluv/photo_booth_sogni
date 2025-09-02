@@ -109,7 +109,11 @@ class ThemeConfigService {
       return "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨";
     }
 
-    return theme.tweetTemplate.replace(/{styleTag}/g, styleTag);
+    // Support both "{styleTag}" and "#{styleTag}" placeholder patterns
+    // "#{styleTag}" becomes a hashtag like "#vaporwave"
+    return theme.tweetTemplate
+      .replace(/#\{styleTag\}/g, `#${styleTag}`)
+      .replace(/\{styleTag\}/g, styleTag);
   }
 
   /**

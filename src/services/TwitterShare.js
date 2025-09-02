@@ -302,13 +302,22 @@ export const shareToTwitter = async ({
         const left = window.innerWidth / 2 - width / 2 + window.screenX;
         const top = window.innerHeight / 2 - height / 2 + window.screenY;
         
-        // Open popup with the Twitter auth URL
-        const popup = window.open(
-          responseData.authUrl,
-          'twitter-auth-popup',
-          `width=${width},height=${height},left=${left},top=${top},location=yes,resizable=yes,scrollbars=yes`
-        );
-        
+        // Safari-friendly popup handling: pre-open a blank popup synchronously
+        let popup = null;
+        try {
+          popup = window.open('', 'twitter-auth-popup', `width=${width},height=${height},left=${left},top=${top},location=yes,resizable=yes,scrollbars=yes`);
+        } catch (e) {
+          popup = null;
+        }
+
+        if (popup) {
+          try {
+            popup.location.href = responseData.authUrl;
+          } catch (e) {
+            popup = null;
+          }
+        }
+
         if (!popup || popup.closed || typeof popup.closed === 'undefined') {
           console.error('Popup blocked or could not be opened');
           
@@ -326,12 +335,14 @@ export const shareToTwitter = async ({
         }
         
         // Setup message listener for communication from the popup
+        let authCompleted = false;
         const messageHandler = (event) => {
           // Accept messages from any origin since we're using a wildcard in the callback
           console.log('Received message from popup:', event.data);
           
           if (event.data && event.data.type === 'twitter-auth-success') {
             // Auth succeeded
+            authCompleted = true;
             window.removeEventListener('message', messageHandler);
             if (onSuccess && typeof onSuccess === 'function') {
               onSuccess();
@@ -350,9 +361,17 @@ export const shareToTwitter = async ({
         
         // Also handle the case where user closes the popup without completing auth
         const checkPopupClosed = setInterval(() => {
-          if (popup.closed) {
+          if (!popup || popup.closed) {
             clearInterval(checkPopupClosed);
             window.removeEventListener('message', messageHandler);
+            if (!authCompleted) {
+              setBackendError({
+                type: 'auth_cancelled',
+                title: 'Twitter Authorization Cancelled',
+                message: 'The Twitter authorization window was closed before completion.',
+                canRetry: true
+              });
+            }
           }
         }, 1000);
 

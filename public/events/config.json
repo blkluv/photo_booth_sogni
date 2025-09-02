@@ -6,7 +6,7 @@
       "label": "Taipei Blockchain Week 2025",
       "defaultAspectRatio": "narrow",
       "framePadding": 20,
-      "tweetTemplate": "Just took my photo at the @sogni_protocol photobooth #TaipeiBlockchainWeek2025 #{styleTag} with @tzapac @tezos @etherlink\nhttps://photobooth.sogni.ai/?prompt={styleTag}",
+      "tweetTemplate": "Just took my photo at the @sogni_protocol AI photobooth #TaipeiBlockchainWeek2025 #{styleTag} with @tzapac @tezos @etherlink\nhttps://photobooth.sogni.ai/?prompt={styleTag}",
       "frames": {
         "narrow": [
           "/events/taipei-blockchain-2025/narrow_1.png",
@@ -22,7 +22,7 @@
       "label": "Super Casual",
       "defaultAspectRatio": "narrow",
       "framePadding": 0,
-      "tweetTemplate": "Just took my photo at the @sogni_protocol photobooth #SuperCasual #{styleTag} with @tzapac @tezos @etherlink\nhttps://photobooth.sogni.ai/?prompt={styleTag}",
+      "tweetTemplate": "Just took my photo at the @sogni_protocol AI photobooth #SuperCasual #{styleTag} with @tzapac @tezos @etherlink\nhttps://photobooth.sogni.ai/?prompt={styleTag}",
       "frames": {
         "narrow": [
           "/events/super-casual/narrow_1.png"
@@ -33,7 +33,7 @@
       "label": "Tezos WebX Asia",
       "defaultAspectRatio": "narrow",
       "framePadding": 0,
-      "tweetTemplate": "Just took my photo at the @sogni_protocol photobooth at the @Tezos booth at G-79 @WebX_Asia! #SogniAtWebXAsia #{styleTag} @tzapac @etherlink https://photobooth.sogni.ai/?prompt={styleTag}",
+      "tweetTemplate": "Just took my photo at the @sogni_protocol AI photobooth at the @Tezos booth at G-79 @WebX_Asia! #SogniAtWebXAsia #{styleTag} @tzapac @etherlink https://photobooth.sogni.ai/?prompt={styleTag}",
       "frames": {
         "narrow": [
           "/events/tezos-webx/narrow_1.png"
