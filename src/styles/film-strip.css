@@ -194,20 +194,40 @@
   .film-frame .photo-label {
     position: relative !important;
     bottom: 10px !important;
-    left: 0 !important;
-    right: 0 !important;
+    left: 5px !important;
+    right: 5px !important;
     text-align: center !important;
     font-size: 12px !important;
     height: 30px !important; /* Fixed height for label */
+    line-height: 30px !important;
+    /* Add ellipsis properties for mobile */
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    width: auto !important;
+    box-sizing: border-box !important;
+    display: block !important;
   }
 
   /* Larger font for loaded photos on mobile */
   .film-frame.loaded .photo-label:not(:empty) {
     font-size: 16px !important; /* Slightly smaller than desktop but still larger than base mobile */
+    /* Ensure ellipsis works with larger font on mobile */
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    display: block !important;
+    line-height: 30px !important;
   }
   body.has-selected-photo .film-frame.loaded .photo-label:not(:empty),
   body.has-selected-photo .film-frame[data-enhancing="true"] .photo-label:not(:empty) {
     font-size: 24px !important; /* Slightly smaller than desktop but still larger than base mobile */
+    /* Ensure ellipsis works with larger font on mobile */
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    display: block !important;
+    line-height: 30px !important;
   }
 
   body.has-selected-photo .header-info-btn,
@@ -335,12 +355,11 @@
 .film-frame .photo-label {
   position: absolute !important;
   bottom: 8px !important;
-  left: 0 !important;
-  right: 0 !important;
+  left: 5px !important;
+  right: 5px !important;
   height: 40px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+  display: block !important;
+  line-height: 40px !important;
   text-align: center !important;
   font-family: "Permanent Marker", cursive !important;
   font-size: 14px !important;
@@ -348,17 +367,31 @@
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
   overflow: hidden !important;
-  padding: 0 5px !important;
+  /* Use block display with defined width for ellipsis to work */
+  width: auto !important;
+  box-sizing: border-box !important;
 }
 
 /* Larger font size for completed photos with hashtags */
 .film-frame.loaded .photo-label:not(:empty) {
   font-size: 26px !important;
   font-weight: 500 !important;
+  /* Ensure ellipsis works with larger font size */
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  display: block !important;
+  line-height: 40px !important;
 }
 body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty),
 body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label:not(:empty) {
-  font-size: 32px !important; /* Slightly smaller than desktop but still larger than base mobile */
+  font-size: 40px !important; /* Slightly smaller than desktop but still larger than base mobile */
+  /* Ensure ellipsis works with larger font size */
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  display: block !important;
+  line-height: 40px !important;
 }
 
 /* Mobile portrait: reduce font sizes for grid view only (not popup/selected view) */
@@ -367,11 +400,23 @@ body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label
   /* Reduce base font size for loading photos in grid view - higher specificity */
   .film-frame:not(.selected) .photo-label {
     font-size: 10px !important;
+    /* Ensure ellipsis works on mobile */
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    display: block !important;
+    line-height: 30px !important;
   }
   
   /* Increase font size for completed photos in grid view - higher specificity */
   .film-frame:not(.selected).loaded .photo-label:not(:empty) {
     font-size: 15px !important;
+    /* Ensure ellipsis works on mobile with larger font */
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    display: block !important;
+    line-height: 30px !important;
   }
   
   /* Keep selected photo labels at original size for popup view */
@@ -538,12 +583,11 @@ body .film-frame.selected,
 .film-frame.selected .photo-label {
   position: absolute !important;
   bottom: 26px !important;
-  left: 0 !important;
-  right: 0 !important;
+  left: 10px !important;
+  right: 10px !important;
   height: 40px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+  display: block !important;
+  line-height: 40px !important;
   text-align: center !important;
   font-family: "Permanent Marker", cursive !important;
   font-size: 18px !important;
@@ -551,8 +595,10 @@ body .film-frame.selected,
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
   overflow: hidden !important;
-  padding: 0 10px !important;
   z-index: 10000 !important; /* Higher z-index to ensure visibility */
+  /* Use block display with defined width for ellipsis to work */
+  width: auto !important;
+  box-sizing: border-box !important;
 }
 
 
