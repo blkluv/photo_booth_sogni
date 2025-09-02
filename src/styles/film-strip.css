@@ -353,7 +353,7 @@
 
 /* Larger font size for completed photos with hashtags */
 .film-frame.loaded .photo-label:not(:empty) {
-  font-size: 18px !important;
+  font-size: 26px !important;
   font-weight: 500 !important;
 }
 body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty),
@@ -369,9 +369,9 @@ body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label
     font-size: 10px !important;
   }
   
-  /* Reduce font size for completed photos in grid view - higher specificity */
+  /* Increase font size for completed photos in grid view - higher specificity */
   .film-frame:not(.selected).loaded .photo-label:not(:empty) {
-    font-size: 14px !important;
+    font-size: 15px !important;
   }
   
   /* Keep selected photo labels at original size for popup view */
