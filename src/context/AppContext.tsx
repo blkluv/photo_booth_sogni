@@ -113,7 +113,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       aspectRatio,
       tezdevTheme: theme,
       outputFormat: getSettingFromCookie('outputFormat', DEFAULT_SETTINGS.outputFormat),
-      sensitiveContentFilter: getSettingFromCookie('sensitiveContentFilter', DEFAULT_SETTINGS.sensitiveContentFilter)
+      sensitiveContentFilter: getSettingFromCookie('sensitiveContentFilter', DEFAULT_SETTINGS.sensitiveContentFilter),
+      preferredCameraDeviceId: getSettingFromCookie('preferredCameraDeviceId', DEFAULT_SETTINGS.preferredCameraDeviceId)
     };
   });
   
@@ -246,6 +247,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     
     // Save non-model-specific settings to global storage
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { inferenceSteps, scheduler, timeStepSpacing, promptGuidance, guidance, numImages, ...nonModelSettings } = resetToDefaults;
     saveSettingsToCookies(nonModelSettings);
     

@@ -160,6 +160,7 @@ const createDefaultSettings = (): Settings => {
     tezdevTheme: 'off' as const,
     outputFormat: 'jpg' as OutputFormat,
     sensitiveContentFilter: false,
+    preferredCameraDeviceId: undefined,
   };
 };
 

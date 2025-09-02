@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { AspectRatioOption, TezDevTheme, OutputFormat } from '../../types/index';
 import { isFluxKontextModel, getModelRanges, getModelDefaults } from '../../constants/settings';
 import { themeConfigService } from '../../services/themeConfig';
+import { CameraDevice, enumerateCameraDevices, getCameraDisplayName } from '../../services/cameraService';
 
 interface AdvancedSettingsProps {
   /** Whether the settings overlay is visible */
@@ -103,6 +104,12 @@ interface AdvancedSettingsProps {
   sensitiveContentFilter?: boolean;
   /** Handler for sensitive content filter change */
   onSensitiveContentFilterChange?: (enabled: boolean) => void;
+  /** Available camera devices */
+  cameraDevices?: CameraDevice[];
+  /** Currently selected camera device ID */
+  selectedCameraDeviceId?: string;
+  /** Handler for camera device selection */
+  onCameraDeviceChange?: (deviceId: string) => void;
 }
 
 /**
@@ -116,6 +123,11 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
   const [availableThemes, setAvailableThemes] = useState<Array<{value: string, label: string, defaultAspectRatio?: string}>>([]);
   const [themesLoading, setThemesLoading] = useState(false);
   const [themesError, setThemesError] = useState<string | null>(null);
+
+  // State for camera devices
+  const [availableCameras, setAvailableCameras] = useState<CameraDevice[]>([]);
+  const [camerasLoading, setCamerasLoading] = useState(false);
+  const [camerasError, setCamerasError] = useState<string | null>(null);
 
   const {
     visible,
@@ -166,6 +178,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
     onOutputFormatChange,
     sensitiveContentFilter = false,
     onSensitiveContentFilterChange,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    cameraDevices = [],
+    selectedCameraDeviceId,
+    onCameraDeviceChange,
   } = props;
 
   // Determine the current model for getting defaults and ranges
@@ -282,6 +298,30 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
     void loadThemes();
   }, [visible]); // Reload when settings panel opens
 
+  // Load camera devices when component mounts or when visible changes
+  useEffect(() => {
+    const loadCameras = async () => {
+      if (!visible) return; // Only load when settings panel is open
+      
+      setCamerasLoading(true);
+      setCamerasError(null);
+      
+      try {
+        const devices = await enumerateCameraDevices();
+        setAvailableCameras(devices);
+        console.log('📹 Loaded camera devices for settings:', devices);
+      } catch (error) {
+        console.error('Failed to load camera devices:', error);
+        setCamerasError('Failed to load camera devices');
+        setAvailableCameras([]);
+      } finally {
+        setCamerasLoading(false);
+      }
+    };
+
+    void loadCameras();
+  }, [visible]); // Reload when settings panel opens
+
   const handleOutputFormatChange = (newFormat: OutputFormat) => {
     // Use the provided handler or fallback to context
     if (onOutputFormatChange) {
@@ -297,6 +337,15 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
       onSensitiveContentFilterChange(enabled);
     } else {
       updateSetting('sensitiveContentFilter', enabled);
+    }
+  };
+
+  const handleCameraDeviceChange = (deviceId: string) => {
+    // Use the provided handler or fallback to context
+    if (onCameraDeviceChange) {
+      onCameraDeviceChange(deviceId);
+    } else {
+      updateSetting('preferredCameraDeviceId', deviceId);
     }
   };
 
@@ -401,6 +450,37 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
               </svg>
             </button>
           </div>
+        </div>
+
+        {/* Camera selector */}
+        <div className="control-option">
+          <label className="control-label">Camera:</label>
+          {camerasLoading ? (
+            <div className="model-select" style={{ color: '#666', fontStyle: 'italic' }}>
+              Loading cameras...
+            </div>
+          ) : camerasError ? (
+            <div className="model-select" style={{ color: '#ff6b6b', fontStyle: 'italic' }}>
+              {camerasError}
+            </div>
+          ) : availableCameras.length === 0 ? (
+            <div className="model-select" style={{ color: '#666', fontStyle: 'italic' }}>
+              No cameras found
+            </div>
+          ) : (
+            <select
+              className="model-select"
+              onChange={(e) => handleCameraDeviceChange(e.target.value)}
+              value={selectedCameraDeviceId || settings.preferredCameraDeviceId || ''}
+            >
+              <option value="">Auto-select camera</option>
+              {availableCameras.map((device, index) => (
+                <option key={device.deviceId} value={device.deviceId}>
+                  {getCameraDisplayName(device, index)}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* Model selector with integrated advanced settings */}

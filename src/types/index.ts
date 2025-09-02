@@ -85,4 +85,5 @@ export interface Settings {
   tezdevTheme: TezDevTheme;
   outputFormat: OutputFormat;
   sensitiveContentFilter: boolean;
+  preferredCameraDeviceId?: string;
 } 

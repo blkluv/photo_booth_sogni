@@ -158,6 +158,9 @@ const App = () => {
     outputFormat,
     sensitiveContentFilter
   } = settings;
+
+  // Extract preferredCameraDeviceId for easier access
+  const { preferredCameraDeviceId } = settings;
   // --- End context usage ---
 
   // Add state for style prompts instead of modifying the imported constant
@@ -364,7 +367,7 @@ const App = () => {
 
   // Camera devices
   const [cameraDevices, setCameraDevices] = useState([]);
-  const [selectedCameraDeviceId, setSelectedCameraDeviceId] = useState(null); // Keep this local state
+  const [selectedCameraDeviceId, setSelectedCameraDeviceId] = useState(preferredCameraDeviceId || null); // Initialize from settings
   const [isFrontCamera, setIsFrontCamera] = useState(true); // Keep this local state
 
   // State for orientation handler cleanup
@@ -977,11 +980,17 @@ const App = () => {
       console.log(`🍎 Portrait modes: requesting ${requestWidth}×${requestHeight} to get portrait feed`);
     }
     
+    console.log('📹 Camera request details:', {
+      deviceId: deviceId || 'auto-select',
+      facingMode: deviceId ? 'not used (specific device)' : (isFrontCamera ? 'user' : 'environment'),
+      requestedResolution: `${requestWidth}x${requestHeight}`,
+      aspectRatio
+    });
+    
     const constraints = deviceId
       ? {
           video: {
-            deviceId,
-            facingMode: isFrontCamera ? 'user' : 'environment',
+            deviceId: { exact: deviceId },
             width: { ideal: requestWidth },
             height: { ideal: requestHeight }
           }
@@ -1019,6 +1028,14 @@ const App = () => {
       if (stream.getVideoTracks().length > 0) {
         const track = stream.getVideoTracks()[0];
         const settings = track.getSettings();
+        
+        // Log which camera device was actually selected
+        console.log('📹 Actual camera device selected:', {
+          deviceId: settings.deviceId || 'unknown',
+          label: track.label || 'unknown',
+          facingMode: settings.facingMode || 'unknown'
+        });
+        
         if (settings.width && settings.height) {
           console.log(`📐 Actual camera resolution: ${settings.width}x${settings.height}`);
           
@@ -1089,6 +1106,38 @@ const App = () => {
       
     } catch (error) {
       console.error('Failed to get camera access:', error);
+      
+      // If we failed with a specific device ID, try falling back to auto-select
+      if (deviceId && (error.name === 'OverconstrainedError' || error.name === 'NotFoundError')) {
+        console.warn('📹 Specific camera device failed, trying auto-select fallback...');
+        try {
+          // Clear the invalid device preference
+          updateSetting('preferredCameraDeviceId', undefined);
+          setSelectedCameraDeviceId(null);
+          
+          // Try again without device constraint
+          const fallbackConstraints = {
+            video: {
+              facingMode: isFrontCamera ? 'user' : 'environment',
+              width: { ideal: requestWidth },
+              height: { ideal: requestHeight }
+            }
+          };
+          
+          const fallbackStream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+          console.log('✅ Fallback camera stream acquired');
+          
+          if (videoReference.current) {
+            videoReference.current.srcObject = fallbackStream;
+            await videoReference.current.play();
+          }
+          
+          return; // Success with fallback
+        } catch (fallbackError) {
+          console.error('❌ Fallback camera access also failed:', fallbackError);
+        }
+      }
+      
       throw error;
     }
   }, [desiredWidth, desiredHeight, isFrontCamera, videoReference, setOrientationHandler, aspectRatio]); // Add aspectRatio to dependencies
@@ -1101,10 +1150,28 @@ const App = () => {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(d => d.kind === 'videoinput');
       setCameraDevices(videoDevices);
+      
+      // Validate preferred camera device and fallback if needed
+      if (preferredCameraDeviceId) {
+        const isPreferredCameraAvailable = videoDevices.some(device => device.deviceId === preferredCameraDeviceId);
+        
+        if (!isPreferredCameraAvailable) {
+          console.warn('📹 Preferred camera device not found:', preferredCameraDeviceId);
+          console.log('📹 Available cameras:', videoDevices.map(d => ({ id: d.deviceId, label: d.label })));
+          
+          // Clear the invalid preference
+          updateSetting('preferredCameraDeviceId', undefined);
+          setSelectedCameraDeviceId(null);
+          
+          console.log('📹 Cleared invalid camera preference, will use auto-select');
+        } else {
+          console.log('📹 Preferred camera device is available:', preferredCameraDeviceId);
+        }
+      }
     } catch (error) {
       console.warn('Error enumerating devices', error);
     }
-  }, []);
+  }, [preferredCameraDeviceId, updateSetting]);
 
   // Modified useEffect to start camera automatically
   useEffect(() => {
@@ -1119,6 +1186,14 @@ const App = () => {
     
     initializeAppOnMount();
   }, [listCameras, initializeSogni]);
+
+  // Sync selectedCameraDeviceId with settings
+  useEffect(() => {
+    if (preferredCameraDeviceId !== selectedCameraDeviceId) {
+      console.log('📹 Syncing camera device ID from settings:', preferredCameraDeviceId);
+      setSelectedCameraDeviceId(preferredCameraDeviceId || null);
+    }
+  }, [preferredCameraDeviceId, selectedCameraDeviceId]);
 
   // Helper function to determine the resolution category for an aspect ratio
   const getResolutionCategory = (aspectRatio) => {
@@ -3178,8 +3253,21 @@ const App = () => {
    */
   const handleCameraSelection = async (e) => {
     const deviceId = typeof e === 'string' ? e : e.target.value;
-    setSelectedCameraDeviceId(deviceId);
-    await startCamera(deviceId);
+    const normalizedDeviceId = deviceId === '' ? null : deviceId;
+    console.log('📹 Camera selection changed to:', normalizedDeviceId || 'auto-select');
+    
+    // Update local state
+    setSelectedCameraDeviceId(normalizedDeviceId);
+    
+    // Save preference to settings
+    updateSetting('preferredCameraDeviceId', normalizedDeviceId || undefined);
+    
+    // Switch to the new camera if one is active
+    if (videoReference.current && videoReference.current.srcObject) {
+      console.log('📹 Switching active camera to:', normalizedDeviceId || 'auto-select');
+      await startCamera(normalizedDeviceId);
+    }
+    
     setCameraManuallyStarted(true); // User explicitly selected a camera
   };
 
@@ -3464,12 +3552,15 @@ const App = () => {
       setShowStartMenu(false);
       
       // Restart camera since it was stopped when photo grid was shown
+      const preferredDeviceId = preferredCameraDeviceId || selectedCameraDeviceId;
+      console.log('📹 Restarting camera from photo grid with preferred device:', preferredDeviceId || 'auto-select');
+      
       if (cameraManuallyStarted && videoReference.current) {
         // Always restart the camera since we stop it when showing photo grid
-        startCamera(selectedCameraDeviceId);
+        startCamera(preferredDeviceId);
       } else {
         // Camera hasn't been manually started yet, start it now
-        startCamera(selectedCameraDeviceId);
+        startCamera(preferredDeviceId);
         setCameraManuallyStarted(true);
       }
       
@@ -3563,8 +3654,10 @@ const App = () => {
     }
     
     setShowStartMenu(false);
-    // Start camera after user selects the option
-    await startCamera(null);
+    // Start camera after user selects the option - use preferred camera if available
+    const preferredDeviceId = preferredCameraDeviceId || selectedCameraDeviceId;
+    console.log('📹 Starting camera with preferred device:', preferredDeviceId || 'auto-select');
+    await startCamera(preferredDeviceId);
     setCameraManuallyStarted(true); // User explicitly chose to take a photo
   };
 
@@ -4241,10 +4334,10 @@ const App = () => {
             saveSettingsToCookies({ sensitiveContentFilter: value });
           }}
           onResetSettings={resetSettings} // Pass context reset function
-          // Props still using local state/logic
+          // Camera-related props
           cameraDevices={cameraDevices}
           selectedCameraDeviceId={selectedCameraDeviceId}
-          onCameraSelect={handleCameraSelection} 
+          onCameraDeviceChange={handleCameraSelection} 
           modelOptions={getModelOptions()} 
         />
 
