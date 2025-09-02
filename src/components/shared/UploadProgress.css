@@ -4,13 +4,13 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.9); /* Increased opacity to compensate for removed blur */
+  /* Removed backdrop-filter to eliminate flickering on high-res displays */
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10000;
-  animation: fadeIn 0.3s ease-out;
+  /* Removed animation to reduce initial flickering */
 }
 
 .upload-progress-container {
@@ -21,7 +21,7 @@
   width: 90%;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
   text-align: center;
-  animation: slideUp 0.3s ease-out;
+  /* Removed slideUp animation to eliminate flickering */
   position: relative;
   overflow: hidden;
 }
@@ -41,7 +41,7 @@
   border-radius: 50%;
   border: 4px solid #72e3f2;
   box-shadow: 0 8px 20px rgba(114, 227, 242, 0.3);
-  animation: cameraFloat 3s ease-in-out infinite;
+  /* Removed animation to eliminate flickering on high-res displays */
 }
 
 .camera-flash {
@@ -51,9 +51,9 @@
   transform: translate(-50%, -50%);
   width: 140px;
   height: 140px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%); /* Static subtle highlight */
   border-radius: 50%;
-  animation: flash 2s ease-in-out infinite;
+  /* Removed flash animation to eliminate flickering */
   pointer-events: none;
 }
 
@@ -61,11 +61,8 @@
   margin: 0 0 8px 0;
   font-size: 24px;
   font-weight: 700;
-  background: linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: titleGlow 2s ease-in-out infinite alternate;
+  color: #4bbbd3; /* Static color instead of animated gradient */
+  /* Removed gradient and glow animation to eliminate flickering */
 }
 
 .upload-progress-header p {
@@ -73,7 +70,7 @@
   font-size: 16px;
   color: #666;
   font-weight: 500;
-  animation: textFade 2s ease-in-out infinite alternate;
+  /* Removed text fade animation to eliminate flickering */
 }
 
 .upload-progress-bar-container {
@@ -93,31 +90,14 @@
 
 .upload-progress-fill {
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    #72e3f2 0%,
-    #4bbbd3 25%,
-    #72e3f2 50%,
-    #4bbbd3 75%,
-    #72e3f2 100%
-  );
-  background-size: 200px 100%;
+  background: #4bbbd3; /* Simple solid color instead of animated gradient */
   border-radius: 6px;
-  transition: width 0.5s ease;
-  animation: progressShimmer 2s infinite;
+  transition: transform 0.2s ease; /* Faster, simpler transition */
   position: relative;
+  /* Removed all animations and complex gradients to eliminate flickering */
 }
 
-.upload-progress-fill::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  animation: progressGlow 1.5s ease-in-out infinite;
-}
+/* Removed ::after pseudo-element with glow animation to eliminate flickering */
 
 .upload-progress-text {
   font-size: 18px;
@@ -138,20 +118,10 @@
   height: 8px;
   border-radius: 50%;
   background: #72e3f2;
-  animation: dotBounce 1.4s ease-in-out infinite;
+  /* Removed bounce animation to eliminate flickering */
 }
 
-.upload-progress-dots .dot:nth-child(1) {
-  animation-delay: -0.32s;
-}
-
-.upload-progress-dots .dot:nth-child(2) {
-  animation-delay: -0.16s;
-}
-
-.upload-progress-dots .dot:nth-child(3) {
-  animation-delay: 0s;
-}
+/* Removed animation delays since animations are disabled */
 
 @keyframes fadeIn {
   from {
@@ -235,6 +205,25 @@
   40% {
     transform: scale(1.2);
     opacity: 1;
+  }
+}
+
+/* High-DPI display optimizations to reduce flickering */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .upload-progress-fill {
+    animation-duration: 4s; /* Even slower animation on high-DPI displays */
+  }
+  
+  .camera-image {
+    animation-duration: 5s; /* Slower float on high-DPI displays */
+  }
+  
+  .camera-flash {
+    animation-duration: 4s; /* Slower flash on high-DPI displays */
+  }
+  
+  .upload-progress-dots .dot {
+    animation-duration: 2s; /* Slower dot bounce on high-DPI displays */
   }
 }
 

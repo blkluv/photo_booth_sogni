@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useEffect, useState, memo } from 'react';
+import React, { useMemo, useCallback, useEffect, useState, memo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 import PropTypes from 'prop-types';
@@ -103,8 +103,8 @@ const PhotoGallery = ({
   const [previousFramedImage, setPreviousFramedImage] = useState(null);
   const [previousSelectedIndex, setPreviousSelectedIndex] = useState(null);
   
-  // Keep track of the previous photos array length to detect new batches
-  const [previousPhotosLength, setPreviousPhotosLength] = useState(0);
+  // Keep track of the previous photos array length to detect new batches (for legacy compatibility)
+  const [, setPreviousPhotosLength] = useState(0);
   
   // State for enhancement options dropdown and prompt modal
   const [showEnhanceDropdown, setShowEnhanceDropdown] = useState(false);
@@ -132,12 +132,18 @@ const PhotoGallery = ({
   }, [selectedPhotoIndex, photos[selectedPhotoIndex]?.enhancementError, setPhotos]);
   
   // Clear framed image cache when new photos are generated or theme changes
+  // Use a ref to track previous length to avoid effect dependency on photos.length
+  const previousPhotosLengthRef = useRef(0);
+  
   useEffect(() => {
+    const currentLength = photos.length;
+    const prevLength = previousPhotosLengthRef.current;
+    
     const shouldClearCache = 
       // New batch detected (photos array got smaller, indicating a reset)
-      photos.length < previousPhotosLength ||
+      currentLength < prevLength ||
       // Or if we have a significant change in photos (new batch)
-      (photos.length > 0 && previousPhotosLength > 0 && Math.abs(photos.length - previousPhotosLength) >= 3);
+      (currentLength > 0 && prevLength > 0 && Math.abs(currentLength - prevLength) >= 3);
     
     if (shouldClearCache) {
       console.log('Clearing framed image cache due to new photo batch');
@@ -150,9 +156,10 @@ const PhotoGallery = ({
       setFramedImageUrls({});
     }
     
-    // Update the previous length
-    setPreviousPhotosLength(photos.length);
-  }, [photos.length, previousPhotosLength]);
+    // Update the previous length ref
+    previousPhotosLengthRef.current = currentLength;
+    setPreviousPhotosLength(currentLength);
+  }, [photos.length]); // Only depend on photos.length, not previousPhotosLength state
 
   // Clear framed image cache when theme changes
   useEffect(() => {
@@ -409,14 +416,26 @@ const PhotoGallery = ({
 
   
   // Ensure all photos have a Taipei frame number and frame padding assigned (migration for existing photos)
+  // Use a ref to track if migration has been done to avoid repeated migrations
+  const migrationDoneRef = useRef(new Set());
+  
   useEffect(() => {
-    const needsFrameNumbers = photos.some(photo => !photo.taipeiFrameNumber);
-    const needsFramePadding = photos.some(photo => photo.framePadding === undefined);
+    const photosNeedingMigration = photos.filter(photo => 
+      (!photo.taipeiFrameNumber || photo.framePadding === undefined) &&
+      !migrationDoneRef.current.has(photo.id)
+    );
     
-    if (needsFrameNumbers || needsFramePadding) {
-      const migratePhotos = async () => {
-        const updatedPhotos = await Promise.all(
-          photos.map(async (photo, index) => {
+    if (photosNeedingMigration.length === 0) {
+      return;
+    }
+    
+    const migratePhotos = async () => {
+      const updatedPhotos = await Promise.all(
+        photos.map(async (photo, index) => {
+          // Only update photos that need migration and haven't been migrated yet
+          if (!migrationDoneRef.current.has(photo.id) && 
+              (!photo.taipeiFrameNumber || photo.framePadding === undefined)) {
+            
             const updatedPhoto = { ...photo };
             
             // Add frame number if missing
@@ -437,16 +456,21 @@ const PhotoGallery = ({
               updatedPhoto.framePadding = 0;
             }
             
+            // Mark as migrated
+            migrationDoneRef.current.add(photo.id);
+            
             return updatedPhoto;
-          })
-        );
-        
-        setPhotos(updatedPhotos);
-      };
+          }
+          
+          return photo;
+        })
+      );
       
-      void migratePhotos();
-    }
-  }, [photos, setPhotos, tezdevTheme]);
+      setPhotos(updatedPhotos);
+    };
+    
+    void migratePhotos();
+  }, [photos.length, tezdevTheme]); // Only depend on photos.length and theme, not the entire photos array
 
   // Get the Taipei frame number for the currently selected photo (stored in photo data)
   const getCurrentTaipeiFrameNumber = () => {

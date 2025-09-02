@@ -1382,19 +1382,39 @@ const App = () => {
   }, [handleKeyDown]);
 
   // Smart timer for generation countdown - only runs when there are active countdowns
+  // Use a ref to track the interval to avoid restarting on every photos change
+  const countdownIntervalRef = useRef(null);
+  
   useEffect(() => {
     const hasActiveCountdowns = photos.some(p => p.generating && p.generationCountdown > 0);
     
-    if (!hasActiveCountdowns) {
-      return; // Don't start interval if no countdowns are active
+    // If we already have an interval running and still have countdowns, don't restart
+    if (countdownIntervalRef.current && hasActiveCountdowns) {
+      return;
     }
     
-    const interval = setInterval(() => {
+    // Clear existing interval if no countdowns or if we need to restart
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    
+    // Only start new interval if we have active countdowns
+    if (!hasActiveCountdowns) {
+      return;
+    }
+    
+    countdownIntervalRef.current = setInterval(() => {
       setPhotos((previousPhotos) => {
         const stillHasActiveCountdowns = previousPhotos.some(p => p.generating && p.generationCountdown > 0);
         
         if (!stillHasActiveCountdowns) {
-          return previousPhotos; // Return unchanged, effect will clear interval
+          // Clear the interval when no more countdowns
+          if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
+          }
+          return previousPhotos; // Return unchanged
         }
         // Only update photos that actually have countdowns
         return previousPhotos.map((p) => {
@@ -1407,9 +1427,12 @@ const App = () => {
     }, 1000);
     
     return () => {
-      clearInterval(interval);
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
     };
-  }, [photos]); // Depend on photos array to restart/stop interval as needed
+  }, [photos.some(p => p.generating && p.generationCountdown > 0)]); // Only depend on whether countdowns exist, not the entire photos array
 
   // -------------------------
   //   Load image with download progress
@@ -1940,14 +1963,22 @@ const App = () => {
       // Track image generation event
       trackEvent('Generation', 'start', selectedStyle, numImages);
 
-      // Set up upload progress listeners
+      // Set up upload progress listeners with throttling to reduce flickering
+      let uploadProgressTimeout = null;
       project.on('uploadProgress', (progress) => {
-        setUploadProgress(progress);
-        if (progress < 100) {
-          setUploadStatusText(`Uploading your image... ${Math.round(progress)}%`);
-        } else {
-          setUploadStatusText('Processing on server...');
+        // Throttle upload progress updates to reduce flickering on high-res displays
+        if (uploadProgressTimeout) {
+          clearTimeout(uploadProgressTimeout);
         }
+        
+        uploadProgressTimeout = setTimeout(() => {
+          setUploadProgress(progress);
+          if (progress < 100) {
+            setUploadStatusText(`Uploading your image... ${Math.round(progress)}%`);
+          } else {
+            setUploadStatusText('Processing on server...');
+          }
+        }, 100); // Throttle to max 10 updates per second
       });
 
       project.on('uploadComplete', () => {
@@ -2018,7 +2049,7 @@ const App = () => {
               }
               return updated;
             });
-          }, 100); // Throttle to max 10 updates per second
+          }, 200); // Throttle to max 5 updates per second (reduced from 10 to minimize flickering on high-res displays)
           return; // Don't process immediately
         }
 

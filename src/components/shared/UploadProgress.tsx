@@ -13,6 +13,10 @@ const UploadProgress: React.FC<UploadProgressProps> = ({
 }) => {
   if (!isVisible) return null;
 
+  // Memoize the progress value to reduce unnecessary re-renders
+  const memoizedProgress = React.useMemo(() => Math.min(progress, 100), [progress]);
+  const memoizedProgressText = React.useMemo(() => Math.round(memoizedProgress), [memoizedProgress]);
+
   return (
     <div className="upload-progress-overlay">
       <div className="upload-progress-container">
@@ -30,11 +34,15 @@ const UploadProgress: React.FC<UploadProgressProps> = ({
           <div className="upload-progress-bar">
             <div 
               className="upload-progress-fill"
-              style={{ width: `${Math.min(progress, 100)}%` }}
+              style={{ 
+                // Use only transform for better performance on high-res displays
+                transform: `scaleX(${memoizedProgress / 100})`,
+                transformOrigin: 'left center'
+              }}
             />
           </div>
           <div className="upload-progress-text">
-            {Math.round(progress)}%
+            {memoizedProgressText}%
           </div>
         </div>
         
