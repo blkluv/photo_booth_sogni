@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import sogniRoutes from './routes/sogni.js';
 import xAuthRoutes from './routes/xAuthRoutes.js';
 import metricsRoutes from './routes/metricsRoutes.js';
+import mobileShareRoutes from './routes/mobileShare.js';
 import process from 'process'; // Added to address linter error
 
 // Load environment variables FIRST
@@ -84,6 +85,7 @@ app.use('/api/sogni', sogniRoutes);  // Add this new route for direct API access
 app.use('/api/auth/x', xAuthRoutes); // Twitter OAuth routes, prefixed with /api for consistency
 app.use('/auth/x', xAuthRoutes); // Also keep /auth/x for the direct callback from Twitter if redirect URI is /auth/x/callback
 app.use('/api/metrics', metricsRoutes); // Metrics routes
+app.use('/api/mobile-share', mobileShareRoutes); // Mobile sharing routes
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -102,6 +104,9 @@ const staticDir = isDev
   : '/var/www/photobooth.sogni.ai';
   
 app.use(express.static(staticDir));
+
+// Mobile sharing page route - must come before catch-all
+app.use('/mobile-share', mobileShareRoutes);
 
 // Catch-all route to serve index.html for SPA routing
 app.get('*', (req, res) => {

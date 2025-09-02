@@ -161,6 +161,7 @@ const createDefaultSettings = (): Settings => {
     outputFormat: 'jpg' as OutputFormat,
     sensitiveContentFilter: false,
     preferredCameraDeviceId: undefined,
+    kioskMode: false,
   };
 };
 

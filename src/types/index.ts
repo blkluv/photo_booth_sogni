@@ -86,4 +86,5 @@ export interface Settings {
   outputFormat: OutputFormat;
   sensitiveContentFilter: boolean;
   preferredCameraDeviceId?: string;
+  kioskMode: boolean;
 } 

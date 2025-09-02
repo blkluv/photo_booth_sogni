@@ -1,5 +1,6 @@
 import React, { useMemo, useCallback, useEffect, useState, memo, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import QRCode from 'qrcode';
 
 import PropTypes from 'prop-types';
 import '../../styles/film-strip.css'; // Using film-strip.css which contains the gallery styles
@@ -87,6 +88,8 @@ const PhotoGallery = ({
   aspectRatio = null,
   handleRetryPhoto,
   onPreGenerateFrame, // New prop to handle frame pre-generation from parent
+  qrCodeData,
+  onCloseQR
 }) => {
 
   
@@ -102,6 +105,9 @@ const PhotoGallery = ({
   // State to hold the previous framed image during transitions to prevent flicker
   const [previousFramedImage, setPreviousFramedImage] = useState(null);
   const [previousSelectedIndex, setPreviousSelectedIndex] = useState(null);
+  
+  // State for QR code overlay
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   
   // Keep track of the previous photos array length to detect new batches (for legacy compatibility)
   const [, setPreviousPhotosLength] = useState(0);
@@ -234,6 +240,33 @@ const PhotoGallery = ({
       handleGenerateMorePhotos();
     }
   }, [isGenerating, activeProjectReference, sogniClient, handleGenerateMorePhotos, framedImageUrls]);
+
+  // Generate QR code when qrCodeData changes
+  useEffect(() => {
+    const generateQRCode = async () => {
+      if (!qrCodeData || !qrCodeData.shareUrl) {
+        setQrCodeDataUrl('');
+        return;
+      }
+
+      try {
+        const qrDataUrl = await QRCode.toDataURL(qrCodeData.shareUrl, {
+          width: 200,
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+          }
+        });
+        setQrCodeDataUrl(qrDataUrl);
+      } catch (error) {
+        console.error('Error generating QR code:', error);
+        setQrCodeDataUrl('');
+      }
+    };
+
+    generateQRCode();
+  }, [qrCodeData]);
 
   // Utility function to clear frame cache for a specific photo
   const clearFrameCacheForPhoto = useCallback((photoIndex) => {
@@ -1891,6 +1924,79 @@ const PhotoGallery = ({
 
                   </>
                 )}
+                
+                {/* QR Code Overlay for Kiosk Mode */}
+                {qrCodeData && qrCodeData.photoIndex === index && qrCodeDataUrl && isSelected && (
+                  <div 
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 1000,
+                      cursor: 'pointer'
+                    }}
+                    onClick={onCloseQR}
+                  >
+                    <div 
+                      style={{
+                        backgroundColor: 'white',
+                        padding: '20px',
+                        borderRadius: '12px',
+                        textAlign: 'center',
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.3)'
+                      }}
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <h3 style={{ 
+                        margin: '0 0 16px 0', 
+                        color: '#333',
+                        fontSize: '18px',
+                        fontWeight: '600'
+                      }}>
+                        Scan to Share on Your Phone
+                      </h3>
+                      <img 
+                        src={qrCodeDataUrl} 
+                        alt="QR Code for sharing" 
+                        style={{ 
+                          display: 'block',
+                          margin: '0 auto 16px auto',
+                          border: '2px solid #eee',
+                          borderRadius: '8px'
+                        }} 
+                      />
+                      <p style={{ 
+                        margin: '0 0 16px 0',
+                        color: '#666',
+                        fontSize: '14px',
+                        lineHeight: '1.4'
+                      }}>
+                        Scan this QR code with your phone's camera to share your photo to Twitter
+                      </p>
+                      <button
+                        onClick={onCloseQR}
+                        style={{
+                          background: '#1DA1F2',
+                          color: 'white',
+                          border: 'none',
+                          padding: '8px 16px',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: '500'
+                        }}
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
               {/* No special label for selected view - use standard grid label below */}
               <div className="photo-label">
@@ -2087,6 +2193,8 @@ PhotoGallery.propTypes = {
   handleRetryPhoto: PropTypes.func,
   outputFormat: PropTypes.string,
   onPreGenerateFrame: PropTypes.func, // New prop for frame pre-generation callback
+  qrCodeData: PropTypes.object,
+  onCloseQR: PropTypes.func
 };
 
 export default React.memo(PhotoGallery); 

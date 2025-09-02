@@ -110,6 +110,10 @@ interface AdvancedSettingsProps {
   selectedCameraDeviceId?: string;
   /** Handler for camera device selection */
   onCameraDeviceChange?: (deviceId: string) => void;
+  /** Kiosk mode enabled state */
+  kioskMode?: boolean;
+  /** Handler for kiosk mode change */
+  onKioskModeChange?: (enabled: boolean) => void;
 }
 
 /**
@@ -178,10 +182,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
     onOutputFormatChange,
     sensitiveContentFilter = false,
     onSensitiveContentFilterChange,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    cameraDevices = [],
     selectedCameraDeviceId,
     onCameraDeviceChange,
+    kioskMode = false,
+    onKioskModeChange,
   } = props;
 
   // Determine the current model for getting defaults and ranges
@@ -346,6 +350,15 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
       onCameraDeviceChange(deviceId);
     } else {
       updateSetting('preferredCameraDeviceId', deviceId);
+    }
+  };
+
+  const handleKioskModeChange = (enabled: boolean) => {
+    // Use the provided handler or fallback to context
+    if (onKioskModeChange) {
+      onKioskModeChange(enabled);
+    } else {
+      updateSetting('kioskMode', enabled);
     }
   };
 
@@ -827,6 +840,17 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
             onChange={(e) => onBackgroundAnimationsEnabledChange?.(e.target.checked)}
           />
           <label htmlFor="background-animations-toggle" className="control-label">Background Animations</label>
+        </div>
+        
+        {/* Kiosk Mode toggle */}
+        <div className="control-option checkbox">
+          <input
+            type="checkbox"
+            id="kiosk-mode-toggle"
+            checked={kioskMode || settings.kioskMode}
+            onChange={(e) => handleKioskModeChange(e.target.checked)}
+          />
+          <label htmlFor="kiosk-mode-toggle" className="control-label">Kiosk Mode</label>
         </div>
         
         {/* Reset settings button */}

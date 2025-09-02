@@ -114,7 +114,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       tezdevTheme: theme,
       outputFormat: getSettingFromCookie('outputFormat', DEFAULT_SETTINGS.outputFormat),
       sensitiveContentFilter: getSettingFromCookie('sensitiveContentFilter', DEFAULT_SETTINGS.sensitiveContentFilter),
-      preferredCameraDeviceId: getSettingFromCookie('preferredCameraDeviceId', DEFAULT_SETTINGS.preferredCameraDeviceId)
+      preferredCameraDeviceId: getSettingFromCookie('preferredCameraDeviceId', DEFAULT_SETTINGS.preferredCameraDeviceId),
+      kioskMode: getSettingFromCookie('kioskMode', DEFAULT_SETTINGS.kioskMode)
     };
   });
   

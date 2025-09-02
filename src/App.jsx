@@ -26,6 +26,7 @@ import './styles/ios-chrome-fixes.css';
 import './styles/mobile-portrait-fixes.css'; // New critical mobile portrait fixes
 import './styles/mobile-chrome-fixes.css'; // Chrome mobile context menu fixes
 import './styles/pwa-standalone-fixes.css'; // PWA standalone mode fixes
+
 import CameraView from './components/camera/CameraView';
 import CameraStartMenu from './components/camera/CameraStartMenu';
 import StyleDropdown from './components/shared/StyleDropdown';
@@ -35,6 +36,7 @@ import promptsData from './prompts.json';
 import PhotoGallery from './components/shared/PhotoGallery';
 import { useApp } from './context/AppContext.tsx';
 import TwitterShareModal from './components/shared/TwitterShareModal';
+
 import FriendlyErrorModal from './components/shared/FriendlyErrorModal';
 import SuccessToast from './components/shared/SuccessToast';
 
@@ -156,7 +158,8 @@ const App = () => {
     aspectRatio,
     tezdevTheme,
     outputFormat,
-    sensitiveContentFilter
+    sensitiveContentFilter,
+    kioskMode
   } = settings;
 
   // Extract preferredCameraDeviceId for easier access
@@ -518,6 +521,9 @@ const App = () => {
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
+  // Add state for QR code modal (Kiosk Mode)
+  const [qrCodeData, setQrCodeData] = useState(null);
+
   // Add state for splash screen
   const [showSplashScreen, setShowSplashScreen] = useState(true);
 
@@ -788,9 +794,78 @@ const App = () => {
 
   // Update the handler for initiating Twitter share
   const handleShareToX = async (photoIndex) => {
-    // Set the photo index and open the modal
+    // Check if Kiosk Mode is enabled
+    if (kioskMode) {
+      // Generate QR code for mobile sharing
+      await handleKioskModeShare(photoIndex);
+    } else {
+      // Set the photo index and open the modal
+      setTwitterPhotoIndex(photoIndex);
+      setShowTwitterModal(true);
+    }
+  };
+
+  // Handle Kiosk Mode sharing with QR code
+  const handleKioskModeShare = async (photoIndex) => {
+    console.log('Kiosk Mode Share - Photo Index:', photoIndex);
+    console.log('Kiosk Mode Share - Photo Data:', photos[photoIndex]);
+    
+    if (!photos[photoIndex] || !photos[photoIndex].images || !photos[photoIndex].images[0]) {
+      console.error('No image selected for QR sharing');
+      return;
+    }
+
+    // Set the photo index immediately so the modal can show the image
     setTwitterPhotoIndex(photoIndex);
-    setShowTwitterModal(true);
+
+    try {
+      // Generate a unique sharing ID
+      const shareId = `share-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Get the current URL configuration
+      const currentUrl = new URL(window.location.href);
+      const baseUrl = currentUrl.origin;
+      
+      // Create the mobile sharing URL
+      const mobileShareUrl = `${baseUrl}/mobile-share/${shareId}`;
+      
+      // Store the sharing data (we'll need to send this to the backend)
+      const shareData = {
+        shareId,
+        photoIndex,
+        imageUrl: photos[photoIndex].images[0],
+        tezdevTheme,
+        aspectRatio,
+        outputFormat,
+        timestamp: Date.now()
+      };
+
+      console.log('Creating mobile share with data:', shareData);
+
+      // Send the share data to the backend for storage
+      const response = await fetch('/api/mobile-share/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(shareData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create mobile share');
+      }
+
+      // Set QR code data for overlay
+      setQrCodeData({
+        shareUrl: mobileShareUrl,
+        photoIndex: photoIndex
+      });
+
+    } catch (error) {
+      console.error('Error creating mobile share:', error);
+      // Fallback to regular Twitter sharing
+      setShowTwitterModal(true);
+    }
   };
   
   // Add a handler for the actual sharing with custom message
@@ -4202,6 +4277,8 @@ const App = () => {
         outputFormat={outputFormat}
       />
 
+
+
       {/* Global Countdown Overlay - always above mascot and all UI */}
       {countdown > 0 && (
         <div className="global-countdown-overlay" data-testid="global-countdown">
@@ -4332,6 +4409,11 @@ const App = () => {
           onSensitiveContentFilterChange={(value) => {
             updateSetting('sensitiveContentFilter', value);
             saveSettingsToCookies({ sensitiveContentFilter: value });
+          }}
+          kioskMode={kioskMode}
+          onKioskModeChange={(value) => {
+            updateSetting('kioskMode', value);
+            saveSettingsToCookies({ kioskMode: value });
           }}
           onResetSettings={resetSettings} // Pass context reset function
           // Camera-related props
@@ -4543,6 +4625,8 @@ const App = () => {
           aspectRatio={aspectRatio}
           handleRetryPhoto={handleRetryPhoto}
           onPreGenerateFrame={handlePreGenerateFrameCallback}
+          qrCodeData={qrCodeData}
+          onCloseQR={() => setQrCodeData(null)}
         />
           </div>
         )}
