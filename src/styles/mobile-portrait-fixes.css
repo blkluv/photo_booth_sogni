@@ -33,13 +33,13 @@
     width: auto !important;
   }
 
-  /* Maintain proper polaroid border ratio (1:3.5 for sides to bottom) */
+  /* Maintain proper polaroid border ratio (1:3.5 for sides to bottom) - updated for mobile portrait */
   body #root [class*="cameraView"],
   html body #root [class*="cameraView"] {
-    border-left: 23px solid white !important;
-    border-right: 23px solid white !important;
-    border-top: 23px solid white !important;
-    border-bottom: 80px solid white !important;
+    border-left: 12px solid white !important;
+    border-right: 12px solid white !important;
+    border-top: 12px solid white !important;
+    border-bottom: 42px solid white !important;
   }
 
   /* Adjust cameraViewInner for all aspect ratios */

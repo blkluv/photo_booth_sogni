@@ -124,7 +124,7 @@
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 12px !important; /* Slightly smaller gap for more space */
     /* Reduce padding to maximize photo space on mobile */
-    padding: 60px 8px 20px 8px !important;
+    padding: 70px 8px 20px 8px !important;
   }
   
   /* Remove any conflicting margins */
@@ -136,13 +136,13 @@
   .film-strip-container .film-strip-content {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 12px !important;
-    padding: 60px 8px 20px 8px !important;
+    padding: 70px 8px 20px 8px !important;
   }
   
   [class*="film-strip-content"] {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 12px !important;
-    padding: 60px 8px 20px 8px !important;
+    padding: 70px 8px 20px 8px !important;
   }
 }
 
@@ -400,6 +400,12 @@ body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label
 /* Use more specific media query to override existing mobile styles */
 @media (max-width: 768px) and (orientation: portrait), (orientation: portrait) and (max-device-width: 768px) {
   /* Reduce base font size for loading photos in grid view - higher specificity */
+  /* Only apply to non-selected frames in the grid */
+  .film-frame:not(.selected) {
+    padding: 8px !important; /* Half of 16px */
+    padding-bottom: 28px !important; /* Half of 56px */
+  }
+
   .film-frame:not(.selected) .photo-label {
     font-size: 10px !important;
     /* Ensure ellipsis works on mobile */
@@ -407,7 +413,16 @@ body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label
     white-space: nowrap !important;
     overflow: hidden !important;
     display: block !important;
-    line-height: 30px !important;
+    line-height: 10px !important;
+    bottom: -21px !important;
+  }
+  
+  /* Adjust inner bevel positioning for smaller mobile frames */
+  .film-frame:not(.selected)::after {
+    top: 8px !important; /* Match reduced padding */
+    left: 8px !important; /* Match reduced padding */
+    right: 8px !important; /* Match reduced padding */
+    bottom: 28px !important; /* Match reduced bottom padding */
   }
   
   /* Increase font size for completed photos in grid view - higher specificity */
@@ -419,6 +434,7 @@ body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label
     overflow: hidden !important;
     display: block !important;
     line-height: 30px !important;
+    bottom: -10px !important;
   }
   
   /* Keep selected photo labels at original size for popup view */
@@ -519,6 +535,20 @@ body .film-frame.selected,
   overflow: visible !important;
 }
 
+/* Add inner bevel/shadow effect to all selected photos (desktop and mobile) */
+.film-frame.selected::after {
+  content: "";
+  position: absolute;
+  top: var(--polaroid-side-border);
+  left: var(--polaroid-side-border);
+  right: var(--polaroid-side-border);
+  bottom: var(--polaroid-bottom-border);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1), inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  pointer-events: none;
+  z-index: 1;
+  border-radius: 2px;
+}
+
 /* Landscape layout: maximize selected photo size with bottom-right action bar */
 @media (orientation: landscape) and (min-width: 1024px) {
   body .film-frame.selected.loaded,
@@ -561,7 +591,6 @@ body .film-frame.selected,
   /* Use contain to preserve aspect ratio while maximizing size */
   object-fit: contain !important;
   aspect-ratio: auto !important;
-  border-radius: 2px !important;
   box-shadow: none !important;
   border: none !important;
   margin: 0 auto !important; /* Center the image */
@@ -584,7 +613,7 @@ body .film-frame.selected,
 /* Selected photo label positioned at bottom of polaroid */
 .film-frame.selected .photo-label {
   position: absolute !important;
-  bottom: 26px !important;
+  bottom: 20px !important;
   left: 10px !important;
   right: 10px !important;
   height: 40px !important;
@@ -673,8 +702,8 @@ body .film-frame.selected.taipei-blockchain-theme,
     max-width: 100vw !important;
     max-height: 88vh !important;
     margin: 0 !important;
-    padding: var(--polaroid-side-border) !important;
-    padding-bottom: var(--polaroid-bottom-border) !important; /* Mobile bottom space */
+    padding: 16px !important; /* 1/3 reduction from 24px */
+    padding-bottom: 56px !important; /* 1/3 reduction from 84px */
     box-sizing: border-box !important;
     display: block !important;
     background: white !important; /* White polaroid background */
@@ -684,8 +713,8 @@ body .film-frame.selected.taipei-blockchain-theme,
     border: none !important;
     width: auto !important;
     height: auto !important;
-    max-width: calc(100vw - var(--polaroid-side-border) * 2) !important;
-    max-height: calc(88vh - var(--polaroid-side-border) - var(--polaroid-bottom-border)) !important;
+    max-width: calc(100vw - 32px) !important; /* 16px * 2 */
+    max-height: calc(88vh - 72px) !important; /* 16px + 56px */
     object-fit: contain !important;
     background: transparent !important;
     box-sizing: border-box !important;
@@ -759,6 +788,7 @@ body .film-frame.selected.taipei-blockchain-theme,
   body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty),
   body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label:not(:empty) {
     font-size: 32px !important;
+    bottom: 10px !important;
   }
   
 

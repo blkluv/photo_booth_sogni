@@ -465,9 +465,9 @@ const App = () => {
         root.style.setProperty('--polaroid-side-border', '0px');
         root.style.setProperty('--polaroid-bottom-border', '0px');
       } else {
-        // No theme frame - use default polaroid borders
-        root.style.setProperty('--polaroid-side-border', '24px');
-        root.style.setProperty('--polaroid-bottom-border', '84px');
+        // No theme frame - remove any inline styles to let CSS media queries control the borders
+        root.style.removeProperty('--polaroid-side-border');
+        root.style.removeProperty('--polaroid-bottom-border');
       }
     };
 
