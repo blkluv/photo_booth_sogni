@@ -523,7 +523,17 @@ export async function generateImage(client, params, progressCallback, localProje
                 
               case 'progress': {
                 if (event.step && event.stepCount) {
-                  const progressPercent = Math.floor(event.step / event.stepCount * 100);
+                  // For enhancement jobs, adjust progress calculation based on actual steps performed
+                  let adjustedProgress;
+                  if (projectCompletionTracker.isEnhancement) {
+                    // Calculate progress based on actual steps being performed, not requested steps
+                    const actualStepCount = projectCompletionTracker.actualSteps;
+                    const progressRatio = event.step / actualStepCount;
+                    adjustedProgress = Math.min(Math.floor(progressRatio * 100), 100); // Cap at 100%
+                    console.log(`[IMAGE] Enhancement progress adjustment: step ${event.step}/${event.stepCount} (requested) -> ${event.step}/${actualStepCount} (actual) = ${adjustedProgress}%`);
+                  } else {
+                    adjustedProgress = Math.floor(event.step / event.stepCount * 100);
+                  }
                   
                   // Get cached worker name for this job
                   const cachedWorkerName = event.jobId ? projectCompletionTracker.workerNameCache.get(event.jobId) : null;
@@ -531,9 +541,9 @@ export async function generateImage(client, params, progressCallback, localProje
                   
                   progressEvent = {
                     type: 'progress',
-                    progress: progressPercent,
+                    progress: adjustedProgress / 100, // Convert back to 0-1 range for frontend
                     step: event.step,
-                    stepCount: event.stepCount,
+                    stepCount: projectCompletionTracker.isEnhancement ? projectCompletionTracker.actualSteps : event.stepCount,
                     jobId: event.jobId,
                     projectId: projectDetails.localProjectId || event.projectId,
                     workerName: workerName
@@ -541,11 +551,11 @@ export async function generateImage(client, params, progressCallback, localProje
                   
                   // Track job progress and set up fallback completion detection
                   if (event.jobId) {
-                    projectCompletionTracker.jobProgress.set(event.jobId, progressPercent);
+                    projectCompletionTracker.jobProgress.set(event.jobId, adjustedProgress);
                     
                     // If job reaches 85%+ and no completion timeout is set, set one up
-                    if (progressPercent >= 85 && !projectCompletionTracker.jobCompletionTimeouts.has(event.jobId)) {
-                      console.log(`[IMAGE] Job ${event.jobId} reached ${progressPercent}%, setting up fallback completion timeout`);
+                    if (adjustedProgress >= 85 && !projectCompletionTracker.jobCompletionTimeouts.has(event.jobId)) {
+                      console.log(`[IMAGE] Job ${event.jobId} reached ${adjustedProgress}%, setting up fallback completion timeout`);
                       
                       const timeoutId = setTimeout(() => {
                         console.log(`[IMAGE] Fallback completion timeout triggered for job ${event.jobId} - simulating completion event`);
