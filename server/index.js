@@ -8,6 +8,7 @@ import sogniRoutes from './routes/sogni.js';
 import xAuthRoutes from './routes/xAuthRoutes.js';
 import metricsRoutes from './routes/metricsRoutes.js';
 import mobileShareRoutes from './routes/mobileShare.js';
+import imageHostingRoutes from './routes/imageHosting.js';
 import process from 'process'; // Added to address linter error
 
 // Load environment variables FIRST
@@ -86,6 +87,7 @@ app.use('/api/auth/x', xAuthRoutes); // Twitter OAuth routes, prefixed with /api
 app.use('/auth/x', xAuthRoutes); // Also keep /auth/x for the direct callback from Twitter if redirect URI is /auth/x/callback
 app.use('/api/metrics', metricsRoutes); // Metrics routes
 app.use('/api/mobile-share', mobileShareRoutes); // Mobile sharing routes
+app.use('/api/images', imageHostingRoutes); // Image hosting routes
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -95,6 +97,33 @@ app.get('/health', (req, res) => {
 // Also add the health check at /api/health
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Server is running', environment: process.env.NODE_ENV || 'development' });
+});
+
+// Robots.txt to discourage crawling of API endpoints
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain');
+  res.send(`User-agent: *
+Disallow: /api/
+Disallow: /api/images/
+Disallow: /api/mobile-share/
+Disallow: /sogni/
+Disallow: /auth/
+Crawl-delay: 86400
+
+# Specifically block image hosting
+User-agent: *
+Disallow: /api/images/
+
+# Block common crawlers from API endpoints
+User-agent: Googlebot
+Disallow: /api/
+
+User-agent: Bingbot
+Disallow: /api/
+
+User-agent: Slurp
+Disallow: /api/
+`);
 });
 
 // Static routes for production

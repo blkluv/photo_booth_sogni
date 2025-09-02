@@ -95,7 +95,7 @@ export const shareImageToX = async (userClient, imageUrl, tweetText = "") => {
       console.log('Continuing with media upload as token may still have write access.');
     }
 
-    console.log(`Downloading image from: ${imageUrl.startsWith('data:image') ? 'data:image' : imageUrl}`);
+    console.log(`Downloading image from: ${imageUrl.startsWith('data:image') ? 'data:image URL' : 'http URL'}`);
     let imageBuffer;
     let imageResponse;
     try {

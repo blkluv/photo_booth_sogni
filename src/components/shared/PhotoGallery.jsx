@@ -1971,14 +1971,7 @@ const PhotoGallery = ({
                           borderRadius: '8px'
                         }} 
                       />
-                      <p style={{ 
-                        margin: '0 0 16px 0',
-                        color: '#666',
-                        fontSize: '14px',
-                        lineHeight: '1.4'
-                      }}>
-                        Scan this QR code with your phone's camera to share your photo to Twitter
-                      </p>
+
                       <button
                         onClick={onCloseQR}
                         style={{

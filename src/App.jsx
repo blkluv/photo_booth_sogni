@@ -197,6 +197,9 @@ const App = () => {
   // Add state for image adjustment
   const [showImageAdjuster, setShowImageAdjuster] = useState(false);
   const [currentUploadedImageUrl, setCurrentUploadedImageUrl] = useState('');
+  
+  // Add state for mobile share caching to avoid regenerating the same framed images
+  const [mobileShareCache, setMobileShareCache] = useState({});
   const [currentUploadedSource, setCurrentUploadedSource] = useState('');
   
 
@@ -819,6 +822,109 @@ const App = () => {
     setTwitterPhotoIndex(photoIndex);
 
     try {
+      // Import required utilities
+      const { ensurePermanentUrl } = await import('./utils/imageUpload.js');
+      const { createPolaroidImage } = await import('./utils/imageProcessing.js');
+      const { getPhotoHashtag } = await import('./services/TwitterShare.js');
+      const { themeConfigService } = await import('./services/themeConfig.js');
+      
+      // Get the original image URL (handle enhanced images like Twitter sharing does)
+      const photo = photos[photoIndex];
+      const currentSubIndex = photo.enhanced && photo.enhancedImageUrl 
+        ? -1 // Special case for enhanced images
+        : (selectedSubIndex || 0);
+        
+      const originalImageUrl = currentSubIndex === -1
+        ? photo.enhancedImageUrl
+        : photo.images[currentSubIndex];
+      
+      console.log('Original image URL type:', originalImageUrl?.startsWith('blob:') ? 'blob' : originalImageUrl?.startsWith('data:') ? 'data' : 'http');
+      
+      // Create a cache key for this specific image configuration (same logic as PhotoGallery)
+      const currentTaipeiFrameNumber = photo.taipeiFrameNumber || 1;
+      const cacheKey = `mobile-share-${photoIndex}-${currentSubIndex}-${tezdevTheme}-${currentTaipeiFrameNumber}-jpg-${aspectRatio}`;
+      
+      // Check if we already have a cached mobile share for this exact configuration
+      const cachedMobileShare = mobileShareCache[cacheKey];
+      if (cachedMobileShare) {
+        console.log('Using cached mobile share:', cacheKey);
+        // Set QR code data for overlay using cached data
+        setQrCodeData({
+          shareUrl: cachedMobileShare.shareUrl,
+          photoIndex: photoIndex
+        });
+        return;
+      }
+      
+      console.log('Creating new framed image for mobile sharing...');
+      
+      // Ensure font is loaded (same as Twitter sharing)
+      try {
+        const testFont = new FontFace('Permanent Marker', 'url(https://fonts.gstatic.com/s/permanentmarker/v16/Fh4uPib9Iyv2ucM6pGQMWimMp004La2Cfw.woff2)');
+        await testFont.load();
+        document.fonts.add(testFont);
+        console.log('Manually loaded Permanent Marker font');
+      } catch (fontError) {
+        console.warn('Could not manually load font, using system fallback:', fontError);
+      }
+      
+      let framedImageDataUrl;
+      
+      if (tezdevTheme !== 'off') {
+        // For TezDev themes, create full frame version (no polaroid frame, just TezDev overlay)
+        console.log('Creating TezDev full frame version for mobile sharing');
+        framedImageDataUrl = await createPolaroidImage(originalImageUrl, '', {
+          tezdevTheme,
+          aspectRatio,
+          frameWidth: 0,      // No polaroid frame
+          frameTopWidth: 0,   // No polaroid frame
+          frameBottomWidth: 0, // No polaroid frame
+          frameColor: 'transparent', // No polaroid background
+          outputFormat: 'jpg', // Use JPG for mobile sharing
+          // For Taipei theme, pass the current frame number to ensure consistency
+          taipeiFrameNumber: tezdevTheme === 'taipeiblockchain' ? currentTaipeiFrameNumber : undefined
+        });
+      } else {
+        // For non-TezDev themes, use traditional polaroid frame
+        const hashtag = getPhotoHashtag(photo);
+        const label = hashtag || photo.label || photo.style || '';
+        
+        console.log('Creating polaroid image for mobile sharing');
+        framedImageDataUrl = await createPolaroidImage(originalImageUrl, label, {
+          tezdevTheme,
+          aspectRatio,
+          outputFormat: 'jpg' // Use JPG for mobile sharing
+        });
+      }
+      
+      console.log('Framed image created, uploading to server...');
+      
+      // Convert the framed image data URL to a permanent URL
+      const permanentImageUrl = await ensurePermanentUrl(framedImageDataUrl);
+      console.log('Permanent framed image uploaded successfully');
+      
+      // Generate Twitter message using the same logic as Twitter sharing
+      let twitterMessage;
+      if (tezdevTheme !== 'off') {
+        // Use dynamic theme-specific message format
+        try {
+          const hashtag = getPhotoHashtag(photo);
+          const styleTag = hashtag ? hashtag.replace('#', '') : 'vaporwave';
+          
+          const themeTemplate = await themeConfigService.getTweetTemplate(tezdevTheme, styleTag);
+          twitterMessage = themeTemplate;
+        } catch (error) {
+          console.warn('Could not load theme tweet template, using fallback:', error);
+          // Fallback to default message
+          twitterMessage = "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨";
+        }
+      } else {
+        // Use default message for no theme
+        twitterMessage = "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨";
+      }
+      
+      console.log('Generated Twitter message:', twitterMessage);
+      
       // Generate a unique sharing ID
       const shareId = `share-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       
@@ -829,18 +935,20 @@ const App = () => {
       // Create the mobile sharing URL
       const mobileShareUrl = `${baseUrl}/mobile-share/${shareId}`;
       
-      // Store the sharing data (we'll need to send this to the backend)
+      // Store the sharing data with permanent framed image URL
       const shareData = {
         shareId,
         photoIndex,
-        imageUrl: photos[photoIndex].images[0],
+        imageUrl: permanentImageUrl, // Use permanent framed image URL
         tezdevTheme,
         aspectRatio,
         outputFormat,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        isFramed: true, // Flag to indicate this image already includes the frame
+        twitterMessage: twitterMessage // Include the generated Twitter message
       };
 
-      console.log('Creating mobile share with data:', shareData);
+      console.log('Creating mobile share with framed data:', shareData);
 
       // Send the share data to the backend for storage
       const response = await fetch('/api/mobile-share/create', {
@@ -854,6 +962,17 @@ const App = () => {
       if (!response.ok) {
         throw new Error('Failed to create mobile share');
       }
+
+      // Cache the mobile share data for future use
+      setMobileShareCache(prev => ({
+        ...prev,
+        [cacheKey]: {
+          shareUrl: mobileShareUrl,
+          permanentImageUrl,
+          twitterMessage,
+          timestamp: Date.now()
+        }
+      }));
 
       // Set QR code data for overlay
       setQrCodeData({
