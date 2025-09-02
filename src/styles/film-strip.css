@@ -621,7 +621,7 @@ body .film-frame.selected,
   line-height: 40px !important;
   text-align: center !important;
   font-family: "Permanent Marker", cursive !important;
-  font-size: 18px !important;
+  font-size: 40px !important;
   color: #333 !important;
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
@@ -728,6 +728,15 @@ body .film-frame.selected.taipei-blockchain-theme,
     user-drag: auto !important;
     pointer-events: auto !important;
   }
+  
+  /* Fix inner shadow positioning for mobile popup view */
+  .film-frame.selected::after {
+    top: 16px !important; /* Match mobile popup padding */
+    left: 16px !important; /* Match mobile popup padding */
+    right: 16px !important; /* Match mobile popup padding */
+    bottom: 56px !important; /* Match mobile popup bottom padding */
+  }
+  
   /* Selected photo label uses same positioning as grid view on mobile */
   /* Label positioning handled by .photo-label-overlay only (see below) */
   
