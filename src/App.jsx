@@ -3485,6 +3485,22 @@ const App = () => {
     // Save preference to settings
     updateSetting('preferredCameraDeviceId', normalizedDeviceId || undefined);
     
+    // If the selected device label contains "Back", automatically disable mirroring
+    if (normalizedDeviceId) {
+      try {
+        const selectedDevice = (cameraDevices || []).find(d => d.deviceId === normalizedDeviceId);
+        const label = selectedDevice?.label || '';
+        if (/back/i.test(label)) {
+          // Back cameras should not be mirrored
+          if (isFrontCamera) {
+            setIsFrontCamera(false);
+          }
+        }
+      } catch (err) {
+        console.warn('Unable to infer facing from selected camera label:', err);
+      }
+    }
+    
     // Switch to the new camera if one is active
     if (videoReference.current && videoReference.current.srcObject) {
       console.log('📹 Switching active camera to:', normalizedDeviceId || 'auto-select');
