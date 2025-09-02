@@ -270,7 +270,7 @@
 }
 
 /* Allow 5 columns on large resolutions - FORCE 5 COLUMNS */
-@media screen and (orientation: landscape) and (min-width: 2700px) and (max-width: 3399px) {
+@media screen and (orientation: landscape) and (min-width: 2700px) and (max-width: 2879px) {
   .film-strip-container .film-strip-content,
   body .film-strip-container .film-strip-content,
   html body .film-strip-container .film-strip-content {
@@ -279,11 +279,13 @@
   }
 }
 
-/* Allow up to 6 columns on very large resolutions */
-@media (orientation: landscape) and (min-width: 3400px) {
-  .film-strip-container .film-strip-content {
-    /* Allow up to 6 columns on ultra-wide and very large screens */
-    grid-template-columns: repeat(auto-fill, minmax(min(16.5vw, 563px), 1fr)) !important;
+/* Allow up to 6 columns on very large resolutions - FORCE 6 COLUMNS */
+@media (orientation: landscape) and (min-width: 2880px) {
+  .film-strip-container .film-strip-content,
+  body .film-strip-container .film-strip-content,
+  html body .film-strip-container .film-strip-content {
+    /* FORCE 6 columns - maximum specificity */
+    grid-template-columns: repeat(6, 1fr) !important;
   }
 }
 
