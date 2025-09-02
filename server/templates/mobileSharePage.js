@@ -55,7 +55,7 @@ export function renderMobileSharePage({ imageUrl, twitterMessage }) {
           
           .header h1 {
             font-size: 22px;
-            margin: 0 0 5px 0;
+            margin: 20px 0 5px 0;
             font-weight: 700;
           }
           

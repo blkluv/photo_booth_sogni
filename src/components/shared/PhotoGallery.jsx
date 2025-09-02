@@ -324,12 +324,13 @@ const PhotoGallery = ({
     setCustomPrompt('');
   }, []);
 
-  // Handle prompt modal submission
-  const handlePromptSubmit = useCallback(() => {
-    if (!customPrompt.trim()) return;
-    
+  // Unified submit handler that supports direct text submission (used by chips)
+  const submitPrompt = useCallback((promptText) => {
+    const trimmed = (promptText || '').trim();
+    if (!trimmed) return;
+
     setShowPromptModal(false);
-    
+
     // Use the functional form of setPhotos to get the latest state
     setPhotos(currentPhotos => {
       const currentPhotoIndex = selectedPhotoIndex;
@@ -349,15 +350,20 @@ const PhotoGallery = ({
             onSetActiveProject: (projectId) => {
               activeProjectReference.current = projectId;
             },
-            // Pass Kontext-specific parameters
+            // Kontext-specific parameters
             useKontext: true,
-            customPrompt: customPrompt.trim()
+            customPrompt: trimmed
           });
         }, 0);
       }
       return currentPhotos; // Don't modify photos array here
     });
-  }, [selectedPhotoIndex, selectedSubIndex, desiredWidth, desiredHeight, sogniClient, setPhotos, outputFormat, clearFrameCacheForPhoto, activeProjectReference, enhancePhoto, customPrompt]);
+  }, [selectedPhotoIndex, selectedSubIndex, desiredWidth, desiredHeight, sogniClient, setPhotos, outputFormat, clearFrameCacheForPhoto, activeProjectReference, enhancePhoto]);
+
+  // Handle prompt modal submission
+  const handlePromptSubmit = useCallback(() => {
+    submitPrompt(customPrompt);
+  }, [submitPrompt, customPrompt]);
 
   // Handle prompt modal cancel
   const handlePromptCancel = useCallback(() => {
@@ -1385,12 +1391,12 @@ const PhotoGallery = ({
                       return enhanceButton ? 'none' : 'translateX(-50%)'; // Only center if no button found
                     })(),
                     background: 'white',
-                    borderRadius: '8px',
                     boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
                     overflow: 'hidden',
                     zIndex: 9999999,
-                    minWidth: '310px',
-                    border: '1px solid rgba(0,0,0,0.1)'
+                    minWidth: '250px',
+                    backgroundColor: '#FF69B4',
+                    color: 'black',
                   }}
                 >
                   <button
@@ -1405,13 +1411,12 @@ const PhotoGallery = ({
                       cursor: 'pointer',
                       fontSize: '14px',
                       fontWeight: '500',
-                      color: '#333',
                       transition: 'background-color 0.2s ease'
                     }}
-                    onMouseOver={e => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                    onMouseOver={e => e.currentTarget.style.backgroundColor = '#FF46A2'}
                     onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    ✨ Enhance with Flux.1 Krea
+                    ✨ One-click image enhance
                   </button>
                   <button
                     className="dropdown-option"
@@ -1425,14 +1430,13 @@ const PhotoGallery = ({
                       cursor: 'pointer',
                       fontSize: '14px',
                       fontWeight: '500',
-                      color: '#333',
                       transition: 'background-color 0.2s ease',
                       borderTop: '1px solid rgba(0,0,0,0.1)'
                     }}
-                    onMouseOver={e => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                    onMouseOver={e => e.currentTarget.style.backgroundColor = '#FF46A2'}
                     onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    🎨 Modify with Flux.1 Kontext
+                    🎨 Transform image with words
                   </button>
                 </div>
               ),
@@ -2048,23 +2052,13 @@ const PhotoGallery = ({
               color: '#333',
               textAlign: 'center'
             }}>
-              Modify with Flux.1 Kontext
+              Modify the image with natural language
             </h3>
-            
-            <p style={{
-              margin: '0 0 16px 0',
-              fontSize: '14px',
-              color: '#666',
-              textAlign: 'center',
-              lineHeight: '1.4'
-            }}>
-              Type what you want to change in the picture
-            </p>
             
             <textarea
               value={customPrompt}
               onChange={e => setCustomPrompt(e.target.value)}
-              placeholder="e.g., zoom out, recreate the scene in legos, add a speach bubble"
+              placeholder="Type what you want to change in the picture"
               style={{
                 width: '100%',
                 minHeight: '100px',
@@ -2083,6 +2077,60 @@ const PhotoGallery = ({
               onBlur={e => e.target.style.borderColor = '#e0e0e0'}
               autoFocus
             />
+
+            {/* Quick-action suggestion chips */}
+            {(() => {
+              const samplePrompts = [
+                'Zoom way out',
+                'Recreate the scene in legos',
+                'Make it night time',
+                'Change background to a beach',
+                'Add rainbow lens flare',
+                'Turn into pixel art',
+                'Add hats and sunglasses',
+                'Add cats and match style',
+                'Add more people',
+                'Make into Time Magazine cover with "The Year of AI" and "with SOGNI AI"'
+              ];
+              const chipBackgrounds = [
+                'linear-gradient(135deg, #72e3f2, #4bbbd3)',
+                'linear-gradient(135deg, #ffb6e6, #ff5e8a)',
+                'linear-gradient(135deg, #ffd86f, #fc6262)',
+                'linear-gradient(135deg, #a8e063, #56ab2f)',
+                'linear-gradient(135deg, #f093fb, #f5576c)',
+                'linear-gradient(135deg, #5ee7df, #b490ca)'
+              ];
+              return (
+                <div style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '8px',
+                  marginTop: '12px',
+                  justifyContent: 'center'
+                }}>
+                  {samplePrompts.map((text, idx) => (
+                    <button
+                      key={text}
+                      onClick={() => { setCustomPrompt(text); submitPrompt(text); }}
+                      style={{
+                        padding: '8px 12px',
+                        border: 'none',
+                        borderRadius: '999px',
+                        color: '#fff',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        background: chipBackgrounds[idx % chipBackgrounds.length],
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
+                      }}
+                      title={text}
+                    >
+                      {text}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
             
             <div style={{
               display: 'flex',
