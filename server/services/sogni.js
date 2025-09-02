@@ -424,7 +424,9 @@ export async function generateImage(client, params, progressCallback, localProje
       projectCompletionEvent: null,
       sendProjectCompletion: null,
       jobIndexMap: new Map(), // Track job ID to index mapping
-      workerNameCache: new Map() // Track job ID to worker name mapping
+      workerNameCache: new Map(), // Track job ID to worker name mapping
+      isEnhancement: isEnhancement,
+      actualSteps: isEnhancement ? Math.ceil((params.inferenceSteps || 4) * (1 - (params.startingImageStrength || 0.80))) : (params.inferenceSteps || 7)
     };
 
     // Store project details for event enrichment
@@ -736,6 +738,9 @@ export async function generateImage(client, params, progressCallback, localProje
         }
         
         console.log('[IMAGE] Project completed, all jobs finished. Total images:', imageUrls.length);
+        if (projectCompletionTracker.isEnhancement) {
+          console.log(`[IMAGE] Enhancement job completed - Expected steps: ${params.inferenceSteps || 4}, Actual steps: ${projectCompletionTracker.actualSteps}, Strength: ${params.startingImageStrength || 0.80}`);
+        }
         
         // Store the completion event instead of sending it immediately (fix for SDK timing issue)
         const completionEvent = {
@@ -770,9 +775,57 @@ export async function generateImage(client, params, progressCallback, localProje
           console.log(`[IMAGE] Waiting for ${projectCompletionTracker.expectedJobs - projectCompletionTracker.sentJobCompletions} more job completions before sending project completion`);
           
           // Set a failsafe timeout to send completion even if some job events are missing
+          // Use shorter timeout for enhancement jobs since they complete faster
+          const failsafeTimeout = projectCompletionTracker.isEnhancement ? 1500 : 3000; // 1.5s for enhancement, 3s for generation
+          console.log(`[IMAGE] Setting failsafe timeout: ${failsafeTimeout}ms (${projectCompletionTracker.isEnhancement ? 'enhancement' : 'generation'} job)`);
           setTimeout(() => {
             console.log(`[IMAGE] Failsafe timeout reached, sending project completion (sent ${projectCompletionTracker.sentJobCompletions}/${projectCompletionTracker.expectedJobs} job completions)`);
             if (!projectFinished) {
+              // Before sending project completion, send missing job completion events
+              const missingJobCount = projectCompletionTracker.expectedJobs - projectCompletionTracker.sentJobCompletions;
+              if (missingJobCount > 0 && project.jobs) {
+                console.log(`[IMAGE] Failsafe: Sending ${missingJobCount} missing job completion events for ${projectCompletionTracker.isEnhancement ? 'enhancement' : 'generation'} job`);
+                
+                // Find jobs that haven't had completion events sent
+                const completedJobs = project.jobs.filter(job => job.resultUrl || job.error);
+                const sentJobIds = new Set();
+                
+                // Track which jobs we've already sent completion events for
+                for (const [jobId] of projectCompletionTracker.jobIndexMap) {
+                  if (projectCompletionTracker.sentJobCompletions > 0) {
+                    sentJobIds.add(jobId);
+                  }
+                }
+                
+                // Send completion events for jobs that completed but didn't get sent
+                for (const job of completedJobs) {
+                  if (!sentJobIds.has(job.id) && projectCompletionTracker.sentJobCompletions < projectCompletionTracker.expectedJobs) {
+                    const jobIndex = projectCompletionTracker.jobIndexMap.get(job.id) || 0;
+                    const jobCompletionEvent = {
+                      type: 'jobCompleted',
+                      jobId: job.id,
+                      projectId: projectDetails.localProjectId || project.id,
+                      resultUrl: job.resultUrl,
+                      positivePrompt: projectDetails.positivePrompt,
+                      stylePrompt: projectDetails.stylePrompt,
+                      jobIndex: jobIndex,
+                      isNSFW: job.isNSFW || false,
+                      seed: job.seed,
+                      steps: job.steps,
+                      fallback: true // Mark as failsafe-generated event
+                    };
+                    
+                    console.log(`[IMAGE] Failsafe: Sending missing job completion for ${job.id}`);
+                    if (progressCallback) {
+                      progressCallback(jobCompletionEvent);
+                    }
+                    
+                    projectCompletionTracker.sentJobCompletions++;
+                    sentJobIds.add(job.id);
+                  }
+                }
+              }
+              
               projectFinished = true;
               cleanup();
               
@@ -782,7 +835,7 @@ export async function generateImage(client, params, progressCallback, localProje
               
               resolve(imageUrls);
             }
-          }, 3000); // 3 second failsafe
+          }, failsafeTimeout);
         }
       });
 

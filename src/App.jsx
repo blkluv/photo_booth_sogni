@@ -908,8 +908,37 @@ const App = () => {
       if (tezdevTheme !== 'off') {
         // Use dynamic theme-specific message format
         try {
-          const hashtag = getPhotoHashtag(photo);
-          const styleTag = hashtag ? hashtag.replace('#', '') : 'vaporwave';
+          // Extract style hashtag using the same logic as PhotoGallery component
+          let styleTag = 'vaporwave'; // Default fallback
+          
+          // Try stylePrompt first
+          if (photo.stylePrompt && stylePrompts) {
+            const foundStyleKey = Object.entries(stylePrompts).find(
+              ([, value]) => value === photo.stylePrompt
+            )?.[0];
+            
+            if (foundStyleKey && foundStyleKey !== 'custom' && foundStyleKey !== 'random' && foundStyleKey !== 'randomMix') {
+              styleTag = foundStyleKey;
+            }
+          }
+          
+          // Try positivePrompt next if stylePrompt didn't work
+          if (styleTag === 'vaporwave' && photo.positivePrompt && stylePrompts) {
+            const foundStyleKey = Object.entries(stylePrompts).find(
+              ([, value]) => value === photo.positivePrompt
+            )?.[0];
+            
+            if (foundStyleKey && foundStyleKey !== 'custom' && foundStyleKey !== 'random' && foundStyleKey !== 'randomMix') {
+              styleTag = foundStyleKey;
+            }
+          }
+          
+          // Fall back to selectedStyle if available
+          if (styleTag === 'vaporwave' && selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix') {
+            styleTag = selectedStyle;
+          }
+          
+          console.log('Using styleTag for Twitter message:', styleTag);
           
           const themeTemplate = await themeConfigService.getTweetTemplate(tezdevTheme, styleTag);
           twitterMessage = themeTemplate;
