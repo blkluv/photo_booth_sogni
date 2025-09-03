@@ -117,6 +117,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       preferredCameraDeviceId: getSettingFromCookie('preferredCameraDeviceId', DEFAULT_SETTINGS.preferredCameraDeviceId),
       kioskMode: getSettingFromCookie('kioskMode', DEFAULT_SETTINGS.kioskMode),
       // Worker preferences
+      requiredWorkers: getSettingFromCookie('requiredWorkers', DEFAULT_SETTINGS.requiredWorkers),
       preferWorkers: getSettingFromCookie('preferWorkers', DEFAULT_SETTINGS.preferWorkers),
       skipWorkers: getSettingFromCookie('skipWorkers', DEFAULT_SETTINGS.skipWorkers)
     };

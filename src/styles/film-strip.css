@@ -634,60 +634,22 @@ body .film-frame.selected,
 
 
 
-/* Remove white polaroid frame for Super Casual theme */
-body .film-frame.selected.super-casual-theme.loaded,
-body .film-frame.selected.super-casual-theme,
-.film-frame.selected.super-casual-theme {
+/* Remove white polaroid frame for ALL custom themes (any class ending with -theme) */
+body .film-frame.selected[class*="-theme"].loaded,
+body .film-frame.selected[class*="-theme"],
+.film-frame.selected[class*="-theme"] {
   background: transparent !important;
   box-shadow: none !important;
   padding: 0 !important;
 }
-.film-frame.selected.super-casual-theme img {
+.film-frame.selected[class*="-theme"] img {
   border: none !important;
   background: transparent !important;
 }
+
 /* Hide polaroid label for ALL custom themes (any class ending with -theme) */
 html body.has-selected-photo .film-strip-container.visible .film-frame.selected[class*="-theme"] .photo-label {
   display: none !important;
-}
-
-/* Remove white polaroid frame for Super Casual theme */
-body .film-frame.selected.super-casual-theme.loaded,
-body .film-frame.selected.super-casual-theme,
-.film-frame.selected.super-casual-theme {
-  background: transparent !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-}
-.film-frame.selected.super-casual-theme img {
-  border: none !important;
-  background: transparent !important;
-}
-
-/* Remove white polaroid frame for Tezos WebX theme */
-body .film-frame.selected.tezos-webx-theme.loaded,
-body .film-frame.selected.tezos-webx-theme,
-.film-frame.selected.tezos-webx-theme {
-  background: transparent !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-}
-.film-frame.selected.tezos-webx-theme img {
-  border: none !important;
-  background: transparent !important;
-}
-
-/* Remove white polaroid frame for Taipei Blockchain Week theme */
-body .film-frame.selected.taipei-blockchain-theme.loaded,
-body .film-frame.selected.taipei-blockchain-theme,
-.film-frame.selected.taipei-blockchain-theme {
-  background: transparent !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-}
-.film-frame.selected.taipei-blockchain-theme img {
-  border: none !important;
-  background: transparent !important;
 }
 
 
@@ -718,7 +680,7 @@ body .film-frame.selected.taipei-blockchain-theme,
     border: none !important;
     width: auto !important;
     height: auto !important;
-    max-width: calc(100vw - 32px) !important; /* 16px * 2 */
+    /* max-width: calc(100vw - 32px) !important; */
     max-height: calc(88vh - 72px) !important; /* 16px + 56px */
     object-fit: contain !important;
     background: transparent !important;
@@ -747,60 +709,22 @@ body .film-frame.selected.taipei-blockchain-theme,
   
 
   
-  /* Remove white polaroid frame for Super Casual theme on mobile */
-  body .film-frame.selected.super-casual-theme.loaded,
-  body .film-frame.selected.super-casual-theme,
-  .film-frame.selected.super-casual-theme {
+  /* Remove white polaroid frame for ALL custom themes on mobile (any class ending with -theme) */
+  body .film-frame.selected[class*="-theme"].loaded,
+  body .film-frame.selected[class*="-theme"],
+  .film-frame.selected[class*="-theme"] {
     background: transparent !important;
     box-shadow: none !important;
     padding: 0 !important;
   }
-  .film-frame.selected.super-casual-theme img {
+  .film-frame.selected[class*="-theme"] img {
     border: none !important;
     background: transparent !important;
   }
+  
   /* Hide polaroid label for ALL custom themes on mobile (any class ending with -theme) */
   .film-frame.selected[class*="-theme"] .photo-label {
     display: none !important;
-  }
-  
-  /* Remove white polaroid frame for Super Casual theme on mobile */
-  body .film-frame.selected.super-casual-theme.loaded,
-  body .film-frame.selected.super-casual-theme,
-  .film-frame.selected.super-casual-theme {
-    background: transparent !important;
-    box-shadow: none !important;
-    padding: 0 !important;
-  }
-  .film-frame.selected.super-casual-theme img {
-    border: none !important;
-    background: transparent !important;
-  }
-  
-  /* Remove white polaroid frame for Tezos WebX theme on mobile */
-  body .film-frame.selected.tezos-webx-theme.loaded,
-  body .film-frame.selected.tezos-webx-theme,
-  .film-frame.selected.tezos-webx-theme {
-    background: transparent !important;
-    box-shadow: none !important;
-    padding: 0 !important;
-  }
-  .film-frame.selected.tezos-webx-theme img {
-    border: none !important;
-    background: transparent !important;
-  }
-  
-  /* Remove white polaroid frame for Taipei Blockchain Week theme on mobile */
-  body .film-frame.selected.taipei-blockchain-theme.loaded,
-  body .film-frame.selected.taipei-blockchain-theme,
-  .film-frame.selected.taipei-blockchain-theme {
-    background: transparent !important;
-    box-shadow: none !important;
-    padding: 0 !important;
-  }
-  .film-frame.selected.taipei-blockchain-theme img {
-    border: none !important;
-    background: transparent !important;
   }
 
   

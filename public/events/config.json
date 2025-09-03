@@ -25,7 +25,7 @@
       "tweetTemplate": "Just took my photo at the @sogni_protocol AI photobooth #{styleTag} https://photobooth.sogni.ai/?prompt={styleTag}",
       "frames": {
         "narrow": [
-          "/events/taipei-blockchain-2025/narrow_1.png"
+          "/events/showup/narrow_1.png"
         ]
       }
     },

@@ -400,7 +400,8 @@ const PhotoGallery = ({
     switch (tezdevTheme) {
       case 'supercasual':
       case 'tezoswebx':
-      case 'taipeiblockchain': {
+      case 'taipeiblockchain':
+      case 'showup': {
         return aspectRatio === 'narrow';
       }
       default:
@@ -1660,7 +1661,7 @@ const PhotoGallery = ({
             return (
               <div
                 key={photo.id}
-                className={`film-frame loading ${isSelected ? 'selected' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''}`}
+                className={`film-frame loading ${isSelected ? 'selected' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'showup' ? 'showup-theme' : ''}`}
                 data-enhancing={photo.enhancing ? 'true' : undefined}
                 data-error={photo.error ? 'true' : undefined}
                 data-enhanced={photo.enhanced ? 'true' : undefined}
@@ -1738,7 +1739,7 @@ const PhotoGallery = ({
           return (
             <div 
               key={photo.id}
-              className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''} ${isLoaded ? 'loaded' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'taipeiblockchain' ? 'taipei-blockchain-theme' : ''}`}
+              className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''} ${isLoaded ? 'loaded' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'taipeiblockchain' ? 'taipei-blockchain-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'showup' ? 'showup-theme' : ''}`}
               onClick={e => isSelected ? handlePhotoViewerClick(e) : handlePhotoSelect(index, e)}
               data-enhancing={photo.enhancing ? 'true' : undefined}
               data-error={photo.error ? 'true' : undefined}
