@@ -2102,6 +2102,19 @@ const App = () => {
         // Use the selected style prompt, or fallback to user's custom text
         finalPositivePrompt = stylePrompts[selectedStyle] || finalPositivePrompt || '';
       }
+
+      // Inject worker preferences into the prompt
+      const workerPreferences = [];
+      if (settings.preferWorkers && settings.preferWorkers.length > 0) {
+        workerPreferences.push(`--preferred-workers=${settings.preferWorkers.join(',')}`);
+      }
+      if (settings.skipWorkers && settings.skipWorkers.length > 0) {
+        workerPreferences.push(`--skip-workers=${settings.skipWorkers.join(',')}`);
+      }
+      if (workerPreferences.length > 0) {
+        finalPositivePrompt = `${finalPositivePrompt}${workerPreferences.join(' ')}`;
+      }
+
       // Style prompt logic: use context state
       let finalStylePrompt = stylePrompt.trim() || ''; 
       // Negative prompt logic: use context state

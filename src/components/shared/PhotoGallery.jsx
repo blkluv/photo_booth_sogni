@@ -1356,7 +1356,8 @@ const PhotoGallery = ({
             {showEnhanceDropdown && !photos[selectedPhotoIndex].enhancing && createPortal(
               (
                 <div 
-                  className="enhance-dropdown"
+                  key={`enhance-dropdown-${Date.now()}`}
+                  className="enhance-dropdown rainbow-popup"
                   style={{
                     position: 'fixed',
                     bottom: (() => {
@@ -1390,51 +1391,123 @@ const PhotoGallery = ({
                       const enhanceButton = document.querySelector('.enhance-button-container');
                       return enhanceButton ? 'none' : 'translateX(-50%)'; // Only center if no button found
                     })(),
-                    background: 'white',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
-                    overflow: 'hidden',
+                    background: 'transparent',
+                    animation: 'none',
+                    boxShadow: 'none',
+                    overflow: 'visible',
                     zIndex: 9999999,
-                    minWidth: '250px',
-                    backgroundColor: '#FF69B4',
-                    color: 'black',
+                    minWidth: '280px',
+                    borderRadius: '0',
+                    border: 'none',
+                    backdropFilter: 'none',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    textShadow: '0 1px 2px rgba(0, 0, 0, 0.5)',
                   }}
                 >
                   <button
-                    className="dropdown-option"
+                    className="dropdown-option rainbow-option"
+                    ref={(el) => {
+                      if (el) {
+                        setTimeout(() => el.classList.add('slide-in'), 100);
+                      }
+                    }}
                     onClick={(e) => { e.stopPropagation(); setShowEnhanceDropdown(false); handleEnhanceWithKrea(); }}
                     style={{
-                      width: '100%',
-                      padding: '12px 16px',
+                      width: 'calc(100% + 60px)',
+                      padding: '16px 20px 16px 20px',
+                      paddingRight: '80px',
                       border: 'none',
-                      background: 'transparent',
+                      background: 'linear-gradient(135deg, #ff0080, #ff8c00, #40e0d0, #9370db, #ff69b4, #00ff7f)',
+                      backgroundSize: '300% 300%',
+                      animation: 'rainbow-shift 3s ease-in-out infinite',
                       textAlign: 'left',
                       cursor: 'pointer',
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      transition: 'background-color 0.2s ease'
+                      fontSize: '15px',
+                      fontWeight: '600',
+                      transition: 'all 0.3s ease',
+                      borderRadius: '20px 0 0 20px',
+                      margin: '12px 8px',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                      color: 'white',
+                      textShadow: '0 1px 2px rgba(0, 0, 0, 0.5)',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      backdropFilter: 'blur(5px)',
                     }}
-                    onMouseOver={e => e.currentTarget.style.backgroundColor = '#FF46A2'}
-                    onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                    onMouseOver={e => {
+                      e.currentTarget.style.background = 'linear-gradient(135deg, #ff0080, #ff8c00, #40e0d0, #9370db, #ff69b4, #00ff7f)';
+                      e.currentTarget.style.backgroundSize = '200% 200%';
+                      e.currentTarget.style.animation = 'rainbow-shift 1.5s ease-in-out infinite';
+                      e.currentTarget.style.transform = 'translateY(-6px) translateX(8px) scale(1.08) rotate(1deg)';
+                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.3)';
+                      e.currentTarget.style.fontSize = '16px';
+                      e.currentTarget.style.fontWeight = '700';
+                      e.currentTarget.style.letterSpacing = '0.5px';
+                    }}
+                    onMouseOut={e => {
+                      e.currentTarget.style.background = 'linear-gradient(135deg, #ff0080, #ff8c00, #40e0d0, #9370db, #ff69b4, #00ff7f)';
+                      e.currentTarget.style.backgroundSize = '300% 300%';
+                      e.currentTarget.style.animation = 'rainbow-shift 3s ease-in-out infinite';
+                      e.currentTarget.style.transform = 'translateY(0) translateX(0) scale(1) rotate(0deg)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
+                      e.currentTarget.style.fontSize = '15px';
+                      e.currentTarget.style.fontWeight = '600';
+                      e.currentTarget.style.letterSpacing = '0px';
+                    }}
                   >
                     ✨ One-click image enhance
                   </button>
                   <button
-                    className="dropdown-option"
+                    className="dropdown-option rainbow-option"
+                    ref={(el) => {
+                      if (el) {
+                        setTimeout(() => el.classList.add('slide-in'), 300);
+                      }
+                    }}
                     onClick={(e) => { e.stopPropagation(); setShowEnhanceDropdown(false); handleEnhanceWithKontext(); }}
                     style={{
-                      width: '100%',
-                      padding: '12px 16px',
+                      width: 'calc(100% + 60px)',
+                      padding: '16px 20px 16px 20px',
+                      paddingRight: '80px',
                       border: 'none',
-                      background: 'transparent',
+                      background: 'linear-gradient(135deg, #ff0080, #ff8c00, #40e0d0, #9370db, #ff69b4, #00ff7f)',
+                      backgroundSize: '300% 300%',
+                      animation: 'rainbow-shift 3s ease-in-out infinite',
                       textAlign: 'left',
                       cursor: 'pointer',
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      transition: 'background-color 0.2s ease',
-                      borderTop: '1px solid rgba(0,0,0,0.1)'
+                      fontSize: '15px',
+                      fontWeight: '600',
+                      transition: 'all 0.3s ease',
+                      borderRadius: '20px 0 0 20px',
+                      margin: '12px 8px',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                      color: 'white',
+                      textShadow: '0 1px 2px rgba(0, 0, 0, 0.5)',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      backdropFilter: 'blur(5px)',
                     }}
-                    onMouseOver={e => e.currentTarget.style.backgroundColor = '#FF46A2'}
-                    onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                    onMouseOver={e => {
+                      e.currentTarget.style.background = 'linear-gradient(135deg, #ff0080, #ff8c00, #40e0d0, #9370db, #ff69b4, #00ff7f)';
+                      e.currentTarget.style.backgroundSize = '200% 200%';
+                      e.currentTarget.style.animation = 'rainbow-shift 1.5s ease-in-out infinite';
+                      e.currentTarget.style.transform = 'translateY(-6px) translateX(8px) scale(1.08) rotate(1deg)';
+                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.3)';
+                      e.currentTarget.style.fontSize = '16px';
+                      e.currentTarget.style.fontWeight = '700';
+                      e.currentTarget.style.letterSpacing = '0.5px';
+                    }}
+                    onMouseOut={e => {
+                      e.currentTarget.style.background = 'linear-gradient(135deg, #ff0080, #ff8c00, #40e0d0, #9370db, #ff69b4, #00ff7f)';
+                      e.currentTarget.style.backgroundSize = '300% 300%';
+                      e.currentTarget.style.animation = 'rainbow-shift 3s ease-in-out infinite';
+                      e.currentTarget.style.transform = 'translateY(0) translateX(0) scale(1) rotate(0deg)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
+                      e.currentTarget.style.fontSize = '15px';
+                      e.currentTarget.style.fontWeight = '600';
+                      e.currentTarget.style.letterSpacing = '0px';
+                    }}
                   >
                     🎨 Transform image with words
                   </button>

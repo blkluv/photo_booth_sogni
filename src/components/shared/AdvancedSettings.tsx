@@ -4,6 +4,7 @@ import { AspectRatioOption, TezDevTheme, OutputFormat } from '../../types/index'
 import { isFluxKontextModel, getModelRanges, getModelDefaults } from '../../constants/settings';
 import { themeConfigService } from '../../services/themeConfig';
 import { CameraDevice, enumerateCameraDevices, getCameraDisplayName } from '../../services/cameraService';
+import TagInput from './TagInput';
 
 interface AdvancedSettingsProps {
   /** Whether the settings overlay is visible */
@@ -842,6 +843,31 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
           <label htmlFor="background-animations-toggle" className="control-label">Background Animations</label>
         </div>
         
+        {/* Worker Preferences */}
+        <div className="control-option">
+          <label className="control-label">Prefer Workers:</label>
+          <TagInput
+            tags={settings.preferWorkers}
+            onTagsChange={(tags) => updateSetting('preferWorkers', tags)}
+            placeholder="Type worker name and press Enter..."
+          />
+          <div className="control-description">
+            Preferred workers will be prioritized for processing your images
+          </div>
+        </div>
+
+        <div className="control-option">
+          <label className="control-label">Skip Workers:</label>
+          <TagInput
+            tags={settings.skipWorkers}
+            onTagsChange={(tags) => updateSetting('skipWorkers', tags)}
+            placeholder="Type worker name and press Enter..."
+          />
+          <div className="control-description">
+            These workers will be avoided when processing your images
+          </div>
+        </div>
+
         {/* Kiosk Mode toggle */}
         <div className="control-option checkbox">
           <input

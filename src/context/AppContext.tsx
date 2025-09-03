@@ -115,7 +115,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       outputFormat: getSettingFromCookie('outputFormat', DEFAULT_SETTINGS.outputFormat),
       sensitiveContentFilter: getSettingFromCookie('sensitiveContentFilter', DEFAULT_SETTINGS.sensitiveContentFilter),
       preferredCameraDeviceId: getSettingFromCookie('preferredCameraDeviceId', DEFAULT_SETTINGS.preferredCameraDeviceId),
-      kioskMode: getSettingFromCookie('kioskMode', DEFAULT_SETTINGS.kioskMode)
+      kioskMode: getSettingFromCookie('kioskMode', DEFAULT_SETTINGS.kioskMode),
+      // Worker preferences
+      preferWorkers: getSettingFromCookie('preferWorkers', DEFAULT_SETTINGS.preferWorkers),
+      skipWorkers: getSettingFromCookie('skipWorkers', DEFAULT_SETTINGS.skipWorkers)
     };
   });
   
@@ -136,7 +139,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateSetting = <K extends keyof Settings>(key: K, value: Settings[K]) => {
     // Special handling for model changes
     if (key === 'selectedModel') {
-      console.log(`updateSetting: Model change detected, calling switchToModel with ${value}`);
+      console.log(`updateSetting: Model change detected, calling switchToModel with ${String(value)}`);
       switchToModel(value as string);
       return;
     }

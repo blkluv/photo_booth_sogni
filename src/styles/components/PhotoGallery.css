@@ -404,6 +404,206 @@ html body .photo-action-buttons .action-button,
   }
 }
 
+/* Rainbow gradient animation for enhance dropdown */
+@keyframes rainbow-shift {
+  0% { 
+    background-position: 0% 50%; 
+  }
+  50% { 
+    background-position: 100% 50%; 
+  }
+  100% { 
+    background-position: 0% 50%; 
+  }
+}
+
+/* Popup slide-in animation */
+@keyframes popup-slide-in {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Bounce in from right animation for buttons */
+@keyframes bounce-from-right {
+  0% {
+    opacity: 0;
+    transform: translateX(calc(100vw + 100px)) scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-30px) scale(1.1);
+  }
+  70% {
+    transform: translateX(15px) scale(0.95);
+  }
+  85% {
+    transform: translateX(-5px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* Rainbow popup styles - now subtle dark background */
+.rainbow-popup {
+  position: relative;
+}
+
+/* Rainbow option button animations - floating independently */
+.rainbow-option {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  transform-origin: center right;
+  will-change: transform, box-shadow, filter;
+}
+
+/* Initial hidden state */
+.enhance-dropdown .rainbow-option {
+  opacity: 0;
+  transform: translateX(180px) scale(0.95);
+  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Animate in with class - nuanced bounce */
+.enhance-dropdown .rainbow-option.slide-in {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+}
+
+/* Slower slide-out animation */
+.enhance-dropdown .rainbow-option.slide-out {
+  opacity: 0;
+  transform: translateX(120px) scale(0.9);
+  transition: all 1.2s ease-in;
+}
+
+/* Fly in animation */
+@keyframes fly-in-from-right {
+  0% {
+    opacity: 0;
+    transform: translateX(500px) scale(0.7) rotate(10deg);
+  }
+  70% {
+    opacity: 1;
+    transform: translateX(-20px) scale(1.1) rotate(-2deg);
+  }
+  85% {
+    transform: translateX(8px) scale(0.95) rotate(1deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1) rotate(0deg);
+  }
+}
+
+/* Removed shine animation */
+
+/* Subtle floating animation for idle state */
+@keyframes gentle-float {
+  0%, 100% { 
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% { 
+    transform: translateY(-2px) rotate(0.5deg);
+  }
+}
+
+/* Enhanced organic hover effect */
+@keyframes organic-hover {
+  0%, 100% { 
+    filter: brightness(1.1) saturate(1.2) hue-rotate(0deg);
+  }
+  33% { 
+    filter: brightness(1.3) saturate(1.4) hue-rotate(5deg);
+  }
+  66% { 
+    filter: brightness(1.2) saturate(1.3) hue-rotate(-3deg);
+  }
+}
+
+
+
+/* Removed conflicting hover animation */
+
+/* Mobile responsiveness for floating buttons */
+@media (max-width: 768px) {
+  .rainbow-popup {
+    min-width: 250px !important;
+    margin: 0 10px !important;
+  }
+  
+  .rainbow-option {
+    width: calc(100% + 40px) !important;
+    padding: 14px 16px 14px 16px !important;
+    padding-right: 60px !important;
+    margin: 8px 6px !important;
+    font-size: 14px !important;
+    border-radius: 16px 0 0 16px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+  }
+  
+  /* Remove popup animation */
+  .rainbow-popup {
+    animation: none !important;
+  }
+  
+  .enhance-dropdown .rainbow-option {
+    opacity: 0 !important;
+    transform: translateX(120px) scale(0.95) !important;
+    transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  }
+  
+  .enhance-dropdown .rainbow-option.slide-in {
+    opacity: 1 !important;
+    transform: translateX(0) scale(1) !important;
+  }
+  
+  .enhance-dropdown .rainbow-option.slide-out {
+    opacity: 0 !important;
+    transform: translateX(80px) scale(0.9) !important;
+    transition: all 1s ease-in !important;
+  }
+  
+  .rainbow-option:hover {
+    transform: translateY(-3px) translateX(4px) scale(1.04) rotate(0.5deg) !important;
+  }
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .rainbow-popup {
+    animation: none !important;
+  }
+  
+  .enhance-dropdown .rainbow-option {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: translateX(0) !important;
+  }
+  
+  .rainbow-option::before {
+    transition: none !important;
+  }
+  
+  .rainbow-option:hover::before {
+    left: 0 !important;
+    opacity: 0.3 !important;
+  }
+  
+  .rainbow-option:hover {
+    animation: none !important;
+    transform: scale(1.02) !important;
+  }
+}
+
 /* Redo button styling - use same style as other action buttons */
 /* Uses default action button styling */
 

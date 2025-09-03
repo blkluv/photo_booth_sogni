@@ -156,41 +156,6 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
-.promo-features {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-top: 20px;
-}
-
-.feature-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.2s ease;
-}
-
-.feature-item:hover {
-  background: rgba(255, 255, 255, 0.15);
-  transform: translateY(-2px);
-}
-
-.feature-icon {
-  font-size: 20px;
-  flex-shrink: 0;
-}
-
-.feature-item span:last-child {
-  font-size: 14px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.95);
-}
-
 .promo-modal-footer {
   padding: 20px 24px 24px 24px;
   display: flex;

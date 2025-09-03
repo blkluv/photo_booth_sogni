@@ -111,26 +111,7 @@ const PromoPopup = ({ isOpen, onClose }) => {
             <p>
               Take your creativity to the next level with our complete AI art platform.
               Get <strong>100 FREE render credits</strong> now.
-            </p>
-            
-            <div className="promo-features">
-              <div className="feature-item">
-                <span className="feature-icon">🎨</span>
-                <span>Advanced AI Models</span>
-              </div>
-              <div className="feature-item">
-                <span className="feature-icon">🖼️</span>
-                <span>High-Resolution Outputs</span>
-              </div>
-              <div className="feature-item">
-                <span className="feature-icon">⚡</span>
-                <span>Lightning Fast Generation</span>
-              </div>
-              <div className="feature-item">
-                <span className="feature-icon">🎭</span>
-                <span>Unlimited Style Options</span>
-              </div>
-            </div>
+            </p>            
           </div>
         </div>
         

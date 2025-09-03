@@ -87,4 +87,7 @@ export interface Settings {
   sensitiveContentFilter: boolean;
   preferredCameraDeviceId?: string;
   kioskMode: boolean;
+  // Worker preferences
+  preferWorkers: string[];
+  skipWorkers: string[];
 } 
