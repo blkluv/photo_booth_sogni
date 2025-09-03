@@ -652,6 +652,11 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
   display: none !important;
 }
 
+/* Remove inner shadow for ALL custom themes (any class ending with -theme) */
+.film-frame.selected[class*="-theme"]::after {
+  display: none !important;
+}
+
 
 
 /* Add responsive styles for selected photo view on mobile/portrait */
@@ -724,6 +729,11 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
   
   /* Hide polaroid label for ALL custom themes on mobile (any class ending with -theme) */
   .film-frame.selected[class*="-theme"] .photo-label {
+    display: none !important;
+  }
+  
+  /* Remove inner shadow for ALL custom themes on mobile (any class ending with -theme) */
+  .film-frame.selected[class*="-theme"]::after {
     display: none !important;
   }
 
