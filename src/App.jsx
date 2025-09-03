@@ -32,6 +32,7 @@ import CameraStartMenu from './components/camera/CameraStartMenu';
 import StyleDropdown from './components/shared/StyleDropdown';
 import AdvancedSettings from './components/shared/AdvancedSettings';
 import PWAInstallPrompt from './components/shared/PWAInstallPrompt';
+import './services/pwaInstaller'; // Initialize PWA installer service
 import promptsData from './prompts.json';
 import PhotoGallery from './components/shared/PhotoGallery';
 import { useApp } from './context/AppContext.tsx';
@@ -188,11 +189,21 @@ const App = () => {
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showPhotoGrid, setShowPhotoGrid] = useState(false);
   
-  // PWA install prompt state - disable for testing with ?noPrompt=1
-  const [showPWAPrompt, setShowPWAPrompt] = useState(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('noPrompt') !== '1';
-  });
+  // PWA install prompt state - for manual testing only
+  const [showPWAPromptManually, setShowPWAPromptManually] = useState(false);
+
+  // Set up global PWA prompt trigger for testing
+  useEffect(() => {
+    window.showPWAPrompt = () => {
+      console.log('Manually triggering PWA install prompt');
+      setShowPWAPromptManually(true);
+    };
+    
+    // Cleanup
+    return () => {
+      delete window.showPWAPrompt;
+    };
+  }, []);
   
   // Add state for image adjustment
   const [showImageAdjuster, setShowImageAdjuster] = useState(false);
@@ -4458,12 +4469,11 @@ const App = () => {
         <SplashScreen onDismiss={() => setShowSplashScreen(false)} />
       )}
       
-      {/* PWA Install Prompt */}
-      {showPWAPrompt && (
-        <PWAInstallPrompt 
-          onClose={() => setShowPWAPrompt(false)}
-        />
-      )}
+      {/* PWA Install Prompt - Always rendered, handles its own timing and visibility */}
+      <PWAInstallPrompt 
+        onClose={() => setShowPWAPromptManually(false)}
+        forceShow={showPWAPromptManually}
+      />
 
       {/* Twitter Share Modal */}
       <TwitterShareModal 

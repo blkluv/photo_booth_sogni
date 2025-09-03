@@ -18,6 +18,17 @@
         ]
       }
     },
+    "showup": {
+      "label": "Show Up Taipei Vibe",
+      "defaultAspectRatio": "narrow",
+      "framePadding": 30,
+      "tweetTemplate": "Just took my photo at the @sogni_protocol AI photobooth #{styleTag} https://photobooth.sogni.ai/?prompt={styleTag}",
+      "frames": {
+        "narrow": [
+          "/events/taipei-blockchain-2025/narrow_1.png"
+        ]
+      }
+    },
     "supercasual": {
       "label": "Super Casual",
       "defaultAspectRatio": "narrow",
