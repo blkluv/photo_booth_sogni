@@ -3485,19 +3485,37 @@ const App = () => {
     // Save preference to settings
     updateSetting('preferredCameraDeviceId', normalizedDeviceId || undefined);
     
-    // If the selected device label contains "Back", automatically disable mirroring
+    // Infer front/back from device label and id to ensure correct mirroring
     if (normalizedDeviceId) {
       try {
-        const selectedDevice = (cameraDevices || []).find(d => d.deviceId === normalizedDeviceId);
-        const label = selectedDevice?.label || '';
-        if (/back/i.test(label)) {
-          // Back cameras should not be mirrored
-          if (isFrontCamera) {
-            setIsFrontCamera(false);
+        // Try to find the selected device from current list first
+        let selectedDevice = (cameraDevices || []).find(d => d.deviceId === normalizedDeviceId);
+        
+        // If not found or label is empty, re-enumerate devices to get labels
+        if (!selectedDevice || !selectedDevice.label) {
+          try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            selectedDevice = devices.find(d => d.kind === 'videoinput' && d.deviceId === normalizedDeviceId) || selectedDevice;
+          } catch (enumErr) {
+            console.warn('Could not re-enumerate devices for label inference:', enumErr);
           }
         }
+        
+        const label = (selectedDevice?.label || '').toLowerCase();
+        const idFragment = (selectedDevice?.deviceId || normalizedDeviceId || '').toLowerCase();
+        const hint = `${label} ${idFragment}`;
+        
+        const indicatesBack = /(\bback\b|\brear\b|environment|telephoto)/i.test(hint);
+        const indicatesFront = /(\bfront\b|\buser\b|face)/i.test(hint);
+        
+        // Natural panning: back cameras NOT mirrored, front cameras mirrored
+        if (indicatesBack) {
+          if (isFrontCamera) setIsFrontCamera(false);
+        } else if (indicatesFront) {
+          if (!isFrontCamera) setIsFrontCamera(true);
+        }
       } catch (err) {
-        console.warn('Unable to infer facing from selected camera label:', err);
+        console.warn('Unable to infer facing from selected camera:', err);
       }
     }
     
