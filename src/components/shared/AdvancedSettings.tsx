@@ -4,7 +4,9 @@ import { AspectRatioOption, TezDevTheme, OutputFormat } from '../../types/index'
 import { isFluxKontextModel, getModelRanges, getModelDefaults } from '../../constants/settings';
 import { themeConfigService } from '../../services/themeConfig';
 import { CameraDevice, enumerateCameraDevices, getCameraDisplayName } from '../../services/cameraService';
+import { SETTING_DESCRIPTIONS } from '../../constants/settingsDescriptions';
 import TagInput from './TagInput';
+import InfoIcon from './InfoIcon';
 
 interface AdvancedSettingsProps {
   /** Whether the settings overlay is visible */
@@ -377,7 +379,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
 
         {/* Aspect Ratio selector */}
         <div className="control-option">
-          <label className="control-label">Aspect Ratio:</label>
+          <div className="control-label-with-info">
+            <label className="control-label">Aspect Ratio:</label>
+            <InfoIcon explanation={SETTING_DESCRIPTIONS.aspectRatio} />
+          </div>
           <div className="aspect-ratio-controls">
             <button 
               className={`aspect-ratio-button ${currentAspectRatio === 'ultranarrow' ? 'active' : ''}`}
@@ -468,7 +473,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
 
         {/* Camera selector */}
         <div className="control-option">
-          <label className="control-label">Camera:</label>
+          <div className="control-label-with-info">
+            <label className="control-label">Camera:</label>
+            <InfoIcon explanation={SETTING_DESCRIPTIONS.camera} />
+          </div>
           {camerasLoading ? (
             <div className="model-select" style={{ color: '#666', fontStyle: 'italic' }}>
               Loading cameras...
@@ -502,7 +510,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
           <div className="model-group">
             {/* Main Image Model selector */}
             <div className="control-option model-main">
-              <label className="control-label">Image Model:</label>
+              <div className="control-label-with-info">
+                <label className="control-label">Image Model:</label>
+                <InfoIcon explanation={SETTING_DESCRIPTIONS.imageModel} />
+              </div>
               <select
                 className="model-select"
                 onChange={(e) => {
@@ -546,7 +557,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
                 {/* Prompt Guidance slider - different ranges for different models */}
                 {isFluxKontext ? (
                   <div className="advanced-control">
-                    <label className="advanced-label">Prompt Guidance:</label>
+                    <div className="control-label-with-info">
+                      <label className="advanced-label">Prompt Guidance:</label>
+                      <InfoIcon explanation={SETTING_DESCRIPTIONS.guidance} position="left" />
+                    </div>
                     <div className="advanced-input-group">
                       <input
                         type="range"
@@ -562,7 +576,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
                   </div>
                 ) : (
                   <div className="advanced-control">
-                    <label className="advanced-label">Prompt Guidance:</label>
+                    <div className="control-label-with-info">
+                      <label className="advanced-label">Prompt Guidance:</label>
+                      <InfoIcon explanation={SETTING_DESCRIPTIONS.promptGuidance} position="left" />
+                    </div>
                     <div className="advanced-input-group">
                       <input
                         type="range"
@@ -583,7 +600,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
                   <>
                     {/* ControlNet Strength slider */}
                     <div className="advanced-control">
-                      <label className="advanced-label">Instant ID Strength:</label>
+                      <div className="control-label-with-info">
+                        <label className="advanced-label">Instant ID Strength:</label>
+                        <InfoIcon explanation={SETTING_DESCRIPTIONS.instantIdStrength} position="left" />
+                      </div>
                       <div className="advanced-input-group">
                         <input
                           type="range"
@@ -600,7 +620,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
 
                     {/* ControlNet Guidance End slider */}
                     <div className="advanced-control">
-                      <label className="advanced-label">Instant ID Impact Stop:</label>
+                      <div className="control-label-with-info">
+                        <label className="advanced-label">Instant ID Impact Stop:</label>
+                        <InfoIcon explanation={SETTING_DESCRIPTIONS.instantIdImpactStop} position="left" />
+                      </div>
                       <div className="advanced-input-group">
                         <input
                           type="range"
@@ -619,7 +642,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
 
                 {/* Inference Steps slider - different ranges for different models */}
                 <div className="advanced-control">
-                  <label className="advanced-label">Inference Steps:</label>
+                  <div className="control-label-with-info">
+                    <label className="advanced-label">Inference Steps:</label>
+                    <InfoIcon explanation={SETTING_DESCRIPTIONS.inferenceSteps} position="left" />
+                  </div>
                   <div className="advanced-input-group">
                     <input
                       type="range"
@@ -636,7 +662,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
 
                 {/* Scheduler selector */}
                 <div className="advanced-control">
-                  <label className="advanced-label">Scheduler:</label>
+                  <div className="control-label-with-info">
+                    <label className="advanced-label">Scheduler:</label>
+                    <InfoIcon explanation={SETTING_DESCRIPTIONS.scheduler} position="left" />
+                  </div>
                   <select
                     className="advanced-select"
                     onChange={(e) => onSchedulerChange?.(e.target.value)}
@@ -652,7 +681,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
 
                 {/* Time Step Spacing selector */}
                 <div className="advanced-control">
-                  <label className="advanced-label">Time Step Spacing:</label>
+                  <div className="control-label-with-info">
+                    <label className="advanced-label">Time Step Spacing:</label>
+                    <InfoIcon explanation={SETTING_DESCRIPTIONS.timeStepSpacing} position="left" />
+                  </div>
                   <select
                     className="advanced-select"
                     onChange={(e) => onTimeStepSpacingChange?.(e.target.value)}
@@ -672,7 +704,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
 
         {/* Number of images slider */}
         <div className="control-option">
-          <label className="control-label">Number of Images:</label>
+          <div className="control-label-with-info">
+            <label className="control-label">Number of Images:</label>
+            <InfoIcon explanation={SETTING_DESCRIPTIONS.numImages} />
+          </div>
           <input
             type="range"
             min={modelRanges.numImages?.min || 1}
@@ -687,7 +722,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
       
               {/* Positive Prompt */}
               <div className="control-option">
-          <label className="control-label">Positive Prompt:</label>
+          <div className="control-label-with-info">
+            <label className="control-label">Positive Prompt:</label>
+            <InfoIcon explanation={SETTING_DESCRIPTIONS.positivePrompt} />
+          </div>
           <textarea
             className="custom-style-input"
             placeholder="Describe what you want to see..."
@@ -699,7 +737,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
 
         {/* Style Prompt */}
         <div className="control-option">
-          <label className="control-label">Style Prompt:</label>
+          <div className="control-label-with-info">
+            <label className="control-label">Style Prompt:</label>
+            <InfoIcon explanation={SETTING_DESCRIPTIONS.stylePrompt} />
+          </div>
           <textarea
             className="custom-style-input"
             placeholder="Additional style modifier (optional, appended to positive prompt)"
@@ -711,7 +752,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
 
         {/* Negative Prompt */}
         <div className="control-option">
-          <label className="control-label">Negative Prompt:</label>
+          <div className="control-label-with-info">
+            <label className="control-label">Negative Prompt:</label>
+            <InfoIcon explanation={SETTING_DESCRIPTIONS.negativePrompt} />
+          </div>
           <textarea
             className="custom-style-input"
             placeholder="lowres, worst quality, low quality"
@@ -723,7 +767,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
 
         {/* Seed */}
         <div className="control-option">
-          <label className="control-label">Seed (leave blank for random):</label>
+          <div className="control-label-with-info">
+            <label className="control-label">Seed (leave blank for random):</label>
+            <InfoIcon explanation={SETTING_DESCRIPTIONS.seed} />
+          </div>
           <input
             type="number"
             min={0}
@@ -739,7 +786,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
 
         {/* Event Theme selector */}
         <div className="control-option">
-          <label className="control-label">Event Theme:</label>
+          <div className="control-label-with-info">
+            <label className="control-label">Event Theme:</label>
+            <InfoIcon explanation={SETTING_DESCRIPTIONS.eventTheme} />
+          </div>
           {themesLoading ? (
             <div className="model-select" style={{ color: '#666', fontStyle: 'italic' }}>
               Loading themes...
@@ -766,7 +816,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
 
         {/* Output Type selector */}
         <div className="control-option">
-          <label className="control-label">Output Type:</label>
+          <div className="control-label-with-info">
+            <label className="control-label">Output Type:</label>
+            <InfoIcon explanation={SETTING_DESCRIPTIONS.outputType} />
+          </div>
           <select
             className="model-select"
             onChange={(e) => handleOutputFormatChange(e.target.value as OutputFormat)}
@@ -785,7 +838,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
             checked={currentSensitiveContentFilter}
             onChange={(e) => handleSensitiveContentFilterChange(e.target.checked)}
           />
-          <label htmlFor="sensitive-content-filter-toggle" className="control-label">Sensitive Content Filter</label>
+          <div className="control-label-with-info">
+            <label htmlFor="sensitive-content-filter-toggle" className="control-label">Sensitive Content Filter</label>
+            <InfoIcon explanation={SETTING_DESCRIPTIONS.sensitiveContentFilter} />
+          </div>
         </div>
 
         {/* Flash toggle */}
@@ -796,7 +852,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
             checked={flashEnabled}
             onChange={(e) => onFlashEnabledChange?.(e.target.checked)}
           />
-          <label htmlFor="flash-toggle" className="control-label">Flash</label>
+          <div className="control-label-with-info">
+            <label htmlFor="flash-toggle" className="control-label">Flash</label>
+            <InfoIcon explanation={SETTING_DESCRIPTIONS.flash} />
+          </div>
         </div>
 
         {/* Keep original photo toggle */}
@@ -807,7 +866,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
             checked={keepOriginalPhoto}
             onChange={(e) => onKeepOriginalPhotoChange?.(e.target.checked)}
           />
-          <label htmlFor="keep-original-toggle" className="control-label">Show Original Image In Gallery</label>
+          <div className="control-label-with-info">
+            <label htmlFor="keep-original-toggle" className="control-label">Show Original Image In Gallery</label>
+            <InfoIcon explanation={SETTING_DESCRIPTIONS.keepOriginalPhoto} />
+          </div>
         </div>
         
         {/* Sound toggle */}
@@ -818,7 +880,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
             checked={soundEnabled}
             onChange={(e) => onSoundEnabledChange?.(e.target.checked)}
           />
-          <label htmlFor="sound-toggle" className="control-label">Sound Effects</label>
+          <div className="control-label-with-info">
+            <label htmlFor="sound-toggle" className="control-label">Sound Effects</label>
+            <InfoIcon explanation={SETTING_DESCRIPTIONS.soundEffects} />
+          </div>
         </div>
         
         {/* Slothicorn Animation toggle */}
@@ -829,7 +894,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
             checked={slothicornAnimationEnabled}
             onChange={(e) => onSlothicornAnimationEnabledChange?.(e.target.checked)}
           />
-          <label htmlFor="slothicorn-toggle" className="control-label">Slothicorn Animation</label>
+          <div className="control-label-with-info">
+            <label htmlFor="slothicorn-toggle" className="control-label">Slothicorn Animation</label>
+            <InfoIcon explanation={SETTING_DESCRIPTIONS.slothicornAnimation} />
+          </div>
         </div>
         
         {/* Background Animations toggle */}
@@ -840,44 +908,47 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
             checked={backgroundAnimationsEnabled}
             onChange={(e) => onBackgroundAnimationsEnabledChange?.(e.target.checked)}
           />
-          <label htmlFor="background-animations-toggle" className="control-label">Background Animations</label>
+          <div className="control-label-with-info">
+            <label htmlFor="background-animations-toggle" className="control-label">Background Animations</label>
+            <InfoIcon explanation={SETTING_DESCRIPTIONS.backgroundAnimations} />
+          </div>
         </div>
         
         {/* Worker Preferences */}
         <div className="control-option worker-preference-section">
-          <label className="control-label">Required Workers:</label>
+          <div className="control-label-with-info">
+            <label className="control-label">Required Workers:</label>
+            <InfoIcon explanation={SETTING_DESCRIPTIONS.requiredWorkers} />
+          </div>
           <TagInput
             tags={settings.requiredWorkers || []}
             onTagsChange={(tags) => updateSetting('requiredWorkers', tags)}
             placeholder="Type worker name and press Enter..."
           />
-          <div className="control-description">
-            Required workers must be available for processing your images
-          </div>
         </div>
 
         <div className="control-option worker-preference-section">
-          <label className="control-label">Prefer Workers:</label>
+          <div className="control-label-with-info">
+            <label className="control-label">Prefer Workers:</label>
+            <InfoIcon explanation={SETTING_DESCRIPTIONS.preferWorkers} />
+          </div>
           <TagInput
             tags={settings.preferWorkers}
             onTagsChange={(tags) => updateSetting('preferWorkers', tags)}
             placeholder="Type worker name and press Enter..."
           />
-          <div className="control-description">
-            Preferred workers will be prioritized for processing your images
-          </div>
         </div>
 
         <div className="control-option worker-preference-section">
-          <label className="control-label">Skip Workers:</label>
+          <div className="control-label-with-info">
+            <label className="control-label">Skip Workers:</label>
+            <InfoIcon explanation={SETTING_DESCRIPTIONS.skipWorkers} />
+          </div>
           <TagInput
             tags={settings.skipWorkers}
             onTagsChange={(tags) => updateSetting('skipWorkers', tags)}
             placeholder="Type worker name and press Enter..."
           />
-          <div className="control-description">
-            These workers will be avoided when processing your images
-          </div>
         </div>
 
         {/* Kiosk Mode toggle */}
@@ -888,7 +959,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
             checked={kioskMode || settings.kioskMode}
             onChange={(e) => handleKioskModeChange(e.target.checked)}
           />
-          <label htmlFor="kiosk-mode-toggle" className="control-label">Kiosk Mode</label>
+          <div className="control-label-with-info">
+            <label htmlFor="kiosk-mode-toggle" className="control-label">Kiosk Mode</label>
+            <InfoIcon explanation={SETTING_DESCRIPTIONS.kioskMode} />
+          </div>
         </div>
         
         {/* Reset settings button */}

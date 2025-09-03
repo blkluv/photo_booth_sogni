@@ -24,6 +24,7 @@ export const FLUX_KONTEXT_PROMPTS = {
   makeMeBox: "Turn me into a boxer wearing blue boxing gloves and a sports top that says 'BASE', art style will be similar to Fortnite Characters, background looks like a boxing ring",
   addCats: "Add cats and match style",
   addHatsAndGlasses: "Add cowboy hats and sunglasses",
+  makeMeDoodleArt: "Convert into a minimalist bold line colorful cartoon abstract portrait, minimal features, very simple, surreal playful pastel style, abstract vector, minimal facial features, thick outlines, rainbow, clouds",
 }
 
 // Helper function to get Flux.1 Kontext prompts
