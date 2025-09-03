@@ -2105,6 +2105,9 @@ const App = () => {
 
       // Inject worker preferences into the prompt
       const workerPreferences = [];
+      if (settings.requiredWorkers && Array.isArray(settings.requiredWorkers) && settings.requiredWorkers.length > 0) {
+        workerPreferences.push(`--workers=${settings.requiredWorkers.join(',')}`);
+      }
       if (settings.preferWorkers && settings.preferWorkers.length > 0) {
         workerPreferences.push(`--preferred-workers=${settings.preferWorkers.join(',')}`);
       }
@@ -2130,6 +2133,8 @@ const App = () => {
       }
       
       console.log('Style prompt:', finalPositivePrompt);
+      console.log('Prompt length:', finalPositivePrompt.length);
+      console.log('Worker preferences applied:', workerPreferences);
       console.log('Source type:', sourceType);
       projectStateReference.current = {
         currentPhotoIndex: newPhotoIndex,

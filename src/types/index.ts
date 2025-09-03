@@ -88,6 +88,7 @@ export interface Settings {
   preferredCameraDeviceId?: string;
   kioskMode: boolean;
   // Worker preferences
+  requiredWorkers: string[];
   preferWorkers: string[];
   skipWorkers: string[];
 } 

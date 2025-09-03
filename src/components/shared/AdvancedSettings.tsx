@@ -301,7 +301,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
     };
 
     void loadThemes();
-  }, [visible]); // Reload when settings panel opens
+  }, [visible, currentTezDevTheme]); // Reload when settings panel opens or theme changes
 
   // Load camera devices when component mounts or when visible changes
   useEffect(() => {
@@ -844,7 +844,19 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
         </div>
         
         {/* Worker Preferences */}
-        <div className="control-option">
+        <div className="control-option worker-preference-section">
+          <label className="control-label">Required Workers:</label>
+          <TagInput
+            tags={settings.requiredWorkers || []}
+            onTagsChange={(tags) => updateSetting('requiredWorkers', tags)}
+            placeholder="Type worker name and press Enter..."
+          />
+          <div className="control-description">
+            Required workers must be available for processing your images
+          </div>
+        </div>
+
+        <div className="control-option worker-preference-section">
           <label className="control-label">Prefer Workers:</label>
           <TagInput
             tags={settings.preferWorkers}
@@ -856,7 +868,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
           </div>
         </div>
 
-        <div className="control-option">
+        <div className="control-option worker-preference-section">
           <label className="control-label">Skip Workers:</label>
           <TagInput
             tags={settings.skipWorkers}

@@ -163,8 +163,9 @@ const createDefaultSettings = (): Settings => {
     preferredCameraDeviceId: undefined,
     kioskMode: false,
     // Worker preferences
+    requiredWorkers: [],
     preferWorkers: ['SPICE.MUST.FLOW'],
-    skipWorkers: ['FreeMan123'],
+    skipWorkers: ['freeman123'],
   };
 };
 
