@@ -246,7 +246,7 @@ const App = () => {
   useEffect(() => {
     const interval = setInterval(cleanupMobileShareCache, 10 * 60 * 1000); // Every 10 minutes
     return () => clearInterval(interval);
-  }, [cleanupMobileShareCache]);
+  }, []); // Empty dependency array - cleanupMobileShareCache is stable
   const [currentUploadedSource, setCurrentUploadedSource] = useState('');
   
 
@@ -1676,7 +1676,7 @@ const App = () => {
     };
     
     initializeAppOnMount();
-  }, [initializeSogni]);
+  }, []); // Empty dependency array - only run on mount
 
   // Sync selectedCameraDeviceId with settings - ONLY when preferredCameraDeviceId changes
   useEffect(() => {
@@ -1790,7 +1790,7 @@ const App = () => {
         }
       }
     }
-  }, [aspectRatio, cameraManuallyStarted, showStartMenu, showPhotoGrid, selectedPhotoIndex, startCamera, selectedCameraDeviceId, previousCategory]);
+  }, [aspectRatio, cameraManuallyStarted, showStartMenu, showPhotoGrid, selectedPhotoIndex, selectedCameraDeviceId, previousCategory]); // Removed startCamera function from dependencies
   
   // Simple cleanup effect - just stop camera on unmount
   useEffect(() => {
@@ -1827,7 +1827,7 @@ const App = () => {
         }
       }, 100);
     }
-  }, [selectedPhotoIndex, startCamera, selectedCameraDeviceId, cameraManuallyStarted, showPhotoGrid]);
+  }, [selectedPhotoIndex, selectedCameraDeviceId, cameraManuallyStarted, showPhotoGrid]); // Removed startCamera function from dependencies
 
   // Preload images for the selected photo
   useEffect(() => {
@@ -1871,6 +1871,15 @@ const App = () => {
       // Pre-generate frame for new photo if needed
       if (preGenerateFrameRef.current) {
         await preGenerateFrameRef.current(newIndex);
+        
+        // Also pre-generate frame for the next photo in the backward direction
+        // to ensure smooth navigation when user continues pressing previous
+        const photos = photosRef.current;
+        const futureIndex = newIndex - 1;
+        if (futureIndex >= 0 && photos[futureIndex]) {
+          // Use setTimeout to avoid blocking the UI
+          setTimeout(() => preGenerateFrameRef.current?.(futureIndex), 100);
+        }
       }
       setSelectedPhotoIndex(newIndex);
       setSelectedSubIndex(0);
@@ -1884,6 +1893,15 @@ const App = () => {
       // Pre-generate frame for new photo if needed
       if (preGenerateFrameRef.current) {
         await preGenerateFrameRef.current(newIndex);
+        
+        // Also pre-generate frame for the next photo in the forward direction
+        // to ensure smooth navigation when user continues pressing next
+        const photos = photosRef.current;
+        const futureIndex = newIndex + 1;
+        if (futureIndex < photos.length && photos[futureIndex]) {
+          // Use setTimeout to avoid blocking the UI
+          setTimeout(() => preGenerateFrameRef.current?.(futureIndex), 100);
+        }
       }
       setSelectedPhotoIndex(newIndex);
       setSelectedSubIndex(0);
@@ -1974,7 +1992,7 @@ const App = () => {
         countdownIntervalRef.current = null;
       }
     };
-  }, [photos.some(p => p.generating && p.generationCountdown > 0)]); // Only depend on whether countdowns exist, not the entire photos array
+  }, [photos]); // Depend on photos array but use internal logic to prevent unnecessary re-runs
 
   // -------------------------
   //   Load image with download progress

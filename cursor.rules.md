@@ -7,6 +7,15 @@
 - **Avoid "nuclear option" selectors** with excessive redundancy like `html body div * .class, html body #root * .class`
 - **One selector per rule** - if you need high specificity, use `html body #root .specific-class` (specificity: 112)
 
+## useEffect Critical Rules 🚨
+- **NEVER put functions in useEffect dependency arrays** - causes infinite loops
+- **NEVER put complex expressions in dependency arrays** (like `array.some()`, `object.method`)
+- **ALWAYS use functional state updates** to avoid stale closures: `setState(current => newValue)`
+- **ALWAYS use primitive values or stable references** in dependency arrays
+- **ALWAYS move complex logic inside useEffect**, not in the dependency array
+- **ALWAYS use useCallback** for functions that must be in dependencies
+- **ALWAYS use refs** for values that don't need to trigger re-renders
+
 ## General Rules
 - You may ask me follow up questions until you are at least 95% certain you can complete the task well and then continue.
 - Never rewrite or delete files unless I explicitly ask.

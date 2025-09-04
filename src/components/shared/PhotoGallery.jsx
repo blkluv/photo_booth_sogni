@@ -319,7 +319,8 @@ const PhotoGallery = ({
 
   // Cleanup old framed image cache entries to prevent memory leaks
   const cleanupFramedImageCache = useCallback(() => {
-    const maxEntries = 20; // Keep only the most recent 20 framed images
+    const minEntries = 16; // Always keep at least 16 framed images for smooth navigation
+    const maxEntries = 32; // Start cleanup when we exceed 32 entries
     
     setFramedImageUrls(prev => {
       const entries = Object.entries(prev);
@@ -328,36 +329,60 @@ const PhotoGallery = ({
         return prev; // No cleanup needed
       }
       
-      // Sort by creation time (newer entries should be kept)
-      // Since we don't have timestamps, we'll keep entries for lower photo indices (more recent)
-      entries.sort((a, b) => {
-        const indexA = parseInt(a[0].split('-')[0]);
-        const indexB = parseInt(b[0].split('-')[0]);
-        return indexB - indexA; // Descending order (higher indices first)
+      // Create a priority scoring system for cache entries
+      const scoredEntries = entries.map(([key, url]) => {
+        const [photoIndexStr, subIndexStr] = key.split('-');
+        const photoIndex = parseInt(photoIndexStr);
+        const subIndex = parseInt(subIndexStr);
+        
+        let score = 0;
+        
+        // Higher score for recently viewed photos (closer to current selection)
+        if (selectedPhotoIndex !== null) {
+          const distance = Math.abs(photoIndex - selectedPhotoIndex);
+          score += Math.max(0, 20 - distance); // Photos within 20 indices get higher scores
+        }
+        
+        // Higher score for main images (subIndex 0) vs enhanced images (subIndex -1)
+        if (subIndex === 0) {
+          score += 5;
+        } else if (subIndex === -1) {
+          score += 3; // Enhanced images are also important
+        }
+        
+        // Higher score for more recent photos (higher indices)
+        score += photoIndex * 0.1;
+        
+        return { key, url, score, photoIndex };
       });
       
-      // Keep only the most recent entries
-      const entriesToKeep = entries.slice(0, maxEntries);
-      const entriesToRemove = entries.slice(maxEntries);
+      // Sort by score (descending) to keep highest priority entries
+      scoredEntries.sort((a, b) => b.score - a.score);
+      
+      // Keep at least minEntries, but prioritize by score
+      const entriesToKeep = scoredEntries.slice(0, Math.max(minEntries, maxEntries - 8));
+      const entriesToRemove = scoredEntries.slice(entriesToKeep.length);
       
       // Revoke blob URLs for removed entries
-      entriesToRemove.forEach(([, url]) => {
+      entriesToRemove.forEach(({ url }) => {
         if (url && typeof url === 'string' && url.startsWith('blob:')) {
           try { URL.revokeObjectURL(url); } catch (e) { /* no-op */ }
         }
       });
       
-      return Object.fromEntries(entriesToKeep);
+      console.log(`Cache cleanup: keeping ${entriesToKeep.length} entries, removing ${entriesToRemove.length} entries`);
+      
+      return Object.fromEntries(entriesToKeep.map(({ key, url }) => [key, url]));
     });
-  }, []);
+  }, [selectedPhotoIndex]);
   
   // Run framed image cleanup when cache gets large
   useEffect(() => {
     const entries = Object.keys(framedImageUrls).length;
-    if (entries > 25) { // Trigger cleanup when we have more than 25 entries
+    if (entries > 32) { // Trigger cleanup when we have more than 32 entries
       cleanupFramedImageCache();
     }
-  }, [framedImageUrls, cleanupFramedImageCache]);
+  }, [framedImageUrls]); // Removed cleanupFramedImageCache function from dependencies
 
   // Handle enhancement with Krea (default behavior)
   const handleEnhanceWithKrea = useCallback(() => {
@@ -615,51 +640,102 @@ const PhotoGallery = ({
     const currentTaipeiFrameNumber = photo.taipeiFrameNumber || ((photoIndex % 6) + 1);
     const frameKey = `${photoIndex}-${currentSubIndex}-${tezdevTheme}-${currentTaipeiFrameNumber}-${outputFormat}-${aspectRatio}`;
     
-    // Only generate if we don't already have this framed image and it's not already being generated
-    if (!framedImageUrls[frameKey] && !generatingFrames.has(frameKey)) {
-      try {
-        // Mark this frame as generating to prevent flicker
-        setGeneratingFrames(prev => new Set(prev).add(frameKey));
-        
-        // Wait for fonts to load
-        await document.fonts.ready;
-        
-        // Create composite framed image
-        const framedImageUrl = await createPolaroidImage(imageUrl, '', {
-          tezdevTheme,
-          aspectRatio,
-          frameWidth: 0,      // No polaroid frame for decorative themes
-          frameTopWidth: 0,   // No polaroid frame for decorative themes  
-          frameBottomWidth: 0, // No polaroid frame for decorative themes
-          frameColor: 'transparent', // No polaroid background
-          outputFormat: outputFormat,
-          // For Taipei theme, pass the current frame number to ensure consistency
-          taipeiFrameNumber: tezdevTheme === 'taipeiblockchain' ? currentTaipeiFrameNumber : undefined
-        });
-        
-        // Store the framed image URL
-        setFramedImageUrls(prev => ({
-          ...prev,
-          [frameKey]: framedImageUrl
-        }));
-        
-        // Remove from generating set
-        setGeneratingFrames(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(frameKey);
-          return newSet;
-        });
-      } catch (error) {
-        console.error('Error pre-generating framed image:', error);
-        // Remove from generating set even on error
-        setGeneratingFrames(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(frameKey);
-          return newSet;
-        });
-      }
+    // Check current state to avoid stale closures
+    setFramedImageUrls(currentFramedUrls => {
+      setGeneratingFrames(currentGeneratingFrames => {
+        // Only generate if we don't already have this framed image and it's not already being generated
+        if (!currentFramedUrls[frameKey] && !currentGeneratingFrames.has(frameKey)) {
+          console.log(`Pre-generating frame for photo ${photoIndex} with key: ${frameKey}`);
+          
+          // Mark this frame as generating to prevent duplicate generation
+          const newGeneratingFrames = new Set(currentGeneratingFrames);
+          newGeneratingFrames.add(frameKey);
+          
+          // Generate the frame asynchronously
+          (async () => {
+            try {
+              // Wait for fonts to load
+              await document.fonts.ready;
+              
+              // Create composite framed image
+              const framedImageUrl = await createPolaroidImage(imageUrl, '', {
+                tezdevTheme,
+                aspectRatio,
+                frameWidth: 0,      // No polaroid frame for decorative themes
+                frameTopWidth: 0,   // No polaroid frame for decorative themes  
+                frameBottomWidth: 0, // No polaroid frame for decorative themes
+                frameColor: 'transparent', // No polaroid background
+                outputFormat: outputFormat,
+                // For Taipei theme, pass the current frame number to ensure consistency
+                taipeiFrameNumber: tezdevTheme === 'taipeiblockchain' ? currentTaipeiFrameNumber : undefined
+              });
+              
+              // Store the framed image URL
+              setFramedImageUrls(prev => ({
+                ...prev,
+                [frameKey]: framedImageUrl
+              }));
+              
+              console.log(`Successfully generated frame for photo ${photoIndex}`);
+              
+            } catch (error) {
+              console.error('Error pre-generating framed image:', error);
+            } finally {
+              // Always remove from generating set
+              setGeneratingFrames(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(frameKey);
+                return newSet;
+              });
+            }
+          })();
+          
+          return newGeneratingFrames;
+        }
+        return currentGeneratingFrames;
+      });
+      return currentFramedUrls;
+    });
+  }, [isThemeSupported, photos, selectedSubIndex, tezdevTheme, outputFormat, aspectRatio]);
+
+  // Helper function to pre-generate frames for adjacent photos to improve navigation smoothness
+  const preGenerateAdjacentFrames = useCallback(async (currentIndex) => {
+    if (!isThemeSupported() || currentIndex === null) {
+      return;
     }
-  }, [isThemeSupported, photos, selectedSubIndex, outputFormat, aspectRatio]);
+
+    // Pre-generate frames for the next 2 and previous 2 photos for smooth navigation
+    // Reduced from 3 to prevent overwhelming the system
+    const adjacentIndices = [];
+    
+    // Add immediate neighbors first (most likely to be accessed)
+    const prevIndex = currentIndex - 1;
+    const nextIndex = currentIndex + 1;
+    
+    if (prevIndex >= 0 && photos[prevIndex]) {
+      adjacentIndices.push(prevIndex);
+    }
+    if (nextIndex < photos.length && photos[nextIndex]) {
+      adjacentIndices.push(nextIndex);
+    }
+    
+    // Add second-level neighbors
+    const prevIndex2 = currentIndex - 2;
+    const nextIndex2 = currentIndex + 2;
+    
+    if (prevIndex2 >= 0 && photos[prevIndex2]) {
+      adjacentIndices.push(prevIndex2);
+    }
+    if (nextIndex2 < photos.length && photos[nextIndex2]) {
+      adjacentIndices.push(nextIndex2);
+    }
+    
+    // Pre-generate frames for adjacent photos with staggered timing
+    adjacentIndices.forEach((index, i) => {
+      // Use setTimeout to avoid blocking the main thread, with longer delays
+      setTimeout(() => preGenerateFrameForPhoto(index), 200 * (i + 1));
+    });
+  }, [isThemeSupported, photos, preGenerateFrameForPhoto]);
 
   // Expose the pre-generation function to parent component
   useEffect(() => {
@@ -842,58 +918,75 @@ const PhotoGallery = ({
       const currentTaipeiFrameNumber = getCurrentTaipeiFrameNumber();
       const frameKey = `${selectedPhotoIndex}-${currentSubIndex}-${tezdevTheme}-${currentTaipeiFrameNumber}-${outputFormat}-${aspectRatio}`;
       
-      // Skip if we already have this framed image
-      if (framedImageUrls[frameKey]) {
-        return;
-      }
-
-      try {
-        // Mark this frame as generating to prevent flicker
-        setGeneratingFrames(prev => new Set(prev).add(frameKey));
-        
-        // Wait for fonts to load
-        await document.fonts.ready;
-        
-        // Create composite framed image using the same logic as download
-        // Use the actual outputFormat setting to match framed downloads (not Twitter sharing)
-        const framedImageUrl = await createPolaroidImage(imageUrl, '', {
-          tezdevTheme,
-          aspectRatio,
-          frameWidth: 0,      // No polaroid frame for decorative themes
-          frameTopWidth: 0,   // No polaroid frame for decorative themes  
-          frameBottomWidth: 0, // No polaroid frame for decorative themes
-          frameColor: 'transparent', // No polaroid background
-          outputFormat: outputFormat, // Use the actual outputFormat setting to match framed downloads
-          // For Taipei theme, pass the current frame number to ensure consistency
-          taipeiFrameNumber: tezdevTheme === 'taipeiblockchain' ? currentTaipeiFrameNumber : undefined
+      // Check current state to avoid stale closures and prevent duplicate generation
+      setFramedImageUrls(currentFramedUrls => {
+        setGeneratingFrames(currentGeneratingFrames => {
+          // Skip if we already have this framed image or it's being generated
+          if (currentFramedUrls[frameKey] || currentGeneratingFrames.has(frameKey)) {
+            // Even if current frame exists, pre-generate adjacent frames for smooth navigation
+            if (currentFramedUrls[frameKey]) {
+              preGenerateAdjacentFrames(selectedPhotoIndex);
+            }
+            return currentGeneratingFrames;
+          }
+          
+          console.log(`Generating main frame for photo ${selectedPhotoIndex} with key: ${frameKey}`);
+          
+          // Mark this frame as generating to prevent duplicate generation
+          const newGeneratingFrames = new Set(currentGeneratingFrames);
+          newGeneratingFrames.add(frameKey);
+          
+          // Generate the frame asynchronously
+          (async () => {
+            try {
+              // Wait for fonts to load
+              await document.fonts.ready;
+              
+              // Create composite framed image using the same logic as download
+              // Use the actual outputFormat setting to match framed downloads (not Twitter sharing)
+              const framedImageUrl = await createPolaroidImage(imageUrl, '', {
+                tezdevTheme,
+                aspectRatio,
+                frameWidth: 0,      // No polaroid frame for decorative themes
+                frameTopWidth: 0,   // No polaroid frame for decorative themes  
+                frameBottomWidth: 0, // No polaroid frame for decorative themes
+                frameColor: 'transparent', // No polaroid background
+                outputFormat: outputFormat, // Use the actual outputFormat setting to match framed downloads
+                // For Taipei theme, pass the current frame number to ensure consistency
+                taipeiFrameNumber: tezdevTheme === 'taipeiblockchain' ? currentTaipeiFrameNumber : undefined
+              });
+              
+              // Store the framed image URL
+              setFramedImageUrls(prev => ({
+                ...prev,
+                [frameKey]: framedImageUrl
+              }));
+              
+              console.log(`Successfully generated main frame for photo ${selectedPhotoIndex}`);
+              
+              // After generating the current frame, pre-generate adjacent frames for smooth navigation
+              preGenerateAdjacentFrames(selectedPhotoIndex);
+              
+            } catch (error) {
+              console.error('Error generating framed image for right-click save:', error);
+            } finally {
+              // Always remove from generating set
+              setGeneratingFrames(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(frameKey);
+                return newSet;
+              });
+            }
+          })();
+          
+          return newGeneratingFrames;
         });
-        
-        // Store the framed image URL
-        setFramedImageUrls(prev => ({
-          ...prev,
-          [frameKey]: framedImageUrl
-        }));
-        
-        // Remove from generating set
-        setGeneratingFrames(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(frameKey);
-          return newSet;
-        });
-        
-      } catch (error) {
-        console.error('Error generating framed image for right-click save:', error);
-        // Remove from generating set even on error
-        setGeneratingFrames(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(frameKey);
-          return newSet;
-        });
-      }
+        return currentFramedUrls;
+      });
     };
 
     generateFramedImage();
-  }, [selectedPhotoIndex, selectedSubIndex, photos, aspectRatio, outputFormat, framedImageUrls, isThemeSupported]);
+  }, [selectedPhotoIndex, selectedSubIndex, photos, aspectRatio, outputFormat, isThemeSupported, preGenerateAdjacentFrames]);
 
   // Track photo selection changes to manage smooth transitions
   useEffect(() => {
