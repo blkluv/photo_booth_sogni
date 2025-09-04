@@ -776,28 +776,36 @@
   }
 }
 
-/* iPad-specific fixes for portrait mode - reduce scrunched appearance */
+/* iPad-specific fixes for portrait mode - HIGH SPECIFICITY to override mobile-portrait-fixes.css */
 @media (min-width: 768px) and (max-width: 1366px) and (orientation: portrait) {
-  .polaroidFrame {
+  /* Use higher specificity to override mobile-portrait-fixes.css */
+  html body #root .polaroidFrame,
+  body #root .polaroidFrame {
     max-height: 85vh !important; /* Balanced height for better proportions */
     max-width: 85vw !important;  /* Slightly narrower for better centering */
     margin: auto !important;     /* Ensure proper centering */
   }
   
-  .cameraView {
-    border-left-width: 24px !important;   /* Balanced padding */
-    border-right-width: 24px !important;
-    border-top-width: 24px !important;
-    border-bottom-width: 100px !important; /* More space for controls - same as landscape */
+  /* Override mobile-portrait-fixes.css cameraView rules */
+  html body #root [class*="cameraView"],
+  body #root [class*="cameraView"] {
+    border-left: 24px solid white !important;   /* Balanced padding */
+    border-right: 24px solid white !important;
+    border-top: 24px solid white !important;
+    border-bottom: 100px solid white !important; /* More space for controls - same as landscape */
   }
   
-  .cameraViewInner {
+  /* Override mobile-portrait-fixes.css cameraViewInner rules */
+  html body #root [class*="cameraViewInner"],
+  body #root [class*="cameraViewInner"] {
     max-height: calc(75vh - 124px) !important; /* Adjusted for larger bottom border */
     width: 100% !important;
     margin: 0 auto !important;
   }
   
-  .bottomControls {
+  /* Override mobile-portrait-fixes.css bottomControls rules */
+  html body #root [class*="bottomControls"],
+  body #root [class*="bottomControls"] {
     bottom: 24px !important;  /* More spacing from bottom - same as landscape */
     padding: 0 24px !important; /* Match border padding */
     justify-content: center !important; /* Center the shutter button */
