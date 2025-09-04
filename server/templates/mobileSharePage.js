@@ -268,62 +268,6 @@ export function renderMobileSharePage({ imageUrl, twitterMessage }) {
             }
           }
           
-          // Lightweight confetti effect mirroring the main app's celebration
-          function triggerConfetti() {
-            try {
-              if (!document.getElementById('confetti-styles')) {
-                const style = document.createElement('style');
-                style.id = 'confetti-styles';
-                style.textContent = `
-                  .confetti-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 9999; overflow: hidden; }
-                  .confetti-piece { position: absolute; top: -20px; opacity: 0.9; animation: confetti-realistic-fall linear forwards; animation-delay: var(--animation-delay); animation-duration: var(--animation-duration); will-change: transform, opacity; }
-                  .confetti-circle { border-radius: 50%; }
-                  .confetti-triangle { width: 0; height: 0; background: transparent; border-left: calc(var(--size, 8px) / 2) solid transparent; border-right: calc(var(--size, 8px) / 2) solid transparent; border-bottom: var(--size, 8px) solid currentColor; }
-                  @keyframes confetti-realistic-fall {
-                    0% { transform: translateY(-20px) translateX(0px) rotateZ(0deg); opacity: 1; }
-                    15% { opacity: 1; }
-                    25% { transform: translateY(25vh) translateX(calc(var(--horizontal-drift) * 0.3)) rotateZ(calc(var(--rotation-speed) * 0.25)); }
-                    50% { transform: translateY(50vh) translateX(calc(var(--horizontal-drift) * 0.7)) rotateZ(calc(var(--rotation-speed) * 0.5)); opacity: 0.9; }
-                    75% { transform: translateY(75vh) translateX(var(--horizontal-drift)) rotateZ(calc(var(--rotation-speed) * 0.75)); opacity: 0.7; }
-                    90% { opacity: 0.4; }
-                    100% { transform: translateY(110vh) translateX(calc(var(--horizontal-drift) * 1.2)) rotateZ(var(--rotation-speed)); opacity: 0; }
-                  }
-                  @media (max-width: 768px) { .confetti-piece { transform: scale(0.7); } }
-                `;
-                document.head.appendChild(style);
-              }
-              const container = document.createElement('div');
-              container.className = 'confetti-container';
-              document.body.appendChild(container);
-              const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff', '#5f27cd', '#00d2d3', '#ff9f43', '#10ac84', '#ee5a24', '#0984e3', '#a29bfe', '#fd79a8', '#fdcb6e'];
-              const numPieces = 50;
-              for (let i = 0; i < numPieces; i++) {
-                const piece = document.createElement('div');
-                const r = Math.random();
-                const shape = r > 0.7 ? (Math.random() > 0.5 ? 'circle' : 'triangle') : 'square';
-                const size = 6 + Math.random() * 8;
-                const rotationSpeed = 360 + Math.random() * 720;
-                const horizontalDrift = (Math.random() - 0.5) * 60;
-                piece.className = `confetti-piece confetti-${shape}`;
-                piece.style.left = `${Math.random() * 100}%`;
-                if (shape === 'triangle') {
-                  piece.style.color = colors[Math.floor(Math.random() * colors.length)];
-                } else {
-                  piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-                }
-                piece.style.width = `${size}px`;
-                piece.style.height = `${size}px`;
-                piece.style.setProperty('--size', `${size}px`);
-                piece.style.setProperty('--animation-delay', `${Math.random() * 1500}ms`);
-                piece.style.setProperty('--animation-duration', `${2500 + Math.random() * 1500}ms`);
-                piece.style.setProperty('--rotation-speed', `${rotationSpeed}deg`);
-                piece.style.setProperty('--horizontal-drift', `${horizontalDrift}px`);
-                container.appendChild(piece);
-              }
-              setTimeout(() => { try { container.remove(); } catch(e) {} }, 5000);
-            } catch (e) { }
-          }
-          
           function setButtonLoading(loading) {
             const btn = document.getElementById('twitterBtn');
             if (loading) {
@@ -718,7 +662,6 @@ export function renderMobileSharePage({ imageUrl, twitterMessage }) {
                   // Direct share success - close popup and only show inline success
                   try { if (popup && !popup.closed) popup.close(); } catch (e0) {}
                   showMessage('Successfully shared to Twitter! 🎉', 'success');
-                  triggerConfetti();
                   closeModal();
                 } else if (responseData.authUrl) {
                   // Need to authenticate - navigate pre-opened popup or fallback
@@ -747,7 +690,6 @@ export function renderMobileSharePage({ imageUrl, twitterMessage }) {
                       try { if (popup && !popup.closed) popup.close(); } catch (e03) {}
                       // Only inline success message; nothing in the popup
                       showMessage('Successfully shared to Twitter! 🎉', 'success');
-                      triggerConfetti();
                       closeModal();
                     } else if (event.data && event.data.type === 'twitter-auth-error') {
                       if (checkClosed) clearInterval(checkClosed);

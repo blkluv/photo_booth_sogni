@@ -1090,9 +1090,6 @@ const App = () => {
         setSuccessMessage('Your photo has been shared to X/Twitter!');
         setShowSuccessToast(true);
         setShowTwitterModal(false);
-        // Trigger confetti celebration on successful share
-        setShowConfetti(false);
-        setTimeout(() => setShowConfetti(true), 100);
       }
     });
   };
