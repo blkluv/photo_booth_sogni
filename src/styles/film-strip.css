@@ -569,6 +569,23 @@ body .film-frame.selected,
   }
 }
 
+/* iPad-specific fixes for both portrait and landscape - reduce polaroid size to prevent overlap with action buttons */
+@media (min-width: 768px) and (max-width: 1366px) and (orientation: landscape),
+       (min-width: 768px) and (max-width: 1366px) and (orientation: portrait) {
+  body .film-frame.selected.loaded,
+  body .film-frame.selected,
+  .film-frame.selected {
+    /* Reduce max height to ensure proper spacing above action buttons */
+    max-height: 82vh !important; /* Reduced from 96vh to 82vh for iPad */
+    /* Move slightly higher to center better with reduced height */
+    top: 46% !important; /* Moved up slightly from 48% */
+  }
+  
+  .film-frame.selected img {
+    max-height: calc(82vh - var(--polaroid-side-border) - var(--polaroid-bottom-border)) !important;
+  }
+}
+
 /* Selected photo label is rendered inside the frame container now.
    Positioning is handled inline and via scoped mobile rules below. */
 

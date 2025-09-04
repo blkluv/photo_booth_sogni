@@ -304,6 +304,15 @@
   }
 }
 
+/* iPad-specific action button adjustments - ensure proper spacing from reduced polaroid size */
+@media (min-width: 768px) and (max-width: 1366px) and (orientation: landscape),
+       (min-width: 768px) and (max-width: 1366px) and (orientation: portrait) {
+  .photo-action-buttons {
+    /* Increase bottom margin slightly to account for smaller polaroid */
+    bottom: 30px !important;
+  }
+}
+
 /* Ensure the Enhance dropdown always layers above sloth mascot */
 .enhance-button-container .enhance-dropdown {
   z-index: 9999999 !important;
