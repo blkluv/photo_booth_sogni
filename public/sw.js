@@ -1,5 +1,5 @@
 // Service Worker for Sogni AI Photobooth PWA - INTELLIGENT CACHING
-const CACHE_VERSION = '1.0.21';
+const CACHE_VERSION = '1.0.22';
 const CACHE_NAME = `sogni-photobooth-v${CACHE_VERSION}`;
 const STATIC_CACHE_NAME = `sogni-photobooth-static-v${CACHE_VERSION}`;
 
@@ -79,6 +79,15 @@ self.addEventListener('fetch', (event) => {
       url.pathname.includes('assets/css/') ||
       url.pathname.includes('assets/js/')) {
     console.log('Bypassing cache for JS/CSS file:', url.pathname);
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' })
+    );
+    return;
+  }
+
+  // ALWAYS fetch fresh events theme config to reflect newly deployed themes
+  if (url.pathname === '/events/config.json') {
+    console.log('Bypassing cache for events theme config:', url.pathname);
     event.respondWith(
       fetch(event.request, { cache: 'no-store' })
     );

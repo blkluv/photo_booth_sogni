@@ -29,6 +29,17 @@
         ]
       }
     },
+    "nodesamongus": {
+      "label": "Nodes Among Us",
+      "defaultAspectRatio": "narrow",
+      "framePadding": 20,
+      "tweetTemplate": "Just took my photo at the @sogni_protocol AI photobooth at Nodes Among Us: Taipei Blockchain Week #{styleTag} https://photobooth.sogni.ai/?prompt={styleTag}",
+      "frames": {
+        "narrow": [
+          "/events/nodes-among-us/narrow_1.png"
+        ]
+      }
+    },
     "supercasual": {
       "label": "Super Casual",
       "defaultAspectRatio": "narrow",
