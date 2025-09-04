@@ -117,25 +117,40 @@ const PhotoGallery = ({
   const [showPromptModal, setShowPromptModal] = useState(false);
   const [customPrompt, setCustomPrompt] = useState('');
   
-  // Auto-dismiss enhancement errors after 5 seconds
-  useEffect(() => {
-    if (selectedPhotoIndex !== null && photos[selectedPhotoIndex]?.enhancementError) {
-      const timer = setTimeout(() => {
-        setPhotos(prev => {
-          const updated = [...prev];
-          if (updated[selectedPhotoIndex]) {
-            updated[selectedPhotoIndex] = {
-              ...updated[selectedPhotoIndex],
-              enhancementError: null
-            };
-          }
-          return updated;
-        });
-      }, 5000); // 5 seconds
+  // Refs for dropdown animation buttons to prevent re-triggering animations
+  const enhanceButton1Ref = useRef(null);
+  const enhanceButton2Ref = useRef(null);
+  const animationTriggeredRef = useRef(false);
+  
+  // Auto-dismiss enhancement errors - moved to PhotoEnhancer service to avoid re-renders
 
-      return () => clearTimeout(timer);
+  // Handle dropdown animation triggering - only trigger once per dropdown open
+  useEffect(() => {
+    if (showEnhanceDropdown && !animationTriggeredRef.current) {
+      // Trigger animations for both buttons with staggered timing
+      const timer1 = setTimeout(() => {
+        if (enhanceButton1Ref.current && !enhanceButton1Ref.current.classList.contains('slide-in')) {
+          enhanceButton1Ref.current.classList.add('slide-in');
+        }
+      }, 100);
+      
+      const timer2 = setTimeout(() => {
+        if (enhanceButton2Ref.current && !enhanceButton2Ref.current.classList.contains('slide-in')) {
+          enhanceButton2Ref.current.classList.add('slide-in');
+        }
+      }, 300);
+      
+      animationTriggeredRef.current = true;
+      
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+      };
+    } else if (!showEnhanceDropdown) {
+      // Reset animation state when dropdown is closed
+      animationTriggeredRef.current = false;
     }
-  }, [selectedPhotoIndex, photos[selectedPhotoIndex]?.enhancementError, setPhotos]);
+  }, [showEnhanceDropdown]);
   
   // Clear framed image cache when new photos are generated or theme changes
   // Use a ref to track previous length to avoid effect dependency on photos.length
@@ -1357,7 +1372,7 @@ const PhotoGallery = ({
             {showEnhanceDropdown && !photos[selectedPhotoIndex].enhancing && createPortal(
               (
                 <div 
-                  key={`enhance-dropdown-${Date.now()}`}
+                  key="enhance-dropdown-stable"
                   className="enhance-dropdown rainbow-popup"
                   style={{
                     position: 'fixed',
@@ -1408,11 +1423,7 @@ const PhotoGallery = ({
                 >
                   <button
                     className="dropdown-option rainbow-option"
-                    ref={(el) => {
-                      if (el) {
-                        setTimeout(() => el.classList.add('slide-in'), 100);
-                      }
-                    }}
+                    ref={enhanceButton1Ref}
                     onClick={(e) => { e.stopPropagation(); setShowEnhanceDropdown(false); handleEnhanceWithKrea(); }}
                     style={{
                       width: 'calc(100% + 60px)',
@@ -1461,11 +1472,7 @@ const PhotoGallery = ({
                   </button>
                   <button
                     className="dropdown-option rainbow-option"
-                    ref={(el) => {
-                      if (el) {
-                        setTimeout(() => el.classList.add('slide-in'), 300);
-                      }
-                    }}
+                    ref={enhanceButton2Ref}
                     onClick={(e) => { e.stopPropagation(); setShowEnhanceDropdown(false); handleEnhanceWithKontext(); }}
                     style={{
                       width: 'calc(100% + 60px)',
