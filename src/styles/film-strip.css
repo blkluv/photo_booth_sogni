@@ -584,6 +584,9 @@ body .film-frame.selected,
   .film-frame.selected img {
     max-height: calc(82vh - var(--polaroid-side-border) - var(--polaroid-bottom-border)) !important;
   }
+  body .film-frame.selected img {
+    max-height: calc(82vh - var(--polaroid-side-border) - var(--polaroid-bottom-border)) !important;
+  }
 }
 
 /* Selected photo label is rendered inside the frame container now.
