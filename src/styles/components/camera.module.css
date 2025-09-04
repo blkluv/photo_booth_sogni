@@ -41,11 +41,17 @@
   align-items: center;
   width: 100vw;
   height: 100vh;
+  height: calc(var(--vh, 1vh) * 100);
+  max-height: calc((var(--vh, 1vh) * 100) - env(safe-area-inset-bottom));
   min-height: 0;
   min-width: 0;
   background: transparent;
   z-index: 10;
   position: absolute;
+  top: 0;
+  left: 0;
+  margin: 0;
+  padding: 0;
   pointer-events: auto;
   will-change: transform, opacity;
 }

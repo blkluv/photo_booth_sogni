@@ -13,6 +13,7 @@ body {
   padding: 0;
   box-sizing: border-box;
   min-height: 100% !important;
+  min-height: calc(var(--vh, 1vh) * 100) !important;
   overflow-x: hidden !important;
   touch-action: pan-x pan-y;
   -webkit-touch-callout: none;

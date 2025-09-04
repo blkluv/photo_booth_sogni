@@ -7,6 +7,15 @@
   background: linear-gradient(135deg, #ff61d5 0%, #7132e8 100%);
   font-family: 'Arial', sans-serif;
   overflow: hidden;
+  /* Mobile Safari viewport height fixes */
+  min-height: 100vh;
+  min-height: calc(var(--vh, 1vh) * 100);
+  height: 100vh;
+  height: calc(var(--vh, 1vh) * 100);
+  /* Ensure no gaps at top or bottom */
+  margin: 0 !important;
+  padding: 0 !important;
+  position: relative;
 }
 
 /* Outer frame surrounding video feed, thumbnails, header etc. */

@@ -9,7 +9,9 @@
   html, body, #root {
     height: 100vh !important;
     height: calc(var(--vh, 1vh) * 100) !important;
+    max-height: calc((var(--vh, 1vh) * 100) - env(safe-area-inset-bottom)) !important;
     min-height: 100vh !important;
+    min-height: calc(var(--vh, 1vh) * 100) !important;
     padding: 0 !important;
     margin: 0 !important;
   }
@@ -48,8 +50,10 @@
     /* Remove transform that breaks scrolling */
     transform: none !important;
     will-change: auto !important;
-    /* Ensure container takes full height */
+    /* Ensure container takes full height with Mobile Safari fixes */
     height: 100vh !important;
+    height: calc(var(--vh, 1vh) * 100) !important;
+    max-height: calc((var(--vh, 1vh) * 100) - env(safe-area-inset-bottom)) !important;
   }
 
   html body .film-strip-container.visible .film-strip-content {
@@ -80,6 +84,8 @@
   /* Fix image adjuster overlay to cover full screen */
   .image-adjuster-overlay {
     height: 100vh !important;
+    height: calc(var(--vh, 1vh) * 100) !important;
+    max-height: calc((var(--vh, 1vh) * 100) - env(safe-area-inset-bottom)) !important;
     top: 0 !important;
     bottom: 0 !important;
   }
@@ -97,8 +103,10 @@
     bottom: 0 !important;
     width: 100vw !important;
     height: 100vh !important;
+    height: calc(var(--vh, 1vh) * 100) !important;
+    max-height: calc((var(--vh, 1vh) * 100) - env(safe-area-inset-bottom)) !important;
     min-height: 100vh !important;
-    max-height: none !important;
+    min-height: calc(var(--vh, 1vh) * 100) !important;
     padding: 0 !important;
     overflow-y: auto !important;
     z-index: 99999 !important;

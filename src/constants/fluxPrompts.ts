@@ -9,7 +9,7 @@ export const FLUX_KONTEXT_PROMPTS = {
   makeMeCold: "cover the scene in snow and put winter clothes on the person, (keep the person's face and identity matching the original). They are very cold and you can see their breath",
   makeMeFortniteInspo: "Create a stylized battle royale portrait inspired by Fortnite keep identity saturated colors and action pose",
   makeMePixelArt: "make them into a retro pixel art character while keeping their identity",
-  makeMePixareInspo: "Create a stylized portrait inspired by Pixar keep identity large expressive eyes soft global illumination warm backdrop",
+  makeMePixarInspo: "Create a stylized portrait inspired by Pixar keep identity large expressive eyes soft global illumination warm backdrop",
   makeMeSimpsonseInspo: "Transform the person into The Simpsons character while preserving their identity and facial features",
   makeMeMarioKartInspo: "Place the person in a kart racing scene inspired by Super Mario Bros keeping their identity the same, bright track balloons and confetti",
   makeMeMinecrafteInspo: "Voxelize the person and the scene into a Minecraft style keep identity squared features blocky environment and simple sky",
