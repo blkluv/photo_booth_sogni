@@ -155,7 +155,6 @@
   /* Ensure film strip container uses proper viewport height */
   .film-strip-container {
     height: calc(var(--vh, 1vh) * 100) !important;
-    max-height: calc((var(--vh, 1vh) * 100) - env(safe-area-inset-bottom)) !important;
   }
   
   /* Main content area fix to center properly with safe area insets */
@@ -169,31 +168,81 @@
 
 /* iPad-specific fixes for better layout handling */
 @media (min-width: 768px) and (max-width: 1024px) and (-webkit-touch-callout: none) {
-  /* iPad portrait and landscape modes */
+  /* iPad portrait and landscape modes - remove max-height constraints that cause gaps */
   .photobooth-app {
     height: calc(var(--vh, 1vh) * 100) !important;
-    max-height: calc((var(--vh, 1vh) * 100) - env(safe-area-inset-bottom)) !important;
+    min-height: calc(var(--vh, 1vh) * 100) !important;
   }
   
   /* Ensure film strip works well on iPad */
-  .film-strip-container {
+  body .photobooth-app .film-strip-container.visible {
     height: calc(var(--vh, 1vh) * 100) !important;
-    max-height: calc((var(--vh, 1vh) * 100) - env(safe-area-inset-bottom)) !important;
+    min-height: calc(var(--vh, 1vh) * 100) !important;
   }
   
   /* iPad landscape mode - adjust grid for better use of space */
   @media (orientation: landscape) {
+    /* Ensure body has background to cover any gaps */
+    body {
+      background: linear-gradient(135deg, #ff61d5 0%, #7132e8 100%) !important;
+      background-attachment: fixed !important;
+    }
+    
     .film-strip-content {
       grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
       gap: 24px !important;
     }
+    
+    /* Fix action bar positioning for landscape */
+    .photo-action-buttons {
+      bottom: max(15px, env(safe-area-inset-bottom)) !important;
+      padding-bottom: 0 !important;
+    }
+    
+    /* Ensure selected photo view covers full height in landscape */
+    .film-frame.selected {
+      height: 100vh !important;
+      height: calc(var(--vh, 1vh) * 100) !important;
+    }
   }
   
-  /* iPad portrait mode - optimize for vertical space */
+  /* iPad portrait mode - optimize for vertical space and fix bottom gap */
   @media (orientation: portrait) {
+    /* Ensure body has background to cover any gaps */
+    body {
+      background: linear-gradient(135deg, #ff61d5 0%, #7132e8 100%) !important;
+      background-attachment: fixed !important;
+    }
+    
+    .photobooth-app {
+      height: 100vh !important;
+      height: calc(var(--vh, 1vh) * 100) !important;
+      min-height: 100vh !important;
+      min-height: calc(var(--vh, 1vh) * 100) !important;
+    }
+    
+    .film-strip-container {
+      height: 100vh !important;
+      height: calc(var(--vh, 1vh) * 100) !important;
+      min-height: 100vh !important;
+      min-height: calc(var(--vh, 1vh) * 100) !important;
+    }
+    
     .film-strip-content {
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
       gap: 28px !important;
+    }
+    
+    /* Fix action bar positioning to reduce excess padding */
+    .photo-action-buttons {
+      bottom: max(20px, env(safe-area-inset-bottom)) !important;
+      padding-bottom: 0 !important;
+    }
+    
+    /* Ensure selected photo view covers full height */
+    .film-frame.selected {
+      height: 100vh !important;
+      height: calc(var(--vh, 1vh) * 100) !important;
     }
   }
 } 

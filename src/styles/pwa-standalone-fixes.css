@@ -8,12 +8,48 @@
   /* CRITICAL: Ensure app uses full screen height */
   html, body, #root {
     height: 100vh !important;
-    height: calc(var(--vh, 1vh) * 100) !important;
-    max-height: calc((var(--vh, 1vh) * 100) - env(safe-area-inset-bottom)) !important;
+    /* Remove max-height constraint that causes gaps in PWA mode */
     min-height: 100vh !important;
-    min-height: calc(var(--vh, 1vh) * 100) !important;
     padding: 0 !important;
     margin: 0 !important;
+    /* Allow content to fill properly */
+    overflow: hidden !important;
+    position: relative !important;
+  }
+  
+  /* Ensure photobooth app fills entire screen in PWA mode */
+  body div.photobooth-app {
+    height: 100vh !important;
+    overflow: hidden !important;
+    position: relative !important;
+    max-height: unset !important;
+  }
+  
+  /* Ensure photobooth frame fills screen without white gaps */
+  .photobooth-frame {
+    min-height: 100vh !important;
+    min-height: calc(var(--vh, 1vh) * 100) !important;
+    /* Remove max-height that causes white space */
+  }
+  
+  /* Ensure camera start menu covers full screen in PWA */
+  .camera-start-menu {
+    height: 100vh !important;
+  }
+  
+  /* Ensure body and html background covers any potential gaps in PWA mode */
+  html, body {
+    background: linear-gradient(135deg, #ff61d5 0%, #7132e8 100%) !important;
+    background-attachment: fixed !important;
+    min-height: 100vh !important;
+    min-height: calc(var(--vh, 1vh) * 100) !important;
+  }
+  
+  /* Ensure root container also has proper background */
+  #root {
+    background: linear-gradient(135deg, #ff61d5 0%, #7132e8 100%) !important;
+    min-height: 100vh !important;
+    min-height: calc(var(--vh, 1vh) * 100) !important;
   }
 
   /* Move top controls higher - another 5px higher */
@@ -50,10 +86,7 @@
     /* Remove transform that breaks scrolling */
     transform: none !important;
     will-change: auto !important;
-    /* Ensure container takes full height with Mobile Safari fixes */
     height: 100vh !important;
-    height: calc(var(--vh, 1vh) * 100) !important;
-    max-height: calc((var(--vh, 1vh) * 100) - env(safe-area-inset-bottom)) !important;
   }
 
   html body .film-strip-container.visible .film-strip-content {
@@ -67,7 +100,8 @@
 
   /* CAMERA POSITIONING - Adjust to better position (reduce from 300px) */
   [class*="cameraContainer"] {
-    padding-top: 20px;
+    height: 100vh !important;
+    max-height: unset !important;
   }
 
   /* Remove conflicting polaroid frame margins */
@@ -84,10 +118,6 @@
   /* Fix image adjuster overlay to cover full screen */
   .image-adjuster-overlay {
     height: 100vh !important;
-    height: calc(var(--vh, 1vh) * 100) !important;
-    max-height: calc((var(--vh, 1vh) * 100) - env(safe-area-inset-bottom)) !important;
-    top: 0 !important;
-    bottom: 0 !important;
   }
 
   /* START MENU OVERLAY - REMOVED ALL GARBAGE CSS THAT DOESN'T WORK */
@@ -96,23 +126,11 @@
   /* Fix Advanced Settings overlay - AGGRESSIVE OVERRIDE */
 
   html body .photobooth-app .control-overlay.visible {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    height: calc(var(--vh, 1vh) * 100) !important;
-    max-height: calc((var(--vh, 1vh) * 100) - env(safe-area-inset-bottom)) !important;
     min-height: 100vh !important;
-    min-height: calc(var(--vh, 1vh) * 100) !important;
-    padding: 0 !important;
     overflow-y: auto !important;
     z-index: 99999 !important;
     transform: translateY(0) !important;
     padding-top: 60px !important;
-    padding-bottom: 60px !important;
   }
 
   /* Fix Advanced Settings content container */

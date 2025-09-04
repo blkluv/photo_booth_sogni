@@ -578,7 +578,7 @@ body .film-frame.selected,
     /* Reduce max height to ensure proper spacing above action buttons */
     max-height: 82vh !important; /* Reduced from 96vh to 82vh for iPad */
     /* Move slightly higher to center better with reduced height */
-    top: 46% !important; /* Moved up slightly from 48% */
+    top: 47% !important; /* Moved up slightly from 48% */
   }
   
   body .film-strip-content.has-selected .film-frame.selected img {
