@@ -142,7 +142,6 @@
   
   /* Main content area fix to center properly with safe area insets */
   .main-content-area {
-    max-height: calc((var(--vh, 1vh) * 100) - env(safe-area-inset-bottom)) !important;
     padding-bottom: env(safe-area-inset-bottom);
     display: flex !important;
     align-items: center !important;
