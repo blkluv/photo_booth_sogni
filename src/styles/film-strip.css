@@ -627,6 +627,16 @@ body .film-frame.selected,
   pointer-events: auto !important;
 }
 
+/* Fix for enhancement progress thumbnails - maintain original dimensions to prevent Polaroid frame shrinking */
+.film-frame.selected img.enhancement-preview-selected {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  /* Override the auto sizing that causes frame shrinking with tiny thumbnails */
+  min-width: 100% !important;
+  min-height: 100% !important;
+}
+
 /* Selected photo label positioned at bottom of polaroid */
 .film-frame.selected .photo-label {
   position: absolute !important;

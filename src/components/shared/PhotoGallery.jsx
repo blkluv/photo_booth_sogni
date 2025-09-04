@@ -1837,6 +1837,7 @@ const PhotoGallery = ({
               }}>
                 <img 
                   key={`${photo.id}-${photo.isPreview ? 'preview' : 'final'}`} // Force re-render when preview state changes
+                  className={`${isSelected && photo.enhancing && photo.isPreview ? 'enhancement-preview-selected' : ''}`}
                   src={(() => {
                     // For selected photos with supported themes, use composite framed image if available
                     if (isSelected && isThemeSupported()) {
@@ -1947,6 +1948,19 @@ const PhotoGallery = ({
                       msImageSmoothing: true,
                       imageSmoothing: true
                     };
+
+                    // For selected photos during enhancement, maintain original dimensions to prevent Polaroid frame shrinking
+                    if (isSelected && photo.enhancing && photo.isPreview) {
+                      return {
+                        ...baseStyle,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        // Override the CSS that sets width/height to auto for selected images
+                        minWidth: '100%',
+                        minHeight: '100%'
+                      };
+                    }
                     
                     // For supported themes with frame padding, account for the border
                     if (isSelected && isThemeSupported()) {
