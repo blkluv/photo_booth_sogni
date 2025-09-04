@@ -90,10 +90,29 @@ export const getCameraDisplayName = (device: CameraDevice, index: number): strin
 /**
  * Find the best default camera device
  * Prioritizes front-facing cameras for photobooth use
+ * On iPad, prioritizes "Front Ultra Wide Camera" if available
  */
 export const getDefaultCameraDevice = (devices: CameraDevice[]): CameraDevice | null => {
   if (devices.length === 0) {
     return null;
+  }
+
+  // Check if this is an iPad device
+  const isIPad = /ipad/i.test(navigator.userAgent) || 
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  // On iPad, prioritize Front Ultra Wide Camera if available
+  if (isIPad) {
+    const frontUltraWide = devices.find(device => {
+      const label = device.label.toLowerCase();
+      return label.includes('front') && 
+             (label.includes('ultra wide') || label.includes('ultrawide'));
+    });
+
+    if (frontUltraWide) {
+      console.log('📹 iPad detected: Selected Front Ultra Wide Camera as default');
+      return frontUltraWide;
+    }
   }
 
   // Try to find a front-facing camera first (better for photobooth)

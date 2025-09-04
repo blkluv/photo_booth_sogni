@@ -1401,6 +1401,16 @@ const App = () => {
         } else {
           console.log('📹 Preferred camera device is available:', preferredCameraDeviceId);
         }
+      } else {
+        // No preferred camera set - use smart default selection
+        const { getDefaultCameraDevice } = await import('./services/cameraService');
+        const defaultCamera = getDefaultCameraDevice(videoDevices);
+        
+        if (defaultCamera) {
+          console.log('📹 Setting default camera device:', defaultCamera.label || defaultCamera.deviceId);
+          setSelectedCameraDeviceId(defaultCamera.deviceId);
+          updateSetting('preferredCameraDeviceId', defaultCamera.deviceId);
+        }
       }
     } catch (error) {
       console.warn('Error enumerating devices', error);

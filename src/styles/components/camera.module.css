@@ -775,3 +775,52 @@
     height: 32px !important;
   }
 }
+
+/* iPad-specific fixes for portrait mode - reduce scrunched appearance */
+@media (min-width: 768px) and (max-width: 1366px) and (orientation: portrait) {
+  .polaroidFrame {
+    max-height: 85vh !important; /* Increase from default to give more breathing room */
+    max-width: 90vw !important;  /* Ensure it doesn't get too wide */
+  }
+  
+  .cameraView {
+    border-left-width: 28px !important;   /* Increase padding for better proportions */
+    border-right-width: 28px !important;
+    border-top-width: 28px !important;
+    border-bottom-width: 90px !important; /* Increase bottom padding significantly */
+  }
+  
+  .cameraViewInner {
+    max-height: calc(75vh - 118px) !important; /* Account for larger borders */
+  }
+  
+  .bottomControls {
+    bottom: 20px !important;  /* More space from bottom */
+    padding: 0 28px !important; /* Match border padding */
+  }
+  
+  .polaroidHeader {
+    top: 8px !important;
+    left: 28px !important;  /* Match border padding */
+    right: 28px !important;
+  }
+  
+  .title {
+    font-size: 22px !important; /* Slightly larger for iPad */
+  }
+  
+  .shutterButton {
+    width: 70px !important;  /* Larger shutter button for iPad */
+    height: 70px !important;
+  }
+  
+  .shutterDot {
+    width: 32px !important;
+    height: 32px !important;
+  }
+  
+  .shutterLabel {
+    font-size: 14px !important;
+    bottom: -28px !important; /* More space below button */
+  }
+}

@@ -581,10 +581,7 @@ body .film-frame.selected,
     top: 46% !important; /* Moved up slightly from 48% */
   }
   
-  .film-frame.selected img {
-    max-height: calc(82vh - var(--polaroid-side-border) - var(--polaroid-bottom-border)) !important;
-  }
-  body .film-frame.selected img {
+  body .film-strip-content.has-selected .film-frame.selected img {
     max-height: calc(82vh - var(--polaroid-side-border) - var(--polaroid-bottom-border)) !important;
   }
 }
