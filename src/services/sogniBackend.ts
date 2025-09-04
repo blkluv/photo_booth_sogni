@@ -213,7 +213,6 @@ export class BackendSogniClient {
   // Track all client instances for proper cleanup
   private static instances: Map<string, BackendSogniClient> = new Map();
   private static isGlobalCleanup: boolean = false;
-  private static disconnectTimeout: NodeJS.Timeout | null = null;
   
   constructor(appId: string) {
     this.appId = appId;
@@ -244,24 +243,10 @@ export class BackendSogniClient {
       }
     };
     
-    // Add window unload handler to properly disconnect
-    if (typeof window !== 'undefined') {
-      const disconnectHandler = () => {
-        // Only disconnect once
-        if (!this.isDisconnecting) {
-          void this.disconnect();
-        }
-      };
-      
-      // Use capture: true to ensure our handler runs before other handlers
-      window.addEventListener('beforeunload', disconnectHandler, { capture: true });
-      window.addEventListener('unload', disconnectHandler, { capture: true });
-      
-      // Track this instance
-      if (this.appId) {
-        BackendSogniClient.instances.set(this.appId, this);
-        console.log(`Registered BackendSogniClient instance with appId: ${this.appId}`);
-      }
+    // Track this instance (no need for complex unload handling in a photobooth app)
+    if (this.appId) {
+      BackendSogniClient.instances.set(this.appId, this);
+      console.log(`Registered BackendSogniClient instance with appId: ${this.appId}`);
     }
   }
   
@@ -346,19 +331,9 @@ export class BackendSogniClient {
   }
   
   /**
-   * Static method to disconnect all client instances
-   * Useful for application shutdown or tab close
+   * Static method to disconnect all client instances (simplified)
    */
   static async disconnectAll(): Promise<void> {
-    if (BackendSogniClient.disconnectTimeout) {
-      console.log('BackendSogniClient.disconnectAll already pending, skipping');
-      return;
-    }
-    
-    // Set a timeout to prevent multiple calls
-    BackendSogniClient.disconnectTimeout = setTimeout(() => {
-      BackendSogniClient.disconnectTimeout = null;
-    }, 500);
     
     // Set global cleanup flag to avoid multiple API calls
     BackendSogniClient.isGlobalCleanup = true;

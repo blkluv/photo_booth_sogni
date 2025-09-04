@@ -52,7 +52,7 @@ export const enumerateCameraDevices = async (): Promise<CameraDevice[]> => {
     const videoDevices = devices
       .filter(device => device.kind === 'videoinput')
       .map((device, index) => ({
-        deviceId: device.deviceId,
+        deviceId: device.deviceId || '', // Keep empty device IDs for mobile Safari
         label: device.label || `Camera ${index + 1}`,
         kind: device.kind as 'videoinput',
         groupId: device.groupId,
@@ -103,6 +103,13 @@ export const getDefaultCameraDevice = (devices: CameraDevice[]): CameraDevice | 
   if (devices.length === 0) {
     return null;
   }
+  
+  // Filter out devices with empty device IDs (mobile Safari without permission)
+  const validDevices = devices.filter(device => device.deviceId && device.deviceId.trim() !== '');
+  if (validDevices.length === 0) {
+    console.warn('No cameras with valid device IDs available (permission may be required)');
+    return null;
+  }
 
   // Check if this is an iPad device
   const isIPad = /ipad/i.test(navigator.userAgent) || 
@@ -110,7 +117,7 @@ export const getDefaultCameraDevice = (devices: CameraDevice[]): CameraDevice | 
 
   // On iPad, prioritize Front Ultra Wide Camera if available
   if (isIPad) {
-    const frontUltraWide = devices.find(device => {
+    const frontUltraWide = validDevices.find(device => {
       const label = device.label.toLowerCase();
       return label.includes('front') && 
              (label.includes('ultra wide') || label.includes('ultrawide'));
@@ -123,7 +130,7 @@ export const getDefaultCameraDevice = (devices: CameraDevice[]): CameraDevice | 
   }
 
   // Try to find a front-facing camera first (better for photobooth)
-  const frontCamera = devices.find(device => {
+  const frontCamera = validDevices.find(device => {
     const label = device.label.toLowerCase();
     const deviceId = device.deviceId.toLowerCase();
     return label.includes('front') || 
@@ -136,8 +143,8 @@ export const getDefaultCameraDevice = (devices: CameraDevice[]): CameraDevice | 
     return frontCamera;
   }
 
-  // If no front camera found, return the first available device
-  return devices[0];
+  // If no front camera found, return the first available valid device
+  return validDevices[0];
 };
 
 /**

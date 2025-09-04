@@ -154,95 +154,8 @@ let hasConnectedToSogni = false;
 // Use a pending promise mechanism to avoid duplicate status checks
 let pendingStatusCheck: Promise<unknown> | null = null;
 
-// Track if we've already sent a disconnect signal
-let hasDisconnectedBeforeUnload = false;
-
-// Track recent disconnect attempts by client ID to prevent duplicates
-const recentDisconnects = new Set<string>();
-const DISCONNECT_CACHE_TTL = 3000; // 3 seconds
-
-// Setup disconnect on page unload to prevent lingering WebSocket connections
-const setupDisconnectHandlers = () => {
-  if (typeof window !== 'undefined') {
-    // Handle both beforeunload (user closing page) and unload (actual unload)
-    const handleUnload = () => {
-      // Avoid sending multiple disconnect requests
-      if (hasDisconnectedBeforeUnload) {
-        console.log('Already sent disconnect request, skipping additional request');
-        return;
-      }
-      hasDisconnectedBeforeUnload = true;
-      
-      // Only try to disconnect if we've connected at least once
-      if (!hasConnectedToSogni) {
-        console.log('No Sogni connection established, skipping disconnect');
-        return;
-      }
-      
-      // Add to recent disconnects to prevent duplicate calls
-      if (clientAppId) {
-        recentDisconnects.add(clientAppId);
-      }
-      
-      // Strategy 1: Use GET with query params to ensure app ID is included
-      const url = `${API_BASE_URL}/sogni/disconnect?clientAppId=${encodeURIComponent(clientAppId)}&_t=${Date.now()}`;
-      
-      // Use the GET endpoint for more reliable unload handling
-      // The browser will more reliably send GET requests during unload
-      const img = new Image();
-      img.src = url;
-      
-      // Strategy 2: For modern browsers that support Beacon API 
-      if (navigator.sendBeacon) {
-        // Create a blob with the client app ID
-        const blob = new Blob([JSON.stringify({ clientAppId })], { type: 'application/json' });
-        navigator.sendBeacon(`${API_BASE_URL}/sogni/disconnect`, blob);
-      }
-      
-      // Strategy 3: As a last resort, try a synchronous XHR (might not work in modern browsers)
-      try {
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', url, false); // Synchronous request
-        xhr.withCredentials = true; // Include cookies
-        xhr.send();
-      } catch {
-        // Ignore errors - this is a best-effort attempt
-      }
-      
-      console.log('Sent disconnect request before page unload');
-    };
-    
-    // Throttled version of the unload handler
-    const throttledUnload = (event: BeforeUnloadEvent | Event) => {
-      handleUnload();
-      
-      // In case of beforeunload, allow the page to exit normally
-      if (event.type === 'beforeunload') {
-        delete event.returnValue;
-      }
-    };
-    
-    window.addEventListener('beforeunload', throttledUnload);
-    window.addEventListener('unload', throttledUnload);
-    
-    console.log('Disconnect handlers installed for window unload events');
-    
-    // Call checkSogniStatus once on page load to establish a session
-    setTimeout(() => {
-      checkSogniStatus()
-        .then(() => {
-          hasConnectedToSogni = true;
-          console.log('Initial Sogni connection established');
-        })
-        .catch(err => {
-          console.warn('Failed to establish initial Sogni connection:', err);
-        });
-    }, 1000); // Delay status check slightly to allow page to render first
-  }
-};
-
-// Initialize disconnect handlers immediately
-setupDisconnectHandlers();
+// Simplified connection tracking - no complex disconnect logic needed
+// The backend should handle cleanup automatically for short-lived sessions
 
 // Utility type guard for Record<string, unknown>
 function isObjectRecord(val: unknown): val is Record<string, unknown> {
@@ -250,90 +163,31 @@ function isObjectRecord(val: unknown): val is Record<string, unknown> {
 }
 
 /**
- * Explicitly disconnect the current session from the server
- * Useful when manually cleaning up resources
+ * Simplified disconnect function - only used for explicit cleanup
+ * Most of the time, letting sessions expire naturally is fine
  */
 export async function disconnectSession(): Promise<boolean> {
   try {
     // Skip if we never connected
     if (!hasConnectedToSogni) {
-      console.log('No active Sogni connection to disconnect');
       return true;
     }
     
-    // Avoid redundant disconnects for the same client ID
-    if (clientAppId && recentDisconnects.has(clientAppId)) {
-      console.log(`Skipping redundant disconnect for client ${clientAppId} (recently disconnected)`);
-      return true;
-    }
+    // Simple disconnect attempt - don't overcomplicate it
+    const response = await fetch(`${API_BASE_URL}/sogni/disconnect`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-Client-App-ID': clientAppId
+      },
+      body: JSON.stringify({ clientAppId })
+    });
     
-    console.log('Explicitly disconnecting from Sogni...');
-    
-    // Set the flag to avoid duplicate disconnects on unload
-    hasDisconnectedBeforeUnload = true;
-    
-    // Add to recent disconnects to prevent duplicate calls
-    if (clientAppId) {
-      recentDisconnects.add(clientAppId);
-      
-      // Clear after timeout
-      setTimeout(() => {
-        recentDisconnects.delete(clientAppId);
-      }, DISCONNECT_CACHE_TTL);
-    }
-    
-    // Multiple strategies for reliable disconnection
-    const results = await Promise.allSettled([
-      // Strategy 1: POST with JSON body and headers
-      fetch(`${API_BASE_URL}/sogni/disconnect`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'X-Client-App-ID': clientAppId
-        },
-        body: JSON.stringify({ clientAppId })
-      }),
-      
-      // Strategy 2: GET with query params as backup
-      fetch(`${API_BASE_URL}/sogni/disconnect?clientAppId=${encodeURIComponent(clientAppId)}&_t=${Date.now()}`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'X-Client-App-ID': clientAppId
-        }
-      })
-    ]);
-    
-    // Check if at least one method succeeded
-    const anySuccess = results.some(result => 
-      result.status === 'fulfilled' && 
-      (result.value).ok
-    );
-    
-    if (anySuccess) {
-      console.log('Successfully disconnected from Sogni');
-      return true;
-    } else {
-      // Check for auth errors and log them, but don't treat as failures
-      const authErrors = results.filter(result => 
-        result.status === 'fulfilled' && 
-        (result.value).status === 401
-      );
-      
-      if (authErrors.length > 0) {
-        console.log('Disconnect received 401 authentication error, but this is common during cleanup');
-        // Return true since the server will clean up the session regardless
-        return true;
-      }
-      
-      console.warn('Disconnect failed with errors on all methods');
-      return false;
-    }
+    return response.ok;
   } catch (error) {
-    console.error('Error during explicit disconnect:', error);
+    // Don't log errors - disconnection failures are not critical for a photobooth app
     return false;
   }
 }

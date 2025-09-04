@@ -1425,9 +1425,14 @@ const App = () => {
     
     const currentPreferred = settings.preferredCameraDeviceId;
     
+    // Debounce to prevent rapid updates
+    const timeoutId = setTimeout(() => {
+    
     // Validate preferred camera device and fallback if needed
-    if (currentPreferred) {
-      const isPreferredCameraAvailable = cameraDevices.some(device => device.deviceId === currentPreferred);
+    if (currentPreferred && currentPreferred.trim() !== '') {
+      const isPreferredCameraAvailable = cameraDevices.some(device => 
+        device.deviceId === currentPreferred && device.deviceId.trim() !== ''
+      );
       
       if (!isPreferredCameraAvailable) {
         console.warn('📹 Preferred camera device not found:', currentPreferred);
@@ -1439,16 +1444,33 @@ const App = () => {
       } else {
         console.log('📹 Preferred camera device is available:', currentPreferred);
       }
+    } else if (currentPreferred === '') {
+      // If we have an empty string as preferred camera, clear it
+      console.warn('📹 Empty string found as preferred camera, clearing it');
+      updateSetting('preferredCameraDeviceId', undefined);
     } else if (cameraDevices.length > 0) {
       // No preferred camera set - use smart default selection
       const setDefaultCamera = async () => {
         try {
-          const { getDefaultCameraDevice } = await import('./services/cameraService');
-          const defaultCamera = getDefaultCameraDevice(cameraDevices);
+          // Check if we have any cameras with valid device IDs
+          const validCameras = cameraDevices.filter(d => d.deviceId && d.deviceId.trim() !== '');
           
-          if (defaultCamera) {
+          if (validCameras.length === 0) {
+            console.warn('📹 No cameras with valid device IDs found. This is normal on mobile Safari without camera permission.');
+            console.log('📹 Available cameras:', cameraDevices.map(d => ({ id: d.deviceId, label: d.label })));
+            // Don't set any default - wait for user to grant permission
+            return;
+          }
+          
+          const { getDefaultCameraDevice } = await import('./services/cameraService');
+          const defaultCamera = getDefaultCameraDevice(validCameras);
+          
+          if (defaultCamera && defaultCamera.deviceId && defaultCamera.deviceId.trim() !== '') {
             console.log('📹 Setting default camera device:', defaultCamera.label || defaultCamera.deviceId);
             updateSetting('preferredCameraDeviceId', defaultCamera.deviceId);
+          } else {
+            console.warn('📹 No valid default camera found');
+            console.log('📹 Available cameras:', validCameras.map(d => ({ id: d.deviceId, label: d.label })));
           }
         } catch (error) {
           console.warn('📹 Error setting default camera:', error);
@@ -1457,19 +1479,16 @@ const App = () => {
       
       void setDefaultCamera();
     }
+    }, 100); // 100ms debounce
+    
+    return () => clearTimeout(timeoutId);
   }, [cameraDevices, settings.preferredCameraDeviceId, updateSetting]);
 
-  // Modified useEffect to start camera automatically
+  // Modified useEffect for app initialization - no camera enumeration on startup
   useEffect(() => {
     const initializeAppOnMount = async () => {
       // Initialize Google Analytics first
       initializeGA();
-      
-      // Start camera enumeration and Sogni initialization in parallel
-      // Don't let camera enumeration block Sogni initialization
-      const cameraPromise = listCameras().catch(error => {
-        console.warn('📹 Camera enumeration failed during initialization:', error);
-      });
       
       // Add a small delay for mobile Safari to ensure DOM is fully ready
       const isMobileSafari = /iPhone|iPad|iPod/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
@@ -1478,18 +1497,17 @@ const App = () => {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
-      // Initialize Sogni (don't wait for cameras)
-      const sogniPromise = initializeSogni().catch(error => {
+      // Initialize Sogni only - cameras will be loaded when needed
+      try {
+        await initializeSogni();
+        console.log('✅ App initialization completed');
+      } catch (error) {
         console.warn('🔗 Sogni initialization failed:', error);
-      });
-      
-      // Wait for both to complete (but don't fail if one fails)
-      await Promise.allSettled([cameraPromise, sogniPromise]);
-      console.log('✅ App initialization completed');
+      }
     };
     
     initializeAppOnMount();
-  }, [listCameras, initializeSogni]);
+  }, [initializeSogni]);
 
   // Sync selectedCameraDeviceId with settings - ONLY when preferredCameraDeviceId changes
   useEffect(() => {
@@ -1605,53 +1623,18 @@ const App = () => {
     }
   }, [aspectRatio, cameraManuallyStarted, showStartMenu, showPhotoGrid, selectedPhotoIndex, startCamera, selectedCameraDeviceId, previousCategory]);
   
-  // Add an effect specifically for page unload/refresh cleanup
+  // Simple cleanup effect - just stop camera on unmount
   useEffect(() => {
-    const handleBeforeUnload = () => {
-      // Stop camera stream on page unload
+    return () => {
+      // Stop camera stream when component unmounts
       if (videoReference.current && videoReference.current.srcObject) {
-        console.log('🛑 Stopping camera stream on page unload');
         const stream = videoReference.current.srcObject;
         const tracks = stream.getTracks();
-        tracks.forEach(track => {
-          console.log(`🛑 Stopping track: ${track.kind} (${track.label})`);
-          track.stop();
-        });
+        tracks.forEach(track => track.stop());
         videoReference.current.srcObject = null;
       }
-      
-      // Clean up blob URLs to prevent memory leaks
-      photos.forEach(photo => {
-        if (photo.images) {
-          photo.images.forEach(imageUrl => {
-            if (imageUrl && imageUrl.startsWith('blob:')) {
-              URL.revokeObjectURL(imageUrl);
-            }
-          });
-        }
-      });
-      
-      if (sogniClient) {
-        console.log('Page unloading, triggering final cleanup');
-        
-        if (sogniClient.constructor && typeof sogniClient.constructor.disconnectAll === 'function') {
-          // Call disconnectAll synchronously to ensure it runs before page unload
-          try {
-            sogniClient.constructor.disconnectAll();
-          } catch (error) {
-            console.warn('Error during page unload cleanup:', error);
-          }
-        }
-      }
     };
-    
-    // Use the capture phase to ensure our handler runs first
-    window.addEventListener('beforeunload', handleBeforeUnload, { capture: true });
-    
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload, { capture: true });
-    };
-  }, [sogniClient, photos]);
+  }, []);
 
   // If we return to camera, ensure the video is playing
   useEffect(() => {
