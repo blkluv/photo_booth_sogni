@@ -8,6 +8,10 @@ class ThemeConfigService {
     this.config = null;
     this.loading = false;
     this.error = null;
+    // Add caches for frequently accessed data
+    this.themeCache = new Map();
+    this.frameUrlsCache = new Map();
+    this.framePaddingCache = new Map();
   }
 
   /**
@@ -15,6 +19,11 @@ class ThemeConfigService {
    * @returns {Promise<Object>} Theme configuration object
    */
   async loadConfig() {
+    // Return cached config if already loaded
+    if (this.config) {
+      return this.config;
+    }
+
     if (this.loading) {
       // Wait for existing load to complete
       while (this.loading) {
@@ -70,8 +79,17 @@ class ThemeConfigService {
    * @returns {Promise<Object|null>} Theme configuration or null if not found
    */
   async getTheme(themeId) {
+    // Check cache first
+    if (this.themeCache.has(themeId)) {
+      return this.themeCache.get(themeId);
+    }
+
     const themes = await this.getThemes();
-    return themes[themeId] || null;
+    const theme = themes[themeId] || null;
+    
+    // Cache the result
+    this.themeCache.set(themeId, theme);
+    return theme;
   }
 
   /**
@@ -123,12 +141,19 @@ class ThemeConfigService {
    * @returns {Promise<Array>} Array of frame URLs
    */
   async getFrameUrls(themeId, aspectRatio) {
-    const theme = await this.getTheme(themeId);
-    if (!theme || !theme.frames || !theme.frames[aspectRatio]) {
-      return [];
+    const cacheKey = `${themeId}-${aspectRatio}`;
+    
+    // Check cache first
+    if (this.frameUrlsCache.has(cacheKey)) {
+      return this.frameUrlsCache.get(cacheKey);
     }
 
-    return theme.frames[aspectRatio];
+    const theme = await this.getTheme(themeId);
+    const frameUrls = (theme && theme.frames && theme.frames[aspectRatio]) ? theme.frames[aspectRatio] : [];
+    
+    // Cache the result
+    this.frameUrlsCache.set(cacheKey, frameUrls);
+    return frameUrls;
   }
 
   /**
@@ -137,8 +162,17 @@ class ThemeConfigService {
    * @returns {Promise<number>} Frame padding in pixels
    */
   async getFramePadding(themeId) {
+    // Check cache first
+    if (this.framePaddingCache.has(themeId)) {
+      return this.framePaddingCache.get(themeId);
+    }
+
     const theme = await this.getTheme(themeId);
-    return theme?.framePadding || 0;
+    const padding = theme?.framePadding || 0;
+    
+    // Cache the result
+    this.framePaddingCache.set(themeId, padding);
+    return padding;
   }
 
   /**
@@ -157,6 +191,10 @@ class ThemeConfigService {
   async reload() {
     this.config = null;
     this.error = null;
+    // Clear all caches
+    this.themeCache.clear();
+    this.frameUrlsCache.clear();
+    this.framePaddingCache.clear();
     return await this.loadConfig();
   }
 }

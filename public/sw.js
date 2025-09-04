@@ -73,8 +73,8 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   
   // NEVER cache JavaScript and CSS files (they contain theme updates)
-  if (url.pathname.includes('.js') || 
-      url.pathname.includes('.css') || 
+  if (url.pathname.endsWith('.js') || 
+      url.pathname.endsWith('.css') || 
       url.pathname.includes('assets/index-') ||
       url.pathname.includes('assets/css/') ||
       url.pathname.includes('assets/js/')) {
