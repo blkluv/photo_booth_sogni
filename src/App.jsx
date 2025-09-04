@@ -211,6 +211,39 @@ const App = () => {
   
   // Add state for mobile share caching to avoid regenerating the same framed images
   const [mobileShareCache, setMobileShareCache] = useState({});
+  
+  // Add state to store framed image cache from PhotoGallery
+  const [photoGalleryFramedImageCache, setPhotoGalleryFramedImageCache] = useState({});
+  
+  // Cleanup old mobile share cache entries to prevent memory leaks
+  const cleanupMobileShareCache = useCallback(() => {
+    const now = Date.now();
+    const maxAge = 30 * 60 * 1000; // 30 minutes
+    const maxEntries = 50; // Maximum number of cached entries
+    
+    setMobileShareCache(prev => {
+      const entries = Object.entries(prev);
+      
+      // Filter out old entries
+      const freshEntries = entries.filter(([, data]) => {
+        return (now - data.timestamp) < maxAge;
+      });
+      
+      // If still too many entries, keep only the most recent ones
+      if (freshEntries.length > maxEntries) {
+        freshEntries.sort((a, b) => b[1].timestamp - a[1].timestamp);
+        freshEntries.splice(maxEntries);
+      }
+      
+      return Object.fromEntries(freshEntries);
+    });
+  }, []);
+  
+  // Run cleanup periodically
+  useEffect(() => {
+    const interval = setInterval(cleanupMobileShareCache, 10 * 60 * 1000); // Every 10 minutes
+    return () => clearInterval(interval);
+  }, [cleanupMobileShareCache]);
   const [currentUploadedSource, setCurrentUploadedSource] = useState('');
   
 
@@ -829,6 +862,12 @@ const App = () => {
       return;
     }
 
+    // Check if we already have a QR code for this exact photo
+    if (qrCodeData && qrCodeData.photoIndex === photoIndex) {
+      console.log('QR code already exists for this photo, reusing existing QR code');
+      return; // Don't regenerate, just keep the existing QR code
+    }
+
     // Set the photo index immediately so the modal can show the image
     setTwitterPhotoIndex(photoIndex);
 
@@ -851,15 +890,15 @@ const App = () => {
       
       console.log('Original image URL type:', originalImageUrl?.startsWith('blob:') ? 'blob' : originalImageUrl?.startsWith('data:') ? 'data' : 'http');
       
-      // Create a cache key for this specific image configuration (same logic as PhotoGallery)
+      // Create cache keys for this specific image configuration
       const currentTaipeiFrameNumber = photo.taipeiFrameNumber || 1;
-      const cacheKey = `mobile-share-${photoIndex}-${currentSubIndex}-${tezdevTheme}-${currentTaipeiFrameNumber}-jpg-${aspectRatio}`;
+      const mobileShareCacheKey = `${photoIndex}-${currentSubIndex}-${tezdevTheme}-${currentTaipeiFrameNumber}-jpg-${aspectRatio}`;
+      const photoGalleryCacheKey = `${photoIndex}-${currentSubIndex}-${tezdevTheme}-${currentTaipeiFrameNumber}-${outputFormat}-${aspectRatio}`;
       
-      // Check if we already have a cached framed image for this exact configuration
-      // IMPORTANT: Always create a NEW shareId even when using cached image to avoid cross-user leaks
-      const cachedMobileShare = mobileShareCache[cacheKey];
+      // First, check if we already have a cached mobile share for this exact configuration
+      const cachedMobileShare = mobileShareCache[mobileShareCacheKey];
       if (cachedMobileShare && cachedMobileShare.permanentImageUrl) {
-        console.log('Using cached framed image, creating fresh share link:', cacheKey);
+        console.log('Using cached mobile share, creating fresh share link:', mobileShareCacheKey);
         try {
           // Generate a unique sharing ID (do not reuse prior shareId)
           const shareId = `share-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -903,14 +942,123 @@ const App = () => {
         }
       }
       
+      // Second, check if PhotoGallery has a framed image we can reuse
+      const photoGalleryFramedImage = photoGalleryFramedImageCache[photoGalleryCacheKey];
+      if (photoGalleryFramedImage && tezdevTheme !== 'off') {
+        console.log('Found PhotoGallery framed image, converting for mobile share:', photoGalleryCacheKey);
+        try {
+          // Convert the PhotoGallery framed image (which might be PNG) to JPG for mobile sharing
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const img = new Image();
+          
+          await new Promise((resolve, reject) => {
+            img.onload = () => {
+              canvas.width = img.naturalWidth;
+              canvas.height = img.naturalHeight;
+              
+              // Fill with white background for JPG conversion
+              ctx.fillStyle = 'white';
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              
+              // Draw the framed image
+              ctx.drawImage(img, 0, 0);
+              
+              resolve();
+            };
+            img.onerror = reject;
+            img.src = photoGalleryFramedImage;
+          });
+          
+          // Convert to JPG
+          const jpgDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+          
+          // Upload the converted image
+          const permanentImageUrl = await ensurePermanentUrl(jpgDataUrl);
+          console.log('PhotoGallery framed image converted and uploaded successfully');
+          
+          // Generate Twitter message
+          let twitterMessage;
+          if (tezdevTheme !== 'off') {
+            try {
+              const hashtag = getPhotoHashtag(photo);
+              const themeTemplate = await themeConfigService.getTweetTemplate(tezdevTheme, hashtag || '');
+              twitterMessage = themeTemplate;
+            } catch (error) {
+              console.warn('Could not load theme tweet template, using fallback:', error);
+              twitterMessage = "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨";
+            }
+          } else {
+            twitterMessage = "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨";
+          }
+          
+          // Generate a unique sharing ID
+          const shareId = `share-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          const currentUrl = new URL(window.location.href);
+          const baseUrl = currentUrl.origin;
+          const mobileShareUrl = `${baseUrl}/mobile-share/${shareId}`;
+          
+          // Create share data
+          const shareData = {
+            shareId,
+            photoIndex,
+            imageUrl: permanentImageUrl,
+            tezdevTheme,
+            aspectRatio,
+            outputFormat: 'jpg',
+            timestamp: Date.now(),
+            isFramed: true,
+            twitterMessage: twitterMessage
+          };
+          
+          // Send to backend
+          const response = await fetch('/api/mobile-share/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(shareData),
+          });
+          
+          if (!response.ok) {
+            throw new Error('Failed to create mobile share from PhotoGallery cache');
+          }
+          
+          // Cache the result
+          setMobileShareCache(prev => ({
+            ...prev,
+            [mobileShareCacheKey]: {
+              shareUrl: mobileShareUrl,
+              permanentImageUrl,
+              twitterMessage,
+              timestamp: Date.now()
+            }
+          }));
+          
+          // Set QR code data
+          setQrCodeData({
+            shareUrl: mobileShareUrl,
+            photoIndex: photoIndex
+          });
+          
+          return; // Success, exit early
+        } catch (error) {
+          console.warn('Failed to reuse PhotoGallery framed image, falling back to regenerate:', error);
+          // Continue to regenerate below
+        }
+      }
+      
       console.log('Creating new framed image for mobile sharing...');
       
-      // Ensure font is loaded (same as Twitter sharing)
+      // Ensure font is loaded (same as Twitter sharing) - check if already loaded first
       try {
-        const testFont = new FontFace('Permanent Marker', 'url(https://fonts.gstatic.com/s/permanentmarker/v16/Fh4uPib9Iyv2ucM6pGQMWimMp004La2Cfw.woff2)');
-        await testFont.load();
-        document.fonts.add(testFont);
-        console.log('Manually loaded Permanent Marker font');
+        const fontAlreadyLoaded = document.fonts.check('80px "Permanent Marker"');
+        if (!fontAlreadyLoaded) {
+          const testFont = new FontFace('Permanent Marker', 'url(https://fonts.gstatic.com/s/permanentmarker/v16/Fh4uPib9Iyv2ucM6pGQMWimMp004La2Cfw.woff2)');
+          await testFont.load();
+          document.fonts.add(testFont);
+          console.log('Manually loaded Permanent Marker font');
+        } else {
+          console.log('Permanent Marker font already loaded');
+        }
       } catch (fontError) {
         console.warn('Could not manually load font, using system fallback:', fontError);
       }
@@ -1042,7 +1190,7 @@ const App = () => {
       // Cache the mobile share data for future use
       setMobileShareCache(prev => ({
         ...prev,
-        [cacheKey]: {
+        [mobileShareCacheKey]: {
           shareUrl: mobileShareUrl,
           permanentImageUrl,
           twitterMessage,
@@ -1717,6 +1865,19 @@ const App = () => {
   const handlePreGenerateFrameCallback = useCallback((preGenerateFunction) => {
     preGenerateFrameRef.current = preGenerateFunction;
   }, []);
+
+  // Callback to receive framed image cache updates from PhotoGallery
+  const handleFramedImageCacheUpdate = useCallback((framedImageCache) => {
+    setPhotoGalleryFramedImageCache(framedImageCache);
+  }, []);
+
+  // Clear QR code when navigating between photos
+  useEffect(() => {
+    if (qrCodeData && qrCodeData.photoIndex !== selectedPhotoIndex) {
+      console.log('Clearing QR code due to photo navigation');
+      setQrCodeData(null);
+    }
+  }, [selectedPhotoIndex, qrCodeData]);
 
   // Updated to use the utility function - using refs to avoid dependencies
   const handlePreviousPhoto = useCallback(async () => {
@@ -3902,6 +4063,12 @@ const App = () => {
     // Scroll to top smoothly
     window.scrollTo({ top: 0, behavior: 'smooth' });
     
+    // Clear QR code when going back to camera
+    if (qrCodeData) {
+      console.log('Clearing QR code when returning to camera');
+      setQrCodeData(null);
+    }
+    
     // Mark the photo grid as hiding with a clean fade-out
     const filmStrip = document.querySelector('.film-strip-container');
     if (filmStrip) {
@@ -4922,6 +5089,7 @@ const App = () => {
           aspectRatio={aspectRatio}
           handleRetryPhoto={handleRetryPhoto}
           onPreGenerateFrame={handlePreGenerateFrameCallback}
+          onFramedImageCacheUpdate={handleFramedImageCacheUpdate}
           qrCodeData={qrCodeData}
           onCloseQR={() => setQrCodeData(null)}
         />

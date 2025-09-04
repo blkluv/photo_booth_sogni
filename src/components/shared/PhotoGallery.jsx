@@ -88,6 +88,7 @@ const PhotoGallery = ({
   aspectRatio = null,
   handleRetryPhoto,
   onPreGenerateFrame, // New prop to handle frame pre-generation from parent
+  onFramedImageCacheUpdate, // New prop to expose framed image cache to parent
   qrCodeData,
   onCloseQR
 }) => {
@@ -301,6 +302,48 @@ const PhotoGallery = ({
       return cleaned;
     });
   }, []);
+
+  // Cleanup old framed image cache entries to prevent memory leaks
+  const cleanupFramedImageCache = useCallback(() => {
+    const maxEntries = 20; // Keep only the most recent 20 framed images
+    
+    setFramedImageUrls(prev => {
+      const entries = Object.entries(prev);
+      
+      if (entries.length <= maxEntries) {
+        return prev; // No cleanup needed
+      }
+      
+      // Sort by creation time (newer entries should be kept)
+      // Since we don't have timestamps, we'll keep entries for lower photo indices (more recent)
+      entries.sort((a, b) => {
+        const indexA = parseInt(a[0].split('-')[0]);
+        const indexB = parseInt(b[0].split('-')[0]);
+        return indexB - indexA; // Descending order (higher indices first)
+      });
+      
+      // Keep only the most recent entries
+      const entriesToKeep = entries.slice(0, maxEntries);
+      const entriesToRemove = entries.slice(maxEntries);
+      
+      // Revoke blob URLs for removed entries
+      entriesToRemove.forEach(([, url]) => {
+        if (url && typeof url === 'string' && url.startsWith('blob:')) {
+          try { URL.revokeObjectURL(url); } catch (e) { /* no-op */ }
+        }
+      });
+      
+      return Object.fromEntries(entriesToKeep);
+    });
+  }, []);
+  
+  // Run framed image cleanup when cache gets large
+  useEffect(() => {
+    const entries = Object.keys(framedImageUrls).length;
+    if (entries > 25) { // Trigger cleanup when we have more than 25 entries
+      cleanupFramedImageCache();
+    }
+  }, [framedImageUrls, cleanupFramedImageCache]);
 
   // Handle enhancement with Krea (default behavior)
   const handleEnhanceWithKrea = useCallback(() => {
@@ -608,6 +651,13 @@ const PhotoGallery = ({
       onPreGenerateFrame(preGenerateFrameForPhoto);
     }
   }, [onPreGenerateFrame, preGenerateFrameForPhoto]);
+
+  // Expose framed image cache to parent component
+  useEffect(() => {
+    if (onFramedImageCacheUpdate) {
+      onFramedImageCacheUpdate(framedImageUrls);
+    }
+  }, [onFramedImageCacheUpdate, framedImageUrls]);
   
   const handlePhotoSelect = useCallback(async (index, e) => {
     const element = e.currentTarget;
@@ -1938,15 +1988,26 @@ const PhotoGallery = ({
                 />
                 
                 {/* Event Theme Overlays - Only show on selected (popup) view when theme is supported and not using composite framed image */}
-                {thumbUrl && isLoaded && isSelected && isThemeSupported() && !(() => {
+                {(() => {
+                  // Only show theme overlays if we don't have a composite framed image
+                  if (!thumbUrl || !isLoaded || !isSelected || !isThemeSupported()) {
+                    return null;
+                  }
+                  
                   // Check if we have a composite framed image for this photo
                   const currentSubIndex = photo.enhanced && photo.enhancedImageUrl 
                     ? -1 // Special case for enhanced images
                     : (selectedSubIndex || 0);
                   const photoTaipeiFrameNumber = photo.taipeiFrameNumber || 1;
                   const frameKey = `${index}-${currentSubIndex}-${tezdevTheme}-${photoTaipeiFrameNumber}-${outputFormat}-${aspectRatio}`;
-                  return framedImageUrls[frameKey];
-                })() && (
+                  
+                  // If we have a composite framed image, don't show theme overlays
+                  if (framedImageUrls[frameKey]) {
+                    return null;
+                  }
+                  
+                  // Show theme overlays
+                  return (
                   <>
 
                     {/* Super Casual Full Frame Overlay - only for narrow (2:3) aspect ratio */}
@@ -2008,7 +2069,8 @@ const PhotoGallery = ({
                     
 
                   </>
-                )}
+                  );
+                })()}
                 
                 {/* QR Code Overlay for Kiosk Mode */}
                 {qrCodeData && qrCodeData.photoIndex === index && qrCodeDataUrl && isSelected && (
@@ -2023,7 +2085,7 @@ const PhotoGallery = ({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      zIndex: 1000,
+                      zIndex: 9999,
                       cursor: 'pointer'
                     }}
                     onClick={onCloseQR}
@@ -2315,6 +2377,7 @@ PhotoGallery.propTypes = {
   handleRetryPhoto: PropTypes.func,
   outputFormat: PropTypes.string,
   onPreGenerateFrame: PropTypes.func, // New prop for frame pre-generation callback
+  onFramedImageCacheUpdate: PropTypes.func, // New prop for framed image cache updates
   qrCodeData: PropTypes.object,
   onCloseQR: PropTypes.func
 };
