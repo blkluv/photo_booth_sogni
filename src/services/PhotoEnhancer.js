@@ -27,6 +27,7 @@ export const enhancePhoto = async (options) => {
     setPhotos,
     outputFormat,
     clearFrameCache,
+    clearQrCode, // New option to clear QR codes when enhancement starts
     // onSetActiveProject - not used for enhancement to avoid interfering with main generation
     useKontext = false,
     customPrompt = ''
@@ -42,6 +43,12 @@ export const enhancePhoto = async (options) => {
       imagesLength: photo.images?.length,
       hasOriginalDataUrl: !!photo.originalDataUrl
     });
+    
+    // Clear QR codes when enhancement starts since the image will change
+    if (clearQrCode) {
+      console.log(`[ENHANCE] Clearing QR code due to enhancement of photo #${photoIndex}`);
+      clearQrCode();
+    }
     
     // Choose the source image for enhancement.
     // IMPORTANT: When enhancing again without undo, we want to enhance the LATEST version (the currently enhanced image),

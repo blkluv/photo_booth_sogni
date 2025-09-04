@@ -89,6 +89,8 @@ const PhotoGallery = ({
   handleRetryPhoto,
   onPreGenerateFrame, // New prop to handle frame pre-generation from parent
   onFramedImageCacheUpdate, // New prop to expose framed image cache to parent
+  onClearQrCode, // New prop to clear QR codes when images change
+  onClearMobileShareCache, // New prop to clear mobile share cache when images change
   qrCodeData,
   onCloseQR
 }) => {
@@ -234,6 +236,12 @@ const PhotoGallery = ({
     });
     setFramedImageUrls({});
     
+    // Clear mobile share cache since photo indices will change
+    if (onClearMobileShareCache) {
+      console.log('Clearing mobile share cache due to "More" button click');
+      onClearMobileShareCache();
+    }
+    
     if (isGenerating && activeProjectReference.current) {
       // Cancel current project and immediately start new batch
       console.log('Cancelling current project from more button:', activeProjectReference.current);
@@ -262,6 +270,12 @@ const PhotoGallery = ({
     const generateQRCode = async () => {
       if (!qrCodeData || !qrCodeData.shareUrl) {
         setQrCodeDataUrl('');
+        return;
+      }
+
+      // Handle loading state - don't generate QR for loading placeholder
+      if (qrCodeData.shareUrl === 'loading' || qrCodeData.isLoading) {
+        setQrCodeDataUrl('loading');
         return;
       }
 
@@ -365,6 +379,7 @@ const PhotoGallery = ({
             setPhotos,
             outputFormat: outputFormat,
             clearFrameCache: clearFrameCacheForPhoto,
+            clearQrCode: onClearQrCode, // Pass QR clearing function
             onSetActiveProject: (projectId) => {
               activeProjectReference.current = projectId;
             }
@@ -405,6 +420,7 @@ const PhotoGallery = ({
             setPhotos,
             outputFormat: outputFormat,
             clearFrameCache: clearFrameCacheForPhoto,
+            clearQrCode: onClearQrCode, // Pass QR clearing function
             onSetActiveProject: (projectId) => {
               activeProjectReference.current = projectId;
             },
@@ -2108,16 +2124,49 @@ const PhotoGallery = ({
                       }}>
                         Scan to Share on Your Phone
                       </h3>
-                      <img 
-                        src={qrCodeDataUrl} 
-                        alt="QR Code for sharing" 
-                        style={{ 
-                          display: 'block',
+                      
+                      {qrCodeDataUrl === 'loading' ? (
+                        <div style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
                           margin: '0 auto 16px auto',
+                          width: '200px',
+                          height: '200px',
                           border: '2px solid #eee',
-                          borderRadius: '8px'
-                        }} 
-                      />
+                          borderRadius: '8px',
+                          justifyContent: 'center',
+                          backgroundColor: '#f9f9f9'
+                        }}>
+                          <div style={{
+                            width: '40px',
+                            height: '40px',
+                            border: '4px solid #e3e3e3',
+                            borderTop: '4px solid #1DA1F2',
+                            borderRadius: '50%',
+                            animation: 'spin 1s linear infinite',
+                            marginBottom: '12px'
+                          }}></div>
+                          <div style={{
+                            color: '#666',
+                            fontSize: '14px',
+                            fontWeight: '500'
+                          }}>
+                            Generating QR Code...
+                          </div>
+                        </div>
+                      ) : (
+                        <img 
+                          src={qrCodeDataUrl} 
+                          alt="QR Code for sharing" 
+                          style={{ 
+                            display: 'block',
+                            margin: '0 auto 16px auto',
+                            border: '2px solid #eee',
+                            borderRadius: '8px'
+                          }} 
+                        />
+                      )}
 
                       <button
                         onClick={onCloseQR}
@@ -2378,6 +2427,8 @@ PhotoGallery.propTypes = {
   outputFormat: PropTypes.string,
   onPreGenerateFrame: PropTypes.func, // New prop for frame pre-generation callback
   onFramedImageCacheUpdate: PropTypes.func, // New prop for framed image cache updates
+  onClearQrCode: PropTypes.func, // New prop to clear QR codes when images change
+  onClearMobileShareCache: PropTypes.func, // New prop to clear mobile share cache when images change
   qrCodeData: PropTypes.object,
   onCloseQR: PropTypes.func
 };

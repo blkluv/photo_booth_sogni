@@ -13,6 +13,11 @@
   }
 }
 
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 /* Subtle loading animation - affects the entire polaroid frame */
 @keyframes subtle-frame-pulse {
   0% {

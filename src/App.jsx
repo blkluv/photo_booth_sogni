@@ -15,6 +15,9 @@ import { enhancePhoto, undoEnhancement, redoEnhancement } from './services/Photo
 import { shareToTwitter } from './services/TwitterShare';
 import { themeConfigService } from './services/themeConfig';
 import { trackPageView, initializeGA, trackEvent } from './utils/analytics';
+import { ensurePermanentUrl } from './utils/imageUpload.js';
+import { createPolaroidImage } from './utils/imageProcessing.js';
+import { getPhotoHashtag } from './services/TwitterShare.js';
 import clickSound from './click.mp3';
 import cameraWindSound from './camera-wind.mp3';
 // import helloSound from './hello.mp3';
@@ -871,12 +874,15 @@ const App = () => {
     // Set the photo index immediately so the modal can show the image
     setTwitterPhotoIndex(photoIndex);
 
+    // Show QR code immediately with loading state for better UX
+    setQrCodeData({
+      shareUrl: 'loading', // Special loading state
+      photoIndex: photoIndex,
+      isLoading: true
+    });
+
     try {
-      // Import required utilities
-      const { ensurePermanentUrl } = await import('./utils/imageUpload.js');
-      const { createPolaroidImage } = await import('./utils/imageProcessing.js');
-      const { getPhotoHashtag } = await import('./services/TwitterShare.js');
-      const { themeConfigService } = await import('./services/themeConfig.js');
+      // Utilities are now pre-imported at the top of the file for better performance
       
       // Get the original image URL (handle enhanced images like Twitter sharing does)
       const photo = photos[photoIndex];
@@ -892,7 +898,7 @@ const App = () => {
       
       // Create cache keys for this specific image configuration
       const currentTaipeiFrameNumber = photo.taipeiFrameNumber || 1;
-      const mobileShareCacheKey = `${photoIndex}-${currentSubIndex}-${tezdevTheme}-${currentTaipeiFrameNumber}-jpg-${aspectRatio}`;
+      const mobileShareCacheKey = `${photoIndex}-${currentSubIndex}-${tezdevTheme}-${currentTaipeiFrameNumber}-${outputFormat}-${aspectRatio}`;
       const photoGalleryCacheKey = `${photoIndex}-${currentSubIndex}-${tezdevTheme}-${currentTaipeiFrameNumber}-${outputFormat}-${aspectRatio}`;
       
       // First, check if we already have a cached mobile share for this exact configuration
@@ -931,7 +937,8 @@ const App = () => {
           // Present the fresh link in the QR overlay
           setQrCodeData({
             shareUrl: mobileShareUrl,
-            photoIndex: photoIndex
+            photoIndex: photoIndex,
+            isLoading: false
           });
 
           // Do not return cached shareUrl to avoid reusing links across users
@@ -945,37 +952,11 @@ const App = () => {
       // Second, check if PhotoGallery has a framed image we can reuse
       const photoGalleryFramedImage = photoGalleryFramedImageCache[photoGalleryCacheKey];
       if (photoGalleryFramedImage && tezdevTheme !== 'off') {
-        console.log('Found PhotoGallery framed image, converting for mobile share:', photoGalleryCacheKey);
+        console.log('Found PhotoGallery framed image, using directly for mobile share:', photoGalleryCacheKey);
         try {
-          // Convert the PhotoGallery framed image (which might be PNG) to JPG for mobile sharing
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          const img = new Image();
-          
-          await new Promise((resolve, reject) => {
-            img.onload = () => {
-              canvas.width = img.naturalWidth;
-              canvas.height = img.naturalHeight;
-              
-              // Fill with white background for JPG conversion
-              ctx.fillStyle = 'white';
-              ctx.fillRect(0, 0, canvas.width, canvas.height);
-              
-              // Draw the framed image
-              ctx.drawImage(img, 0, 0);
-              
-              resolve();
-            };
-            img.onerror = reject;
-            img.src = photoGalleryFramedImage;
-          });
-          
-          // Convert to JPG
-          const jpgDataUrl = canvas.toDataURL('image/jpeg', 0.9);
-          
-          // Upload the converted image
-          const permanentImageUrl = await ensurePermanentUrl(jpgDataUrl);
-          console.log('PhotoGallery framed image converted and uploaded successfully');
+          // Use the PhotoGallery framed image directly without conversion
+          const permanentImageUrl = await ensurePermanentUrl(photoGalleryFramedImage);
+          console.log('PhotoGallery framed image uploaded directly without conversion');
           
           // Generate Twitter message
           let twitterMessage;
@@ -1005,7 +986,7 @@ const App = () => {
             imageUrl: permanentImageUrl,
             tezdevTheme,
             aspectRatio,
-            outputFormat: 'jpg',
+            outputFormat: outputFormat, // Use original format instead of forcing JPG
             timestamp: Date.now(),
             isFramed: true,
             twitterMessage: twitterMessage
@@ -1022,7 +1003,7 @@ const App = () => {
             throw new Error('Failed to create mobile share from PhotoGallery cache');
           }
           
-          // Cache the result
+          // Cache the result using the same key format
           setMobileShareCache(prev => ({
             ...prev,
             [mobileShareCacheKey]: {
@@ -1036,7 +1017,8 @@ const App = () => {
           // Set QR code data
           setQrCodeData({
             shareUrl: mobileShareUrl,
-            photoIndex: photoIndex
+            photoIndex: photoIndex,
+            isLoading: false
           });
           
           return; // Success, exit early
@@ -1201,11 +1183,14 @@ const App = () => {
       // Set QR code data for overlay
       setQrCodeData({
         shareUrl: mobileShareUrl,
-        photoIndex: photoIndex
+        photoIndex: photoIndex,
+        isLoading: false
       });
 
     } catch (error) {
       console.error('Error creating mobile share:', error);
+      // Clear loading state on error
+      setQrCodeData(null);
       // Fallback to regular Twitter sharing
       setShowTwitterModal(true);
     }
@@ -4321,6 +4306,16 @@ const App = () => {
 
     console.log('Generating more photos with the same settings');
     
+    // Clear QR codes and mobile share cache when generating new batch since photo indices will change
+    if (qrCodeData) {
+      console.log('Clearing QR code due to new batch generation');
+      setQrCodeData(null);
+    }
+    
+    // Clear mobile share cache since photo indices will point to different images
+    console.log('Clearing mobile share cache due to new batch generation');
+    setMobileShareCache({});
+    
     // Use numImages from context state
     const numToGenerate = numImages; 
     
@@ -5090,6 +5085,16 @@ const App = () => {
           handleRetryPhoto={handleRetryPhoto}
           onPreGenerateFrame={handlePreGenerateFrameCallback}
           onFramedImageCacheUpdate={handleFramedImageCacheUpdate}
+          onClearQrCode={() => {
+            if (qrCodeData) {
+              console.log('Clearing QR code due to image enhancement');
+              setQrCodeData(null);
+            }
+          }}
+          onClearMobileShareCache={() => {
+            console.log('Clearing mobile share cache due to PhotoGallery request');
+            setMobileShareCache({});
+          }}
           qrCodeData={qrCodeData}
           onCloseQR={() => setQrCodeData(null)}
         />
