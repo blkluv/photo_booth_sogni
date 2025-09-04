@@ -76,14 +76,21 @@ export const delay = (ms: number): Promise<void> => {
  * Check if device is iOS
  */
 export const isIOS = (): boolean => {
-  return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const ua = navigator.userAgent;
+  const isClassicIOS = /iPhone|iPad|iPod/i.test(ua);
+  // iPadOS 13+ can report as Mac; detect via touch support
+  const isIPadOSDesktopUA = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+  return isClassicIOS || isIPadOSDesktopUA;
 };
 
 /**
  * Check if device is mobile
  */
 export const isMobile = (): boolean => {
-  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const ua = navigator.userAgent;
+  const classicMobile = /iPhone|iPad|iPod|Android/i.test(ua);
+  const isIPadOSDesktopUA = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+  return classicMobile || isIPadOSDesktopUA;
 };
 
 /**
