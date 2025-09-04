@@ -14,7 +14,6 @@ export const FLUX_KONTEXT_PROMPTS = {
   makeMeMarioKartInspo: "Place the person in a kart racing scene inspired by Super Mario Bros keeping their identity the same, bright track balloons and confetti",
   makeMeMinecrafteInspo: "Voxelize the person and the scene into a Minecraft style keep identity squared features blocky environment and simple sky",
   makeMeWoWeInspo: "Style the person as a fantasy World of Warcraft character while keeping their identity recognizable, ornate armor glowing runes and castle hall",
-  makeMeZeldaeInspo: "Style them into a heroic adventurer from Zelda while keeping their identity the same, cel shaded look forest temple background",
   makeMePopArt: "Create a pop art portrait keep identity halftone dots flat primaries and burst background",
   makeMeUkiyoE: "Render the person as an ukiyo e print keep identity bold linework flat color planes and wave or cloud motifs",
   makeMeTattooFlash: "Render the person as a traditional tattoo flash icon keep identity bold lines limited inks and parchment texture",
@@ -24,6 +23,7 @@ export const FLUX_KONTEXT_PROMPTS = {
   makeMeBox: "Turn me into a boxer wearing blue boxing gloves and a sports top that says 'BASE', art style will be similar to Fortnite Characters, background looks like a boxing ring",
   addCats: "Add cats and match style",
   addHatsAndGlasses: "Add cowboy hats and sunglasses",
+  makeMeDoodleArt: "Convert into a minimalist bold line colorful cartoon abstract portrait, minimal features, very simple, surreal playful pastel style, abstract vector, minimal facial features, thick outlines, rainbow, clouds",
 }
 
 // Helper function to get Flux.1 Kontext prompts
