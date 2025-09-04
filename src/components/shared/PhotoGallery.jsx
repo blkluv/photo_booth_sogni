@@ -1827,7 +1827,7 @@ const PhotoGallery = ({
             return (
               <div
                 key={photo.id}
-                className={`film-frame loading ${isSelected ? 'selected' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'showup' ? 'showup-theme' : ''}`}
+                className={`film-frame loading ${isSelected ? 'selected' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'showup' ? 'showup-theme' : ''} ${isSelected && isThemeSupported() ? `${tezdevTheme}-theme` : ''}`}
                 data-enhancing={photo.enhancing ? 'true' : undefined}
                 data-error={photo.error ? 'true' : undefined}
                 data-enhanced={photo.enhanced ? 'true' : undefined}
@@ -1905,7 +1905,7 @@ const PhotoGallery = ({
           return (
             <div 
               key={photo.id}
-              className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''} ${isLoaded ? 'loaded' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'taipeiblockchain' ? 'taipei-blockchain-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'showup' ? 'showup-theme' : ''}`}
+              className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''} ${isLoaded ? 'loaded' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'taipeiblockchain' ? 'taipei-blockchain-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'showup' ? 'showup-theme' : ''} ${isSelected && isThemeSupported() ? `${tezdevTheme}-theme` : ''}`}
               onClick={e => isSelected ? handlePhotoViewerClick(e) : handlePhotoSelect(index, e)}
               data-enhancing={photo.enhancing ? 'true' : undefined}
               data-error={photo.error ? 'true' : undefined}
@@ -2351,7 +2351,7 @@ const PhotoGallery = ({
               color: '#333',
               textAlign: 'center'
             }}>
-              Modify the image with natural language
+              Modify your image with natural language 🤗
             </h3>
             
             <textarea
@@ -2374,7 +2374,14 @@ const PhotoGallery = ({
               }}
               onFocus={e => e.target.style.borderColor = '#4bbbd3'}
               onBlur={e => e.target.style.borderColor = '#e0e0e0'}
-              autoFocus
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  if (customPrompt.trim()) {
+                    handlePromptSubmit();
+                  }
+                }
+              }}
             />
 
             {/* Quick-action suggestion chips */}
@@ -2420,7 +2427,7 @@ const PhotoGallery = ({
                         fontWeight: 600,
                         cursor: 'pointer',
                         background: chipBackgrounds[idx % chipBackgrounds.length],
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.45)'
                       }}
                       title={text}
                     >
