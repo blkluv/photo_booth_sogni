@@ -393,8 +393,8 @@
   0%, 100% { opacity: 0; }
 }
 
-/* Responsive styles */
-@media (max-width: 600px), (orientation: portrait) and (max-device-width: 1024px) {
+/* Responsive styles - Mobile devices only (exclude iPad) */
+@media (max-width: 600px), (orientation: portrait) and (max-device-width: 767px) {
   
   .cameraView {
     border-left-width: 20px !important;
@@ -779,48 +779,113 @@
 /* iPad-specific fixes for portrait mode - reduce scrunched appearance */
 @media (min-width: 768px) and (max-width: 1366px) and (orientation: portrait) {
   .polaroidFrame {
-    max-height: 85vh !important; /* Increase from default to give more breathing room */
-    max-width: 90vw !important;  /* Ensure it doesn't get too wide */
+    max-height: 85vh !important; /* Balanced height for better proportions */
+    max-width: 85vw !important;  /* Slightly narrower for better centering */
+    margin: auto !important;     /* Ensure proper centering */
   }
   
   .cameraView {
-    border-left-width: 28px !important;   /* Increase padding for better proportions */
-    border-right-width: 28px !important;
-    border-top-width: 28px !important;
-    border-bottom-width: 90px !important; /* Increase bottom padding significantly */
+    border-left-width: 24px !important;   /* Balanced padding */
+    border-right-width: 24px !important;
+    border-top-width: 24px !important;
+    border-bottom-width: 100px !important; /* More space for controls - same as landscape */
   }
   
   .cameraViewInner {
-    max-height: calc(75vh - 118px) !important; /* Account for larger borders */
+    max-height: calc(75vh - 124px) !important; /* Adjusted for larger bottom border */
+    width: 100% !important;
+    margin: 0 auto !important;
   }
   
   .bottomControls {
-    bottom: 20px !important;  /* More space from bottom */
-    padding: 0 28px !important; /* Match border padding */
+    bottom: 24px !important;  /* More spacing from bottom - same as landscape */
+    padding: 0 24px !important; /* Match border padding */
+    justify-content: center !important; /* Center the shutter button */
+  }
+  
+  .polaroidHeader {
+    top: 8px !important;    /* Consistent with landscape */
+    left: 24px !important;  /* Match border padding */
+    right: 24px !important;
+  }
+  
+  .title {
+    font-size: 20px !important; /* Appropriate size for iPad */
+    text-align: center !important;
+  }
+  
+  .shutterButton {
+    width: 65px !important;  /* Appropriately sized for iPad */
+    height: 65px !important;
+  }
+  
+  .shutterDot {
+    width: 30px !important;
+    height: 30px !important;
+  }
+  
+  .shutterLabel {
+    font-size: 13px !important;
+    bottom: -24px !important; /* Balanced space below button */
+    min-width: 120px !important;
+  }
+  
+  /* Ensure aspect ratio dropdown and thumbnail positioning work well */
+  .thumbnailButtonCorner {
+    bottom: 24px !important; /* Match bottomControls spacing */
+    left: 24px !important;
+  }
+  
+  .cameraFlipButtonWithThumbnail {
+    bottom: 24px !important; /* Match bottomControls spacing */
+    left: 80px !important; /* Adjusted for 24px padding + 48px thumbnail + 8px gap */
+  }
+}
+
+/* iPad landscape mode - ensure good proportions and proper spacing */
+@media (min-width: 768px) and (max-width: 1366px) and (orientation: landscape) {
+  .polaroidFrame {
+    max-height: 80vh !important;
+    max-width: 70vw !important; /* Narrower in landscape to maintain good proportions */
+  }
+  
+  .cameraView {
+    border-left-width: 32px !important;
+    border-right-width: 32px !important;
+    border-top-width: 32px !important;
+    border-bottom-width: 100px !important; /* More space for controls */
+  }
+  
+  .bottomControls {
+    bottom: 24px !important; /* More space from bottom edge */
+    padding: 0 32px !important;
+    justify-content: center !important;
   }
   
   .polaroidHeader {
     top: 8px !important;
-    left: 28px !important;  /* Match border padding */
-    right: 28px !important;
+    left: 32px !important;
+    right: 32px !important;
   }
   
   .title {
-    font-size: 22px !important; /* Slightly larger for iPad */
+    font-size: 20px !important;
+    text-align: center !important;
   }
   
   .shutterButton {
-    width: 70px !important;  /* Larger shutter button for iPad */
-    height: 70px !important;
+    width: 65px !important;
+    height: 65px !important;
   }
   
   .shutterDot {
-    width: 32px !important;
-    height: 32px !important;
+    width: 30px !important;
+    height: 30px !important;
   }
   
   .shutterLabel {
-    font-size: 14px !important;
-    bottom: -28px !important; /* More space below button */
+    font-size: 13px !important;
+    bottom: -24px !important;
+    min-width: 120px !important;
   }
 }

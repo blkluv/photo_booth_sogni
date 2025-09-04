@@ -123,6 +123,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   });
   
+  
   // Project state
   const projectState = useRef<ProjectState>({
     currentPhotoIndex: 0,

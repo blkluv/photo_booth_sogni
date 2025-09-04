@@ -1385,21 +1385,23 @@ const App = () => {
       const videoDevices = devices.filter(d => d.kind === 'videoinput');
       setCameraDevices(videoDevices);
       
+      // Get current preferred camera from settings to avoid stale closure
+      const currentPreferred = settings.preferredCameraDeviceId;
+      
       // Validate preferred camera device and fallback if needed
-      if (preferredCameraDeviceId) {
-        const isPreferredCameraAvailable = videoDevices.some(device => device.deviceId === preferredCameraDeviceId);
+      if (currentPreferred) {
+        const isPreferredCameraAvailable = videoDevices.some(device => device.deviceId === currentPreferred);
         
         if (!isPreferredCameraAvailable) {
-          console.warn('📹 Preferred camera device not found:', preferredCameraDeviceId);
+          console.warn('📹 Preferred camera device not found:', currentPreferred);
           console.log('📹 Available cameras:', videoDevices.map(d => ({ id: d.deviceId, label: d.label })));
           
-          // Clear the invalid preference
+          // Clear the invalid preference - this will trigger the sync useEffect
           updateSetting('preferredCameraDeviceId', undefined);
-          setSelectedCameraDeviceId(null);
           
           console.log('📹 Cleared invalid camera preference, will use auto-select');
         } else {
-          console.log('📹 Preferred camera device is available:', preferredCameraDeviceId);
+          console.log('📹 Preferred camera device is available:', currentPreferred);
         }
       } else {
         // No preferred camera set - use smart default selection
@@ -1408,14 +1410,14 @@ const App = () => {
         
         if (defaultCamera) {
           console.log('📹 Setting default camera device:', defaultCamera.label || defaultCamera.deviceId);
-          setSelectedCameraDeviceId(defaultCamera.deviceId);
+          // Only update setting, let the sync useEffect handle selectedCameraDeviceId
           updateSetting('preferredCameraDeviceId', defaultCamera.deviceId);
         }
       }
     } catch (error) {
       console.warn('Error enumerating devices', error);
     }
-  }, [preferredCameraDeviceId, updateSetting]);
+  }, [settings.preferredCameraDeviceId, updateSetting]); // Use settings.preferredCameraDeviceId instead
 
   // Modified useEffect to start camera automatically
   useEffect(() => {
@@ -1431,13 +1433,11 @@ const App = () => {
     initializeAppOnMount();
   }, [listCameras, initializeSogni]);
 
-  // Sync selectedCameraDeviceId with settings
+  // Sync selectedCameraDeviceId with settings - ONLY when preferredCameraDeviceId changes
   useEffect(() => {
-    if (preferredCameraDeviceId !== selectedCameraDeviceId) {
-      console.log('📹 Syncing camera device ID from settings:', preferredCameraDeviceId);
-      setSelectedCameraDeviceId(preferredCameraDeviceId || null);
-    }
-  }, [preferredCameraDeviceId, selectedCameraDeviceId]);
+    console.log('📹 Syncing camera device ID from settings:', preferredCameraDeviceId);
+    setSelectedCameraDeviceId(preferredCameraDeviceId || null);
+  }, [preferredCameraDeviceId]); // REMOVED selectedCameraDeviceId to prevent loops
 
   // Helper function to determine the resolution category for an aspect ratio
   const getResolutionCategory = (aspectRatio) => {

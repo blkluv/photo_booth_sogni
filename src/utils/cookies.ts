@@ -4,9 +4,19 @@ import { getModelDefaults, isFluxKontextModel } from '../constants/settings';
 export function getSettingFromCookie<T>(name: string, defaultValue: T): T {
   try {
     const value = localStorage.getItem(`sogni_${name}`);
-    return value ? (JSON.parse(value) as T) : defaultValue;
+    if (!value || value === 'undefined' || value === 'null') {
+      return defaultValue;
+    }
+    return JSON.parse(value) as T;
   } catch (e) {
     console.warn(`Error reading cookie ${name}:`, e);
+    // Clear the corrupted value
+    try {
+      localStorage.removeItem(`sogni_${name}`);
+      console.log(`Cleared corrupted setting: ${name}`);
+    } catch (clearError) {
+      console.warn(`Could not clear corrupted setting ${name}:`, clearError);
+    }
     return defaultValue;
   }
 }
@@ -14,7 +24,12 @@ export function getSettingFromCookie<T>(name: string, defaultValue: T): T {
 export function saveSettingsToCookies(settings: Partial<Settings>): void {
   Object.entries(settings).forEach(([key, value]) => {
     try {
-      localStorage.setItem(`sogni_${key}`, JSON.stringify(value));
+      if (value === undefined) {
+        // Remove the setting if value is undefined
+        localStorage.removeItem(`sogni_${key}`);
+      } else {
+        localStorage.setItem(`sogni_${key}`, JSON.stringify(value));
+      }
     } catch (e) {
       console.warn(`Error saving setting ${key}:`, e);
     }
@@ -122,5 +137,46 @@ export function saveThemeGroupPreferences(preferences: Record<string, boolean>):
     localStorage.setItem('sogni_theme_groups', JSON.stringify(preferences));
   } catch (e) {
     console.warn('Error saving theme group preferences:', e);
+  }
+}
+
+// Utility function to clean up corrupted localStorage values
+export function cleanupCorruptedSettings(): void {
+  try {
+    const keysToCheck = [];
+    
+    // Get all localStorage keys that start with 'sogni_'
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('sogni_')) {
+        keysToCheck.push(key);
+      }
+    }
+    
+    let cleanedCount = 0;
+    keysToCheck.forEach(key => {
+      try {
+        const value = localStorage.getItem(key);
+        if (value === 'undefined' || value === 'null') {
+          localStorage.removeItem(key);
+          cleanedCount++;
+          console.log(`Cleaned corrupted setting: ${key}`);
+        } else if (value) {
+          // Try to parse the value to see if it's valid JSON
+          JSON.parse(value);
+        }
+      } catch (parseError) {
+        // If parsing fails, remove the corrupted value
+        localStorage.removeItem(key);
+        cleanedCount++;
+        console.log(`Cleaned corrupted setting: ${key}`);
+      }
+    });
+    
+    if (cleanedCount > 0) {
+      console.log(`Cleaned up ${cleanedCount} corrupted localStorage settings`);
+    }
+  } catch (e) {
+    console.warn('Error during localStorage cleanup:', e);
   }
 } 

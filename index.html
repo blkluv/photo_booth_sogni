@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta name="cache-buster" content="1.0.20">
+    <meta name="cache-buster" content="1.0.21">
     <link rel="icon" href="/favicon.ico?v=1.0.20" />
     <title>Sogni AI Photobooth</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
@@ -49,6 +49,38 @@
     <meta name="msapplication-square310x310logo" content="/icons/icon-512x512.png" />
     
     <script>
+      // Emergency fix for corrupted localStorage values - runs before React
+      try {
+        const corruptedKeys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('sogni_')) {
+            try {
+              const value = localStorage.getItem(key);
+              if (value === 'undefined' || value === 'null') {
+                corruptedKeys.push(key);
+              } else if (value) {
+                JSON.parse(value); // Test if it's valid JSON
+              }
+            } catch (parseError) {
+              corruptedKeys.push(key);
+            }
+          }
+        }
+        
+        // Remove corrupted keys
+        corruptedKeys.forEach(key => {
+          localStorage.removeItem(key);
+          console.log('Emergency cleanup: removed corrupted setting', key);
+        });
+        
+        if (corruptedKeys.length > 0) {
+          console.log('Emergency localStorage cleanup completed:', corruptedKeys.length, 'items removed');
+        }
+      } catch (e) {
+        console.warn('Emergency localStorage cleanup failed:', e);
+      }
+      
       // Prevent pinch zoom gesture except in image adjuster or gallery images
       document.addEventListener('touchmove', function(event) {
         // Only prevent default if:
@@ -152,7 +184,7 @@
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/index.jsx?t=1737989000"></script>
+    <script type="module" src="/src/index.jsx?t=1737989001"></script>
     
     <!-- Service Worker Registration -->
     <script>
