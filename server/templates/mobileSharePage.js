@@ -621,9 +621,20 @@ export function renderMobileSharePage({ imageUrl, twitterMessage }) {
                 // Pre-open popup synchronously to avoid Safari popup blocking
                 let popup = null;
                 try {
-                  popup = window.open('', 'twitter-auth', 'width=600,height=700');
+                  const width = 600;
+                  const height = 700;
+                  const left = window.innerWidth / 2 - width / 2 + window.screenX;
+                  const top = window.innerHeight / 2 - height / 2 + window.screenY;
+                  popup = window.open('', 'twitter-auth', \`width=\${width},height=\${height},left=\${left},top=\${top},location=yes,resizable=yes,scrollbars=yes\`);
                 } catch (e) {
                   popup = null;
+                }
+                // Lightweight waiting UI in the pre-opened popup (if accessible)
+                if (popup) {
+                  try {
+                    popup.document.write(\`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Preparing share…</title><style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#f8f9fa;color:#333}.card{background:#fff;border-radius:8px;box-shadow:0 4px 6px rgba(0,0,0,.1);padding:1.2rem;text-align:center;max-width:90%;width:380px}.spinner{width:24px;height:24px;border:3px solid #e5e7eb;border-top-color:#1DA1F2;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 10px}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="card"><div class="spinner"></div><div>Preparing your image and opening X…</div></div></body></html>\`);
+                    popup.document.close();
+                  } catch (e) { /* ignore */ }
                 }
                 
                 const apiBaseUrl = window.location.hostname.includes('localhost')
@@ -648,7 +659,7 @@ export function renderMobileSharePage({ imageUrl, twitterMessage }) {
                 const responseData = await response.json();
                 
                 if (responseData.success === true && !responseData.authUrl) {
-                  // Direct share success
+                  // Direct share success - close popup and only show inline success
                   try { if (popup && !popup.closed) popup.close(); } catch (e0) {}
                   showMessage('Successfully shared to Twitter! 🎉', 'success');
                   closeModal();
@@ -677,6 +688,7 @@ export function renderMobileSharePage({ imageUrl, twitterMessage }) {
                       if (checkClosed) clearInterval(checkClosed);
                       window.removeEventListener('message', messageHandler);
                       try { if (popup && !popup.closed) popup.close(); } catch (e03) {}
+                      // Only inline success message; nothing in the popup
                       showMessage('Successfully shared to Twitter! 🎉', 'success');
                       closeModal();
                     } else if (event.data && event.data.type === 'twitter-auth-error') {

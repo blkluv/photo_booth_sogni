@@ -63,6 +63,47 @@ export const shareToTwitter = async ({
     return;
   }
 
+  // Pre-open popup synchronously on user gesture to avoid blockers
+  const popupWidth = 600;
+  const popupHeight = 700;
+  const popupLeft = window.innerWidth / 2 - popupWidth / 2 + window.screenX;
+  const popupTop = window.innerHeight / 2 - popupHeight / 2 + window.screenY;
+  let popup = null;
+  try {
+    popup = window.open(
+      '',
+      'twitter-auth-popup',
+      `width=${popupWidth},height=${popupHeight},left=${popupLeft},top=${popupTop},location=yes,resizable=yes,scrollbars=yes`
+    );
+  } catch (e) {
+    popup = null;
+  }
+
+  if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+    const fallbackUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
+      customMessage || 'From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨'
+    )}`;
+    setBackendError({
+      type: 'popup_blocked',
+      title: '🚫 Pop-up Blocked',
+      message:
+        'Your browser blocked the sharing window. No worries! You can still share your photo manually. Click the button below to open X/Twitter, then save and attach your photo from the gallery.',
+      fallbackUrl,
+      fallbackText: 'Open X/Twitter'
+    });
+    return;
+  }
+
+  // Lightweight waiting UI inside the pre-opened popup
+  try {
+    popup.document.write(
+      `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Preparing share…</title><style>body{font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#f8f9fa;color:#333}.card{background:#fff;border-radius:8px;box-shadow:0 4px 6px rgba(0,0,0,.1);padding:1.5rem;max-width:90%;width:420px;text-align:center}.spinner{width:28px;height:28px;border:3px solid #e5e7eb;border-top-color:#1DA1F2;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="card"><div class="spinner"></div><div>Preparing your image and opening X…</div></div></body></html>`
+    );
+    popup.document.close();
+  } catch (e) {
+    // Ignore if we cannot write (rare cross-origin timing); continue
+  }
+
   // Ensure Permanent Marker font is loaded for consistent styling
   if (!document.querySelector('link[href*="Permanent+Marker"]')) {
     const fontLink = document.createElement('link');
@@ -205,77 +246,9 @@ export const shareToTwitter = async ({
         if (responseData.success === true && !responseData.authUrl) {
           console.log('Image shared directly using existing token');
           
-          // Create a small notification popup with consistent styling instead of alert
-          const width = 400;
-          const height = 300;
-          const left = window.innerWidth / 2 - width / 2 + window.screenX;
-          const top = window.innerHeight / 2 - height / 2 + window.screenY;
-          
-          const successPopup = window.open(
-            '',
-            'twitter-success-popup',
-            `width=${width},height=${height},left=${left},top=${top},location=no,menubar=no,toolbar=no,status=no`
-          );
-          
-          if (successPopup) {
-            // Use the same template as in xAuthRoutes.js for consistency
-            successPopup.document.write(`
-              <!DOCTYPE html>
-              <html>
-              <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Sharing to X - Success</title>
-                <style>
-                  body {
-                    font-family: sans-serif;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    height: 100vh;
-                    margin: 0;
-                    background-color: #f8f9fa;
-                  }
-                  .success-card {
-                    background: white;
-                    border-radius: 8px;
-                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                    padding: 2rem;
-                    text-align: center;
-                    max-width: 90%;
-                    width: 400px;
-                  }
-                  .icon {
-                    font-size: 4rem;
-                    color: #00acee;
-                    margin-bottom: 1rem;
-                  }
-                  h2 {
-                    margin-top: 0;
-                    color: #333;
-                  }
-                  .message {
-                    color: #555;
-                    margin: 1rem 0;
-                  }
-                </style>
-              </head>
-              <body>
-                <div class="success-card">
-                  <div class="icon">✓</div>
-                  <h2>Share Successful!</h2>
-                  <div class="message">Your image has been successfully shared to X.</div>
-                </div>
-                <script>
-                  // Auto-close this window after a delay
-                  setTimeout(function() {
-                    window.close();
-                  }, 2000);
-                </script>
-              </body>
-              </html>
-            `);
-            successPopup.document.close();
+          // Close the pre-opened popup immediately; show success only in-app
+          if (popup && !popup.closed) {
+            try { popup.close(); } catch (_) {}
           }
           
           // Still call the onSuccess callback if provided
@@ -296,39 +269,17 @@ export const shareToTwitter = async ({
           return;
         }
 
-        // Calculate center position for the popup
-        const width = 600;
-        const height = 700;
-        const left = window.innerWidth / 2 - width / 2 + window.screenX;
-        const top = window.innerHeight / 2 - height / 2 + window.screenY;
-        
-        // Safari-friendly popup handling: pre-open a blank popup synchronously
-        let popup = null;
+        // Navigate the already-opened popup to begin OAuth
         try {
-          popup = window.open('', 'twitter-auth-popup', `width=${width},height=${height},left=${left},top=${top},location=yes,resizable=yes,scrollbars=yes`);
+          popup.location.href = responseData.authUrl;
         } catch (e) {
-          popup = null;
-        }
-
-        if (popup) {
-          try {
-            popup.location.href = responseData.authUrl;
-          } catch (e) {
-            popup = null;
-          }
-        }
-
-        if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-          console.error('Popup blocked or could not be opened');
-          
-          // Offer a more user-friendly fallback with direct link sharing
+          console.error('Could not navigate pre-opened popup to auth URL');
           const fallbackUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(twitterMessage)}`;
-          
           setBackendError({
             type: 'popup_blocked',
             title: '🚫 Pop-up Blocked',
             message: 'Your browser blocked the sharing window. No worries! You can still share your photo manually. Click the button below to open X/Twitter, then save and attach your photo from the gallery.',
-            fallbackUrl: fallbackUrl,
+            fallbackUrl,
             fallbackText: 'Open X/Twitter'
           });
           return;
@@ -344,6 +295,8 @@ export const shareToTwitter = async ({
             // Auth succeeded
             authCompleted = true;
             window.removeEventListener('message', messageHandler);
+            // Close the popup immediately; in-app toast will handle UX
+            try { if (popup && !popup.closed) popup.close(); } catch (_) {}
             if (onSuccess && typeof onSuccess === 'function') {
               onSuccess();
             }

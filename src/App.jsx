@@ -855,16 +855,52 @@ const App = () => {
       const currentTaipeiFrameNumber = photo.taipeiFrameNumber || 1;
       const cacheKey = `mobile-share-${photoIndex}-${currentSubIndex}-${tezdevTheme}-${currentTaipeiFrameNumber}-jpg-${aspectRatio}`;
       
-      // Check if we already have a cached mobile share for this exact configuration
+      // Check if we already have a cached framed image for this exact configuration
+      // IMPORTANT: Always create a NEW shareId even when using cached image to avoid cross-user leaks
       const cachedMobileShare = mobileShareCache[cacheKey];
-      if (cachedMobileShare) {
-        console.log('Using cached mobile share:', cacheKey);
-        // Set QR code data for overlay using cached data
-        setQrCodeData({
-          shareUrl: cachedMobileShare.shareUrl,
-          photoIndex: photoIndex
-        });
-        return;
+      if (cachedMobileShare && cachedMobileShare.permanentImageUrl) {
+        console.log('Using cached framed image, creating fresh share link:', cacheKey);
+        try {
+          // Generate a unique sharing ID (do not reuse prior shareId)
+          const shareId = `share-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          const currentUrl = new URL(window.location.href);
+          const baseUrl = currentUrl.origin;
+          const mobileShareUrl = `${baseUrl}/mobile-share/${shareId}`;
+
+          const shareData = {
+            shareId,
+            photoIndex,
+            imageUrl: cachedMobileShare.permanentImageUrl,
+            tezdevTheme,
+            aspectRatio,
+            outputFormat: 'jpg',
+            timestamp: Date.now(),
+            isFramed: true,
+            twitterMessage: cachedMobileShare.twitterMessage || "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨"
+          };
+
+          const response = await fetch('/api/mobile-share/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(shareData),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to create mobile share from cache');
+          }
+
+          // Present the fresh link in the QR overlay
+          setQrCodeData({
+            shareUrl: mobileShareUrl,
+            photoIndex: photoIndex
+          });
+
+          // Do not return cached shareUrl to avoid reusing links across users
+          return;
+        } catch (e) {
+          console.warn('Cached flow failed, falling back to regenerate framed image:', e);
+          // Continue to regenerate below
+        }
       }
       
       console.log('Creating new framed image for mobile sharing...');

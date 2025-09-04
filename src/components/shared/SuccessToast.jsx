@@ -5,16 +5,30 @@ const SuccessToast = ({ message, isVisible, onClose, duration = 4000 }) => {
   const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {
+    let timer;
     if (isVisible) {
+      // Fade in and schedule auto-dismiss
       setIsAnimating(true);
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         setIsAnimating(false);
         setTimeout(onClose, 300); // Wait for fade out animation
       }, duration);
-
-      return () => clearTimeout(timer);
+    } else if (isAnimating) {
+      // Visibility toggled off externally: perform fade-out
+      setIsAnimating(false);
+      timer = setTimeout(onClose, 300);
     }
-  }, [isVisible, duration, onClose]);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [isVisible, duration, onClose, isAnimating]);
+
+  const handleClose = () => {
+    // Start fade-out immediately and invoke onClose after animation
+    setIsAnimating(false);
+    setTimeout(onClose, 300);
+  };
 
   if (!isVisible && !isAnimating) return null;
 
@@ -40,7 +54,7 @@ const SuccessToast = ({ message, isVisible, onClose, duration = 4000 }) => {
         border: '1px solid rgba(255, 255, 255, 0.2)',
         backdropFilter: 'blur(10px)'
       }}
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div style={{ fontSize: '1.5rem' }}>✅</div>
       <div>
@@ -54,7 +68,7 @@ const SuccessToast = ({ message, isVisible, onClose, duration = 4000 }) => {
       <button
         onClick={(e) => {
           e.stopPropagation();
-          onClose();
+          handleClose();
         }}
         style={{
           background: 'rgba(255, 255, 255, 0.2)',

@@ -89,7 +89,11 @@ router.post('/create', (req, res) => {
 
 // Serve the mobile sharing page
 router.get('/:shareId', async (req, res) => {
-  
+  // Prevent caching of mobile share pages by browsers, proxies, and CDNs
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+
   try {
     const { shareId } = req.params;
     const data = shareData.get(shareId);
