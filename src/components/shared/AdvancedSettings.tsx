@@ -312,7 +312,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
       setCamerasError(null);
       
       try {
-        const devices = await enumerateCameraDevices();
+        const devices = await enumerateCameraDevices(true); // Force permission request in settings
         setAvailableCameras(devices);
         console.log('📹 Loaded camera devices for settings:', devices);
       } catch (error) {

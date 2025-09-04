@@ -20,7 +20,7 @@ export interface CameraConstraints {
  * Enumerate available camera devices
  * Handles cross-platform compatibility and permission requirements
  */
-export const enumerateCameraDevices = async (): Promise<CameraDevice[]> => {
+export const enumerateCameraDevices = async (forcePermissionRequest = false): Promise<CameraDevice[]> => {
   try {
     // Check if mediaDevices is supported
     if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
@@ -30,10 +30,11 @@ export const enumerateCameraDevices = async (): Promise<CameraDevice[]> => {
 
     // First, try to get permission by requesting a basic stream
     // This is required on many browsers to get device labels
-    // Skip this on mobile Safari during initialization to prevent permission prompts
-    const isMobileSafari = /iPhone|iPad|iPod/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+    // Skip this on iOS devices during initialization to prevent permission prompts
+    // unless explicitly requested (e.g., in settings)
+    const isIOSDevice = /iPhone|iPad|iPod/.test(navigator.userAgent);
     
-    if (!isMobileSafari) {
+    if (!isIOSDevice || forcePermissionRequest) {
       try {
         const tempStream = await navigator.mediaDevices.getUserMedia({ 
           video: { facingMode: 'user' } 
@@ -44,7 +45,7 @@ export const enumerateCameraDevices = async (): Promise<CameraDevice[]> => {
         console.warn('Camera permission not granted, device labels may be empty:', permissionError);
       }
     } else {
-      console.log('📱 Mobile Safari detected, skipping permission request during enumeration');
+      console.log('📱 iOS device detected, skipping permission request during enumeration');
     }
 
     // Enumerate devices
