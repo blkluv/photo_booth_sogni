@@ -1103,7 +1103,17 @@ const App = () => {
   // -------------------------
   //   Sogni initialization
   // -------------------------
+  const [isInitializingSogni, setIsInitializingSogni] = useState(false);
+  
   const initializeSogni = useCallback(async () => {
+    // Prevent multiple simultaneous initialization attempts
+    if (isInitializingSogni) {
+      console.log('Sogni initialization already in progress, skipping');
+      return;
+    }
+    
+    setIsInitializingSogni(true);
+    
     try {
       // Reset any previous errors
       setBackendError(null);
@@ -1134,13 +1144,19 @@ const App = () => {
         if (sogniClient) {
           console.log('Using existing Sogni client');
           setIsSogniReady(true);
+          setIsInitializingSogni(false);
           return;
         }
-        // Otherwise retry after a short delay
+        // Otherwise retry after a short delay, but don't create a loop
+        console.log('Will retry Sogni initialization after throttle delay');
         setTimeout(() => {
-          console.log('Retrying Sogni initialization after throttle');
-          initializeSogni();
-        }, 1000);
+          setIsInitializingSogni(false);
+          // Only retry if we still don't have a client
+          if (!sogniClient) {
+            console.log('Retrying Sogni initialization after throttle');
+            initializeSogni();
+          }
+        }, 2000); // Increased delay to 2 seconds to reduce throttling
         return;
       }
       
@@ -1152,8 +1168,10 @@ const App = () => {
       } else {
         setBackendError(`Error connecting to the Sogni service: ${error.message}`);
       }
+    } finally {
+      setIsInitializingSogni(false);
     }
-  }, [sogniClient]); // Added sogniClient as dependency, state setters are stable
+  }, []); // Removed sogniClient dependency to prevent callback recreation loops
 
   /**
    * Stop the camera stream and clean up resources
@@ -1381,43 +1399,65 @@ const App = () => {
    */
   const listCameras = useCallback(async () => {
     try {
+      console.log('📹 Enumerating camera devices...');
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(d => d.kind === 'videoinput');
+      
+      console.log(`📹 Found ${videoDevices.length} camera device(s):`, videoDevices.map(d => ({ 
+        id: d.deviceId, 
+        label: d.label || 'Unnamed Camera' 
+      })));
+      
       setCameraDevices(videoDevices);
-      
-      // Get current preferred camera from settings to avoid stale closure
-      const currentPreferred = settings.preferredCameraDeviceId;
-      
-      // Validate preferred camera device and fallback if needed
-      if (currentPreferred) {
-        const isPreferredCameraAvailable = videoDevices.some(device => device.deviceId === currentPreferred);
-        
-        if (!isPreferredCameraAvailable) {
-          console.warn('📹 Preferred camera device not found:', currentPreferred);
-          console.log('📹 Available cameras:', videoDevices.map(d => ({ id: d.deviceId, label: d.label })));
-          
-          // Clear the invalid preference - this will trigger the sync useEffect
-          updateSetting('preferredCameraDeviceId', undefined);
-          
-          console.log('📹 Cleared invalid camera preference, will use auto-select');
-        } else {
-          console.log('📹 Preferred camera device is available:', currentPreferred);
-        }
-      } else {
-        // No preferred camera set - use smart default selection
-        const { getDefaultCameraDevice } = await import('./services/cameraService');
-        const defaultCamera = getDefaultCameraDevice(videoDevices);
-        
-        if (defaultCamera) {
-          console.log('📹 Setting default camera device:', defaultCamera.label || defaultCamera.deviceId);
-          // Only update setting, let the sync useEffect handle selectedCameraDeviceId
-          updateSetting('preferredCameraDeviceId', defaultCamera.deviceId);
-        }
-      }
     } catch (error) {
-      console.warn('Error enumerating devices', error);
+      console.warn('📹 Error enumerating camera devices:', error);
+      // Set empty array on error to prevent undefined state
+      setCameraDevices([]);
+      
+      // Don't throw the error - let the app continue without cameras
+      // The camera functionality will gracefully degrade
     }
-  }, [settings.preferredCameraDeviceId, updateSetting]); // Use settings.preferredCameraDeviceId instead
+  }, []); // Removed dependencies to prevent callback recreation loops
+
+  // Separate effect to handle camera device validation when cameras or settings change
+  useEffect(() => {
+    if (cameraDevices.length === 0) return; // Wait for cameras to be loaded
+    
+    const currentPreferred = settings.preferredCameraDeviceId;
+    
+    // Validate preferred camera device and fallback if needed
+    if (currentPreferred) {
+      const isPreferredCameraAvailable = cameraDevices.some(device => device.deviceId === currentPreferred);
+      
+      if (!isPreferredCameraAvailable) {
+        console.warn('📹 Preferred camera device not found:', currentPreferred);
+        console.log('📹 Available cameras:', cameraDevices.map(d => ({ id: d.deviceId, label: d.label })));
+        
+        // Clear the invalid preference
+        updateSetting('preferredCameraDeviceId', undefined);
+        console.log('📹 Cleared invalid camera preference, will use auto-select');
+      } else {
+        console.log('📹 Preferred camera device is available:', currentPreferred);
+      }
+    } else if (cameraDevices.length > 0) {
+      // No preferred camera set - use smart default selection
+      const setDefaultCamera = async () => {
+        try {
+          const { getDefaultCameraDevice } = await import('./services/cameraService');
+          const defaultCamera = getDefaultCameraDevice(cameraDevices);
+          
+          if (defaultCamera) {
+            console.log('📹 Setting default camera device:', defaultCamera.label || defaultCamera.deviceId);
+            updateSetting('preferredCameraDeviceId', defaultCamera.deviceId);
+          }
+        } catch (error) {
+          console.warn('📹 Error setting default camera:', error);
+        }
+      };
+      
+      void setDefaultCamera();
+    }
+  }, [cameraDevices, settings.preferredCameraDeviceId, updateSetting]);
 
   // Modified useEffect to start camera automatically
   useEffect(() => {
@@ -1425,9 +1465,27 @@ const App = () => {
       // Initialize Google Analytics first
       initializeGA();
       
-      await listCameras();
-      // Initialize Sogni, but do not start camera here
-      await initializeSogni();
+      // Start camera enumeration and Sogni initialization in parallel
+      // Don't let camera enumeration block Sogni initialization
+      const cameraPromise = listCameras().catch(error => {
+        console.warn('📹 Camera enumeration failed during initialization:', error);
+      });
+      
+      // Add a small delay for mobile Safari to ensure DOM is fully ready
+      const isMobileSafari = /iPhone|iPad|iPod/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+      if (isMobileSafari) {
+        console.log('📱 Mobile Safari detected, adding initialization delay');
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      // Initialize Sogni (don't wait for cameras)
+      const sogniPromise = initializeSogni().catch(error => {
+        console.warn('🔗 Sogni initialization failed:', error);
+      });
+      
+      // Wait for both to complete (but don't fail if one fails)
+      await Promise.allSettled([cameraPromise, sogniPromise]);
+      console.log('✅ App initialization completed');
     };
     
     initializeAppOnMount();

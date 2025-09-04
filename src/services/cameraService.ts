@@ -30,14 +30,21 @@ export const enumerateCameraDevices = async (): Promise<CameraDevice[]> => {
 
     // First, try to get permission by requesting a basic stream
     // This is required on many browsers to get device labels
-    try {
-      const tempStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user' } 
-      });
-      // Stop the temporary stream immediately
-      tempStream.getTracks().forEach(track => track.stop());
-    } catch (permissionError) {
-      console.warn('Camera permission not granted, device labels may be empty:', permissionError);
+    // Skip this on mobile Safari during initialization to prevent permission prompts
+    const isMobileSafari = /iPhone|iPad|iPod/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+    
+    if (!isMobileSafari) {
+      try {
+        const tempStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'user' } 
+        });
+        // Stop the temporary stream immediately
+        tempStream.getTracks().forEach(track => track.stop());
+      } catch (permissionError) {
+        console.warn('Camera permission not granted, device labels may be empty:', permissionError);
+      }
+    } else {
+      console.log('📱 Mobile Safari detected, skipping permission request during enumeration');
     }
 
     // Enumerate devices

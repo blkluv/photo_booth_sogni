@@ -988,10 +988,15 @@ export function initializeSogniClient(): Promise<BackendSogniClient> {
     // Check if the backend is available
     void checkSogniStatus()
       .then(() => {
-        console.log('Initial Sogni connection established');
+        console.log('✅ Initial Sogni connection established');
       })
       .catch(err => {
-        console.warn('Failed to establish initial Sogni connection:', err);
+        // Differentiate between throttling and real errors
+        if (err.message === 'Status check throttled') {
+          console.log('⏳ Sogni status check throttled (this is normal during initialization)');
+        } else {
+          console.warn('❌ Failed to establish initial Sogni connection:', err);
+        }
       });
     
     // Create a new client instance with a fixed app ID to prevent duplicates
