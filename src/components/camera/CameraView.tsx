@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import styles from '../../styles/components/camera.module.css';
 import AdvancedSettings from '../shared/AdvancedSettings';
 import AspectRatioDropdown from '../shared/AspectRatioDropdown';
@@ -92,19 +92,19 @@ interface CameraViewProps {
   /** Whether iOS quirk detection has completed */
   quirkDetectionComplete?: boolean;
   /** Last photo data for thumbnail display */
-  lastPhotoData?: { blob?: Blob; dataUrl?: string; adjustments?: any } | null;
+  lastPhotoData?: { blob?: Blob; dataUrl?: string; adjustments?: unknown } | null;
   /** Handler for when thumbnail is clicked */
   onThumbnailClick?: () => void;
   /** Style prompts data */
-  stylePrompts?: any;
+  stylePrompts?: unknown;
   /** Available camera devices */
-  cameraDevices?: any[];
+  cameraDevices?: MediaDeviceInfo[];
   /** Selected camera device ID */
   selectedCameraDeviceId?: string;
   /** Handler for camera selection */
   onCameraSelect?: (deviceId: string) => void;
   /** TezDev theme setting */
-  tezdevTheme?: any;
+  tezdevTheme?: unknown;
 }
 
 export const CameraView: React.FC<CameraViewProps> = (props) => {
@@ -122,7 +122,6 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
     showSettings = false,
     onToggleSettings = () => {},
     testId,
-    onToggleCamera,
     modelOptions = [],
     selectedModel = '',
     onModelSelect,
@@ -154,6 +153,10 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
     quirkDetectionComplete = false,
     lastPhotoData = null,
     onThumbnailClick,
+    // Camera device selection
+    cameraDevices = [],
+    selectedCameraDeviceId,
+    onCameraSelect,
   } = props;
 
 
@@ -196,10 +199,11 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
   // Add state to track video loading
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
   
-  useEffect(() => {
+  useEffect((): void => {
     const checkIfMobile = () => {
       const userAgent = navigator.userAgent || navigator.vendor || (window as { opera?: string }).opera || '';
-      return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(String(userAgent).toLowerCase());
+      // Exclude iPad from mobile detection - treat it as desktop for camera picker UI
+      return /android|webos|iphone|ipod|blackberry|iemobile|opera mini/i.test(String(userAgent).toLowerCase());
     };
     setIsMobile(checkIfMobile());
   }, []);
@@ -323,6 +327,116 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
     return showPhotoGrid ? styles.slideOut : styles.slideIn;
   };
 
+  // Camera device menu state
+  const [isDeviceMenuOpen, setIsDeviceMenuOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ bottom: '64px', left: '50%', transform: 'translateX(-50%)' });
+  const [clickedButton, setClickedButton] = useState<HTMLButtonElement | null>(null);
+  const deviceMenuRef = useRef<HTMLDivElement | null>(null);
+
+  // Close device menu on outside click or Escape
+  useEffect(() => {
+    if (!isDeviceMenuOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as Node | null;
+      if (
+        deviceMenuRef.current &&
+        !deviceMenuRef.current.contains(target as Node) &&
+        clickedButton &&
+        !clickedButton.contains(target as Node)
+      ) {
+        setIsDeviceMenuOpen(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsDeviceMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [isDeviceMenuOpen, clickedButton]);
+
+  const hasMultipleCameras = Array.isArray(cameraDevices) && cameraDevices.filter((d: MediaDeviceInfo) => d && d.kind === 'videoinput').length > 1;
+  
+  // Debug logging for camera detection
+  React.useEffect(() => {
+    console.log('🔍 Camera Detection Debug:', {
+      isMobile,
+      cameraDevices,
+      cameraDevicesLength: cameraDevices?.length,
+      videoDevices: cameraDevices?.filter(d => d?.kind === 'videoinput'),
+      hasMultipleCameras,
+      userAgent: navigator.userAgent
+    });
+  }, [isMobile, cameraDevices, hasMultipleCameras]);
+
+  const handleCameraButtonClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    console.log('📱 Camera button clicked!', { hasMultipleCameras, isMobile });
+    
+    const button = event.currentTarget;
+    setClickedButton(button);
+    
+    if (hasMultipleCameras) {
+      console.log('🎯 Multiple cameras detected, processing click...');
+      
+      // Calculate menu position based on button position (desktop only)
+      if (button && !isMobile) {
+        console.log('🖥️ Desktop positioning logic starting...');
+        const buttonRect = button.getBoundingClientRect();
+        const containerElement = button.closest('.polaroidFrame');
+        const containerRect = containerElement?.getBoundingClientRect();
+        
+        console.log('🔍 Element search results:', {
+          hasButton: !!button,
+          containerElement: !!containerElement,
+          containerClass: containerElement?.className,
+          hasContainerRect: !!containerRect
+        });
+        
+        if (containerRect) {
+          // Desktop positioning - center above the actual button that was clicked
+          const relativeLeft = buttonRect.left - containerRect.left + (buttonRect.width / 2);
+          // Calculate distance from container bottom to button top, then add gap
+          const buttonTopFromContainerBottom = containerRect.bottom - buttonRect.top;
+          const relativeBottom = buttonTopFromContainerBottom + buttonRect.height + 8; // 8px gap above button
+          
+          console.log('📍 Button positioning debug:', {
+            buttonRect: { left: buttonRect.left, top: buttonRect.top, width: buttonRect.width, height: buttonRect.height },
+            containerRect: { left: containerRect.left, top: containerRect.top, bottom: containerRect.bottom },
+            relativeLeft,
+            relativeBottom,
+            buttonTopFromContainerBottom
+          });
+          
+          const newPosition = {
+            bottom: `${relativeBottom}px`,
+            left: `${relativeLeft}px`,
+            transform: 'translateX(-50%)'
+          };
+          console.log('📍 Setting menu position:', newPosition);
+          setMenuPosition(newPosition);
+        } else {
+          console.warn('⚠️ Could not find .polaroidFrame container for positioning');
+        }
+      }
+      // Mobile uses CSS positioning, no need to calculate
+      console.log('🔄 Toggling menu state from', isDeviceMenuOpen, 'to', !isDeviceMenuOpen);
+      setIsDeviceMenuOpen((prev) => !prev);
+      return;
+    }
+    // Fallback to simple toggle when only one camera is available
+    if (props.onToggleCamera) props.onToggleCamera();
+  };
+
+  const handleSelectDevice = (deviceId: string) => {
+    if (onCameraSelect) onCameraSelect(deviceId);
+    setIsDeviceMenuOpen(false);
+  };
+
   const renderBottomControls = () => (
     <div className={styles.bottomControls}>
       {isMobile ? (
@@ -331,14 +445,14 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
           {!(lastPhotoData && (lastPhotoData.blob || lastPhotoData.dataUrl) && onThumbnailClick) && (
             <button
               className={styles.cameraFlipButton}
-              onClick={onToggleCamera}
+              onClick={handleCameraButtonClick}
               aria-label={isFrontCamera ? "Switch to back camera" : "Switch to front camera"}
               data-testid="camera-flip-button"
             >
               <span className={styles.cameraFlipIcon} role="img" aria-label="Flip camera">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M20 5H16.83L15 3H9L7.17 5H4C2.9 5 2 5.9 2 7V19C2 20.1 2.9 21 4 21H20C21.1 21 22 20.1 22 19V7C22 5.9 21.1 5 20 5ZM12 18C9.24 18 7 15.76 7 13C7 10.24 9.24 8 12 8C14.76 8 17 10.24 17 13C17 15.76 14.76 18 12 18Z" fill="#333333"/>
-                  <path d="M15 13L13 10V12H9V14H13V16L15 13Z" fill="#333333"/>
+                  <path d="M8 7l2 2M16 7l-2 2" stroke="#333333" strokeWidth="1.5" strokeLinecap="round"/>
                 </svg>
               </span>
             </button>
@@ -456,17 +570,103 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
         {isMobile && lastPhotoData && (lastPhotoData.blob || lastPhotoData.dataUrl) && onThumbnailClick && (
           <button
             className={`${styles.cameraFlipButton} ${styles.cameraFlipButtonWithThumbnail}`}
-            onClick={onToggleCamera}
+            onClick={handleCameraButtonClick}
             aria-label={isFrontCamera ? "Switch to back camera" : "Switch to front camera"}
             data-testid="camera-flip-button-corner"
           >
             <span className={styles.cameraFlipIcon} role="img" aria-label="Flip camera">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M20 5H16.83L15 3H9L7.17 5H4C2.9 5 2 5.9 2 7V19C2 20.1 2.9 21 4 21H20C21.1 21 22 20.1 22 19V7C22 5.9 21.1 5 20 5ZM12 18C9.24 18 7 15.76 7 13C7 10.24 9.24 8 12 8C14.76 8 17 10.24 17 13C17 15.76 14.76 18 12 18Z" fill="#333333"/>
-                <path d="M15 13L13 10V12H9V14H13V16L15 13Z" fill="#333333"/>
+                <path d="M8 7l2 2M16 7l-2 2" stroke="#333333" strokeWidth="1.5" strokeLinecap="round"/>
               </svg>
             </span>
           </button>
+        )}
+
+        {/* Desktop camera device button - positioned next to thumbnail */}
+        {(() => {
+          const shouldRender = !isMobile && hasMultipleCameras && lastPhotoData && (lastPhotoData.blob || lastPhotoData.dataUrl) && onThumbnailClick;
+          console.log('🖥️ Desktop button next to thumbnail render check:', {
+            isMobile,
+            hasMultipleCameras,
+            hasLastPhotoData: !!(lastPhotoData && (lastPhotoData.blob || lastPhotoData.dataUrl)),
+            hasOnThumbnailClick: !!onThumbnailClick,
+            shouldRender
+          });
+          return shouldRender && (
+            <button
+              className={styles.cameraDeviceButtonNextToThumbnail}
+              onClick={handleCameraButtonClick}
+              aria-label="Select camera device"
+              data-testid="camera-device-button-desktop"
+            >
+              <span className={styles.cameraFlipIcon} role="img" aria-label="Select camera">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M20 5H16.83L15 3H9L7.17 5H4C2.9 5 2 5.9 2 7V19C2 20.1 2.9 21 4 21H20C21.1 21 22 20.1 22 19V7C22 5.9 21.1 5 20 5ZM12 18C9.24 18 7 15.76 7 13C7 10.24 9.24 8 12 8C14.76 8 17 10.24 17 13C17 15.76 14.76 18 12 18Z" fill="#333333"/>
+                  <path d="M7 21h10" stroke="#333333" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </span>
+            </button>
+          );
+        })()}
+
+        {/* Desktop camera device button - positioned on right when no thumbnail */}
+        {(() => {
+          const shouldRender = !isMobile && hasMultipleCameras && !(lastPhotoData && (lastPhotoData.blob || lastPhotoData.dataUrl) && onThumbnailClick);
+          console.log('🖥️ Desktop button no thumbnail render check:', {
+            isMobile,
+            hasMultipleCameras,
+            hasLastPhotoData: !!(lastPhotoData && (lastPhotoData.blob || lastPhotoData.dataUrl)),
+            hasOnThumbnailClick: !!onThumbnailClick,
+            shouldRender
+          });
+          return shouldRender && (
+            <button
+              className={styles.cameraDeviceButtonDesktop}
+              onClick={handleCameraButtonClick}
+              aria-label="Select camera device"
+              data-testid="camera-device-button-desktop-no-thumb"
+            >
+              <span className={styles.cameraFlipIcon} role="img" aria-label="Select camera">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M20 5H16.83L15 3H9L7.17 5H4C2.9 5 2 5.9 2 7V19C2 20.1 2.9 21 4 21H20C21.1 21 22 20.1 22 19V7C22 5.9 21.1 5 20 5ZM12 18C9.24 18 7 15.76 7 13C7 10.24 9.24 8 12 8C14.76 8 17 10.24 17 13C17 15.76 14.76 18 12 18Z" fill="#333333"/>
+                  <path d="M7 21h10" stroke="#333333" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </span>
+            </button>
+          );
+        })()}
+
+        {/* Camera device dropdown menu */}
+        {hasMultipleCameras && isDeviceMenuOpen && (
+          <div 
+            className={styles.cameraDeviceMenu} 
+            ref={deviceMenuRef} 
+            role="menu" 
+            aria-label="Select camera"
+            style={!isMobile ? menuPosition : undefined}
+          >
+            <div className={styles.cameraDeviceMenuHeader}>Choose Camera</div>
+            <ul className={styles.cameraDeviceMenuList}>
+              {cameraDevices.filter((d: MediaDeviceInfo) => d && d.kind === 'videoinput').map((device: MediaDeviceInfo, index: number) => {
+                const isActive = device.deviceId === selectedCameraDeviceId;
+                const label = device.label || `Camera ${index + 1}`;
+                return (
+                  <li key={device.deviceId || index}>
+                    <button
+                      className={`${styles.cameraDeviceMenuItem} ${isActive ? styles.cameraDeviceMenuItemActive : ''}`}
+                      onClick={() => handleSelectDevice(device.deviceId)}
+                      role="menuitemradio"
+                      aria-checked={isActive}
+                    >
+                      <span className={styles.cameraDeviceMenuItemLabel}>{label}</span>
+                      {isActive && <span className={styles.cameraDeviceMenuCheck} aria-hidden>✓</span>}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         )}
       </div>
 

@@ -3,7 +3,6 @@ import { useApp } from '../../context/AppContext';
 import { AspectRatioOption, TezDevTheme, OutputFormat } from '../../types/index';
 import { isFluxKontextModel, getModelRanges, getModelDefaults } from '../../constants/settings';
 import { themeConfigService } from '../../services/themeConfig';
-import { CameraDevice, enumerateCameraDevices, getCameraDisplayName } from '../../services/cameraService';
 import TagInput from './TagInput';
 
 interface AdvancedSettingsProps {
@@ -105,12 +104,6 @@ interface AdvancedSettingsProps {
   sensitiveContentFilter?: boolean;
   /** Handler for sensitive content filter change */
   onSensitiveContentFilterChange?: (enabled: boolean) => void;
-  /** Available camera devices */
-  cameraDevices?: CameraDevice[];
-  /** Currently selected camera device ID */
-  selectedCameraDeviceId?: string;
-  /** Handler for camera device selection */
-  onCameraDeviceChange?: (deviceId: string) => void;
   /** Kiosk mode enabled state */
   kioskMode?: boolean;
   /** Handler for kiosk mode change */
@@ -129,10 +122,6 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
   const [themesLoading, setThemesLoading] = useState(false);
   const [themesError, setThemesError] = useState<string | null>(null);
 
-  // State for camera devices
-  const [availableCameras, setAvailableCameras] = useState<CameraDevice[]>([]);
-  const [camerasLoading, setCamerasLoading] = useState(false);
-  const [camerasError, setCamerasError] = useState<string | null>(null);
 
   const {
     visible,
@@ -183,8 +172,6 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
     onOutputFormatChange,
     sensitiveContentFilter = false,
     onSensitiveContentFilterChange,
-    selectedCameraDeviceId,
-    onCameraDeviceChange,
     kioskMode = false,
     onKioskModeChange,
   } = props;
@@ -303,29 +290,6 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
     void loadThemes();
   }, [visible, currentTezDevTheme]); // Reload when settings panel opens or theme changes
 
-  // Load camera devices when component mounts or when visible changes
-  useEffect(() => {
-    const loadCameras = async () => {
-      if (!visible) return; // Only load when settings panel is open
-      
-      setCamerasLoading(true);
-      setCamerasError(null);
-      
-      try {
-        const devices = await enumerateCameraDevices(true); // Force permission request in settings
-        setAvailableCameras(devices);
-        console.log('📹 Loaded camera devices for settings:', devices);
-      } catch (error) {
-        console.error('Failed to load camera devices:', error);
-        setCamerasError('Failed to load camera devices');
-        setAvailableCameras([]);
-      } finally {
-        setCamerasLoading(false);
-      }
-    };
-
-    void loadCameras();
-  }, [visible]); // Reload when settings panel opens
 
   const handleOutputFormatChange = (newFormat: OutputFormat) => {
     // Use the provided handler or fallback to context
@@ -345,14 +309,6 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
     }
   };
 
-  const handleCameraDeviceChange = (deviceId: string) => {
-    // Use the provided handler or fallback to context
-    if (onCameraDeviceChange) {
-      onCameraDeviceChange(deviceId);
-    } else {
-      updateSetting('preferredCameraDeviceId', deviceId);
-    }
-  };
 
   const handleKioskModeChange = (enabled: boolean) => {
     // Use the provided handler or fallback to context
@@ -466,36 +422,6 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
           </div>
         </div>
 
-        {/* Camera selector */}
-        <div className="control-option">
-          <label className="control-label">Camera:</label>
-          {camerasLoading ? (
-            <div className="model-select" style={{ color: '#666', fontStyle: 'italic' }}>
-              Loading cameras...
-            </div>
-          ) : camerasError ? (
-            <div className="model-select" style={{ color: '#ff6b6b', fontStyle: 'italic' }}>
-              {camerasError}
-            </div>
-          ) : availableCameras.length === 0 ? (
-            <div className="model-select" style={{ color: '#666', fontStyle: 'italic' }}>
-              No cameras found
-            </div>
-          ) : (
-            <select
-              className="model-select"
-              onChange={(e) => handleCameraDeviceChange(e.target.value)}
-              value={selectedCameraDeviceId || settings.preferredCameraDeviceId || ''}
-            >
-              <option value="">Auto-select camera</option>
-              {availableCameras.map((device, index) => (
-                <option key={device.deviceId} value={device.deviceId}>
-                  {getCameraDisplayName(device, index)}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
 
         {/* Model selector with integrated advanced settings */}
         {modelOptions.length > 0 && (
@@ -845,7 +771,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
         
         {/* Worker Preferences */}
         <div className="control-option worker-preference-section">
-          <label className="control-label">Required Workers:</label>
+          <label className="control-label">Required<br/>Workers</label>
           <TagInput
             tags={settings.requiredWorkers || []}
             onTagsChange={(tags) => updateSetting('requiredWorkers', tags)}
@@ -857,7 +783,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
         </div>
 
         <div className="control-option worker-preference-section">
-          <label className="control-label">Prefer Workers:</label>
+          <label className="control-label">Preferred<br/>Workers</label>
           <TagInput
             tags={settings.preferWorkers}
             onTagsChange={(tags) => updateSetting('preferWorkers', tags)}
@@ -869,7 +795,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
         </div>
 
         <div className="control-option worker-preference-section">
-          <label className="control-label">Skip Workers:</label>
+          <label className="control-label">Skip<br/>Workers</label>
           <TagInput
             tags={settings.skipWorkers}
             onTagsChange={(tags) => updateSetting('skipWorkers', tags)}

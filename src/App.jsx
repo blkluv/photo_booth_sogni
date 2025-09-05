@@ -1504,6 +1504,38 @@ const App = () => {
             }, 1000);
           });
         }
+        
+        // Re-enumerate cameras after successful stream start to get proper device labels
+        // This is especially important on mobile Safari and iPad
+        const userAgent = navigator.userAgent;
+        const isMobileOrTablet = /iphone|ipad|ipod|android/i.test(userAgent) || 
+                                (navigator.maxTouchPoints > 1 && /safari/i.test(userAgent) && !/chrome/i.test(userAgent));
+        console.log('🔍 Re-enumeration check:', { 
+          isMobileOrTablet, 
+          cameraDevicesLength: cameraDevices.length, 
+          shouldReEnumerate: isMobileOrTablet && cameraDevices.length <= 1,
+          userAgent: userAgent,
+          maxTouchPoints: navigator.maxTouchPoints,
+          isSafari: /safari/i.test(userAgent) && !/chrome/i.test(userAgent)
+        });
+        if (isMobileOrTablet && cameraDevices.length <= 1) {
+          console.log('📱 Re-enumerating cameras after stream start to get proper device labels');
+          setTimeout(async () => {
+            try {
+              const devices = await navigator.mediaDevices.enumerateDevices();
+              const videoDevices = devices.filter(d => d.kind === 'videoinput');
+              console.log('📱 Re-enumeration found:', videoDevices.length, 'cameras:', videoDevices.map(d => ({ 
+                id: d.deviceId, 
+                label: d.label || 'Unnamed Camera' 
+              })));
+              if (videoDevices.length > cameraDevices.length) {
+                setCameraDevices(videoDevices);
+              }
+            } catch (err) {
+              console.warn('📱 Re-enumeration failed:', err);
+            }
+          }, 1000); // Wait 1 second for stream to fully initialize
+        }
       }
       
       // Listen for orientation changes
@@ -1569,6 +1601,14 @@ const App = () => {
   const listCameras = useCallback(async () => {
     try {
       console.log('📹 Enumerating camera devices...');
+      
+      // Check if mediaDevices is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+        console.warn('📹 MediaDevices not supported');
+        setCameraDevices([]);
+        return;
+      }
+      
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(d => d.kind === 'videoinput');
       
@@ -1576,6 +1616,12 @@ const App = () => {
         id: d.deviceId, 
         label: d.label || 'Unnamed Camera' 
       })));
+      
+      // Mobile specific logging
+      const isMobileDevice = /iphone|ipad|ipod|android/i.test(navigator.userAgent);
+      if (isMobileDevice) {
+        console.log('📱 MOBILE - Setting camera devices:', videoDevices);
+      }
       
       setCameraDevices(videoDevices);
     } catch (error) {
@@ -4061,7 +4107,7 @@ const App = () => {
   // -------------------------
   //   Drag overlay
   // -------------------------
-  const handleBackToCamera = () => {
+  const handleBackToCamera = async () => {
     // Always go directly back to camera from photo grid
     // Scroll to top smoothly
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -4080,7 +4126,7 @@ const App = () => {
     }
     
     // Use a shorter timeout for a snappier UI feel
-    setTimeout(() => {
+    setTimeout(async () => {
       // Hide photo grid and reset states
       setShowPhotoGrid(false);
       setSelectedPhotoIndex(null);
@@ -4097,6 +4143,11 @@ const App = () => {
       // Restart camera since it was stopped when photo grid was shown
       const preferredDeviceId = preferredCameraDeviceId || selectedCameraDeviceId;
       console.log('📹 Restarting camera from photo grid with preferred device:', preferredDeviceId || 'auto-select');
+      
+      // Enumerate camera devices if not already done
+      if (cameraDevices.length === 0) {
+        await listCameras();
+      }
       
       if (cameraManuallyStarted && videoReference.current) {
         // Always restart the camera since we stop it when showing photo grid
@@ -4197,6 +4248,10 @@ const App = () => {
     }
     
     setShowStartMenu(false);
+    
+    // Enumerate camera devices first
+    await listCameras();
+    
     // Start camera after user selects the option - use preferred camera if available
     const preferredDeviceId = preferredCameraDeviceId || selectedCameraDeviceId;
     console.log('📹 Starting camera with preferred device:', preferredDeviceId || 'auto-select');
@@ -4893,10 +4948,6 @@ const App = () => {
             saveSettingsToCookies({ kioskMode: value });
           }}
           onResetSettings={resetSettings} // Pass context reset function
-          // Camera-related props
-          cameraDevices={cameraDevices}
-          selectedCameraDeviceId={selectedCameraDeviceId}
-          onCameraDeviceChange={handleCameraSelection} 
           modelOptions={getModelOptions()} 
         />
 

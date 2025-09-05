@@ -73,6 +73,16 @@ if [ $? -ne 0 ]; then
   echo "❌ Frontend deployment failed! Exiting."
   exit 1
 fi
+
+# Fix file permissions for static assets (especially theme images)
+show_step "Setting correct file permissions for static assets"
+ssh $REMOTE_HOST "find ${REMOTE_FRONTEND_PATH} -type f \( -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' -o -name '*.gif' -o -name '*.svg' -o -name '*.json' \) -print0 | xargs -0 chmod 644"
+if [ $? -ne 0 ]; then
+  echo "⚠️ Warning: Could not set file permissions for some static assets"
+else
+  echo "✅ File permissions set correctly for static assets"
+fi
+
 echo "✅ Frontend deployed successfully"
 
 # Deploy backend
