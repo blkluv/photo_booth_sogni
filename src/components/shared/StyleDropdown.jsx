@@ -18,7 +18,8 @@ const StyleDropdown = ({
   dropdownPosition = 'top', // Default value
   triggerButtonClass = '.bottom-style-select', // Default class for the main toolbar
   onThemeChange = null, // Callback when theme preferences change
-  selectedModel = null // Current selected model to determine UI behavior
+  selectedModel = null, // Current selected model to determine UI behavior
+  onGallerySelect = null // Callback for gallery selection
 }) => {
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const [mounted, setMounted] = useState(false);
@@ -212,6 +213,20 @@ const StyleDropdown = ({
     >
       <div className="style-section featured">      
         {/* Featured options */}
+        {/* Gallery option - only show for non-Flux models */}
+        {!isFluxKontext && onGallerySelect && (
+          <div 
+            className="style-option"
+            onClick={() => { 
+              onGallerySelect();
+              onClose();
+            }}
+          >
+            <span>🖼️</span>
+            <span>BROWSE GALLERY</span>
+          </div>
+        )}
+        
         <div 
           className={`style-option ${selectedStyle === 'randomMix' ? 'selected' : ''}`} 
           onClick={() => { 
@@ -337,6 +352,7 @@ StyleDropdown.propTypes = {
   triggerButtonClass: PropTypes.string,
   onThemeChange: PropTypes.func,
   selectedModel: PropTypes.string,
+  onGallerySelect: PropTypes.func,
 };
 
 export default StyleDropdown; 

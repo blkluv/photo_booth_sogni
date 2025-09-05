@@ -92,7 +92,8 @@ const PhotoGallery = ({
   onClearQrCode, // New prop to clear QR codes when images change
   onClearMobileShareCache, // New prop to clear mobile share cache when images change
   qrCodeData,
-  onCloseQR
+  onCloseQR,
+  onUseGalleryPrompt // New prop to handle using a gallery prompt
 }) => {
 
   
@@ -1361,24 +1362,43 @@ const PhotoGallery = ({
           // Ensure this toolbar and its popups are above sloth mascot
           zIndex: 999999,
         }}>
-          {/* Share to X Button */}
-          <button
-            className="action-button twitter-btn"
-            onClick={(e) => {
-              handleShareToX(selectedPhotoIndex);
-              e.stopPropagation();
-            }}
-            disabled={
-              photos[selectedPhotoIndex].loading || 
-              photos[selectedPhotoIndex].enhancing ||
-              photos[selectedPhotoIndex].error ||
-              !photos[selectedPhotoIndex].images ||
-              photos[selectedPhotoIndex].images.length === 0
-            }
-          >
-            <svg fill="currentColor" width="16" height="16" viewBox="0 0 24 24"><path d="M22.46 6c-.77.35-1.6.58-2.46.67.9-.53 1.59-1.37 1.92-2.38-.84.5-1.78.86-2.79 1.07C18.27 4.49 17.01 4 15.63 4c-2.38 0-4.31 1.94-4.31 4.31 0 .34.04.67.11.99C7.83 9.09 4.16 7.19 1.69 4.23-.07 6.29.63 8.43 2.49 9.58c-.71-.02-1.38-.22-1.97-.54v.05c0 2.09 1.49 3.83 3.45 4.23-.36.1-.74.15-1.14.15-.28 0-.55-.03-.81-.08.55 1.71 2.14 2.96 4.03 3-1.48 1.16-3.35 1.85-5.37 1.85-.35 0-.69-.02-1.03-.06 1.92 1.23 4.2 1.95 6.67 1.95 8.01 0 12.38-6.63 12.38-12.38 0-.19 0-.38-.01-.56.85-.61 1.58-1.37 2.16-2.24z"/></svg>
-            {tezdevTheme !== 'off' ? 'Get your print!' : 'Share'}
-          </button>
+          {/* Share to X Button or Use this Prompt Button for Gallery Images */}
+          {photos[selectedPhotoIndex].isGalleryImage ? (
+            <button
+              className="action-button use-prompt-btn"
+              onClick={(e) => {
+                if (onUseGalleryPrompt && photos[selectedPhotoIndex].promptKey) {
+                  onUseGalleryPrompt(photos[selectedPhotoIndex].promptKey);
+                }
+                e.stopPropagation();
+              }}
+              disabled={
+                !photos[selectedPhotoIndex].promptKey ||
+                !onUseGalleryPrompt
+              }
+            >
+              <svg fill="currentColor" width="16" height="16" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              Use this Prompt
+            </button>
+          ) : (
+            <button
+              className="action-button twitter-btn"
+              onClick={(e) => {
+                handleShareToX(selectedPhotoIndex);
+                e.stopPropagation();
+              }}
+              disabled={
+                photos[selectedPhotoIndex].loading || 
+                photos[selectedPhotoIndex].enhancing ||
+                photos[selectedPhotoIndex].error ||
+                !photos[selectedPhotoIndex].images ||
+                photos[selectedPhotoIndex].images.length === 0
+              }
+            >
+              <svg fill="currentColor" width="16" height="16" viewBox="0 0 24 24"><path d="M22.46 6c-.77.35-1.6.58-2.46.67.9-.53 1.59-1.37 1.92-2.38-.84.5-1.78.86-2.79 1.07C18.27 4.49 17.01 4 15.63 4c-2.38 0-4.31 1.94-4.31 4.31 0 .34.04.67.11.99C7.83 9.09 4.16 7.19 1.69 4.23-.07 6.29.63 8.43 2.49 9.58c-.71-.02-1.38-.22-1.97-.54v.05c0 2.09 1.49 3.83 3.45 4.23-.36.1-.74.15-1.14.15-.28 0-.55-.03-.81-.08.55 1.71 2.14 2.96 4.03 3-1.48 1.16-3.35 1.85-5.37 1.85-.35 0-.69-.02-1.03-.06 1.92 1.23 4.2 1.95 6.67 1.95 8.01 0 12.38-6.63 12.38-12.38 0-.19 0-.38-.01-.56.85-.61 1.58-1.37 2.16-2.24z"/></svg>
+              {tezdevTheme !== 'off' ? 'Get your print!' : 'Share'}
+            </button>
+          )}
 
           {/* Download Framed Button - Always show */}
           <button
@@ -1821,7 +1841,9 @@ const PhotoGallery = ({
           const placeholderUrl = photo.originalDataUrl;
           const progress = Math.floor(photo.progress || 0);
           const loadingLabel = progress > 0 ? `${progress}%` : "";
-          const labelText = isReference ? "Reference" : `#${index-keepOriginalPhoto+1}`;
+          const labelText = isReference ? "Reference" : 
+            photo.isGalleryImage && photo.promptDisplay ? photo.promptDisplay : 
+            `#${index-keepOriginalPhoto+1}`;
           // Loading or error state
           if ((photo.loading && photo.images.length === 0) || (photo.error && photo.images.length === 0)) {
             return (
@@ -1933,7 +1955,8 @@ const PhotoGallery = ({
                   className={`${isSelected && photo.enhancing && photo.isPreview ? 'enhancement-preview-selected' : ''}`}
                   src={(() => {
                     // For selected photos with supported themes, use composite framed image if available
-                    if (isSelected && isThemeSupported()) {
+                    // Skip framing for gallery images as requested
+                    if (isSelected && isThemeSupported() && !photo.isGalleryImage) {
                       const currentSubIndex = photo.enhanced && photo.enhancedImageUrl 
                         ? -1 // Special case for enhanced images
                         : (selectedSubIndex || 0);
@@ -2056,7 +2079,8 @@ const PhotoGallery = ({
                     }
                     
                     // For supported themes with frame padding, account for the border
-                    if (isSelected && isThemeSupported()) {
+                    // Skip framing for gallery images as requested
+                    if (isSelected && isThemeSupported() && !photo.isGalleryImage) {
                       // Check if we have a composite framed image - if so, use full size
                       const currentSubIndex = photo.enhanced && photo.enhancedImageUrl 
                         ? -1 // Special case for enhanced images
@@ -2113,7 +2137,8 @@ const PhotoGallery = ({
                 {/* Event Theme Overlays - Only show on selected (popup) view when theme is supported and not using composite framed image */}
                 {(() => {
                   // Only show theme overlays if we don't have a composite framed image
-                  if (!thumbUrl || !isLoaded || !isSelected || !isThemeSupported()) {
+                  // Skip theme overlays for gallery images as requested
+                  if (!thumbUrl || !isLoaded || !isSelected || !isThemeSupported() || photo.isGalleryImage) {
                     return null;
                   }
                   
@@ -2544,7 +2569,8 @@ PhotoGallery.propTypes = {
   onClearQrCode: PropTypes.func, // New prop to clear QR codes when images change
   onClearMobileShareCache: PropTypes.func, // New prop to clear mobile share cache when images change
   qrCodeData: PropTypes.object,
-  onCloseQR: PropTypes.func
+  onCloseQR: PropTypes.func,
+  onUseGalleryPrompt: PropTypes.func // New prop to handle using a gallery prompt
 };
 
 export default React.memo(PhotoGallery); 

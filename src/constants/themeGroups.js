@@ -229,7 +229,7 @@ export const getOneOfEachPrompts = (themeGroupState, allPrompts, count) => {
       }
     }
     
-    return selectedPrompts.length > 0 ? `{${selectedPrompts.join('|')}}` : 'A creative portrait style';
+    return selectedPrompts;
   }
   
   // Use one prompt from each enabled group in order
@@ -250,5 +250,5 @@ export const getOneOfEachPrompts = (themeGroupState, allPrompts, count) => {
     groupIndex = (groupIndex + 1) % enabledGroups.length;
   }
   
-  return selectedPrompts.length > 0 ? `{${selectedPrompts.join('|')}}` : 'A creative portrait style';
+  return selectedPrompts;
 };

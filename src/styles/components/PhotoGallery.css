@@ -369,6 +369,22 @@ html body .photo-action-buttons .action-button,
   transform: none;
 }
 
+/* Use this Prompt button styling */
+.use-prompt-btn {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+}
+
+.use-prompt-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #45a049, #3d8b40);
+  transform: translateY(-2px);
+}
+
+.use-prompt-btn:active:not(:disabled) {
+  background: linear-gradient(135deg, #3d8b40, #357a38);
+  transform: translateY(1px);
+}
+
 /* Loading animation for enhance button */
 .enhance-btn.loading {
   position: relative;

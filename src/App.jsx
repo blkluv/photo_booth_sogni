@@ -18,6 +18,7 @@ import { trackPageView, initializeGA, trackEvent } from './utils/analytics';
 import { ensurePermanentUrl } from './utils/imageUpload.js';
 import { createPolaroidImage } from './utils/imageProcessing.js';
 import { getPhotoHashtag } from './services/TwitterShare.js';
+import { loadGalleryImages } from './utils/galleryLoader';
 import clickSound from './click.mp3';
 import cameraWindSound from './camera-wind.mp3';
 // import helloSound from './hello.mp3';
@@ -191,6 +192,9 @@ const App = () => {
   // Info modal state - adding back the missing state
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showPhotoGrid, setShowPhotoGrid] = useState(false);
+  
+  // State for tracking gallery prompt application
+  const [pendingGalleryPrompt, setPendingGalleryPrompt] = useState(null);
   
   // PWA install prompt state - for manual testing only
   const [showPWAPromptManually, setShowPWAPromptManually] = useState(false);
@@ -623,6 +627,69 @@ const App = () => {
     
     // Update current hashtag for sharing
     setCurrentHashtag(getHashtagForStyle(style));
+  };
+
+  // Handle gallery selection - loads gallery images and resets to Random Mix
+  const handleGallerySelection = async () => {
+    try {
+      console.log('Loading gallery images...');
+      
+      // Load gallery images
+      const galleryPhotos = await loadGalleryImages(stylePrompts);
+      
+      if (galleryPhotos.length > 0) {
+        // Clear any existing timeouts
+        clearAllTimeouts();
+        
+        // Set photos to gallery images
+        setPhotos(galleryPhotos);
+        
+        // Show photo grid and hide camera/start menu
+        stopCamera();
+        setShowPhotoGrid(true);
+        setShowStartMenu(false);
+        
+        // Reset selection to Random Mix as requested
+        handleUpdateStyle('randomMix');
+        
+        console.log(`Loaded ${galleryPhotos.length} gallery images into photo grid`);
+      } else {
+        console.warn('No gallery images found');
+      }
+    } catch (error) {
+      console.error('Error loading gallery:', error);
+    }
+  };
+
+  // Handle using a gallery prompt - switches to that prompt and generates new images
+  const handleUseGalleryPrompt = async (promptKey) => {
+    try {
+      console.log(`Using gallery prompt: ${promptKey}`);
+      
+      // First, close the photo detail view and return to grid
+      setSelectedPhotoIndex(null);
+      
+      // Check if we have lastPhotoData to use for generation
+      if (!lastPhotoData || !lastPhotoData.blob) {
+        console.log('No reference photo available - switching prompt and returning to camera');
+        // Switch to the selected prompt
+        handleUpdateStyle(promptKey);
+        // Return to camera view so user can take a new photo with the selected prompt
+        handleBackToCamera();
+        return;
+      }
+      
+      // Set up pending gallery prompt to trigger generation when state updates
+      console.log(`Setting pending gallery prompt: ${promptKey}`);
+      setPendingGalleryPrompt(promptKey);
+      
+      // Switch to the selected prompt - the useEffect will handle generation when state updates
+      handleUpdateStyle(promptKey);
+      
+      console.log(`Prompt switch initiated for: ${promptKey}`);
+    } catch (error) {
+      console.error('Error using gallery prompt:', error);
+    }
   };
 
   // Update handlePositivePromptChange to use updateSetting
@@ -3923,6 +3990,7 @@ const App = () => {
           showControlOverlay={showControlOverlay}
           setShowControlOverlay={setShowControlOverlay}
           onThemeChange={handleThemeChange}
+          onGallerySelect={handleGallerySelection}
           dropdownPosition="bottom" // Force dropdown to appear below the button since it's at the top of the screen
           triggerButtonClass=".global-style-btn"
         />
@@ -4570,6 +4638,19 @@ const App = () => {
     }
   };
 
+  // Handle gallery prompt application - trigger generation when selectedStyle updates
+  useEffect(() => {
+    if (pendingGalleryPrompt && selectedStyle === pendingGalleryPrompt) {
+      console.log(`Gallery prompt ${pendingGalleryPrompt} has been applied, starting generation`);
+      setPendingGalleryPrompt(null);
+      
+      // Small delay to ensure UI is updated
+      setTimeout(() => {
+        handleGenerateMorePhotos();
+      }, 100);
+    }
+  }, [selectedStyle, pendingGalleryPrompt, handleGenerateMorePhotos]);
+
   // Add retry all function for network issues
   const handleRetryAllPhotos = async () => {
     console.log('Retrying all failed retryable photos');
@@ -5152,6 +5233,7 @@ const App = () => {
           tezdevTheme={tezdevTheme}
           aspectRatio={aspectRatio}
           handleRetryPhoto={handleRetryPhoto}
+          onUseGalleryPrompt={handleUseGalleryPrompt}
           onPreGenerateFrame={handlePreGenerateFrameCallback}
           onFramedImageCacheUpdate={handleFramedImageCacheUpdate}
           onClearQrCode={() => {
