@@ -383,17 +383,17 @@
   white-space: nowrap !important;
   overflow: hidden !important;
   display: block !important;
-  line-height: 40px !important;
+  line-height: 38px !important;
 }
 body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty),
 body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label:not(:empty) {
-  font-size: 40px !important; /* Slightly smaller than desktop but still larger than base mobile */
+  font-size: 38px !important; /* Slightly smaller than desktop but still larger than base mobile */
   /* Ensure ellipsis works with larger font size */
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   display: block !important;
-  line-height: 40px !important;
+  line-height: 38px !important;
 }
 
 /* Mobile portrait: reduce font sizes for grid view only (not popup/selected view) */
@@ -645,10 +645,10 @@ body .film-frame.selected,
   right: 10px !important;
   height: 40px !important;
   display: block !important;
-  line-height: 40px !important;
+  line-height: 38px !important;
   text-align: center !important;
   font-family: "Permanent Marker", cursive !important;
-  font-size: 40px !important;
+  font-size: 38px !important;
   color: #333 !important;
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
