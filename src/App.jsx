@@ -632,7 +632,7 @@ const App = () => {
   // Handle gallery selection - loads gallery images and resets to Random Mix
   const handleGallerySelection = async () => {
     try {
-      console.log('Loading gallery images...');
+      console.log('Setting up gallery view...');
       
       // Load gallery images
       const galleryPhotos = await loadGalleryImages(stylePrompts);
@@ -652,7 +652,7 @@ const App = () => {
         // Reset selection to Random Mix as requested
         handleUpdateStyle('randomMix');
         
-        console.log(`Loaded ${galleryPhotos.length} gallery images into photo grid`);
+        console.log(`Set up gallery view with ${galleryPhotos.length} prompt examples`);
       } else {
         console.warn('No gallery images found');
       }

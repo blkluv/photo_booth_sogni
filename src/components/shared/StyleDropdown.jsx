@@ -38,20 +38,26 @@ const StyleDropdown = ({
       const styleButton = document.querySelector(triggerButtonClass) || document.querySelector('.grid-style-btn');
       if (styleButton) {
         const rect = styleButton.getBoundingClientRect();
-        const dropdownWidth = 300;
+        
+        // Check if we're in mobile portrait mode
+        const isMobilePortrait = window.innerWidth <= 480 && window.innerHeight > window.innerWidth;
+        
+        const dropdownWidth = isMobilePortrait ? window.innerWidth - 20 : 300; // Full width minus margins on mobile
         const dropdownHeight = 450; // Increased to accommodate theme section
         
         // Calculate safe left position to prevent off-screen rendering
-        let leftPosition = rect.left + rect.width / 2;
+        let leftPosition = isMobilePortrait ? window.innerWidth / 2 : rect.left + rect.width / 2;
         
-        // Check if dropdown would go off left edge of screen
-        if (leftPosition - (dropdownWidth / 2) < 10) {
-          leftPosition = 10 + (dropdownWidth / 2);
-        }
-        
-        // Check if dropdown would go off right edge of screen
-        if (leftPosition + (dropdownWidth / 2) > window.innerWidth - 10) {
-          leftPosition = window.innerWidth - 10 - (dropdownWidth / 2);
+        if (!isMobilePortrait) {
+          // Check if dropdown would go off left edge of screen
+          if (leftPosition - (dropdownWidth / 2) < 10) {
+            leftPosition = 10 + (dropdownWidth / 2);
+          }
+          
+          // Check if dropdown would go off right edge of screen
+          if (leftPosition + (dropdownWidth / 2) > window.innerWidth - 10) {
+            leftPosition = window.innerWidth - 10 - (dropdownWidth / 2);
+          }
         }
         
         // Determine if dropdown should appear above or below the button
@@ -69,7 +75,8 @@ const StyleDropdown = ({
             setPosition({
               bottom: window.innerHeight - rect.top + 10,
               left: leftPosition,
-              width: dropdownWidth
+              width: dropdownWidth,
+              isMobilePortrait
             });
           } else if (spaceBelow >= dropdownHeight) {
             // Not enough space above, but enough below
@@ -77,7 +84,8 @@ const StyleDropdown = ({
             setPosition({
               top: rect.bottom + 10,
               left: leftPosition,
-              width: dropdownWidth
+              width: dropdownWidth,
+              isMobilePortrait
             });
           } else {
             // Not enough space anywhere - center it as best we can
@@ -85,7 +93,8 @@ const StyleDropdown = ({
             setPosition({
               top: Math.max(10, rect.bottom - (rect.bottom + dropdownHeight - window.innerHeight + 10)),
               left: leftPosition,
-              width: dropdownWidth
+              width: dropdownWidth,
+              isMobilePortrait
             });
           }
         } else {
@@ -96,7 +105,8 @@ const StyleDropdown = ({
             setPosition({
               top: rect.bottom + 10,
               left: leftPosition,
-              width: dropdownWidth
+              width: dropdownWidth,
+              isMobilePortrait
             });
           } else if (spaceAbove >= dropdownHeight) {
             // Not enough space below, but enough above
@@ -104,7 +114,8 @@ const StyleDropdown = ({
             setPosition({
               bottom: window.innerHeight - rect.top + 10,
               left: leftPosition,
-              width: dropdownWidth
+              width: dropdownWidth,
+              isMobilePortrait
             });
           } else {
             // Not enough space anywhere - center it
@@ -112,7 +123,8 @@ const StyleDropdown = ({
             setPosition({
               top: Math.max(10, rect.bottom - (rect.bottom + dropdownHeight - window.innerHeight + 10)),
               left: leftPosition,
-              width: dropdownWidth
+              width: dropdownWidth,
+              isMobilePortrait
             });
           }
         }
@@ -203,12 +215,13 @@ const StyleDropdown = ({
   return ReactDOM.createPortal(
     <div 
       ref={dropdownReference}
-      className={`style-dropdown ${actualPosition}-position`}
+      className={`style-dropdown ${actualPosition}-position ${position.isMobilePortrait ? 'mobile-portrait' : ''}`}
       style={{
         ...(actualPosition === 'top' 
           ? { bottom: position.bottom } 
           : { top: position.top }),
-        left: position.left,
+        left: position.isMobilePortrait ? 10 : position.left,
+        width: position.width,
       }}
     >
       <div className="style-section featured">      

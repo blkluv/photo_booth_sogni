@@ -1849,7 +1849,7 @@ const PhotoGallery = ({
             return (
               <div
                 key={photo.id}
-                className={`film-frame loading ${isSelected ? 'selected' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'showup' ? 'showup-theme' : ''} ${isSelected && isThemeSupported() ? `${tezdevTheme}-theme` : ''}`}
+                className={`film-frame loading ${isSelected ? 'selected' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage && tezdevTheme === 'showup' ? 'showup-theme' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage ? `${tezdevTheme}-theme` : ''}`}
                 data-enhancing={photo.enhancing ? 'true' : undefined}
                 data-error={photo.error ? 'true' : undefined}
                 data-enhanced={photo.enhanced ? 'true' : undefined}
@@ -1927,7 +1927,7 @@ const PhotoGallery = ({
           return (
             <div 
               key={photo.id}
-              className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''} ${isLoaded ? 'loaded' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'taipeiblockchain' ? 'taipei-blockchain-theme' : ''} ${isSelected && isThemeSupported() && tezdevTheme === 'showup' ? 'showup-theme' : ''} ${isSelected && isThemeSupported() ? `${tezdevTheme}-theme` : ''}`}
+              className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''} ${isLoaded ? 'loaded' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage && tezdevTheme === 'taipeiblockchain' ? 'taipei-blockchain-theme' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage && tezdevTheme === 'showup' ? 'showup-theme' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage ? `${tezdevTheme}-theme` : ''}`}
               onClick={e => isSelected ? handlePhotoViewerClick(e) : handlePhotoSelect(index, e)}
               data-enhancing={photo.enhancing ? 'true' : undefined}
               data-error={photo.error ? 'true' : undefined}
@@ -1955,7 +1955,7 @@ const PhotoGallery = ({
                   className={`${isSelected && photo.enhancing && photo.isPreview ? 'enhancement-preview-selected' : ''}`}
                   src={(() => {
                     // For selected photos with supported themes, use composite framed image if available
-                    // Skip framing for gallery images as requested
+                    // Skip custom theme framing for gallery images, but allow basic polaroid frames
                     if (isSelected && isThemeSupported() && !photo.isGalleryImage) {
                       const currentSubIndex = photo.enhanced && photo.enhancedImageUrl 
                         ? -1 // Special case for enhanced images
@@ -2079,7 +2079,7 @@ const PhotoGallery = ({
                     }
                     
                     // For supported themes with frame padding, account for the border
-                    // Skip framing for gallery images as requested
+                    // Skip custom theme framing for gallery images, but allow basic polaroid frames
                     if (isSelected && isThemeSupported() && !photo.isGalleryImage) {
                       // Check if we have a composite framed image - if so, use full size
                       const currentSubIndex = photo.enhanced && photo.enhancedImageUrl 
@@ -2137,7 +2137,7 @@ const PhotoGallery = ({
                 {/* Event Theme Overlays - Only show on selected (popup) view when theme is supported and not using composite framed image */}
                 {(() => {
                   // Only show theme overlays if we don't have a composite framed image
-                  // Skip theme overlays for gallery images as requested
+                  // Skip custom theme overlays for gallery images, but allow basic polaroid frames
                   if (!thumbUrl || !isLoaded || !isSelected || !isThemeSupported() || photo.isGalleryImage) {
                     return null;
                   }

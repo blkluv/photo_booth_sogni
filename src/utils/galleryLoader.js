@@ -189,14 +189,8 @@ export const loadGalleryImages = async (stylePrompts) => {
     for (const [filename, promptKey] of Object.entries(filenameToPromptKey)) {
       const imagePath = `/gallery/prompts/${filename}`;
       
-      // Check if image exists before adding it
-      const imageExists = await checkImageExists(imagePath);
-      if (!imageExists) {
-        console.warn(`Gallery image not found: ${imagePath}`);
-        continue;
-      }
-      
       // Create photo object similar to generated photos
+      // Images will load lazily when displayed (no preloading)
       const galleryPhoto = {
         id: `gallery-${promptKey}-${Date.now()}-${photoIndex}`,
         generating: false,
@@ -221,7 +215,7 @@ export const loadGalleryImages = async (stylePrompts) => {
       photoIndex++;
     }
     
-    console.log(`Loaded ${galleryPhotos.length} gallery images`);
+    console.log(`Created ${galleryPhotos.length} gallery photo objects (images will load on-demand)`);
     return galleryPhotos;
     
   } catch (error) {
@@ -234,6 +228,9 @@ export const loadGalleryImages = async (stylePrompts) => {
  * Checks if an image file exists at the given path
  * @param {string} imagePath - Path to the image
  * @returns {Promise<boolean>} True if image exists and loads successfully
+ * 
+ * Note: This function is kept for potential future use but is not used
+ * in the gallery loading to avoid preloading delays
  */
 export const checkImageExists = (imagePath) => {
   return new Promise((resolve) => {
