@@ -132,7 +132,8 @@ export function styleIdToDisplay(styleId: string): string {
   }
   
   return styleId
-    .replace(/([A-Z])/g, ' $1')
+    .replace(/([A-Z])/g, ' $1')  // Add space before uppercase letters
+    .replace(/([a-zA-Z])(\d)/g, '$1 $2')  // Add space between letters and numbers
     .replace(/^./, (str) => str.toUpperCase())
     .trim();
 }
