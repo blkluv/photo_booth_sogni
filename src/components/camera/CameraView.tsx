@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import styles from '../../styles/components/camera.module.css';
 import AdvancedSettings from '../shared/AdvancedSettings';
 import AspectRatioDropdown from '../shared/AspectRatioDropdown';
@@ -169,8 +169,8 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
     aspectRatio: '1'
   });
   
-  // Helper function to get the appropriate CSS class for aspect ratio
-  const getAspectRatioClass = () => {
+  // Memoize aspect ratio class calculation
+  const aspectRatioClass = useMemo(() => {
     switch (aspectRatio) {
       case 'ultranarrow':
         return styles['aspect-ultranarrow'];
@@ -189,7 +189,7 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
       default:
         return styles['aspect-square'];
     }
-  };
+  }, [aspectRatio]);
   
   // Note: Removed getWebcamClass helper since we now use simple CSS masking
   
@@ -212,7 +212,6 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
   useEffect(() => {
     // Only calculate container dimensions after quirk detection is complete
     if (!quirkDetectionComplete) {
-      console.log(`⏳ CameraView: Waiting for iOS quirk detection to complete...`);
       return;
     }
 
@@ -222,12 +221,7 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
       const currentDimensions = getCustomDimensions(aspectRatio);
       const currentAspectRatio = currentDimensions.width / currentDimensions.height;
       
-      if (iosQuirkDetected && actualCameraDimensions) {
-        console.log(`📐 CameraView: iOS quirk detected - camera provides ${actualCameraDimensions.width}x${actualCameraDimensions.height} but displaying as ${aspectRatio} (${currentDimensions.width}x${currentDimensions.height})`);
-        console.log(`📐 CSS object-fit: cover will crop the ${actualCameraDimensions.width > actualCameraDimensions.height ? 'landscape' : 'portrait'} camera feed to show ${aspectRatio} portion`);
-      } else {
-        console.log(`📐 CameraView: Using requested ${aspectRatio} dimensions ${currentDimensions.width}x${currentDimensions.height}`);
-      }
+      // Note: iOS quirk handling is automatic via CSS object-fit: cover
       // Get viewport dimensions - use same approach as ImageAdjuster for consistent scaling
       const viewportWidth = window.innerWidth * 0.9; 
       const viewportHeight = window.innerHeight * 0.9; 
@@ -318,14 +312,14 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
   // Note: Removed complex object-fit logic since we now use simple CSS masking
   // Video stays at max resolution and we just crop the display using container overflow
 
-  // Determine animation class based on video loading state and showPhotoGrid
-  const getAnimationClass = () => {
+  // Memoize animation class calculation
+  const animationClass = useMemo(() => {
     if (!isVideoLoaded) {
       // If video isn't loaded yet, hide the container completely
       return styles.loading;
     }
     return showPhotoGrid ? styles.slideOut : styles.slideIn;
-  };
+  }, [isVideoLoaded, showPhotoGrid]);
 
   // Camera device menu state
   const [isDeviceMenuOpen, setIsDeviceMenuOpen] = useState(false);
@@ -362,17 +356,16 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
 
   const hasMultipleCameras = Array.isArray(cameraDevices) && cameraDevices.filter((d: MediaDeviceInfo) => d && d.kind === 'videoinput').length > 1;
   
-  // Debug logging for camera detection
-  React.useEffect(() => {
-    console.log('🔍 Camera Detection Debug:', {
-      isMobile,
-      cameraDevices,
-      cameraDevicesLength: cameraDevices?.length,
-      videoDevices: cameraDevices?.filter(d => d?.kind === 'videoinput'),
-      hasMultipleCameras,
-      userAgent: navigator.userAgent
-    });
-  }, [isMobile, cameraDevices, hasMultipleCameras]);
+  // Memoize expensive conditional calculations to prevent unnecessary re-renders
+  const shouldShowDesktopButtonNextToThumbnail = useMemo(() => {
+    return !isMobile && hasMultipleCameras && lastPhotoData && (lastPhotoData.blob || lastPhotoData.dataUrl) && onThumbnailClick;
+  }, [isMobile, hasMultipleCameras, lastPhotoData, onThumbnailClick]);
+  
+  const shouldShowDesktopButtonNoThumbnail = useMemo(() => {
+    return !isMobile && hasMultipleCameras && !(lastPhotoData && (lastPhotoData.blob || lastPhotoData.dataUrl) && onThumbnailClick);
+  }, [isMobile, hasMultipleCameras, lastPhotoData, onThumbnailClick]);
+  
+  // Camera detection logic (debug logging removed to prevent console spam)
 
   const handleCameraButtonClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     console.log('📱 Camera button clicked!', { hasMultipleCameras, isMobile });
@@ -494,7 +487,7 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
 
   return (
     <div 
-      className={`${styles.cameraContainer} ${getAnimationClass()}`}
+      className={`${styles.cameraContainer} ${animationClass}`}
       data-testid={testId || 'camera-container'}
     >
       <div className={styles.polaroidFrame} style={{ position: 'relative' }}>
@@ -508,7 +501,7 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
         {/* Camera view with custom aspect ratio */}
         <div className={styles.cameraView}>
                   <div 
-          className={`${styles.cameraViewInner} ${getAspectRatioClass()}`}
+          className={`${styles.cameraViewInner} ${aspectRatioClass}`}
           id="camera-container"
           style={{
             // Use calculated responsive dimensions
@@ -584,58 +577,38 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
         )}
 
         {/* Desktop camera device button - positioned next to thumbnail */}
-        {(() => {
-          const shouldRender = !isMobile && hasMultipleCameras && lastPhotoData && (lastPhotoData.blob || lastPhotoData.dataUrl) && onThumbnailClick;
-          console.log('🖥️ Desktop button next to thumbnail render check:', {
-            isMobile,
-            hasMultipleCameras,
-            hasLastPhotoData: !!(lastPhotoData && (lastPhotoData.blob || lastPhotoData.dataUrl)),
-            hasOnThumbnailClick: !!onThumbnailClick,
-            shouldRender
-          });
-          return shouldRender && (
-            <button
-              className={styles.cameraDeviceButtonNextToThumbnail}
-              onClick={handleCameraButtonClick}
-              aria-label="Select camera device"
-              data-testid="camera-device-button-desktop"
-            >
-              <span className={styles.cameraFlipIcon} role="img" aria-label="Select camera">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M20 5H16.83L15 3H9L7.17 5H4C2.9 5 2 5.9 2 7V19C2 20.1 2.9 21 4 21H20C21.1 21 22 20.1 22 19V7C22 5.9 21.1 5 20 5ZM12 18C9.24 18 7 15.76 7 13C7 10.24 9.24 8 12 8C14.76 8 17 10.24 17 13C17 15.76 14.76 18 12 18Z" fill="#333333"/>
-                  <path d="M7 21h10" stroke="#333333" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
-              </span>
-            </button>
-          );
-        })()}
+        {shouldShowDesktopButtonNextToThumbnail && (
+          <button
+            className={styles.cameraDeviceButtonNextToThumbnail}
+            onClick={handleCameraButtonClick}
+            aria-label="Select camera device"
+            data-testid="camera-device-button-desktop"
+          >
+            <span className={styles.cameraFlipIcon} role="img" aria-label="Select camera">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20 5H16.83L15 3H9L7.17 5H4C2.9 5 2 5.9 2 7V19C2 20.1 2.9 21 4 21H20C21.1 21 22 20.1 22 19V7C22 5.9 21.1 5 20 5ZM12 18C9.24 18 7 15.76 7 13C7 10.24 9.24 8 12 8C14.76 8 17 10.24 17 13C17 15.76 14.76 18 12 18Z" fill="#333333"/>
+                <path d="M7 21h10" stroke="#333333" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </span>
+          </button>
+        )}
 
         {/* Desktop camera device button - positioned on right when no thumbnail */}
-        {(() => {
-          const shouldRender = !isMobile && hasMultipleCameras && !(lastPhotoData && (lastPhotoData.blob || lastPhotoData.dataUrl) && onThumbnailClick);
-          console.log('🖥️ Desktop button no thumbnail render check:', {
-            isMobile,
-            hasMultipleCameras,
-            hasLastPhotoData: !!(lastPhotoData && (lastPhotoData.blob || lastPhotoData.dataUrl)),
-            hasOnThumbnailClick: !!onThumbnailClick,
-            shouldRender
-          });
-          return shouldRender && (
-            <button
-              className={styles.cameraDeviceButtonDesktop}
-              onClick={handleCameraButtonClick}
-              aria-label="Select camera device"
-              data-testid="camera-device-button-desktop-no-thumb"
-            >
-              <span className={styles.cameraFlipIcon} role="img" aria-label="Select camera">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M20 5H16.83L15 3H9L7.17 5H4C2.9 5 2 5.9 2 7V19C2 20.1 2.9 21 4 21H20C21.1 21 22 20.1 22 19V7C22 5.9 21.1 5 20 5ZM12 18C9.24 18 7 15.76 7 13C7 10.24 9.24 8 12 8C14.76 8 17 10.24 17 13C17 15.76 14.76 18 12 18Z" fill="#333333"/>
-                  <path d="M7 21h10" stroke="#333333" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
-              </span>
-            </button>
-          );
-        })()}
+        {shouldShowDesktopButtonNoThumbnail && (
+          <button
+            className={styles.cameraDeviceButtonDesktop}
+            onClick={handleCameraButtonClick}
+            aria-label="Select camera device"
+            data-testid="camera-device-button-desktop-no-thumb"
+          >
+            <span className={styles.cameraFlipIcon} role="img" aria-label="Select camera">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20 5H16.83L15 3H9L7.17 5H4C2.9 5 2 5.9 2 7V19C2 20.1 2.9 21 4 21H20C21.1 21 22 20.1 22 19V7C22 5.9 21.1 5 20 5ZM12 18C9.24 18 7 15.76 7 13C7 10.24 9.24 8 12 8C14.76 8 17 10.24 17 13C17 15.76 14.76 18 12 18Z" fill="#333333"/>
+                <path d="M7 21h10" stroke="#333333" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </span>
+          </button>
+        )}
 
         {/* Camera device dropdown menu */}
         {hasMultipleCameras && isDeviceMenuOpen && (
