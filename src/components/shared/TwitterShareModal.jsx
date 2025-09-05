@@ -4,6 +4,7 @@ import '../../styles/components/TwitterShareModal.css';
 import { createPolaroidImage } from '../../utils/imageProcessing';
 import { getPhotoHashtag } from '../../services/TwitterShare';
 import { themeConfigService } from '../../services/themeConfig';
+import { styleIdToDisplay } from '../../utils';
 
 // Helper to ensure Permanent Marker font is loaded
 const ensureFontLoaded = () => {
@@ -22,6 +23,7 @@ const TwitterShareModal = ({
   imageUrl, 
   defaultMessage = "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨",
   photoData,
+  stylePrompts = {},
   maxLength = 280,
   tezdevTheme = 'off',
   aspectRatio = null,
@@ -34,14 +36,17 @@ const TwitterShareModal = ({
   const textareaRef = useRef(null);
   const modalRef = useRef(null);
   
-  // Get hashtag from photo data if available
-  const styleHashtag = getPhotoHashtag(photoData);
+  // Get style display text (spaced format, no hashtags) from photo data if available
+  const styleDisplayText = photoData?.promptDisplay || 
+    (photoData?.stylePrompt && styleIdToDisplay(
+      Object.entries(stylePrompts || {}).find(([, value]) => value === photoData.stylePrompt)?.[0] || ''
+    )) || '';
   
-  // Determine photo label - prefer status text if available, otherwise use a combination of number label and hashtag
+  // Determine photo label - prefer status text if available, otherwise use a combination of number label and style
   const photoNumberLabel = photoData?.statusText?.split('#')[0]?.trim() || photoData?.label || '';
   
-  // Combine the number label and hashtag for polaroid display
-  const photoLabel = photoNumberLabel + (styleHashtag ? ` ${styleHashtag}` : '');
+  // Combine the number label and style display text for polaroid display
+  const photoLabel = photoNumberLabel + (styleDisplayText ? ` ${styleDisplayText}` : '');
   
   // Initialize message with default and hashtag when modal opens
   useEffect(() => {
@@ -50,7 +55,7 @@ const TwitterShareModal = ({
         if (tezdevTheme !== 'off') {
           // Use dynamic theme-specific message format
           try {
-            const styleTag = styleHashtag ? styleHashtag.replace('#', '') : '';
+            const styleTag = styleDisplayText ? styleDisplayText.toLowerCase().replace(/\s+/g, '') : '';
             const themeTemplate = await themeConfigService.getTweetTemplate(tezdevTheme, styleTag);
             setMessage(themeTemplate);
           } catch (error) {
@@ -62,8 +67,8 @@ const TwitterShareModal = ({
           // get the current page url with deeplink
           const currentUrl = window.location.href;
         
-        const initialMessage = styleHashtag 
-          ? `${defaultMessage} ${styleHashtag} ${currentUrl.split('?')[0]}?prompt=${styleHashtag.replace('#', '')}`
+        const initialMessage = styleDisplayText 
+          ? `${defaultMessage} #${styleDisplayText.toLowerCase().replace(/\s+/g, '')} ${currentUrl.split('?')[0]}?prompt=${styleDisplayText.toLowerCase().replace(/\s+/g, '')}`
           : `${defaultMessage} ${currentUrl}`;
         
           setMessage(initialMessage);
@@ -80,7 +85,7 @@ const TwitterShareModal = ({
     };
 
     loadMessage();
-  }, [isOpen, defaultMessage, styleHashtag, tezdevTheme]);
+  }, [isOpen, defaultMessage, styleDisplayText, tezdevTheme]);
 
   // Ensure font is loaded when component mounts
   useEffect(() => {
@@ -265,6 +270,7 @@ TwitterShareModal.propTypes = {
   imageUrl: PropTypes.string,
   defaultMessage: PropTypes.string,
   photoData: PropTypes.object,
+  stylePrompts: PropTypes.object,
   maxLength: PropTypes.number,
   tezdevTheme: PropTypes.string,
   aspectRatio: PropTypes.string,

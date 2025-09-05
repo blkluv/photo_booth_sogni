@@ -226,17 +226,18 @@ const StyleDropdown = ({
     >
       <div className="style-section featured">      
         {/* Featured options */}
-        {/* Gallery option - only show for non-Flux models */}
+        {/* Browse Gallery option - only show for non-Flux models */}
         {!isFluxKontext && onGallerySelect && (
           <div 
-            className="style-option"
+            className={`style-option ${selectedStyle === 'browseGallery' ? 'selected' : ''}`}
             onClick={() => { 
+              updateStyle('browseGallery');
               onGallerySelect();
               onClose();
             }}
           >
             <span>🖼️</span>
-            <span>BROWSE GALLERY</span>
+            <span>Browse Gallery</span>
           </div>
         )}
         

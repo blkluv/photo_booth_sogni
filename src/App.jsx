@@ -196,6 +196,9 @@ const App = () => {
   // State for tracking gallery prompt application
   const [pendingGalleryPrompt, setPendingGalleryPrompt] = useState(null);
   
+  // State for tracking previous photo grid state (before gallery)
+  const [previousPhotosState, setPreviousPhotosState] = useState(null);
+  
   // PWA install prompt state - for manual testing only
   const [showPWAPromptManually, setShowPWAPromptManually] = useState(false);
 
@@ -614,6 +617,22 @@ const App = () => {
   // --- Ensure handlers are defined here, before any JSX or usage ---
   // Update handleUpdateStyle to use updateSetting and update URL
   const handleUpdateStyle = (style) => {
+    // Handle special case for browseGallery
+    if (style === 'browseGallery') {
+      updateSetting('selectedStyle', style);
+      updateSetting('positivePrompt', ''); // No prompt for gallery browsing
+      updateUrlWithPrompt(null); // Clear URL parameter
+      setCurrentHashtag(null); // Clear hashtag
+      return;
+    }
+    
+    // Handle switching away from gallery - restore previous photos if available
+    if (selectedStyle === 'browseGallery' && style !== 'browseGallery' && previousPhotosState) {
+      console.log('Restoring previous photo grid state');
+      setPhotos(previousPhotosState);
+      setPreviousPhotosState(null);
+    }
+    
     updateSetting('selectedStyle', style); 
     if (style === 'custom') {
       updateSetting('positivePrompt', ''); 
@@ -629,10 +648,16 @@ const App = () => {
     setCurrentHashtag(getHashtagForStyle(style));
   };
 
-  // Handle gallery selection - loads gallery images and resets to Random Mix
+  // Handle gallery selection - loads gallery images and keeps browseGallery selected
   const handleGallerySelection = async () => {
     try {
       console.log('Setting up gallery view...');
+      
+      // Save current photos state before switching to gallery (if not already in gallery mode)
+      if (selectedStyle !== 'browseGallery' && photos.length > 0) {
+        console.log('Saving previous photo grid state');
+        setPreviousPhotosState([...photos]);
+      }
       
       // Load gallery images
       const galleryPhotos = await loadGalleryImages(stylePrompts);
@@ -649,9 +674,7 @@ const App = () => {
         setShowPhotoGrid(true);
         setShowStartMenu(false);
         
-        // Reset selection to Random Mix as requested
-        handleUpdateStyle('randomMix');
-        
+        // Keep browseGallery selected (no auto-switch to Random Mix)
         console.log(`Set up gallery view with ${galleryPhotos.length} prompt examples`);
       } else {
         console.warn('No gallery images found');
@@ -3211,7 +3234,7 @@ const App = () => {
                 isPreview: false, // Clear preview flag so final image shows at full opacity
                 positivePrompt,
                 stylePrompt: stylePrompt.trim(),
-                statusText: hashtag || (selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix' ? `#${selectedStyle}` : `#${(jobIndex || 0) + 1}`)
+                statusText: hashtag ? styleIdToDisplay(hashtag.replace('#', '')) : (selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix' ? styleIdToDisplay(selectedStyle) : `#${(jobIndex || 0) + 1}`)
               };
             }
             return updated;
@@ -4885,6 +4908,7 @@ const App = () => {
         onShare={handleTwitterShare}
         imageUrl={twitterPhotoIndex !== null && photos[twitterPhotoIndex] ? photos[twitterPhotoIndex].images[0] : null}
         photoData={twitterPhotoIndex !== null ? photos[twitterPhotoIndex] : null}
+        stylePrompts={stylePrompts}
         tezdevTheme={tezdevTheme}
         aspectRatio={aspectRatio}
         outputFormat={outputFormat}

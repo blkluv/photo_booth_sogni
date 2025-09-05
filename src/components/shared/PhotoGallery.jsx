@@ -6,9 +6,8 @@ import PropTypes from 'prop-types';
 import '../../styles/film-strip.css'; // Using film-strip.css which contains the gallery styles
 import '../../styles/components/PhotoGallery.css';
 import { createPolaroidImage } from '../../utils/imageProcessing';
-import { getPhotoHashtag } from '../../services/TwitterShare';
 import { downloadImageMobile, enableMobileImageDownload } from '../../utils/mobileDownload';
-import { isMobile } from '../../utils/index';
+import { isMobile, styleIdToDisplay } from '../../utils/index';
 import { themeConfigService } from '../../services/themeConfig';
 
 // Memoized placeholder image component to prevent blob reloading
@@ -820,69 +819,50 @@ const PhotoGallery = ({
     });
   }, [selectedPhotoIndex, setSelectedPhotoIndex, preGenerateFrameForPhoto]);
 
-  // Create memoized hashtags for all photos
-  const photoHashtags = useMemo(() => {
-    if (!photos || !stylePrompts) return {};
-    
-    return photos.reduce((hashtags, photo) => {
-      // Skip computing hashtag for loading photos
-      if (photo.loading || photo.generating) {
-        hashtags[photo.id] = '';
-        return hashtags;
-      }
-      
-      // Use existing hashtag if present
-      if (photo.hashtag) {
-        hashtags[photo.id] = photo.hashtag;
-        return hashtags;
-      }
-      
-      // If statusText already contains a hashtag, don't add another
-      if (photo.statusText && photo.statusText.includes('#')) {
-        hashtags[photo.id] = '';
-        return hashtags;
-      }
-      
-      // Try stylePrompt first
-      if (photo.stylePrompt) {
-        const foundStyleKey = Object.entries(stylePrompts).find(
-          ([, value]) => value === photo.stylePrompt
-        )?.[0];
-        
-        if (foundStyleKey && foundStyleKey !== 'custom' && foundStyleKey !== 'random' && foundStyleKey !== 'randomMix') {
-          hashtags[photo.id] = `#${foundStyleKey}`;
-          return hashtags;
-        }
-      }
-      
-      // Try positivePrompt next
-      if (photo.positivePrompt) {
-        const foundStyleKey = Object.entries(stylePrompts).find(
-          ([, value]) => value === photo.positivePrompt
-        )?.[0];
-        
-        if (foundStyleKey && foundStyleKey !== 'custom' && foundStyleKey !== 'random' && foundStyleKey !== 'randomMix') {
-          hashtags[photo.id] = `#${foundStyleKey}`;
-          return hashtags;
-        }
-      }
-      
-      // Fall back to selectedStyle
-      if (selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix') {
-        hashtags[photo.id] = `#${selectedStyle}`;
-        return hashtags;
-      }
-      
-      // Default empty hashtag
-      hashtags[photo.id] = '';
-      return hashtags;
-    }, {});
-  }, [photos, stylePrompts, selectedStyle]);
+  // Note: Hashtag generation for Twitter sharing is now handled by the Twitter service
 
-  // Get hashtag for a specific photo (memoized lookup)
-  const getStyleHashtag = useCallback((photo) => {
-    return photoHashtags[photo.id] || '';
-  }, [photoHashtags]);
+  // Get readable style display text for photo labels (no hashtags)
+  const getStyleDisplayText = useCallback((photo) => {
+    // Gallery images already have promptDisplay
+    if (photo.isGalleryImage && photo.promptDisplay) {
+      return photo.promptDisplay;
+    }
+    
+    // Skip for loading photos
+    if (photo.loading || photo.generating) {
+      return '';
+    }
+    
+    // Try stylePrompt first
+    if (photo.stylePrompt) {
+      const foundStyleKey = Object.entries(stylePrompts).find(
+        ([, value]) => value === photo.stylePrompt
+      )?.[0];
+      
+      if (foundStyleKey && foundStyleKey !== 'custom' && foundStyleKey !== 'random' && foundStyleKey !== 'randomMix' && foundStyleKey !== 'browseGallery') {
+        return styleIdToDisplay(foundStyleKey);
+      }
+    }
+    
+    // Try positivePrompt next
+    if (photo.positivePrompt) {
+      const foundStyleKey = Object.entries(stylePrompts).find(
+        ([, value]) => value === photo.positivePrompt
+      )?.[0];
+      
+      if (foundStyleKey && foundStyleKey !== 'custom' && foundStyleKey !== 'random' && foundStyleKey !== 'randomMix' && foundStyleKey !== 'browseGallery') {
+        return styleIdToDisplay(foundStyleKey);
+      }
+    }
+    
+    // Fall back to selectedStyle
+    if (selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix' && selectedStyle !== 'browseGallery') {
+      return styleIdToDisplay(selectedStyle);
+    }
+    
+    // Default empty
+    return '';
+  }, [photos, stylePrompts, selectedStyle]);
 
 
   useEffect(() => {
@@ -1075,17 +1055,17 @@ const PhotoGallery = ({
     if (!imageUrl) return;
     
     try {
-      // Get hashtag from photo data
-      const styleHashtag = getPhotoHashtag(photos[photoIndex]);
+      // Get style display text (spaced format, no hashtags)
+      const styleDisplayText = getStyleDisplayText(photos[photoIndex]);
       
       // Determine photo label (only used for default polaroid frame)
       const photoNumberLabel = photos[photoIndex]?.statusText?.split('#')[0]?.trim() || photos[photoIndex]?.label || '';
-      const photoLabel = photoNumberLabel + (styleHashtag ? ` ${styleHashtag}` : '');
+      const photoLabel = photoNumberLabel + (styleDisplayText ? ` ${styleDisplayText}` : '');
       
       // Generate filename based on outputFormat setting
-      const cleanHashtag = styleHashtag ? styleHashtag.replace('#', '').toLowerCase() : 'sogni';
+      const cleanStyleName = styleDisplayText ? styleDisplayText.toLowerCase().replace(/\s+/g, '-') : 'sogni';
       const fileExtension = outputFormat === 'png' ? '.png' : '.jpg';
-      const filename = `sogni-photobooth-${cleanHashtag}-framed${fileExtension}`;
+      const filename = `sogni-photobooth-${cleanStyleName}-framed${fileExtension}`;
       
       // Ensure font is loaded
       if (!document.querySelector('link[href*="Permanent+Marker"]')) {
@@ -1140,8 +1120,8 @@ const PhotoGallery = ({
     
     try {
       // Generate filename with correct extension based on outputFormat
-      const styleHashtag = getPhotoHashtag(photos[photoIndex]);
-      const cleanHashtag = styleHashtag ? styleHashtag.replace('#', '').toLowerCase() : 'sogni';
+      const styleDisplayText = getStyleDisplayText(photos[photoIndex]);
+      const cleanStyleName = styleDisplayText ? styleDisplayText.toLowerCase().replace(/\s+/g, '-') : 'sogni';
       
       // For raw downloads, ensure we preserve the original format from the server
       // First, try to detect the actual format from the image URL or by fetching it
@@ -1167,7 +1147,7 @@ const PhotoGallery = ({
         // Fall back to outputFormat setting
       }
       
-      const filename = `sogni-photobooth-${cleanHashtag}-raw${actualExtension}`;
+      const filename = `sogni-photobooth-${cleanStyleName}-raw${actualExtension}`;
       
       // Raw download is ALWAYS the original image without any frames or processing
       console.log(`[RAW DOWNLOAD] Downloading original image as: ${filename}`);
@@ -1914,7 +1894,7 @@ const PhotoGallery = ({
                     </div>
                     : photo.loading || photo.generating ? 
                       (photo.statusText || loadingLabel || labelText) 
-                      : (photo.statusText || labelText) + (photo.hashtag ? ` ${photo.hashtag}` : getStyleHashtag(photo) ? ` ${getStyleHashtag(photo)}` : '')}
+                      : photo.isGalleryImage ? labelText : (photo.statusText || (labelText + (getStyleDisplayText(photo) ? ` ${getStyleDisplayText(photo)}` : '')))}
                 </div>
               </div>
             );
@@ -2323,7 +2303,7 @@ const PhotoGallery = ({
               <div className="photo-label">
                 {photo.loading || photo.generating ? 
                   (photo.statusText || labelText) 
-                  : (photo.statusText || labelText) + (photo.hashtag ? ` ${photo.hashtag}` : getStyleHashtag(photo) ? ` ${getStyleHashtag(photo)}` : '')}
+                  : photo.isGalleryImage ? labelText : (photo.statusText || (labelText + (getStyleDisplayText(photo) ? ` ${getStyleDisplayText(photo)}` : '')))}
               </div>
             </div>
           );

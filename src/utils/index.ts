@@ -126,6 +126,11 @@ export const calculateAspectRatio = (): number => {
  * Convert style ID to display text
  */
 export function styleIdToDisplay(styleId: string): string {
+  // Handle special cases
+  if (styleId === 'browseGallery') {
+    return 'Browse Gallery';
+  }
+  
   return styleId
     .replace(/([A-Z])/g, ' $1')
     .replace(/^./, (str) => str.toUpperCase())
