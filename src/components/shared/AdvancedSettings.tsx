@@ -322,7 +322,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
   return (
     <div className={`control-overlay ${visible ? 'visible' : ''}`} style={{ position: 'fixed', zIndex: 99999 }}>
       <div className="control-overlay-content">
-        <h2 className="settings-title">Photobooth Settings</h2>
+        <h2 className="settings-title" data-text="Photobooth Settings">Photobooth Settings</h2>
         
         <button 
           className="dismiss-overlay-btn"
