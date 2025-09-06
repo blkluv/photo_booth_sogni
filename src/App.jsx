@@ -18,7 +18,6 @@ import { trackPageView, initializeGA, trackEvent } from './utils/analytics';
 import { ensurePermanentUrl } from './utils/imageUpload.js';
 import { createPolaroidImage } from './utils/imageProcessing.js';
 import { getPhotoHashtag } from './services/TwitterShare.js';
-import { loadGalleryImages } from './utils/galleryLoader';
 import clickSound from './click.mp3';
 import cameraWindSound from './camera-wind.mp3';
 // import helloSound from './hello.mp3';
@@ -33,7 +32,6 @@ import './styles/pwa-standalone-fixes.css'; // PWA standalone mode fixes
 
 import CameraView from './components/camera/CameraView';
 import CameraStartMenu from './components/camera/CameraStartMenu';
-import StyleDropdown from './components/shared/StyleDropdown';
 import AdvancedSettings from './components/shared/AdvancedSettings';
 import PWAInstallPrompt from './components/shared/PWAInstallPrompt';
 import './services/pwaInstaller'; // Initialize PWA installer service
@@ -41,6 +39,7 @@ import promptsData from './prompts.json';
 import PhotoGallery from './components/shared/PhotoGallery';
 import { useApp } from './context/AppContext.tsx';
 import TwitterShareModal from './components/shared/TwitterShareModal';
+import StyleDropdown from './components/shared/StyleDropdown';
 
 import FriendlyErrorModal from './components/shared/FriendlyErrorModal';
 import SuccessToast from './components/shared/SuccessToast';
@@ -79,6 +78,7 @@ const getHashtagForStyle = (styleKey) => {
   }
   return styleKey;
 };
+
 
 const App = () => {
 
@@ -184,7 +184,7 @@ const App = () => {
     return { ...defaultState, ...saved };
   });
 
-  // Callback to handle theme changes from StyleDropdown
+  // Callback to handle theme changes from PromptSelectorPage
   const handleThemeChange = useCallback((newThemeState) => {
     setCurrentThemeState(newThemeState);
   }, []);
@@ -196,8 +196,9 @@ const App = () => {
   // State for tracking gallery prompt application
   const [pendingGalleryPrompt, setPendingGalleryPrompt] = useState(null);
   
-  // State for tracking previous photo grid state (before gallery)
-  const [previousPhotosState, setPreviousPhotosState] = useState(null);
+  
+  // State for current page routing
+  const [currentPage, setCurrentPage] = useState('camera');
   
   // PWA install prompt state - for manual testing only
   const [showPWAPromptManually, setShowPWAPromptManually] = useState(false);
@@ -408,8 +409,25 @@ const App = () => {
     markPromoPopupShown();
   };
 
-  // Photos array
+  // Photos array - this will hold either regular photos or gallery photos depending on mode
   const [photos, setPhotos] = useState([]);
+  
+  // Separate state for regular photos (so they can continue loading in background)
+  const [regularPhotos, setRegularPhotos] = useState([]);
+  
+  // Separate state for gallery photos
+  const [galleryPhotos, setGalleryPhotos] = useState([]);
+  
+  // Effect to sync photos state based on current page
+  useEffect(() => {
+    if (currentPage === 'prompts') {
+      // In gallery mode - show gallery photos
+      setPhotos(galleryPhotos);
+    } else {
+      // In regular mode - show regular photos
+      setPhotos(regularPhotos);
+    }
+  }, [currentPage, regularPhotos, galleryPhotos]);
 
   // Index of currently selected photo (null => show webcam)
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(null);
@@ -471,6 +489,75 @@ const App = () => {
       }
     }
   }, [stylePrompts, updateSetting, selectedStyle, promptsData]);
+
+
+  // Load gallery images when entering prompt selector mode
+  useEffect(() => {
+    const loadGalleryForPromptSelector = async () => {
+      if (currentPage === 'prompts' && stylePrompts && Object.keys(stylePrompts).length > 0) {
+        // Check if we already have gallery images loaded to prevent infinite loop
+        if (galleryPhotos.length > 0 && galleryPhotos[0]?.isGalleryImage) {
+          console.log('Gallery images already loaded, skipping reload');
+          return;
+        }
+        
+        try {
+          console.log('Loading gallery images for prompt selector...');
+          
+          // Import the loadGalleryImages function
+          const { loadGalleryImages } = await import('./utils/galleryLoader');
+          const galleryPhotos = await loadGalleryImages(stylePrompts);
+          
+          if (galleryPhotos.length > 0) {
+            console.log(`Loaded ${galleryPhotos.length} gallery images for prompt selector`);
+            setGalleryPhotos(galleryPhotos);
+          } else {
+            console.warn('No gallery images found for prompt selector');
+          }
+        } catch (error) {
+          console.error('Error loading gallery images for prompt selector:', error);
+        }
+      }
+    };
+
+    loadGalleryForPromptSelector();
+  }, [currentPage, stylePrompts, galleryPhotos]);
+
+  // Manage polaroid border CSS variables for sample gallery mode
+  useEffect(() => {
+    const root = document.documentElement;
+    
+    if (currentPage === 'prompts') {
+      // Entering sample gallery mode - save current values and set to default
+      const currentSideBorder = getComputedStyle(root).getPropertyValue('--polaroid-side-border').trim();
+      const currentBottomBorder = getComputedStyle(root).getPropertyValue('--polaroid-bottom-border').trim();
+      
+      // Save original values to restore later
+      root.style.setProperty('--original-side-border', currentSideBorder);
+      root.style.setProperty('--original-bottom-border', currentBottomBorder);
+      
+      // Set to default "no theme selected" values for sample gallery
+      root.style.setProperty('--polaroid-side-border', '24px');
+      root.style.setProperty('--polaroid-bottom-border', '84px');
+      
+      console.log('Sample gallery: Set polaroid borders to default values');
+    } else {
+      // Exiting sample gallery mode - restore original values
+      const originalSideBorder = getComputedStyle(root).getPropertyValue('--original-side-border').trim();
+      const originalBottomBorder = getComputedStyle(root).getPropertyValue('--original-bottom-border').trim();
+      
+      if (originalSideBorder) {
+        root.style.setProperty('--polaroid-side-border', originalSideBorder);
+        root.style.removeProperty('--original-side-border');
+      }
+      if (originalBottomBorder) {
+        root.style.setProperty('--polaroid-bottom-border', originalBottomBorder);
+        root.style.removeProperty('--original-bottom-border');
+      }
+      
+      console.log('Sample gallery: Restored original polaroid border values');
+    }
+  }, [currentPage]);
 
   // Function to load prompts based on current model
   const loadPromptsForModel = async (modelId) => {
@@ -548,8 +635,9 @@ const App = () => {
 
   // Add a state to control the visibility of the overlay panel
   const [showControlOverlay, setShowControlOverlay] = useState(false); // Keep this
+  // Add a state to control auto-focus of positive prompt
+  const [autoFocusPositivePrompt, setAutoFocusPositivePrompt] = useState(false);
   // Add a state to control the custom dropdown visibility
-  const [showStyleDropdown, setShowStyleDropdown] = useState(false); // Keep this
 
   // Add new state for button cooldown
   const [isPhotoButtonCooldown, setIsPhotoButtonCooldown] = useState(false); // Keep this
@@ -626,12 +714,6 @@ const App = () => {
       return;
     }
     
-    // Handle switching away from gallery - restore previous photos if available
-    if (selectedStyle === 'browseGallery' && style !== 'browseGallery' && previousPhotosState) {
-      console.log('Restoring previous photo grid state');
-      setPhotos(previousPhotosState);
-      setPreviousPhotosState(null);
-    }
     
     updateSetting('selectedStyle', style); 
     if (style === 'custom') {
@@ -648,41 +730,6 @@ const App = () => {
     setCurrentHashtag(getHashtagForStyle(style));
   };
 
-  // Handle gallery selection - loads gallery images and keeps browseGallery selected
-  const handleGallerySelection = async () => {
-    try {
-      console.log('Setting up gallery view...');
-      
-      // Save current photos state before switching to gallery (if not already in gallery mode)
-      if (selectedStyle !== 'browseGallery' && photos.length > 0) {
-        console.log('Saving previous photo grid state');
-        setPreviousPhotosState([...photos]);
-      }
-      
-      // Load gallery images
-      const galleryPhotos = await loadGalleryImages(stylePrompts);
-      
-      if (galleryPhotos.length > 0) {
-        // Clear any existing timeouts
-        clearAllTimeouts();
-        
-        // Set photos to gallery images
-        setPhotos(galleryPhotos);
-        
-        // Show photo grid and hide camera/start menu
-        stopCamera();
-        setShowPhotoGrid(true);
-        setShowStartMenu(false);
-        
-        // Keep browseGallery selected (no auto-switch to Random Mix)
-        console.log(`Set up gallery view with ${galleryPhotos.length} prompt examples`);
-      } else {
-        console.warn('No gallery images found');
-      }
-    } catch (error) {
-      console.error('Error loading gallery:', error);
-    }
-  };
 
   // Handle using a gallery prompt - switches to that prompt and generates new images
   const handleUseGalleryPrompt = async (promptKey) => {
@@ -702,6 +749,11 @@ const App = () => {
         return;
       }
       
+      // Transition from Sample Gallery mode back to regular photo grid mode
+      console.log('Transitioning from Sample Gallery mode to regular photo grid mode');
+      setCurrentPage('camera'); // Exit Sample Gallery mode
+      setShowPhotoGrid(true);   // Show regular photo grid
+      
       // Set up pending gallery prompt to trigger generation when state updates
       console.log(`Setting pending gallery prompt: ${promptKey}`);
       setPendingGalleryPrompt(promptKey);
@@ -709,10 +761,118 @@ const App = () => {
       // Switch to the selected prompt - the useEffect will handle generation when state updates
       handleUpdateStyle(promptKey);
       
-      console.log(`Prompt switch initiated for: ${promptKey}`);
+      console.log(`Prompt switch initiated for: ${promptKey}, transitioning to regular photo grid`);
     } catch (error) {
       console.error('Error using gallery prompt:', error);
     }
+  };
+
+  // State for top-left style dropdown
+  const [showTopLeftStyleDropdown, setShowTopLeftStyleDropdown] = useState(false);
+
+  // Intelligent style selector handler - shows dropdown for Flux Kontext, gallery for others
+  const handleStyleSelectorClick = () => {
+    const isFluxKontext = isFluxKontextModel(selectedModel);
+    
+    if (isFluxKontext) {
+      // For Flux Kontext, show the dropdown
+      setShowTopLeftStyleDropdown(true);
+    } else {
+      // For other models, navigate to the full gallery
+      handleNavigateToPromptSelector();
+    }
+  };
+
+  // Navigation handlers for prompt selector page
+  const handleNavigateToPromptSelector = () => {
+    // Clear selected photo state when entering Sample Gallery mode
+    setSelectedPhotoIndex(null);
+    
+    // Stop camera when entering Sample Gallery mode
+    stopCamera();
+    
+    // Set page to prompts (Sample Gallery mode)
+    setCurrentPage('prompts');
+    
+    // Ensure photo grid is shown in Sample Gallery mode
+    setShowPhotoGrid(true);
+  };
+
+  const handleBackToCameraFromPromptSelector = () => {
+    // Clear selected photo state when leaving Sample Gallery mode
+    setSelectedPhotoIndex(null);
+    
+    // Close any open overlays to prevent white overlay bug
+    setShowControlOverlay(false);
+    setAutoFocusPositivePrompt(false);
+    
+    // Hide photo grid to prevent film-strip-container from rendering
+    setShowPhotoGrid(false);
+    
+    // Set page back to camera
+    setCurrentPage('camera');
+    
+    // Restart camera when returning from Sample Gallery mode
+    // Use preferred camera device if available
+    const preferredDeviceId = preferredCameraDeviceId || selectedCameraDeviceId;
+    console.log('📹 Restarting camera from Sample Gallery mode with preferred device:', preferredDeviceId || 'auto-select');
+    
+    // Small delay to ensure smooth transition
+    setTimeout(() => {
+      startCamera(preferredDeviceId);
+      setCameraManuallyStarted(true);
+    }, 100);
+  };
+
+  // Prompt selection handlers for the new page
+  const handlePromptSelectFromPage = (promptKey) => {
+    // Update style without URL changes to avoid navigation issues
+    updateSetting('selectedStyle', promptKey);
+    if (promptKey === 'custom') {
+      updateSetting('positivePrompt', ''); 
+    } else {
+      const prompt = stylePrompts[promptKey] || '';
+      updateSetting('positivePrompt', prompt); 
+    }
+    // Update current hashtag for sharing
+    setCurrentHashtag(getHashtagForStyle(promptKey));
+    // Don't call updateUrlWithPrompt to avoid URL navigation issues
+    handleBackToCameraFromPromptSelector();
+  };
+
+  const handleRandomMixFromPage = () => {
+    // Update style without URL changes to avoid navigation issues
+    updateSetting('selectedStyle', 'randomMix');
+    updateSetting('positivePrompt', '');
+    setCurrentHashtag(null);
+    handleBackToCameraFromPromptSelector();
+  };
+
+  const handleRandomSingleFromPage = () => {
+    // Update style without URL changes to avoid navigation issues
+    updateSetting('selectedStyle', 'random');
+    updateSetting('positivePrompt', '');
+    setCurrentHashtag(null);
+    handleBackToCameraFromPromptSelector();
+  };
+
+  const handleOneOfEachFromPage = () => {
+    // Update style without URL changes to avoid navigation issues
+    updateSetting('selectedStyle', 'oneOfEach');
+    updateSetting('positivePrompt', '');
+    setCurrentHashtag(null);
+    handleBackToCameraFromPromptSelector();
+  };
+
+  const handleCustomFromSampleGallery = () => {
+    // For Sample Gallery mode - just open settings without leaving the page
+    updateSetting('selectedStyle', 'custom');
+    updateSetting('positivePrompt', '');
+    setCurrentHashtag(null);
+    // Show control overlay for custom prompt editing - stay in Sample Gallery mode
+    setShowControlOverlay(true);
+    // Set flag to auto-focus positive prompt
+    setAutoFocusPositivePrompt(true);
   };
 
   // Update handlePositivePromptChange to use updateSetting
@@ -1345,7 +1505,7 @@ const App = () => {
     if (hasGeneratingPhotos && !currentlyGenerating && !activeProjectReference.current) {
       const timeoutId = setTimeout(() => {
         // Check if photos are still generating and no active project
-        setPhotos(prev => {
+        setRegularPhotos(prev => {
           const stillGenerating = prev.some(photo => photo.generating || photo.loading);
           if (stillGenerating && !activeProjectReference.current) {
             console.warn('Generation appears stuck after 2 minutes with no active project, notifying user');
@@ -2101,7 +2261,7 @@ const App = () => {
     }
     
     countdownIntervalRef.current = setInterval(() => {
-      setPhotos((previousPhotos) => {
+      setRegularPhotos((previousPhotos) => {
         const stillHasActiveCountdowns = previousPhotos.some(p => p.generating && p.generationCountdown > 0);
         
         if (!stillHasActiveCountdowns) {
@@ -2136,7 +2296,7 @@ const App = () => {
   const loadImageWithProgress = (imageUrl, photoIndex, onComplete) => {
     
     // First, set loading status
-    setPhotos(previous => {
+    setRegularPhotos(previous => {
       const updated = [...previous];
       if (updated[photoIndex]) {
         updated[photoIndex] = {
@@ -2175,7 +2335,7 @@ const App = () => {
           // Clear any pending throttled update
           clearPendingProgressUpdate();
           // Update immediately for completion
-          setPhotos(previous => {
+          setRegularPhotos(previous => {
             const updated = [...previous];
             if (updated[photoIndex]) {
               updated[photoIndex] = {
@@ -2191,7 +2351,7 @@ const App = () => {
           clearPendingProgressUpdate();
           
           downloadProgressTimeout = setTimeout(() => {
-            setPhotos(previous => {
+            setRegularPhotos(previous => {
               const updated = [...previous];
               if (updated[photoIndex]) {
                 updated[photoIndex] = {
@@ -2237,7 +2397,7 @@ const App = () => {
       } else {
         console.error(`Download failed for photo ${photoIndex}: ${xhr.status}`);
         // Update status to show error and fallback to simple image loading
-        setPhotos(previous => {
+        setRegularPhotos(previous => {
           const updated = [...previous];
           if (updated[photoIndex]) {
             updated[photoIndex] = {
@@ -2257,7 +2417,7 @@ const App = () => {
     xhr.addEventListener('error', () => {
       console.error(`Download error for photo ${photoIndex}`);
       // Update status to show error and fallback to simple image loading
-      setPhotos(previous => {
+      setRegularPhotos(previous => {
         const updated = [...previous];
         if (updated[photoIndex]) {
           updated[photoIndex] = {
@@ -2360,7 +2520,7 @@ const App = () => {
     timeouts.jobTimers.set(jobId, timer);
     
     // Update photo with job start time
-    setPhotos(prev => {
+    setRegularPhotos(prev => {
       const updated = [...prev];
       if (updated[photoIndex]) {
         updated[photoIndex] = {
@@ -2389,7 +2549,7 @@ const App = () => {
     clearJobTimeout(jobId);
     
     // Mark the photo as timed out
-    setPhotos(prev => {
+    setRegularPhotos(prev => {
       const updated = [...prev];
       if (updated[photoIndex]) {
         updated[photoIndex] = {
@@ -2407,7 +2567,7 @@ const App = () => {
     
     // Check if all jobs are done (completed, failed, or timed out)
     setTimeout(() => {
-      setPhotos(prev => {
+      setRegularPhotos(prev => {
         const stillGenerating = prev.some(photo => photo.generating);
         if (!stillGenerating && activeProjectReference.current) {
           console.log('All jobs finished (including timeouts), clearing active project');
@@ -2426,7 +2586,7 @@ const App = () => {
     clearAllTimeouts();
     
     // Mark all generating photos as timed out
-    setPhotos(prev => {
+    setRegularPhotos(prev => {
       const updated = [...prev];
       let hasChanges = false;
       
@@ -2542,7 +2702,7 @@ const App = () => {
 
       // Skip setting up photos state if this is a "more" operation
       if (!isMoreOperation) {
-        setPhotos(previous => {
+        setRegularPhotos(previous => {
           // Clean up blob URLs from previous photos to prevent memory leaks
           previous.forEach(photo => {
             if (photo.images) {
@@ -2740,7 +2900,7 @@ const App = () => {
           progressUpdateTimeout = setTimeout(() => {
             // Update watchdog timer along with progress to batch the operations
             updateWatchdogTimer();
-            setPhotos(prev => {
+            setRegularPhotos(prev => {
               const updated = [...prev];
               if (updated[photoIndex] && !updated[photoIndex].permanentError) {
                 // Use workerName from current event if available and not "unknown", otherwise fall back to cached value
@@ -2778,7 +2938,7 @@ const App = () => {
             clearTimeout(nonProgressUpdateTimeout);
           }
           nonProgressUpdateTimeout = setTimeout(() => {
-            setPhotos(prev => {
+            setRegularPhotos(prev => {
               const updated = [...prev];
               if (photoIndex >= updated.length) return prev;
               // Process the event type
@@ -2971,7 +3131,7 @@ const App = () => {
         }
         
         // Update the state for photos that belong to this failed project only
-        setPhotos(prevPhotos => {
+        setRegularPhotos(prevPhotos => {
           return prevPhotos.map(photo => {
             // Only mark photos as failed if they belong to this specific project
             // and are still in generating state
@@ -3087,7 +3247,7 @@ const App = () => {
               
               const objectUrl = URL.createObjectURL(blob);
               
-              setPhotos(previous => {
+              setRegularPhotos(previous => {
                 const updated = [...previous];
                 if (updated[photoIndex] && !updated[photoIndex].permanentError) {
                   // Clean up previous preview image URL to prevent memory leaks with frequent previews
@@ -3202,7 +3362,7 @@ const App = () => {
         
         // Load final image and update with completion status
         loadImageWithProgress(job.resultUrl, photoIndex, (loadedImageUrl) => {
-          setPhotos(previous => {
+          setRegularPhotos(previous => {
             const updated = [...previous];
             if (updated[photoIndex] && !updated[photoIndex].permanentError) {
               const photoId = updated[photoIndex].id;
@@ -3233,7 +3393,7 @@ const App = () => {
                 newlyArrived: true,
                 isPreview: false, // Clear preview flag so final image shows at full opacity
                 positivePrompt,
-                stylePrompt: stylePrompt.trim(),
+                stylePrompt: positivePrompt, // Use the actual prompt that was used for generation
                 statusText: hashtag ? styleIdToDisplay(hashtag.replace('#', '')) : (selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix' ? styleIdToDisplay(selectedStyle) : `#${(jobIndex || 0) + 1}`)
               };
             }
@@ -3243,7 +3403,7 @@ const App = () => {
         
         // Check if all photos are done generating  
         setTimeout(() => {
-          setPhotos(current => {
+          setRegularPhotos(current => {
             const stillGenerating = current.some(photo => photo.generating);
             if (!stillGenerating && activeProjectReference.current) {
               // All jobs are done, clear the active project and timeouts
@@ -3276,7 +3436,7 @@ const App = () => {
         const photoIndex = jobIndex + offset;
         console.log(`Marking failed job ${job.id} for box ${photoIndex}`);
         
-        setPhotos(previous => {
+        setRegularPhotos(previous => {
           const updated = [...previous];
           if (!updated[photoIndex]) {
             console.error(`No photo box found at index ${photoIndex}`);
@@ -3363,7 +3523,7 @@ const App = () => {
         initializeSogni();
       }
 
-      setPhotos(previous => {
+      setRegularPhotos(previous => {
         const updated = [];
         if (keepOriginalPhoto) { // Use context state
           const originalPhoto = previous.find(p => p.isOriginal);
@@ -3957,19 +4117,20 @@ const App = () => {
       justifyContent: 'center',
       overflow: 'hidden',
     }}>
-      {/* Style selector in top left - shown in all views */}
-      <div className="top-left-style-selector" style={{
-        position: 'fixed',
-        top: '24px',
-        left: '20px',
-        zIndex: 9999,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-start',
-      }}>
+      {/* Style selector in top left - shown in all views except prompt selector page and start menu */}
+      {currentPage !== 'prompts' && !showStartMenu && (
+        <div className="top-left-style-selector" style={{
+          position: 'fixed',
+          top: '24px',
+          left: '20px',
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-start',
+        }}>
         <button
           className="header-style-select global-style-btn"
-          onClick={() => setShowStyleDropdown(!showStyleDropdown)}
+          onClick={handleStyleSelectorClick}
           style={{
             all: 'unset',
             display: 'flex',
@@ -3998,26 +4159,13 @@ const App = () => {
             e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
           }}
         >
-          <span className="style-text" style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {`${selectedStyle === 'custom' ? 'Custom...' : styleIdToDisplay(selectedStyle)}`}
+          <span className="style-text" style={{ maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {selectedStyle === 'custom' ? 'STYLE: Custom...' : selectedStyle ? `STYLE: ${styleIdToDisplay(selectedStyle)}` : 'Select Style'}
           </span>
         </button>
           
-        <StyleDropdown
-          isOpen={showStyleDropdown}
-          onClose={() => setShowStyleDropdown(false)}
-          selectedStyle={selectedStyle}
-          updateStyle={handleUpdateStyle}
-          defaultStylePrompts={stylePrompts}
-          selectedModel={selectedModel}
-          showControlOverlay={showControlOverlay}
-          setShowControlOverlay={setShowControlOverlay}
-          onThemeChange={handleThemeChange}
-          onGallerySelect={handleGallerySelection}
-          dropdownPosition="bottom" // Force dropdown to appear below the button since it's at the top of the screen
-          triggerButtonClass=".global-style-btn"
-        />
-      </div>
+        </div>
+      )}
 
       {/* Upload Progress Modal */}
       <UploadProgress
@@ -4045,7 +4193,75 @@ const App = () => {
         onClose={() => setShowSuccessToast(false)}
       />
 
-      {showStartMenu ? (
+      {currentPage === 'prompts' ? (
+        <>
+          {/* Conditionally render photo grid in prompt selector mode */}
+          {isSogniReady && sogniClient && (
+            <div className={`film-strip-container visible`}>
+              <PhotoGallery
+                photos={photos}
+                selectedPhotoIndex={selectedPhotoIndex}
+                setSelectedPhotoIndex={setSelectedPhotoIndex}
+                showPhotoGrid={true}
+                handleBackToCamera={handleBackToCameraFromPromptSelector}
+                handlePreviousPhoto={handlePreviousPhoto}
+                handleNextPhoto={handleNextPhoto}
+                handlePhotoViewerClick={handlePhotoViewerClick}
+                handleGenerateMorePhotos={handleGenerateMorePhotos}
+                handleShowControlOverlay={() => setShowControlOverlay(!showControlOverlay)}
+                isGenerating={photos.some(photo => photo.generating)}
+                keepOriginalPhoto={keepOriginalPhoto}
+                lastPhotoData={lastPhotoData}
+                activeProjectReference={activeProjectReference}
+                isSogniReady={isSogniReady}
+                toggleNotesModal={toggleNotesModal}
+                setPhotos={setPhotos}
+                selectedStyle={selectedStyle}
+                stylePrompts={stylePrompts}
+                enhancePhoto={enhancePhoto}
+                undoEnhancement={undoEnhancement}
+                redoEnhancement={redoEnhancement}
+                sogniClient={sogniClient}
+                desiredWidth={desiredWidth}
+                desiredHeight={desiredHeight}
+                selectedSubIndex={selectedSubIndex}
+                outputFormat={outputFormat}
+                sensitiveContentFilter={sensitiveContentFilter}
+                handleShareToX={handleShareToX}
+                slothicornAnimationEnabled={slothicornAnimationEnabled}
+                backgroundAnimationsEnabled={backgroundAnimationsEnabled}
+                tezdevTheme={tezdevTheme}
+                aspectRatio={aspectRatio}
+                handleRetryPhoto={handleRetryPhoto}
+                onUseGalleryPrompt={handleUseGalleryPrompt}
+                onPreGenerateFrame={handlePreGenerateFrameCallback}
+                onFramedImageCacheUpdate={handleFramedImageCacheUpdate}
+                onClearQrCode={() => {
+                  if (qrCodeData) {
+                    console.log('Clearing QR code due to image enhancement');
+                    setQrCodeData(null);
+                  }
+                }}
+                onClearMobileShareCache={() => {
+                  console.log('Clearing mobile share cache due to PhotoGallery request');
+                  setMobileShareCache({});
+                }}
+                qrCodeData={qrCodeData}
+                onCloseQR={() => setQrCodeData(null)}
+                // New props for prompt selector mode
+                isPromptSelectorMode={true}
+                selectedModel={selectedModel}
+                onPromptSelect={handlePromptSelectFromPage}
+                onRandomMixSelect={handleRandomMixFromPage}
+                onRandomSingleSelect={handleRandomSingleFromPage}
+                onOneOfEachSelect={handleOneOfEachFromPage}
+                onCustomSelect={handleCustomFromSampleGallery}
+                onThemeChange={handleThemeChange}
+              />
+            </div>
+          )}
+        </>
+      ) : showStartMenu ? (
         <>
           <CameraStartMenu
             onTakePhoto={handleTakePhotoOption}
@@ -4054,6 +4270,14 @@ const App = () => {
             isProcessing={!!activeProjectReference.current || isPhotoButtonCooldown}
             hasPhotos={photos.length > 0}
             onViewPhotos={null} // Remove the onViewPhotos prop as we're moving the button out
+            // Style selector props
+            selectedStyle={selectedStyle}
+            onStyleSelect={handleUpdateStyle}
+            stylePrompts={stylePrompts}
+            selectedModel={selectedModel}
+            onNavigateToGallery={handleNavigateToPromptSelector}
+            onShowControlOverlay={() => setShowControlOverlay(true)}
+            onThemeChange={handleThemeChange}
           />
           
 
@@ -4260,7 +4484,7 @@ const App = () => {
     const newPhotos = photos.filter(photo => photo.newlyArrived);
     if (newPhotos.length > 0) {
       const timer = setTimeout(() => {
-        setPhotos(previous => 
+        setRegularPhotos(previous => 
           previous.map(photo => 
             photo.newlyArrived ? { ...photo, newlyArrived: false } : photo
           )
@@ -4296,35 +4520,6 @@ const App = () => {
     setShowInfoModal(!showInfoModal);
   };
 
-  // Add an effect to close dropdown when clicking outside
-  useEffect(() => {
-    if (showStyleDropdown) {
-      const handleClickOutside = (e) => {
-        const dropdown = document.querySelector('.style-dropdown');
-        const button = document.querySelector('.global-style-btn');
-        
-        // If click is outside dropdown and button, close dropdown
-        if (dropdown && 
-            button && 
-            !dropdown.contains(e.target) && 
-            !button.contains(e.target)) {
-          setShowStyleDropdown(false);
-        }
-      };
-      
-      document.addEventListener('click', handleClickOutside);
-      
-      // Make sure selected option is scrolled into view
-      setTimeout(() => {
-        const selectedOption = document.querySelector('.style-option.selected');
-        if (selectedOption) {
-          selectedOption.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 100);
-      
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
-  }, [showStyleDropdown]);
 
   // The start menu state was moved to the top
   // Handler for the "Take Photo" option in start menu
@@ -4500,7 +4695,7 @@ const App = () => {
     
     console.log(`Using sourceType '${sourceType}' for generating more photos`);
     
-    setPhotos(() => {
+    setRegularPhotos(() => {
       const newPhotos = existingOriginalPhoto ? [existingOriginalPhoto] : [];
       
       for (let i = 0; i < numToGenerate; i++) {
@@ -4537,7 +4732,7 @@ const App = () => {
       await generateFromBlob(blobCopy, newPhotoIndex, dataUrl, true, sourceType);
     } catch (error) {
       console.error('Error generating more photos:', error);
-      setPhotos(() => {
+      setRegularPhotos(() => {
         const newPhotos = existingOriginalPhoto ? [existingOriginalPhoto] : [];
         for (let i = 0; i < numToGenerate; i++) {
           // Handle NetworkError instances with better messaging
@@ -4592,7 +4787,7 @@ const App = () => {
     }
     
     // Reset photo to generating state
-    setPhotos(prev => {
+    setRegularPhotos(prev => {
       const updated = [...prev];
       if (updated[photoIndex]) {
         updated[photoIndex] = {
@@ -4625,7 +4820,7 @@ const App = () => {
       console.error('Retry failed:', error);
       
       // Update photo with retry failure
-      setPhotos(prev => {
+      setRegularPhotos(prev => {
         const updated = [...prev];
         if (updated[photoIndex]) {
           let errorMessage = 'RETRY FAILED: Try again later';
@@ -4713,7 +4908,7 @@ const App = () => {
     // First, reset stuck photos to error state so they can be retried
     if (stuckPhotos.length > 0) {
       console.log(`Found ${stuckPhotos.length} stuck photos, converting to retryable errors`);
-      setPhotos(prev => {
+      setRegularPhotos(prev => {
         const updated = [...prev];
         stuckPhotos.forEach(({ index }) => {
           if (updated[index]) {
@@ -4737,7 +4932,7 @@ const App = () => {
     
     // Get the updated photos list after state changes using a callback to ensure fresh state
     let allRetryablePhotos = [];
-    setPhotos(prev => {
+    setRegularPhotos(prev => {
       allRetryablePhotos = prev
         .map((photo, index) => ({ photo, index }))
         .filter(({ photo }) => photo.error && photo.retryable && !photo.generating);
@@ -4794,12 +4989,12 @@ const App = () => {
       generationCountdown: 10,
       sourceType: currentUploadedSource === 'camera' ? 'camera' : 'upload', // Set source type based on current mode
       // Assign Taipei frame number based on current photo count for equal distribution (1-6)
-      taipeiFrameNumber: (photos.length % 6) + 1,
+      taipeiFrameNumber: (regularPhotos.length % 6) + 1,
       framePadding: 0 // Will be updated by migration effect in PhotoGallery
     };
     
-    setPhotos((previous) => [...previous, newPhoto]);
-    const newPhotoIndex = photos.length;
+    setRegularPhotos((previous) => [...previous, newPhoto]);
+    const newPhotoIndex = regularPhotos.length;
 
     // Create data URL from the adjusted blob
     const reader = new FileReader();
@@ -4807,7 +5002,7 @@ const App = () => {
       const adjustedDataUrl = event.target.result;
       
       // Update the photo with the adjusted data URL as placeholder
-      setPhotos(prev => {
+      setRegularPhotos(prev => {
         const updated = [...prev];
         if (updated[newPhotoIndex]) {
           updated[newPhotoIndex] = {
@@ -4914,6 +5109,23 @@ const App = () => {
         outputFormat={outputFormat}
       />
 
+      {/* Top-left Style Dropdown - only show for Flux Kontext models */}
+      {showTopLeftStyleDropdown && (
+        <StyleDropdown
+          isOpen={showTopLeftStyleDropdown}
+          onClose={() => setShowTopLeftStyleDropdown(false)}
+          selectedStyle={selectedStyle}
+          updateStyle={handleUpdateStyle}
+          defaultStylePrompts={stylePrompts}
+          setShowControlOverlay={() => setShowControlOverlay(true)}
+          dropdownPosition="bottom"
+          triggerButtonClass=".header-style-select"
+          onThemeChange={handleThemeChange}
+          selectedModel={selectedModel}
+          onGallerySelect={handleNavigateToPromptSelector}
+        />
+      )}
+
 
 
       {/* Global Countdown Overlay - always above mascot and all UI */}
@@ -4952,7 +5164,11 @@ const App = () => {
         {/* Control overlay panel - Use context state/handlers */}
         <AdvancedSettings 
           visible={showControlOverlay}
-          onClose={() => setShowControlOverlay(false)}
+          onClose={() => {
+            setShowControlOverlay(false);
+            setAutoFocusPositivePrompt(false);
+          }}
+          autoFocusPositivePrompt={autoFocusPositivePrompt}
           // Values from context settings
           positivePrompt={positivePrompt}
           stylePrompt={stylePrompt}
@@ -5219,8 +5435,8 @@ const App = () => {
         {/* Main area with video - conditional rendering based on showPhotoGrid */}
         {renderMainArea()}
 
-        {/* Conditionally render photo grid only if Sogni client is ready */}
-        {showPhotoGrid && isSogniReady && sogniClient && (
+        {/* Conditionally render photo grid only if Sogni client is ready and NOT in Sample Gallery mode */}
+        {showPhotoGrid && isSogniReady && sogniClient && currentPage !== 'prompts' && (
           <div className={`film-strip-container ${showPhotoGrid ? 'visible' : ''}`}>
         <PhotoGallery
           photos={photos}

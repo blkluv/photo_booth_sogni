@@ -48,6 +48,10 @@
   max-height: none;
 }
 
+.film-strip-content.prompt-selector-mode {
+  padding-top: 0px !important;
+}
+
 /* Animation for grid appearing */
 @keyframes gridAppear {
   0% {
@@ -383,17 +387,17 @@
   white-space: nowrap !important;
   overflow: hidden !important;
   display: block !important;
-  line-height: 38px !important;
+  line-height: 35px !important;
 }
 body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty),
 body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label:not(:empty) {
-  font-size: 38px !important; /* Slightly smaller than desktop but still larger than base mobile */
+  font-size: 35px !important; /* Slightly smaller than desktop but still larger than base mobile */
   /* Ensure ellipsis works with larger font size */
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   display: block !important;
-  line-height: 38px !important;
+  line-height: 35px !important;
 }
 
 /* Mobile portrait: reduce font sizes for grid view only (not popup/selected view) */
@@ -645,10 +649,10 @@ body .film-frame.selected,
   right: 10px !important;
   height: 40px !important;
   display: block !important;
-  line-height: 38px !important;
+  line-height: 33px !important;
   text-align: center !important;
   font-family: "Permanent Marker", cursive !important;
-  font-size: 38px !important;
+  font-size: 33px !important;
   color: #333 !important;
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
@@ -767,7 +771,7 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
   
   body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty),
   body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label:not(:empty) {
-    font-size: 32px !important;
+    font-size: 28px !important;
     bottom: 10px !important;
   }
   

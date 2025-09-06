@@ -207,4 +207,15 @@ export const defaultStylePrompts: { [key: string]: string } = {
   steampunk: "steampunk style, victorian, brass and copper",
   fantasy: "fantasy art style, magical, ethereal",
   random: "{photorealistic|anime|watercolor|oilPainting|pencilSketch|popArt|cyberpunk|steampunk|fantasy}",
-}; 
+};
+
+// Sample Gallery constants - hard-coded values that cannot be changed by user settings
+export const SAMPLE_GALLERY_CONFIG = {
+  // Force 2:3 aspect ratio for sample gallery (matches hosted sample images)
+  ASPECT_RATIO: 'narrow' as AspectRatioOption,
+  // Dimensions for 2:3 aspect ratio
+  WIDTH: 832,
+  HEIGHT: 1216,
+  // CSS aspect ratio value
+  CSS_ASPECT_RATIO: '832/1216',
+} as const; 

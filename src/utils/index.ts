@@ -130,6 +130,9 @@ export function styleIdToDisplay(styleId: string): string {
   if (styleId === 'browseGallery') {
     return 'Browse Gallery';
   }
+  if (styleId === 'random') {
+    return 'Random Single';
+  }
   
   return styleId
     .replace(/([A-Z])/g, ' $1')  // Add space before uppercase letters

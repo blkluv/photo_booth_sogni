@@ -87,9 +87,9 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
     const {
       frameWidth = 56,
       frameTopWidth = 56,
-      frameBottomWidth = 196, // Updated to match Twitter sharing settings (150px)
+      frameBottomWidth = 150, // Reduced to match on-screen display better
       frameColor = 'white',
-      labelFont = '80px "Permanent Marker", cursive',
+      labelFont = '70px "Permanent Marker", cursive',
       labelColor = '#333',
       tezdevTheme = 'off',
       aspectRatio = 'portrait',

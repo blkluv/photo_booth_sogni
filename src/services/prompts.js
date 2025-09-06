@@ -76,10 +76,8 @@ export const initializeStylePrompts = async (modelId = null) => {
       )
     };
     
-    // Add random style that will be resolved at generation time (only for non-Flux models)
-    if (!modelId || !isFluxKontextModel(modelId)) {
-      stylePrompts.random = 'RANDOM_SINGLE_STYLE';
-    }
+    // Add random style that will be resolved at generation time (for all models)
+    stylePrompts.random = 'RANDOM_SINGLE_STYLE';
     
     console.log('Prompts loaded successfully:', Object.keys(stylePrompts).length);
     return stylePrompts;

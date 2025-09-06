@@ -25,7 +25,7 @@ export const THEME_GROUPS = {
     ]
   },
   'raver-costume-space-party': {
-    name: 'Raver / Costume / Space-Party',
+    name: 'Raver / Costume / Party',
     prompts: [
       'crownDrip', 
       'tarotGlitch', 
@@ -155,7 +155,7 @@ export const THEME_GROUPS = {
     ]
   },
   'comics-caricature': {
-    name: 'Comics / Caricature (non-anime)',
+    name: 'Comics / Caricature',
     prompts: [
       'sketchCaricature',
       'digitalCaricature',

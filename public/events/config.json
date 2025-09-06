@@ -5,7 +5,7 @@
     "taipeiblockchain": {
       "label": "Taipei Blockchain Week 2025",
       "defaultAspectRatio": "narrow",
-      "framePadding": 20,
+      "framePadding": 26,
       "tweetTemplate": "Just took my photo at the @sogni_protocol AI photobooth #TaipeiBlockchainWeek2025 #{styleTag} \nhttps://photobooth.sogni.ai/?prompt={styleTag}",
       "frames": {
         "narrow": [

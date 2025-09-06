@@ -16,6 +16,12 @@
 - **ALWAYS use useCallback** for functions that must be in dependencies
 - **ALWAYS use refs** for values that don't need to trigger re-renders
 
+## Development Environment Rules 🌐
+- **Local development URL**: Always use `https://photobooth-local.sogni.ai` (NOT localhost:5175)
+- **Terminal instances**: NEVER spawn new terminal instances - the application is already running externally to Cursor
+- **Server management**: Do NOT use `npm run dev` or start/stop servers - they're managed outside Cursor
+- **Testing**: Use the live local development URL for testing changes
+
 ## General Rules
 - You may ask me follow up questions until you are at least 95% certain you can complete the task well and then continue.
 - Never rewrite or delete files unless I explicitly ask.

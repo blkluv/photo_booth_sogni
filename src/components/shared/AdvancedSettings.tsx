@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { AspectRatioOption, TezDevTheme, OutputFormat } from '../../types/index';
 import { isFluxKontextModel, getModelRanges, getModelDefaults } from '../../constants/settings';
@@ -10,6 +10,8 @@ interface AdvancedSettingsProps {
   visible: boolean;
   /** Handler for closing the settings overlay */
   onClose: () => void;
+  /** Whether to auto-focus the positive prompt field when opened */
+  autoFocusPositivePrompt?: boolean;
   /** Current style selection */
   selectedStyle?: string;
   /** Positive prompt text */
@@ -117,6 +119,9 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
   // Get current settings from context if not provided via props
   const { settings, updateSetting } = useApp();
   
+  // Ref for positive prompt textarea
+  const positivePromptRef = useRef<HTMLTextAreaElement>(null);
+  
   // State for dynamic themes
   const [availableThemes, setAvailableThemes] = useState<Array<{value: string, label: string, defaultAspectRatio?: string}>>([]);
   const [themesLoading, setThemesLoading] = useState(false);
@@ -126,6 +131,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
   const {
     visible,
     onClose,
+    autoFocusPositivePrompt = false,
     positivePrompt = '',
     onPositivePromptChange,
     stylePrompt = '',
@@ -179,6 +185,17 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
   // Determine the current model for getting defaults and ranges
   const currentModel = selectedModel || settings.selectedModel || '';
   const modelDefaults = getModelDefaults(currentModel);
+
+  // Auto-focus positive prompt when requested
+  useEffect(() => {
+    if (visible && autoFocusPositivePrompt && positivePromptRef.current) {
+      // Small delay to ensure the overlay is fully rendered
+      setTimeout(() => {
+        positivePromptRef.current?.focus();
+        positivePromptRef.current?.select();
+      }, 150);
+    }
+  }, [visible, autoFocusPositivePrompt]);
   const modelRanges = getModelRanges(currentModel);
 
   // Apply defaults to props that weren't provided
@@ -613,13 +630,24 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
       
               {/* Positive Prompt */}
               <div className="control-option">
-          <label className="control-label">Positive Prompt:</label>
+          <label className="control-label" style={{
+            color: autoFocusPositivePrompt ? '#3b82f6' : undefined,
+            fontWeight: autoFocusPositivePrompt ? '600' : undefined
+          }}>
+            Positive Prompt: {autoFocusPositivePrompt && <span style={{ color: '#3b82f6', fontSize: '12px' }}>✨ Ready to edit</span>}
+          </label>
           <textarea
+            ref={positivePromptRef}
             className="custom-style-input"
             placeholder="Describe what you want to see..."
             value={positivePrompt}
             onChange={(e) => onPositivePromptChange?.(e.target.value)}
             rows={3}
+            style={{
+              border: autoFocusPositivePrompt ? '2px solid #3b82f6' : undefined,
+              boxShadow: autoFocusPositivePrompt ? '0 0 0 3px rgba(59, 130, 246, 0.1)' : undefined,
+              transition: 'all 0.2s ease'
+            }}
           />
         </div>
 

@@ -8,6 +8,9 @@ import '../../styles/components/PhotoGallery.css';
 import { createPolaroidImage } from '../../utils/imageProcessing';
 import { downloadImageMobile, enableMobileImageDownload } from '../../utils/mobileDownload';
 import { isMobile, styleIdToDisplay } from '../../utils/index';
+import { THEME_GROUPS, getDefaultThemeGroupState, getEnabledPrompts } from '../../constants/themeGroups';
+import { getThemeGroupPreferences, saveThemeGroupPreferences } from '../../utils/cookies';
+import { isFluxKontextModel, SAMPLE_GALLERY_CONFIG } from '../../constants/settings';
 import { themeConfigService } from '../../services/themeConfig';
 
 // Memoized placeholder image component to prevent blob reloading
@@ -92,7 +95,16 @@ const PhotoGallery = ({
   onClearMobileShareCache, // New prop to clear mobile share cache when images change
   qrCodeData,
   onCloseQR,
-  onUseGalleryPrompt // New prop to handle using a gallery prompt
+  onUseGalleryPrompt, // New prop to handle using a gallery prompt
+  // New props for prompt selector mode
+  isPromptSelectorMode = false,
+  selectedModel = null,
+  onPromptSelect = null,
+  onRandomMixSelect = null,
+  onRandomSingleSelect = null,
+  onOneOfEachSelect = null,
+  onCustomSelect = null,
+  onThemeChange = null
 }) => {
 
   
@@ -112,6 +124,15 @@ const PhotoGallery = ({
   // State for QR code overlay
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   
+  // State for prompt selector mode
+  const [themeGroupState, setThemeGroupState] = useState(() => {
+    if (isPromptSelectorMode) {
+      return getThemeGroupPreferences();
+    }
+    return getDefaultThemeGroupState();
+  });
+  const [showThemeFilters, setShowThemeFilters] = useState(false);
+
   // Keep track of the previous photos array length to detect new batches (for legacy compatibility)
   const [, setPreviousPhotosLength] = useState(0);
   
@@ -470,6 +491,38 @@ const PhotoGallery = ({
     setCustomPrompt('');
   }, []);
 
+  // Handle theme group toggle for prompt selector mode
+  const handleThemeGroupToggle = useCallback((groupId) => {
+    if (!isPromptSelectorMode) return;
+    
+    const newState = {
+      ...themeGroupState,
+      [groupId]: !themeGroupState[groupId]
+    };
+    setThemeGroupState(newState);
+    saveThemeGroupPreferences(newState);
+    
+    // Notify parent component about theme changes
+    if (onThemeChange) {
+      onThemeChange(newState);
+    }
+  }, [isPromptSelectorMode, themeGroupState, onThemeChange]);
+
+  // Filter photos based on enabled theme groups in prompt selector mode
+  const filteredPhotos = useMemo(() => {
+    if (!isPromptSelectorMode || !photos) return photos;
+    
+    const isFluxKontext = selectedModel && isFluxKontextModel(selectedModel);
+    if (isFluxKontext) return photos; // No filtering for Flux models
+    
+    const enabledPrompts = getEnabledPrompts(themeGroupState, stylePrompts || {});
+    
+    return photos.filter(photo => {
+      if (!photo.promptKey) return false;
+      return Object.prototype.hasOwnProperty.call(enabledPrompts, photo.promptKey);
+    });
+  }, [isPromptSelectorMode, photos, themeGroupState, stylePrompts, selectedModel]);
+
   // Close dropdown when clicking outside (but allow clicks inside the portal dropdown)
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -488,10 +541,8 @@ const PhotoGallery = ({
     };
   }, [showEnhanceDropdown]);
 
-  // Skip rendering if there are no photos or the grid is hidden
-  if (photos.length === 0 || !showPhotoGrid) return null;
-  
   // Helper function to check if current theme supports the current aspect ratio
+  // MUST be called before any early returns to maintain hook order
   const isThemeSupported = useCallback(() => {
     if (tezdevTheme === 'off') return false;
     
@@ -510,52 +561,10 @@ const PhotoGallery = ({
         return true;
     }
   }, [tezdevTheme, aspectRatio]);
-  
-  // Calculate proper aspect ratio style based on the selected aspect ratio
-  const getAspectRatioStyle = () => {
-    let aspectRatioValue = '1/1'; // Default to square
-    
-    switch (aspectRatio) {
-      case 'ultranarrow':
-        aspectRatioValue = '768/1344';
-        break;
-      case 'narrow':
-        aspectRatioValue = '832/1216';
-        break;
-      case 'portrait':
-        aspectRatioValue = '896/1152';
-        break;
-      case 'square':
-        aspectRatioValue = '1024/1024';
-        break;
-      case 'landscape':
-        aspectRatioValue = '1152/896';
-        break;
-      case 'wide':
-        aspectRatioValue = '1216/832';
-        break;
-      case 'ultrawide':
-        aspectRatioValue = '1344/768';
-        break;
-      default:
-        aspectRatioValue = '1024/1024';
-        break;
-    }
-    
-    return {
-      width: '100%',
-      aspectRatio: aspectRatioValue,
-      margin: '0 auto',
-      backgroundColor: 'white',
-    };
-  };
-  
-  const dynamicStyle = getAspectRatioStyle();
-  
 
-  
   // Ensure all photos have a Taipei frame number and frame padding assigned (migration for existing photos)
   // Use a ref to track if migration has been done to avoid repeated migrations
+  // MUST be called before any early returns to maintain hook order
   const migrationDoneRef = useRef(new Set());
   
   useEffect(() => {
@@ -595,30 +604,28 @@ const PhotoGallery = ({
               updatedPhoto.framePadding = 0;
             }
             
-            // Mark as migrated
+            // Mark this photo as migrated
             migrationDoneRef.current.add(photo.id);
             
             return updatedPhoto;
           }
-          
           return photo;
         })
       );
       
-      setPhotos(updatedPhotos);
+      // Only update if there were actual changes
+      const hasChanges = updatedPhotos.some((photo, index) => 
+        photo !== photos[index]
+      );
+      
+      if (hasChanges) {
+        setPhotos(updatedPhotos);
+      }
     };
     
-    void migratePhotos();
-  }, [photos.length, tezdevTheme]); // Only depend on photos.length and theme, not the entire photos array
+    migratePhotos();
+  }, [photos, tezdevTheme, setPhotos]);
 
-  // Get the Taipei frame number for the currently selected photo (stored in photo data)
-  const getCurrentTaipeiFrameNumber = () => {
-    if (selectedPhotoIndex !== null && photos[selectedPhotoIndex] && photos[selectedPhotoIndex].taipeiFrameNumber) {
-      return photos[selectedPhotoIndex].taipeiFrameNumber;
-    }
-    // Fallback to frame 1 if not set (shouldn't happen with new photos)
-    return 1;
-  };
 
   // Helper function to pre-generate framed image for a specific photo index
   const preGenerateFrameForPhoto = useCallback(async (photoIndex) => {
@@ -658,16 +665,19 @@ const PhotoGallery = ({
               await document.fonts.ready;
               
               // Create composite framed image
+              // Gallery images should always use default polaroid styling, not theme frames
+              const isGalleryImage = photo.isGalleryImage;
               const framedImageUrl = await createPolaroidImage(imageUrl, '', {
-                tezdevTheme,
+                tezdevTheme: isGalleryImage ? 'off' : tezdevTheme,
                 aspectRatio,
-                frameWidth: 0,      // No polaroid frame for decorative themes
-                frameTopWidth: 0,   // No polaroid frame for decorative themes  
-                frameBottomWidth: 0, // No polaroid frame for decorative themes
-                frameColor: 'transparent', // No polaroid background
+                // Gallery images get default polaroid frame, theme images get no polaroid frame
+                frameWidth: isGalleryImage ? 56 : 0,
+                frameTopWidth: isGalleryImage ? 56 : 0,
+                frameBottomWidth: isGalleryImage ? 150 : 0,
+                frameColor: isGalleryImage ? 'white' : 'transparent',
                 outputFormat: outputFormat,
-                // For Taipei theme, pass the current frame number to ensure consistency
-                taipeiFrameNumber: tezdevTheme === 'taipeiblockchain' ? currentTaipeiFrameNumber : undefined
+                // For Taipei theme, pass the current frame number to ensure consistency (but not for gallery images)
+                taipeiFrameNumber: (!isGalleryImage && tezdevTheme === 'taipeiblockchain') ? currentTaipeiFrameNumber : undefined
               });
               
               // Store the framed image URL
@@ -708,29 +718,23 @@ const PhotoGallery = ({
     // Reduced from 3 to prevent overwhelming the system
     const adjacentIndices = [];
     
-    // Add immediate neighbors first (most likely to be accessed)
-    const prevIndex = currentIndex - 1;
-    const nextIndex = currentIndex + 1;
-    
-    if (prevIndex >= 0 && photos[prevIndex]) {
-      adjacentIndices.push(prevIndex);
-    }
-    if (nextIndex < photos.length && photos[nextIndex]) {
-      adjacentIndices.push(nextIndex);
+    // Add previous photos (up to 2)
+    for (let i = 1; i <= 2; i++) {
+      const prevIndex = currentIndex - i;
+      if (prevIndex >= 0 && photos[prevIndex]) {
+        adjacentIndices.push(prevIndex);
+      }
     }
     
-    // Add second-level neighbors
-    const prevIndex2 = currentIndex - 2;
-    const nextIndex2 = currentIndex + 2;
-    
-    if (prevIndex2 >= 0 && photos[prevIndex2]) {
-      adjacentIndices.push(prevIndex2);
+    // Add next photos (up to 2)
+    for (let i = 1; i <= 2; i++) {
+      const nextIndex = currentIndex + i;
+      if (nextIndex < photos.length && photos[nextIndex]) {
+        adjacentIndices.push(nextIndex);
+      }
     }
-    if (nextIndex2 < photos.length && photos[nextIndex2]) {
-      adjacentIndices.push(nextIndex2);
-    }
-    
-    // Pre-generate frames for adjacent photos with staggered timing
+
+    // Pre-generate frames for adjacent photos with staggered timing to avoid overwhelming
     adjacentIndices.forEach((index, i) => {
       // Use setTimeout to avoid blocking the main thread, with longer delays
       setTimeout(() => preGenerateFrameForPhoto(index), 200 * (i + 1));
@@ -750,9 +754,12 @@ const PhotoGallery = ({
       onFramedImageCacheUpdate(framedImageUrls);
     }
   }, [onFramedImageCacheUpdate, framedImageUrls]);
-  
+
   const handlePhotoSelect = useCallback(async (index, e) => {
     const element = e.currentTarget;
+    
+    // In prompt selector mode, just show selected state - don't immediately set style
+    // The "Use this Style" button will handle the actual style selection
     
     if (selectedPhotoIndex === index) {
       // Capture current position before removing selected state
@@ -764,62 +771,47 @@ const PhotoGallery = ({
         const last = element.getBoundingClientRect();
         const deltaX = first.left - last.left;
         const deltaY = first.top - last.top;
-        const deltaScale = first.width / last.width;
-
-        // Apply starting transform
+        
+        element.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
         element.style.transition = 'none';
-        element.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${deltaScale})`;
         
-        // Force reflow
-        element.offsetHeight;
-        
-        // Animate to final position
-        element.style.transition = 'transform 0.5s cubic-bezier(0.2, 0, 0.2, 1)';
-        
-        // Clean up after animation - but preserve CSS transform for selected state
-        setTimeout(() => {
-          element.style.transition = '';
-          if (!element.classList.contains('selected')) {
-            element.style.transform = '';
-          }
-        }, 500);
+        requestAnimationFrame(() => {
+          element.style.transform = '';
+          element.style.transition = 'transform 0.3s ease-out';
+        });
       });
-      return;
+    } else {
+      // Capture current position before selecting
+      const first = element.getBoundingClientRect();
+      setSelectedPhotoIndex(index);
+      
+      // Pre-generate frames for adjacent photos to improve navigation smoothness
+      await preGenerateAdjacentFrames(index);
+      
+      // Animate to selected position
+      requestAnimationFrame(() => {
+        const last = element.getBoundingClientRect();
+        const deltaX = first.left - last.left;
+        const deltaY = first.top - last.top;
+        
+        element.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+        element.style.transition = 'none';
+        
+        requestAnimationFrame(() => {
+          element.style.transform = '';
+          element.style.transition = 'transform 0.3s ease-out';
+        });
+      });
     }
+  }, [selectedPhotoIndex, setSelectedPhotoIndex, preGenerateAdjacentFrames]);
 
-    // When selecting a photo
-    // Scroll to top first to ensure proper positioning
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    
-    // Capture starting position
-    const first = element.getBoundingClientRect();
-    
-    // Pre-generate framed image if using decorative theme before showing popup
-    await preGenerateFrameForPhoto(index);
-    
-    // Update state to mark as selected
-    setSelectedPhotoIndex(index);
-    
-    // After state update, calculate and animate
-    requestAnimationFrame(() => {
-      const last = element.getBoundingClientRect();
-      const deltaX = first.left - last.left;
-      const deltaY = first.top - last.top;
-      const deltaScale = first.width / last.width;
-      
-      // Apply starting transform
-      element.style.transition = 'none';
-      element.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${deltaScale})`;
-      
-      // Force reflow
-      element.offsetHeight;
-      
-      // Animate to final position
-      element.style.transition = 'transform 0.5s cubic-bezier(0.2, 0, 0.2, 1)';
-    });
-  }, [selectedPhotoIndex, setSelectedPhotoIndex, preGenerateFrameForPhoto]);
 
-  // Note: Hashtag generation for Twitter sharing is now handled by the Twitter service
+  // Detect if running as PWA - MUST be called before any early returns to maintain hook order
+  const isPWA = useMemo(() => {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+           window.navigator.standalone ||
+           document.referrer.includes('android-app://');
+  }, []);
 
   // Get readable style display text for photo labels (no hashtags)
   const getStyleDisplayText = useCallback((photo) => {
@@ -855,7 +847,7 @@ const PhotoGallery = ({
       }
     }
     
-    // Fall back to selectedStyle
+    // Try selectedStyle as fallback
     if (selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix' && selectedStyle !== 'browseGallery') {
       return styleIdToDisplay(selectedStyle);
     }
@@ -863,7 +855,6 @@ const PhotoGallery = ({
     // Default empty
     return '';
   }, [photos, stylePrompts, selectedStyle]);
-
 
   useEffect(() => {
     if (selectedPhotoIndex !== null) {
@@ -895,75 +886,46 @@ const PhotoGallery = ({
       
       if (!imageUrl) return;
 
-      // Create a unique key for this photo + theme + format combination
-      const currentTaipeiFrameNumber = getCurrentTaipeiFrameNumber();
+      // Get the current Taipei frame number for this photo
+      const currentTaipeiFrameNumber = photo.taipeiFrameNumber || 1;
       const frameKey = `${selectedPhotoIndex}-${currentSubIndex}-${tezdevTheme}-${currentTaipeiFrameNumber}-${outputFormat}-${aspectRatio}`;
       
-      // Check current state to avoid stale closures and prevent duplicate generation
-      setFramedImageUrls(currentFramedUrls => {
-        setGeneratingFrames(currentGeneratingFrames => {
-          // Skip if we already have this framed image or it's being generated
-          if (currentFramedUrls[frameKey] || currentGeneratingFrames.has(frameKey)) {
-            // Even if current frame exists, pre-generate adjacent frames for smooth navigation
-            if (currentFramedUrls[frameKey]) {
-              preGenerateAdjacentFrames(selectedPhotoIndex);
-            }
-            return currentGeneratingFrames;
-          }
-          
-          console.log(`Generating main frame for photo ${selectedPhotoIndex} with key: ${frameKey}`);
-          
-          // Mark this frame as generating to prevent duplicate generation
-          const newGeneratingFrames = new Set(currentGeneratingFrames);
-          newGeneratingFrames.add(frameKey);
-          
-          // Generate the frame asynchronously
-          (async () => {
-            try {
-              // Wait for fonts to load
-              await document.fonts.ready;
-              
-              // Create composite framed image using the same logic as download
-              // Use the actual outputFormat setting to match framed downloads (not Twitter sharing)
-              const framedImageUrl = await createPolaroidImage(imageUrl, '', {
-                tezdevTheme,
-                aspectRatio,
-                frameWidth: 0,      // No polaroid frame for decorative themes
-                frameTopWidth: 0,   // No polaroid frame for decorative themes  
-                frameBottomWidth: 0, // No polaroid frame for decorative themes
-                frameColor: 'transparent', // No polaroid background
-                outputFormat: outputFormat, // Use the actual outputFormat setting to match framed downloads
-                // For Taipei theme, pass the current frame number to ensure consistency
-                taipeiFrameNumber: tezdevTheme === 'taipeiblockchain' ? currentTaipeiFrameNumber : undefined
-              });
-              
-              // Store the framed image URL
-              setFramedImageUrls(prev => ({
-                ...prev,
-                [frameKey]: framedImageUrl
-              }));
-              
-              console.log(`Successfully generated main frame for photo ${selectedPhotoIndex}`);
-              
-              // After generating the current frame, pre-generate adjacent frames for smooth navigation
-              preGenerateAdjacentFrames(selectedPhotoIndex);
-              
-            } catch (error) {
-              console.error('Error generating framed image for right-click save:', error);
-            } finally {
-              // Always remove from generating set
-              setGeneratingFrames(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(frameKey);
-                return newSet;
-              });
-            }
-          })();
-          
-          return newGeneratingFrames;
+      // Check if we already have this framed image
+      if (framedImageUrls[frameKey]) {
+        return;
+      }
+
+      try {
+        // Wait for fonts to load
+        await document.fonts.ready;
+        
+        // Create composite framed image
+        // Gallery images should always use default polaroid styling, not theme frames
+        const isGalleryImage = photo.isGalleryImage;
+        const framedImageUrl = await createPolaroidImage(imageUrl, '', {
+          tezdevTheme: isGalleryImage ? 'off' : tezdevTheme,
+          aspectRatio,
+          // Gallery images get default polaroid frame, theme images get no polaroid frame
+          frameWidth: isGalleryImage ? 56 : 0,
+          frameTopWidth: isGalleryImage ? 56 : 0,
+          frameBottomWidth: isGalleryImage ? 196 : 0,
+          frameColor: isGalleryImage ? 'white' : 'transparent',
+          outputFormat: outputFormat,
+          // For Taipei theme, pass the current frame number to ensure consistency (but not for gallery images)
+          taipeiFrameNumber: (!isGalleryImage && tezdevTheme === 'taipeiblockchain') ? currentTaipeiFrameNumber : undefined
         });
-        return currentFramedUrls;
-      });
+        
+        // Store the framed image URL
+        setFramedImageUrls(prev => ({
+          ...prev,
+          [frameKey]: framedImageUrl
+        }));
+        
+        console.log(`Generated framed image for selected photo ${selectedPhotoIndex}`);
+        
+      } catch (error) {
+        console.error('Error generating framed image:', error);
+      }
     };
 
     generateFramedImage();
@@ -985,9 +947,73 @@ const PhotoGallery = ({
         }
       }
       
+      // Update the previous selected index
       setPreviousSelectedIndex(selectedPhotoIndex);
     }
-  }, [selectedPhotoIndex, previousSelectedIndex, photos, selectedSubIndex, tezdevTheme, outputFormat, aspectRatio, isThemeSupported]);
+  }, [selectedPhotoIndex, previousSelectedIndex, photos, selectedSubIndex, tezdevTheme, outputFormat, aspectRatio, framedImageUrls, isThemeSupported]);
+
+  // Skip rendering if there are no photos or the grid is hidden
+  // Exception: In prompt selector mode, we need to render even with empty photos while they're loading
+  // This MUST come after all hooks to maintain hook order
+  if ((photos.length === 0 && !isPromptSelectorMode) || !showPhotoGrid) return null;
+  
+  // Calculate proper aspect ratio style based on the selected aspect ratio
+  const getAspectRatioStyle = () => {
+    // In prompt selector mode, always use hard-coded 2:3 aspect ratio for sample gallery
+    if (isPromptSelectorMode) {
+      return {
+        width: '100%',
+        aspectRatio: SAMPLE_GALLERY_CONFIG.CSS_ASPECT_RATIO,
+        margin: '0 auto',
+        backgroundColor: 'white',
+      };
+    }
+    
+    // For regular mode, use user's selected aspect ratio
+    let aspectRatioValue = '1/1'; // Default to square
+    
+    switch (aspectRatio) {
+      case 'ultranarrow':
+        aspectRatioValue = '768/1344';
+        break;
+      case 'narrow':
+        aspectRatioValue = '832/1216';
+        break;
+      case 'portrait':
+        aspectRatioValue = '896/1152';
+        break;
+      case 'square':
+        aspectRatioValue = '1024/1024';
+        break;
+      case 'landscape':
+        aspectRatioValue = '1152/896';
+        break;
+      case 'wide':
+        aspectRatioValue = '1216/832';
+        break;
+      case 'ultrawide':
+        aspectRatioValue = '1344/768';
+        break;
+      default:
+        aspectRatioValue = '1024/1024';
+        break;
+    }
+    
+    return {
+      width: '100%',
+      aspectRatio: aspectRatioValue,
+      margin: '0 auto',
+      backgroundColor: 'white',
+    };
+  };
+  
+  const dynamicStyle = getAspectRatioStyle();
+  
+
+
+
+  // Note: Hashtag generation for Twitter sharing is now handled by the Twitter service
+
 
   // Cleanup old framed image URLs to prevent memory leaks - removed automatic cleanup to avoid continuous re-renders
   // Manual cleanup can be added if needed in specific scenarios
@@ -1081,17 +1107,20 @@ const PhotoGallery = ({
       // Create framed image: supported custom theme frame OR default polaroid frame
       // Use the outputFormat setting for framed downloads (unlike Twitter which always uses JPG)
       const useTheme = isThemeSupported();
-      const polaroidUrl = await createPolaroidImage(imageUrl, !useTheme ? photoLabel : '', {
-        tezdevTheme: useTheme ? tezdevTheme : 'off',
+      const isGalleryImage = photos[photoIndex].isGalleryImage;
+      // Gallery images should always use default polaroid styling, regardless of theme
+      const shouldUseTheme = useTheme && !isGalleryImage;
+      const polaroidUrl = await createPolaroidImage(imageUrl, !shouldUseTheme ? photoLabel : '', {
+        tezdevTheme: shouldUseTheme ? tezdevTheme : 'off',
         aspectRatio,
-        // If theme is not supported, use default polaroid frame; otherwise no polaroid frame
-        frameWidth: !useTheme ? 56 : 0,
-        frameTopWidth: !useTheme ? 56 : 0,
-        frameBottomWidth: !useTheme ? 196 : 0,
-        frameColor: !useTheme ? 'white' : 'transparent',
+        // If theme is not supported or it's a gallery image, use default polaroid frame; otherwise no polaroid frame
+        frameWidth: !shouldUseTheme ? 56 : 0,
+        frameTopWidth: !shouldUseTheme ? 56 : 0,
+        frameBottomWidth: !shouldUseTheme ? 150 : 0,
+        frameColor: !shouldUseTheme ? 'white' : 'transparent',
         outputFormat: outputFormat, // Use the actual outputFormat setting for framed downloads
-        // For Taipei theme, pass the current frame number to ensure consistency
-        taipeiFrameNumber: useTheme && tezdevTheme === 'taipeiblockchain' ? photos[photoIndex].taipeiFrameNumber : undefined
+        // For Taipei theme, pass the current frame number to ensure consistency (but not for gallery images)
+        taipeiFrameNumber: shouldUseTheme && tezdevTheme === 'taipeiblockchain' ? photos[photoIndex].taipeiFrameNumber : undefined
       });
       
              // Handle download
@@ -1157,12 +1186,6 @@ const PhotoGallery = ({
     }
   };
 
-  // Detect if running as PWA
-  const isPWA = useMemo(() => {
-    return window.matchMedia('(display-mode: standalone)').matches ||
-           window.navigator.standalone ||
-           document.referrer.includes('android-app://');
-  }, []);
 
   return (
     <div className={`film-strip-container ${showPhotoGrid ? 'visible' : 'hiding'} ${selectedPhotoIndex === null ? '' : 'has-selected'} ${isPWA ? 'pwa-mode' : ''}`}
@@ -1223,8 +1246,8 @@ const PhotoGallery = ({
           ⚙️
         </button>
       )}
-      {/* More button - positioned on the right side */}
-      {((!isGenerating && selectedPhotoIndex === null) || (isGenerating && showMoreButtonDuringGeneration && selectedPhotoIndex === null)) && (
+      {/* More button - positioned on the right side - hidden in Sample Gallery mode */}
+      {!isPromptSelectorMode && ((!isGenerating && selectedPhotoIndex === null) || (isGenerating && showMoreButtonDuringGeneration && selectedPhotoIndex === null)) && (
         <button
           className="more-photos-btn corner-btn"
           onClick={handleMoreButtonClick}
@@ -1347,18 +1370,20 @@ const PhotoGallery = ({
             <button
               className="action-button use-prompt-btn"
               onClick={(e) => {
-                if (onUseGalleryPrompt && photos[selectedPhotoIndex].promptKey) {
+                if (isPromptSelectorMode && onPromptSelect && photos[selectedPhotoIndex].promptKey) {
+                  onPromptSelect(photos[selectedPhotoIndex].promptKey);
+                } else if (onUseGalleryPrompt && photos[selectedPhotoIndex].promptKey) {
                   onUseGalleryPrompt(photos[selectedPhotoIndex].promptKey);
                 }
                 e.stopPropagation();
               }}
               disabled={
                 !photos[selectedPhotoIndex].promptKey ||
-                !onUseGalleryPrompt
+                (!onUseGalleryPrompt && !onPromptSelect)
               }
             >
               <svg fill="currentColor" width="16" height="16" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-              Use this Prompt
+              Use this Style
             </button>
           ) : (
             <button
@@ -1803,19 +1828,344 @@ const PhotoGallery = ({
       >
         ?
       </button>
-      <div className={`film-strip-content ${selectedPhotoIndex === null ? '' : 'has-selected'}`} style={{
-        display: 'grid',
-        // Remove inline gridTemplateColumns to let CSS media queries work
-        gap: '32px',
-        justifyItems: 'center',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '100%',
-        maxWidth: 'none',
-        margin: '0 auto',
-        padding: '32px'
-      }}>
-        {photos.map((photo, index) => {
+
+
+
+      {/* Prompt Selector Mode Header */}
+      {isPromptSelectorMode && (
+        <div className="prompt-selector-header" style={{
+          padding: '8px 20px 0px',
+          background: 'transparent'
+        }}>
+
+          {/* Workflow Options */}
+          <div style={{
+            marginBottom: '16px'
+          }}>
+            <h2 style={{
+              fontFamily: '"Permanent Marker", cursive',
+              fontSize: '16px',
+              margin: '0 0 12px 0',
+              color: '#333',
+              textAlign: 'center'
+            }}>
+              Choose a Random Style Mode
+            </h2>
+            
+            {/* Random Style Buttons */}
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              marginBottom: '20px',
+              flexWrap: 'wrap',
+              justifyContent: 'center'
+            }}>
+              <button 
+                onClick={onRandomMixSelect}
+                style={{
+                  background: selectedStyle === 'randomMix' ? 'rgba(114, 227, 242, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+                  border: 'none',
+                  borderRadius: '20px',
+                  padding: '10px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                  color: selectedStyle === 'randomMix' ? 'white' : '#333',
+                  fontSize: '12px',
+                  fontFamily: '"Permanent Marker", cursive'
+                }}
+                onMouseOver={e => {
+                  e.currentTarget.style.transform = 'scale(1.05)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                }}
+                onMouseOut={e => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+                }}
+              >
+                <span>🎲</span>
+                <span>Random Mix</span>
+              </button>
+              
+              {!isFluxKontextModel(selectedModel) && (
+                <button 
+                  onClick={onRandomSingleSelect}
+                  style={{
+                    background: selectedStyle === 'random' ? 'rgba(114, 227, 242, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+                    border: 'none',
+                    borderRadius: '20px',
+                    padding: '10px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                    color: selectedStyle === 'random' ? 'white' : '#333',
+                    fontSize: '12px',
+                    fontFamily: '"Permanent Marker", cursive'
+                  }}
+                  onMouseOver={e => {
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                  }}
+                  onMouseOut={e => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+                  }}
+                >
+                  <span>🔀</span>
+                  <span>Random Single</span>
+                </button>
+              )}
+              
+              <button 
+                onClick={onOneOfEachSelect}
+                style={{
+                  background: selectedStyle === 'oneOfEach' ? 'rgba(114, 227, 242, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+                  border: 'none',
+                  borderRadius: '20px',
+                  padding: '10px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                  color: selectedStyle === 'oneOfEach' ? 'white' : '#333',
+                  fontSize: '12px',
+                  fontFamily: '"Permanent Marker", cursive'
+                }}
+                onMouseOver={e => {
+                  e.currentTarget.style.transform = 'scale(1.05)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                }}
+                onMouseOut={e => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+                }}
+              >
+                <span>🙏</span>
+                <span>One of Each</span>
+              </button>
+              
+              <button 
+                onClick={onCustomSelect}
+                style={{
+                  background: selectedStyle === 'custom' ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' : 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)',
+                  border: 'none',
+                  borderRadius: '20px',
+                  padding: '10px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 3px 10px rgba(59, 130, 246, 0.3)',
+                  color: 'white',
+                  fontSize: '12px',
+                  fontFamily: '"Permanent Marker", cursive',
+                  fontWeight: '600'
+                }}
+                onMouseOver={e => {
+                  e.currentTarget.style.transform = 'scale(1.05)';
+                  e.currentTarget.style.boxShadow = '0 5px 15px rgba(59, 130, 246, 0.4)';
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)';
+                }}
+                onMouseOut={e => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.boxShadow = '0 3px 10px rgba(59, 130, 246, 0.3)';
+                  e.currentTarget.style.background = selectedStyle === 'custom' ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' : 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)';
+                }}
+              >
+                <span>✏️</span>
+                <span>Custom...</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Theme Filters - Only show for non-Flux models */}
+          {!isFluxKontextModel(selectedModel) && showThemeFilters && (
+            <div style={{
+              background: 'transparent',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              marginBottom: '8px',
+              padding: '0 8px'
+            }}>
+              {/* Theme filter content - only show when expanded */}
+              {showThemeFilters && (
+                <div style={{
+                  padding: '8px 0',
+                  borderTop: 'none'
+                }}>                 
+                  {/* Select All/Deselect All buttons */}
+                  <div style={{
+                    display: 'flex',
+                    gap: '8px',
+                    marginTop: '4px',
+                    marginBottom: '8px'
+                  }}>
+                    <button
+                      onClick={() => {
+                        const allSelected = Object.fromEntries(
+                          Object.keys(THEME_GROUPS).map(groupId => [groupId, true])
+                        );
+                        setThemeGroupState(allSelected);
+                        saveThemeGroupPreferences(allSelected);
+                        if (onThemeChange) {
+                          onThemeChange(allSelected);
+                        }
+                      }}
+                      style={{
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '6px 10px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: '#333',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      Select All
+                    </button>
+                    <button
+                      onClick={() => {
+                        const allDeselected = Object.fromEntries(
+                          Object.keys(THEME_GROUPS).map(groupId => [groupId, false])
+                        );
+                        setThemeGroupState(allDeselected);
+                        saveThemeGroupPreferences(allDeselected);
+                        if (onThemeChange) {
+                          onThemeChange(allDeselected);
+                        }
+                      }}
+                      style={{
+                        borderRadius: '8px',
+                        padding: '6px 10px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: '#333',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      Deselect All
+                    </button>
+                  </div>
+                  
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gap: '8px'
+                  }}>
+                    {Object.entries(THEME_GROUPS).map(([groupId, group]) => (
+                      <label key={groupId} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '8px 12px',
+                        background: 'rgba(255, 255, 255, 0.2)',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        color: '#333'
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={themeGroupState[groupId]}
+                          onChange={() => handleThemeGroupToggle(groupId)}
+                          style={{
+                            width: '16px',
+                            height: '16px',
+                            accentColor: '#72e3f2'
+                          }}
+                        />
+                        <span style={{ flex: 1, fontWeight: 600, fontSize: '12px' }}>{group.name}</span>
+                        <span style={{ fontSize: '10px', opacity: 0.7 }}>({group.prompts.length})</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+
+      {/* Filter Styles Button and text - aligned on same line for prompt selector mode */}
+      {isPromptSelectorMode && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingRight: '32px',
+          paddingLeft: '32px',
+          paddingBottom: '12px',
+          marginBottom: '0px',
+          position: 'relative'
+        }}>
+          <span style={{
+            fontSize: '18px',
+            color: '#333',
+            fontFamily: '"Permanent Marker", cursive'
+          }}>
+            Or select a style below
+          </span>
+          <button 
+            onClick={() => setShowThemeFilters(!showThemeFilters)}
+            style={{
+              position: 'absolute',
+              right: '22px',
+              paddingTop: '8px',
+              fontSize: '14px',
+              fontWeight: 500,
+              color: '#000000',
+              display: 'inline-block',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              background: 'none',
+              fontFamily: '"Permanent Marker", cursive'
+            }}
+            onMouseOver={e => {
+              e.currentTarget.style.color = '#333';
+            }}
+            onMouseOut={e => {
+              e.currentTarget.style.color = '#000000';
+            }}
+          >
+            Filter ({filteredPhotos.length})
+          </button>
+        </div>
+      )}
+
+      {/* Photo Grid - full width for both modes */}
+      <div 
+        className={`film-strip-content ${selectedPhotoIndex === null ? '' : 'has-selected'} ${isPromptSelectorMode ? 'prompt-selector-mode' : ''}`} 
+        style={{
+          display: 'grid',
+          // Remove inline gridTemplateColumns to let CSS media queries work
+          gap: '32px',
+          justifyItems: 'center',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '100%',
+          maxWidth: 'none',
+          margin: '0 auto',
+          padding: isPromptSelectorMode ? '8px 32px 32px' : '32px',
+          paddingTop: isPromptSelectorMode ? '8px' : undefined,
+          // Force override the CSS !important rule
+          ...(isPromptSelectorMode && {
+            paddingTop: '8px !important'
+          })
+        }}
+      >
+        {(isPromptSelectorMode ? filteredPhotos : photos).map((photo, index) => {
           const isSelected = index === selectedPhotoIndex;
           const isReference = photo.isOriginal;
           const placeholderUrl = photo.originalDataUrl;
@@ -1834,7 +2184,10 @@ const PhotoGallery = ({
                 data-error={photo.error ? 'true' : undefined}
                 data-enhanced={photo.enhanced ? 'true' : undefined}
   
-                onClick={() => isSelected ? setSelectedPhotoIndex(null) : setSelectedPhotoIndex(index)}
+                onClick={() => {
+                  // In prompt selector mode, just show selected state - don't immediately set style
+                  isSelected ? setSelectedPhotoIndex(null) : setSelectedPhotoIndex(index);
+                }}
                 style={{
                   width: '100%',
                   margin: '0 auto',
@@ -2550,7 +2903,16 @@ PhotoGallery.propTypes = {
   onClearMobileShareCache: PropTypes.func, // New prop to clear mobile share cache when images change
   qrCodeData: PropTypes.object,
   onCloseQR: PropTypes.func,
-  onUseGalleryPrompt: PropTypes.func // New prop to handle using a gallery prompt
+  onUseGalleryPrompt: PropTypes.func, // New prop to handle using a gallery prompt
+  // New props for prompt selector mode
+  isPromptSelectorMode: PropTypes.bool,
+  selectedModel: PropTypes.string,
+  onPromptSelect: PropTypes.func,
+  onRandomMixSelect: PropTypes.func,
+  onRandomSingleSelect: PropTypes.func,
+  onOneOfEachSelect: PropTypes.func,
+  onCustomSelect: PropTypes.func,
+  onThemeChange: PropTypes.func
 };
 
-export default React.memo(PhotoGallery); 
+export default PhotoGallery; 

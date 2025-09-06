@@ -252,19 +252,17 @@ const StyleDropdown = ({
           <span>Random Mix</span>
         </div>
         
-        {/* Only show Random Single for non-Flux models (Flux doesn't have 'random' in prompts) */}
-        {!isFluxKontext && (
-          <div 
-            className={`style-option ${selectedStyle === 'random' ? 'selected' : ''}`} 
-            onClick={() => { 
-              updateStyle('random');
-              onClose();
-            }}
-          >
-            <span>🔀</span>
-            <span>Random Single</span>
-          </div>
-        )}
+        {/* Random Single option - available for all models */}
+        <div 
+          className={`style-option ${selectedStyle === 'random' ? 'selected' : ''}`} 
+          onClick={() => { 
+            updateStyle('random');
+            onClose();
+          }}
+        >
+          <span>🔀</span>
+          <span>Random Single</span>
+        </div>
         
         <div 
           className={`style-option ${selectedStyle === 'oneOfEach' ? 'selected' : ''}`} 

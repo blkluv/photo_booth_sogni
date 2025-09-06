@@ -61,6 +61,108 @@
   color: #aaa;
 }
 
+/* Style Selector Section */
+.style-selector-section {
+  margin-bottom: 32px;
+}
+
+.photo-options-section {
+  margin-bottom: 32px;
+}
+
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #ff7eb3;
+  text-align: center;
+  margin-bottom: 16px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.camera-start-menu .style-selector-button {
+  width: 100%;
+  max-width: 280px;
+  margin: 0 auto 8px auto;
+  background: linear-gradient(135deg, #ff7eb3, #7868e6);
+  border: none;
+  border-radius: 16px;
+  padding: 14px 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(255, 126, 179, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.camera-start-menu .style-selector-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.camera-start-menu .style-selector-button:hover::before {
+  left: 100%;
+}
+
+.camera-start-menu .style-selector-button:hover {
+  background: linear-gradient(135deg, #ff8cc8, #8b7aed);
+  box-shadow: 0 6px 20px rgba(255, 126, 179, 0.4);
+  transform: translateY(-3px) scale(1.02);
+}
+
+.camera-start-menu .style-selector-button.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.camera-start-menu .style-selector-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.camera-start-menu .style-icon {
+  font-size: 1.8rem;
+  margin-right: 16px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+  transition: transform 0.2s ease;
+}
+
+.camera-start-menu .style-selector-button:hover .style-icon {
+  transform: scale(1.1);
+}
+
+.camera-start-menu .style-text {
+  flex: 1;
+  text-align: left;
+  font-family: "Permanent Marker", cursive;
+  font-size: 16px;
+  color: white;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  letter-spacing: 0.5px;
+}
+
+.camera-start-menu .style-arrow {
+  font-size: 1.4rem;
+  color: white;
+  margin-left: 12px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease;
+}
+
+.camera-start-menu .style-selector-button:hover .style-arrow {
+  transform: translateX(4px);
+}
+
 .start-menu-options {
   display: flex;
   justify-content: center;
@@ -195,6 +297,37 @@
   .start-menu-description {
     font-size: 1rem;
     margin-bottom: 24px;
+  }
+
+  .style-selector-section {
+    margin-bottom: 24px;
+  }
+
+  .photo-options-section {
+    margin-bottom: 24px;
+  }
+
+  .section-title {
+    font-size: 1rem;
+    margin-bottom: 12px;
+  }
+
+  .camera-start-menu .style-selector-button {
+    padding: 16px 20px;
+    max-width: none;
+  }
+
+  .camera-start-menu .style-text {
+    font-size: 15px;
+  }
+
+  .camera-start-menu .style-icon {
+    font-size: 1.6rem;
+    margin-right: 14px;
+  }
+
+  .camera-start-menu .style-arrow {
+    font-size: 1.2rem;
   }
   
   .start-menu-options {
