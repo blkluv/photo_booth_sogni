@@ -137,6 +137,8 @@ const PhotoGallery = ({
     return getDefaultThemeGroupState();
   });
   const [showThemeFilters, setShowThemeFilters] = useState(false);
+  const [showSearchInput, setShowSearchInput] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Keep track of the previous photos array length to detect new batches (for legacy compatibility)
   const [, setPreviousPhotosLength] = useState(0);
@@ -513,20 +515,34 @@ const PhotoGallery = ({
     }
   }, [isPromptSelectorMode, themeGroupState, onThemeChange]);
 
-  // Filter photos based on enabled theme groups in prompt selector mode
+  // Filter photos based on enabled theme groups and search term in prompt selector mode
   const filteredPhotos = useMemo(() => {
     if (!isPromptSelectorMode || !photos) return photos;
     
     const isFluxKontext = selectedModel && isFluxKontextModel(selectedModel);
-    if (isFluxKontext) return photos; // No filtering for Flux models
+    let filtered = photos;
     
-    const enabledPrompts = getEnabledPrompts(themeGroupState, stylePrompts || {});
+    // Apply theme group filtering for non-Flux models
+    if (!isFluxKontext) {
+      const enabledPrompts = getEnabledPrompts(themeGroupState, stylePrompts || {});
+      filtered = photos.filter(photo => {
+        if (!photo.promptKey) return false;
+        return Object.prototype.hasOwnProperty.call(enabledPrompts, photo.promptKey);
+      });
+    }
     
-    return photos.filter(photo => {
-      if (!photo.promptKey) return false;
-      return Object.prototype.hasOwnProperty.call(enabledPrompts, photo.promptKey);
-    });
-  }, [isPromptSelectorMode, photos, themeGroupState, stylePrompts, selectedModel]);
+    // Apply search term filtering if search term exists
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(photo => {
+        // Search in the display text (styleIdToDisplay of promptKey)
+        const displayText = photo.promptKey ? styleIdToDisplay(photo.promptKey).toLowerCase() : '';
+        return displayText.includes(searchLower);
+      });
+    }
+    
+    return filtered;
+  }, [isPromptSelectorMode, photos, themeGroupState, stylePrompts, selectedModel, searchTerm]);
 
   // Close dropdown when clicking outside (but allow clicks inside the portal dropdown)
   useEffect(() => {
@@ -545,6 +561,25 @@ const PhotoGallery = ({
       document.removeEventListener('click', handleClickOutside);
     };
   }, [showEnhanceDropdown]);
+
+  // Close search input when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!showSearchInput) return;
+      const target = event.target;
+      const inSearchContainer = !!target.closest('.style-selector-text-container');
+      const inSearchInput = !!target.closest('input[placeholder="Search styles..."]');
+      const inClearButton = target.textContent === '✕';
+      if (!inSearchContainer && !inSearchInput && !inClearButton) {
+        setShowSearchInput(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [showSearchInput]);
 
   // Helper function to check if current theme supports the current aspect ratio
   // MUST be called before any early returns to maintain hook order
@@ -2152,8 +2187,95 @@ const PhotoGallery = ({
           paddingLeft: '32px',
           paddingBottom: '8px',
           marginBottom: '0px',
-          position: 'relative'
+          position: 'relative',
+          gap: '12px'
         }} className="style-selector-text-container">
+          {/* Search icon and inline input on the left */}
+          <div style={{
+            position: 'absolute',
+            left: '22px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <button 
+              onClick={() => setShowSearchInput(!showSearchInput)}
+              style={{
+                paddingTop: '8px',
+                fontSize: '16px',
+                fontWeight: 500,
+                display: 'inline-block',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                background: 'none',
+                border: 'none',
+                color: showSearchInput ? '#72e3f2' : 'white',
+                opacity: showSearchInput ? 1 : 0.8
+              }}
+              title="Search styles"
+            >
+              🔍
+            </button>
+            
+            {/* Inline search input */}
+            {showSearchInput && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <input
+                  type="text"
+                  placeholder="Search styles..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{
+                    width: '180px',
+                    padding: '6px 10px',
+                    fontSize: '13px',
+                    fontFamily: 'inherit',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    borderRadius: '6px',
+                    color: 'white',
+                    outline: 'none',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.background = 'rgba(255, 255, 255, 0.15)';
+                    e.target.style.borderColor = '#72e3f2';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.background = 'rgba(255, 255, 255, 0.1)';
+                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                  }}
+                  autoFocus
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    style={{
+                      padding: '4px 6px',
+                      fontSize: '11px',
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      borderRadius: '3px',
+                      color: 'white',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      lineHeight: 1
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.background = 'rgba(255, 255, 255, 0.3)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.background = 'rgba(255, 255, 255, 0.2)';
+                    }}
+                    title="Clear search"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          
           <span style={{
             fontSize: '20px',
             fontFamily: '"Permanent Marker", cursive'
@@ -2172,6 +2294,7 @@ const PhotoGallery = ({
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               background: 'none',
+              border: 'none',
               fontFamily: '"Permanent Marker", cursive',
               color: 'white'
             }}

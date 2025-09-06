@@ -65,17 +65,6 @@
     top: max(10px, env(safe-area-inset-top)) !important;
   }
 
-  /* Fix bottom navigation buttons - align to actual bottom */
-  .back-to-menu-btn {
-    bottom: max(5px, env(safe-area-inset-bottom)) !important;
-    left: max(20px, env(safe-area-inset-left) + 5px) !important;
-  }
-
-  .view-photos-btn {
-    bottom: max(5px, env(safe-area-inset-bottom)) !important;
-    right: max(20px, env(safe-area-inset-right) + 5px) !important;
-  }
-
   /* Fix photo grid to use full available space with proper scroll behavior */
   .film-strip-container {
     /* Ensure smooth scrolling on iOS */
@@ -94,9 +83,6 @@
   }
   html body .film-strip-container.visible .film-strip-content {
     padding-bottom: max(60px, env(safe-area-inset-bottom)) !important;
-  }
-  html body .prompt-selector-header {
-    padding-top: 60px !important;
   }
   html body .prompt-selector-header > div {
     padding-top: 55px!important;
