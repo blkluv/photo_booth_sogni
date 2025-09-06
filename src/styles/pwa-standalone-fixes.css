@@ -89,11 +89,17 @@
     height: 100vh !important;
   }
 
-  html body .film-strip-container.visible .film-strip-content {
-    /* Keep the original grid layout - don't override it */
+  html body .film-strip-container.visible .film-strip-content:not(.prompt-selector-mode) {
     padding-top: max(110px, env(safe-area-inset-top)) !important;
+  }
+  html body .film-strip-container.visible .film-strip-content {
     padding-bottom: max(60px, env(safe-area-inset-bottom)) !important;
-    /* Remove min-height and contain that break the grid */
+  }
+  html body .prompt-selector-header {
+    padding-top: 60px !important;
+  }
+  html body .prompt-selector-header > div {
+    padding-top: 55px!important;
   }
 
 
