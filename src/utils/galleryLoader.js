@@ -38,7 +38,7 @@ export const loadGalleryImages = async (stylePrompts) => {
     
     // List of known gallery image filenames (we'll match these to prompts)
     const knownGalleryFiles = [
-      'sogni-photobooth-ahugfromslothicorn-raw.jpg',
+      'sogni-photobooth-ahugfromslothi-raw.jpg',
       'sogni-photobooth-anime1990s-raw.jpg',
       'sogni-photobooth-animeclassic-raw.jpg',
       'sogni-photobooth-animekawaii-raw.jpg',

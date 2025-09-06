@@ -169,7 +169,7 @@ export const THEME_GROUPS = {
       'clownPastel',
       'kittySwarm',
       'llamaPhotobomb',
-      'aHugFromSlothicorn'
+      'aHugFromSlothi'
     ]
   }
 };
