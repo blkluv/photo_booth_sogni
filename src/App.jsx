@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 
-import { getModelOptions, defaultStylePrompts as initialStylePrompts, TIMEOUT_CONFIG, isFluxKontextModel } from './constants/settings';
+import { getModelOptions, defaultStylePrompts as initialStylePrompts, TIMEOUT_CONFIG, isFluxKontextModel, TWITTER_SHARE_CONFIG } from './constants/settings';
 import { photoThoughts, randomThoughts } from './constants/thoughts';
 import { saveSettingsToCookies, shouldShowPromoPopup, markPromoPopupShown } from './utils/cookies';
 import { styleIdToDisplay } from './utils';
@@ -1198,7 +1198,7 @@ const App = () => {
             outputFormat: 'jpg',
             timestamp: Date.now(),
             isFramed: true,
-            twitterMessage: cachedMobileShare.twitterMessage || "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨"
+            twitterMessage: cachedMobileShare.twitterMessage || TWITTER_SHARE_CONFIG.DEFAULT_MESSAGE
           };
 
           const response = await fetch('/api/mobile-share/create', {
@@ -1244,10 +1244,10 @@ const App = () => {
               twitterMessage = themeTemplate;
             } catch (error) {
               console.warn('Could not load theme tweet template, using fallback:', error);
-              twitterMessage = "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨";
+              twitterMessage = TWITTER_SHARE_CONFIG.DEFAULT_MESSAGE;
             }
           } else {
-            twitterMessage = "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨";
+            twitterMessage = TWITTER_SHARE_CONFIG.DEFAULT_MESSAGE;
           }
           
           // Generate a unique sharing ID
@@ -1399,11 +1399,11 @@ const App = () => {
         } catch (error) {
           console.warn('Could not load theme tweet template, using fallback:', error);
           // Fallback to default message
-          twitterMessage = "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨";
+          twitterMessage = TWITTER_SHARE_CONFIG.DEFAULT_MESSAGE;
         }
       } else {
         // Use default message for no theme
-        twitterMessage = "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨";
+        twitterMessage = TWITTER_SHARE_CONFIG.DEFAULT_MESSAGE;
       }
       
       console.log('Generated Twitter message:', twitterMessage);

@@ -66,10 +66,6 @@
   margin-bottom: 32px;
 }
 
-.photo-options-section {
-  margin-bottom: 32px;
-}
-
 .section-title {
   font-size: 1.1rem;
   font-weight: 700;
@@ -90,7 +86,6 @@
   padding: 14px 20px;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 16px rgba(255, 126, 179, 0.3);
   position: relative;
   overflow: hidden;
 }

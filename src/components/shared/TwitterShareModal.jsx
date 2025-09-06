@@ -5,6 +5,7 @@ import { createPolaroidImage } from '../../utils/imageProcessing';
 import { getPhotoHashtag } from '../../services/TwitterShare';
 import { themeConfigService } from '../../services/themeConfig';
 import { styleIdToDisplay } from '../../utils';
+import { TWITTER_SHARE_CONFIG } from '../../constants/settings';
 
 // Helper to ensure Permanent Marker font is loaded
 const ensureFontLoaded = () => {
@@ -21,7 +22,7 @@ const TwitterShareModal = ({
   onClose, 
   onShare, 
   imageUrl, 
-  defaultMessage = "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨",
+  defaultMessage = TWITTER_SHARE_CONFIG.DEFAULT_MESSAGE,
   photoData,
   stylePrompts = {},
   maxLength = 280,

@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import process from 'process';
 import { renderMobileSharePage } from '../templates/mobileSharePage.js';
+import { TWITTER_SHARE_CONFIG } from '../constants.js';
 const router = express.Router();
 
 // File-based persistent storage for share data
@@ -367,7 +368,7 @@ router.get('/:shareId', async (req, res) => {
 
     // Generate the mobile sharing page
     // Use the custom Twitter message if provided, otherwise use default
-    const twitterMessage = data.twitterMessage || "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨";
+    const twitterMessage = data.twitterMessage || TWITTER_SHARE_CONFIG.DEFAULT_MESSAGE;
     
     // Render via external template for maintainability
     return res.send(renderMobileSharePage({ imageUrl: data.imageUrl, twitterMessage }));

@@ -2,6 +2,7 @@
  * Theme Configuration Service
  * Handles loading and managing external event theme configurations
  */
+import { TWITTER_SHARE_CONFIG } from '../constants/settings';
 
 class ThemeConfigService {
   constructor() {
@@ -124,7 +125,7 @@ class ThemeConfigService {
   async getTweetTemplate(themeId, styleTag = '') {
     const theme = await this.getTheme(themeId);
     if (!theme || !theme.tweetTemplate) {
-      return "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨";
+      return TWITTER_SHARE_CONFIG.DEFAULT_MESSAGE;
     }
 
     // Support both "{styleTag}" and "#{styleTag}" placeholder patterns

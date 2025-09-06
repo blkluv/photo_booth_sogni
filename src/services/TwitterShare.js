@@ -5,6 +5,7 @@
 import config from '../config';
 import { createPolaroidImage } from '../utils/imageProcessing';
 import { themeConfigService } from './themeConfig';
+import { TWITTER_SHARE_CONFIG } from '../constants/settings';
 
 /**
  * Extract hashtag from photo data
@@ -81,7 +82,7 @@ export const shareToTwitter = async ({
 
   if (!popup || popup.closed || typeof popup.closed === 'undefined') {
     const fallbackUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
-      customMessage || 'From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨'
+      customMessage || TWITTER_SHARE_CONFIG.DEFAULT_MESSAGE
     )}`;
     setBackendError({
       type: 'popup_blocked',
@@ -137,11 +138,11 @@ export const shareToTwitter = async ({
     } catch (error) {
       console.warn('Could not load theme tweet template, using fallback:', error);
       // Fallback to default message
-      twitterMessage = "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨";
+      twitterMessage = TWITTER_SHARE_CONFIG.DEFAULT_MESSAGE;
     }
   } else if (!twitterMessage) {
     // Use default message for no theme
-    twitterMessage = "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨";
+    twitterMessage = TWITTER_SHARE_CONFIG.DEFAULT_MESSAGE;
   }
 
   console.log(`Creating image for sharing to X with TezDev theme: ${tezdevTheme}`);

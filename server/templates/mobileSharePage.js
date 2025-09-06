@@ -1,8 +1,10 @@
 // Template renderer for the mobile share page
 // Keep behavior identical to the in-route string it replaces
 
+import { TWITTER_SHARE_CONFIG } from '../constants.js';
+
 export function renderMobileSharePage({ imageUrl, twitterMessage }) {
-  const defaultMessage = "From my latest photoshoot in Sogni Photobooth! #MadeWithSogni #SogniPhotobooth ✨";
+  const defaultMessage = TWITTER_SHARE_CONFIG.DEFAULT_MESSAGE;
   const safeTwitterMessage = twitterMessage || defaultMessage;
 
   return `

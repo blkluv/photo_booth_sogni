@@ -4,6 +4,7 @@
  */
 
 import { isIOS, isMobile } from './index';
+import { TWITTER_SHARE_CONFIG } from '../constants/settings';
 
 /**
  * Detect if device is Android
@@ -59,7 +60,7 @@ export const downloadImageMobile = async (imageUrl, filename) => {
             await navigator.share({
               files: [file],
               title: 'Save Photo',
-              text: 'From my latest photoshoot in Sogni Photobooth! https://photobooth.sogni.ai'
+              text: TWITTER_SHARE_CONFIG.DEFAULT_MESSAGE
             });
             return true;
           }
