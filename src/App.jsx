@@ -824,6 +824,30 @@ const App = () => {
     }, 100);
   };
 
+  const handleBackToPhotosFromPromptSelector = () => {
+    // Clear selected photo state when leaving Sample Gallery mode
+    setSelectedPhotoIndex(null);
+    
+    // Close any open overlays to prevent white overlay bug
+    setShowControlOverlay(false);
+    setAutoFocusPositivePrompt(false);
+    
+    // Set page back to camera (this exits Sample Gallery mode)
+    setCurrentPage('camera');
+    
+    // Show photo grid to display user's photos
+    setShowPhotoGrid(true);
+    
+    // Don't restart camera - user wants to see their photos, not take new ones
+    console.log('📸 Navigating from Style Explorer to user photo grid');
+    
+    // Small delay to ensure state updates properly
+    setTimeout(() => {
+      // Scroll to top for smooth transition
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 50);
+  };
+
   // Prompt selection handlers for the new page
   const handlePromptSelectFromPage = (promptKey) => {
     // Update style without URL changes to avoid navigation issues
@@ -837,7 +861,10 @@ const App = () => {
     // Update current hashtag for sharing
     setCurrentHashtag(getHashtagForStyle(promptKey));
     // Don't call updateUrlWithPrompt to avoid URL navigation issues
-    handleBackToCameraFromPromptSelector();
+    // Don't automatically redirect - let user choose to navigate with camera/photos buttons
+    
+    // Close the photo popup to provide visual feedback that the style was selected
+    setSelectedPhotoIndex(null);
   };
 
   const handleRandomMixFromPage = () => {
@@ -845,7 +872,7 @@ const App = () => {
     updateSetting('selectedStyle', 'randomMix');
     updateSetting('positivePrompt', '');
     setCurrentHashtag(null);
-    handleBackToCameraFromPromptSelector();
+    // Don't automatically redirect - let user choose to navigate with camera/photos buttons
   };
 
   const handleRandomSingleFromPage = () => {
@@ -853,7 +880,7 @@ const App = () => {
     updateSetting('selectedStyle', 'random');
     updateSetting('positivePrompt', '');
     setCurrentHashtag(null);
-    handleBackToCameraFromPromptSelector();
+    // Don't automatically redirect - let user choose to navigate with camera/photos buttons
   };
 
   const handleOneOfEachFromPage = () => {
@@ -861,7 +888,7 @@ const App = () => {
     updateSetting('selectedStyle', 'oneOfEach');
     updateSetting('positivePrompt', '');
     setCurrentHashtag(null);
-    handleBackToCameraFromPromptSelector();
+    // Don't automatically redirect - let user choose to navigate with camera/photos buttons
   };
 
   const handleCustomFromSampleGallery = () => {
@@ -4257,6 +4284,8 @@ const App = () => {
                 onOneOfEachSelect={handleOneOfEachFromPage}
                 onCustomSelect={handleCustomFromSampleGallery}
                 onThemeChange={handleThemeChange}
+                onBackToPhotos={handleBackToPhotosFromPromptSelector}
+                userPhotosCount={regularPhotos.length}
               />
             </div>
           )}

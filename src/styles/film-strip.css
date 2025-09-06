@@ -507,6 +507,40 @@ body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label
   }
 }
 
+/* Current style indicator for Style Explorer mode */
+.film-frame.current-style:not(.selected) {
+  border: 4px solid #72e3f2 !important;
+  box-shadow: 0 4px 16px rgba(114, 227, 242, 0.4) !important;
+  transform: scale(1.02) !important;
+  transition: all 0.3s ease !important;
+}
+
+/* Add a subtle glow effect */
+.film-frame.current-style:not(.selected)::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  background: linear-gradient(45deg, #72e3f2, #4bbbd3);
+  border-radius: 6px;
+  z-index: -1;
+  opacity: 0.3;
+  animation: currentStyleGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes currentStyleGlow {
+  0% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.6;
+    transform: scale(1.01);
+  }
+}
+
 .film-frame {
   padding: 16px;
   padding-bottom: 56px;

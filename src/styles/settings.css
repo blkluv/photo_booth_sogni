@@ -66,18 +66,23 @@
   width: 100%;
   height: 100%;
   pointer-events: none;
+  z-index: -1;
 }
 
 .settings-title::before {
-  color: #cc0033;
-  transform: translate(-3px, -1.5px);
-  mix-blend-mode: multiply;
+  color: #ff0066;
+  transform: translate(-4px, -2px);
+  mix-blend-mode: screen;
+  opacity: 0.8;
+  text-shadow: 0 0 10px #ff0066;
 }
 
 .settings-title::after {
-  color: #0099cc;
-  transform: translate(3px, 1.5px);
-  mix-blend-mode: multiply;
+  color: #00ccff;
+  transform: translate(4px, 2px);
+  mix-blend-mode: screen;
+  opacity: 0.8;
+  text-shadow: 0 0 10px #00ccff;
 }
 
 .control-overlay.visible .settings-title {

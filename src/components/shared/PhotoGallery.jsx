@@ -104,7 +104,9 @@ const PhotoGallery = ({
   onRandomSingleSelect = null,
   onOneOfEachSelect = null,
   onCustomSelect = null,
-  onThemeChange = null
+  onThemeChange = null,
+  onBackToPhotos = null,
+  userPhotosCount = 0
 }) => {
 
   
@@ -1271,6 +1273,23 @@ const PhotoGallery = ({
           {isGenerating ? 'Cancel & More ✨' : 'More ✨'}
         </button>
       )}
+      {/* View Photos button - only show in prompt selector mode when user has photos */}
+      {isPromptSelectorMode && onBackToPhotos && userPhotosCount > 0 && selectedPhotoIndex === null && (
+        <button
+          className="view-photos-btn corner-btn"
+          onClick={onBackToPhotos}
+          style={{
+            position: 'fixed',
+            right: '20px',
+            bottom: '20px',
+            left: 'auto',
+            zIndex: 9999,
+          }}
+          title="View your photos"
+        >
+          <span className="view-photos-label">View Photos ({userPhotosCount})</span>
+        </button>
+      )}
       {/* Navigation buttons - only show when a photo is selected */}
       {selectedPhotoIndex !== null && photos.length > 1 && (
         <>
@@ -1851,16 +1870,15 @@ const PhotoGallery = ({
           }}>
             <h1 
               className="settings-title"
-              data-text="PHOTOBOOTH STYLE EXPLORER"
+              data-text="STYLE EXPLORER"
               style={{
-                fontSize: '28px',
                 margin: '0',
                 textAlign: 'left',
                 transform: 'translateY(0)',
                 opacity: 1
               }}
             >
-              PHOTOBOOTH STYLE EXPLORER
+              STYLE EXPLORER
             </h1>
           </div>
 
@@ -1870,9 +1888,8 @@ const PhotoGallery = ({
           }}>
             <h2 style={{
               fontFamily: '"Permanent Marker", cursive',
-              fontSize: '16px',
+              fontSize: '18px',
               margin: '0 0 12px 0',
-              color: '#333',
               textAlign: 'center'
             }}>
               Choose a Random Style Mode
@@ -1890,7 +1907,7 @@ const PhotoGallery = ({
                 onClick={onRandomMixSelect}
                 style={{
                   background: selectedStyle === 'randomMix' ? 'rgba(114, 227, 242, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-                  border: 'none',
+                  border: selectedStyle === 'randomMix' ? '3px solid #72e3f2' : '3px solid transparent',
                   borderRadius: '20px',
                   padding: '10px 16px',
                   display: 'flex',
@@ -1898,7 +1915,7 @@ const PhotoGallery = ({
                   gap: '6px',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                  boxShadow: selectedStyle === 'randomMix' ? '0 4px 12px rgba(114, 227, 242, 0.4)' : '0 2px 8px rgba(0, 0, 0, 0.1)',
                   color: selectedStyle === 'randomMix' ? 'white' : '#333',
                   fontSize: '12px',
                   fontFamily: '"Permanent Marker", cursive'
@@ -1921,7 +1938,7 @@ const PhotoGallery = ({
                   onClick={onRandomSingleSelect}
                   style={{
                     background: selectedStyle === 'random' ? 'rgba(114, 227, 242, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-                    border: 'none',
+                    border: selectedStyle === 'random' ? '3px solid #72e3f2' : '3px solid transparent',
                     borderRadius: '20px',
                     padding: '10px 16px',
                     display: 'flex',
@@ -1929,7 +1946,7 @@ const PhotoGallery = ({
                     gap: '6px',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                    boxShadow: selectedStyle === 'random' ? '0 4px 12px rgba(114, 227, 242, 0.4)' : '0 2px 8px rgba(0, 0, 0, 0.1)',
                     color: selectedStyle === 'random' ? 'white' : '#333',
                     fontSize: '12px',
                     fontFamily: '"Permanent Marker", cursive'
@@ -1952,7 +1969,7 @@ const PhotoGallery = ({
                 onClick={onOneOfEachSelect}
                 style={{
                   background: selectedStyle === 'oneOfEach' ? 'rgba(114, 227, 242, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-                  border: 'none',
+                  border: selectedStyle === 'oneOfEach' ? '3px solid #72e3f2' : '3px solid transparent',
                   borderRadius: '20px',
                   padding: '10px 16px',
                   display: 'flex',
@@ -1960,7 +1977,7 @@ const PhotoGallery = ({
                   gap: '6px',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                  boxShadow: selectedStyle === 'oneOfEach' ? '0 4px 12px rgba(114, 227, 242, 0.4)' : '0 2px 8px rgba(0, 0, 0, 0.1)',
                   color: selectedStyle === 'oneOfEach' ? 'white' : '#333',
                   fontSize: '12px',
                   fontFamily: '"Permanent Marker", cursive'
@@ -1982,7 +1999,7 @@ const PhotoGallery = ({
                 onClick={onCustomSelect}
                 style={{
                   background: selectedStyle === 'custom' ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' : 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)',
-                  border: 'none',
+                  border: selectedStyle === 'custom' ? '3px solid #3b82f6' : '3px solid transparent',
                   borderRadius: '20px',
                   padding: '10px 16px',
                   display: 'flex',
@@ -1990,7 +2007,7 @@ const PhotoGallery = ({
                   gap: '6px',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
-                  boxShadow: '0 3px 10px rgba(59, 130, 246, 0.3)',
+                  boxShadow: selectedStyle === 'custom' ? '0 4px 15px rgba(59, 130, 246, 0.5)' : '0 3px 10px rgba(59, 130, 246, 0.3)',
                   color: 'white',
                   fontSize: '12px',
                   fontFamily: '"Permanent Marker", cursive',
@@ -2052,7 +2069,7 @@ const PhotoGallery = ({
                         padding: '6px 10px',
                         fontSize: '11px',
                         fontWeight: 600,
-                        color: '#333',
+                        color: 'white',
                         cursor: 'pointer',
                         transition: 'all 0.2s ease'
                       }}
@@ -2075,7 +2092,7 @@ const PhotoGallery = ({
                         padding: '6px 10px',
                         fontSize: '11px',
                         fontWeight: 600,
-                        color: '#333',
+                        color: 'white',
                         cursor: 'pointer',
                         transition: 'all 0.2s ease'
                       }}
@@ -2099,7 +2116,7 @@ const PhotoGallery = ({
                         borderRadius: '8px',
                         cursor: 'pointer',
                         transition: 'all 0.2s ease',
-                        color: '#333'
+                        color: 'white'
                       }}>
                         <input
                           type="checkbox"
@@ -2135,13 +2152,12 @@ const PhotoGallery = ({
           paddingBottom: '8px',
           marginBottom: '0px',
           position: 'relative'
-        }}>
+        }} className="style-selector-text-container">
           <span style={{
             fontSize: '18px',
-            color: '#333',
             fontFamily: '"Permanent Marker", cursive'
           }}>
-            Or select a style below
+            Or select a style ⬇
           </span>
           <button 
             onClick={() => setShowThemeFilters(!showThemeFilters)}
@@ -2149,20 +2165,20 @@ const PhotoGallery = ({
               position: 'absolute',
               right: '22px',
               paddingTop: '8px',
-              fontSize: '14px',
+              fontSize: '16px',
               fontWeight: 500,
-              color: '#000000',
               display: 'inline-block',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               background: 'none',
+              color: 'pink',
               fontFamily: '"Permanent Marker", cursive'
             }}
             onMouseOver={e => {
-              e.currentTarget.style.color = '#333';
+              e.currentTarget.style.color = 'white';
             }}
             onMouseOut={e => {
-              e.currentTarget.style.color = '#000000';
+              e.currentTarget.style.color = 'pink';
             }}
           >
             Filter ({filteredPhotos.length})
@@ -2200,12 +2216,14 @@ const PhotoGallery = ({
           const labelText = isReference ? "Reference" : 
             photo.isGalleryImage && photo.promptDisplay ? photo.promptDisplay : 
             `#${index-keepOriginalPhoto+1}`;
+          // Check if this photo represents the currently selected style
+          const isCurrentStyle = isPromptSelectorMode && photo.promptKey && photo.promptKey === selectedStyle;
           // Loading or error state
           if ((photo.loading && photo.images.length === 0) || (photo.error && photo.images.length === 0)) {
             return (
               <div
                 key={photo.id}
-                className={`film-frame loading ${isSelected ? 'selected' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage && tezdevTheme === 'showup' ? 'showup-theme' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage ? `${tezdevTheme}-theme` : ''}`}
+                className={`film-frame loading ${isSelected ? 'selected' : ''} ${isCurrentStyle ? 'current-style' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage && tezdevTheme === 'showup' ? 'showup-theme' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage ? `${tezdevTheme}-theme` : ''}`}
                 data-enhancing={photo.enhancing ? 'true' : undefined}
                 data-error={photo.error ? 'true' : undefined}
                 data-enhanced={photo.enhanced ? 'true' : undefined}
@@ -2286,7 +2304,7 @@ const PhotoGallery = ({
           return (
             <div 
               key={photo.id}
-              className={`film-frame ${isSelected ? 'selected' : ''} ${photo.loading ? 'loading' : ''} ${isLoaded ? 'loaded' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage && tezdevTheme === 'taipeiblockchain' ? 'taipei-blockchain-theme' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage && tezdevTheme === 'showup' ? 'showup-theme' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage ? `${tezdevTheme}-theme` : ''}`}
+              className={`film-frame ${isSelected ? 'selected' : ''} ${isCurrentStyle ? 'current-style' : ''} ${photo.loading ? 'loading' : ''} ${isLoaded ? 'loaded' : ''} ${photo.newlyArrived ? 'newly-arrived' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage && tezdevTheme === 'supercasual' ? 'super-casual-theme' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage && tezdevTheme === 'tezoswebx' ? 'tezos-webx-theme' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage && tezdevTheme === 'taipeiblockchain' ? 'taipei-blockchain-theme' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage && tezdevTheme === 'showup' ? 'showup-theme' : ''} ${isSelected && isThemeSupported() && !photo.isGalleryImage ? `${tezdevTheme}-theme` : ''}`}
               onClick={e => isSelected ? handlePhotoViewerClick(e) : handlePhotoSelect(index, e)}
               data-enhancing={photo.enhancing ? 'true' : undefined}
               data-error={photo.error ? 'true' : undefined}
@@ -2938,7 +2956,9 @@ PhotoGallery.propTypes = {
   onRandomSingleSelect: PropTypes.func,
   onOneOfEachSelect: PropTypes.func,
   onCustomSelect: PropTypes.func,
-  onThemeChange: PropTypes.func
+  onThemeChange: PropTypes.func,
+  onBackToPhotos: PropTypes.func,
+  userPhotosCount: PropTypes.number
 };
 
 export default PhotoGallery; 
