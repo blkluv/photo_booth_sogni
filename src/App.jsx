@@ -321,6 +321,8 @@ const App = () => {
       setLastEditablePhotoState(storedPhotoData);
     }
   }, []);
+
+  
   
   // Add state for upload progress
   const [showUploadProgress, setShowUploadProgress] = useState(false);
@@ -502,6 +504,45 @@ const App = () => {
       }
     };
   }, [orientationHandler]);
+
+  // When entering Style Explorer (prompt selector), ensure we have a usable
+  // reference photo in lastPhotoData by hydrating it from lastEditablePhoto
+  // if needed. This enables showing the Generate button based on prior photos.
+  useEffect(() => {
+    let isCancelled = false;
+    const ensureReferencePhotoForStyleExplorer = async () => {
+      if (currentPage !== 'prompts') return;
+      if (lastPhotoData && lastPhotoData.blob) return;
+      const editable = lastEditablePhoto;
+      if (!editable) return;
+      try {
+        const sourceType = editable.source === 'camera' ? 'camera' : 'upload';
+        if (editable.blob) {
+          if (editable.dataUrl) {
+            if (!isCancelled) setLastPhotoData({ blob: editable.blob, dataUrl: editable.dataUrl, sourceType });
+          } else {
+            const dataUrl = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(editable.blob);
+            });
+            if (!isCancelled) setLastPhotoData({ blob: editable.blob, dataUrl, sourceType });
+          }
+          return;
+        }
+        if (editable.dataUrl) {
+          const response = await fetch(editable.dataUrl);
+          const blob = await response.blob();
+          if (!isCancelled) setLastPhotoData({ blob, dataUrl: editable.dataUrl, sourceType });
+        }
+      } catch (err) {
+        console.warn('Failed to hydrate reference photo for Style Explorer:', err);
+      }
+    };
+    ensureReferencePhotoForStyleExplorer();
+    return () => { isCancelled = true; };
+  }, [currentPage, lastEditablePhoto, lastPhotoData]);
 
   // --- Handle URL parameters for deeplinks ---
   useEffect(() => {
