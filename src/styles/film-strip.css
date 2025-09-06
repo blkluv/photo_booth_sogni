@@ -685,6 +685,15 @@ body .film-frame.selected,
   min-height: 100% !important;
 }
 
+/* While enhancing, ensure any in-progress image fills the selected frame */
+.film-frame.selected[data-enhancing="true"] img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+}
+
 /* Selected photo label positioned at bottom of polaroid */
 .film-frame.selected .photo-label {
   position: absolute !important;
