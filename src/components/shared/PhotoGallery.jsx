@@ -127,7 +127,10 @@ const PhotoGallery = ({
   // State for prompt selector mode
   const [themeGroupState, setThemeGroupState] = useState(() => {
     if (isPromptSelectorMode) {
-      return getThemeGroupPreferences();
+      const saved = getThemeGroupPreferences();
+      const defaultState = getDefaultThemeGroupState();
+      // If no saved preferences exist (empty object), use default state (all enabled)
+      return Object.keys(saved).length === 0 ? defaultState : { ...defaultState, ...saved };
     }
     return getDefaultThemeGroupState();
   });
@@ -1834,9 +1837,32 @@ const PhotoGallery = ({
       {/* Prompt Selector Mode Header */}
       {isPromptSelectorMode && (
         <div className="prompt-selector-header" style={{
-          padding: '8px 20px 0px',
-          background: 'transparent'
+          padding: '24px 20px 0px',
+          background: 'transparent',
+          position: 'relative'
         }}>
+
+          {/* PHOTOBOOTH STYLE EXPLORER Title */}
+          <div style={{
+            position: 'absolute',
+            top: '0px',
+            left: '20px',
+            zIndex: 1000
+          }}>
+            <h1 
+              className="settings-title"
+              data-text="PHOTOBOOTH STYLE EXPLORER"
+              style={{
+                fontSize: '28px',
+                margin: '0',
+                textAlign: 'left',
+                transform: 'translateY(0)',
+                opacity: 1
+              }}
+            >
+              PHOTOBOOTH STYLE EXPLORER
+            </h1>
+          </div>
 
           {/* Workflow Options */}
           <div style={{
@@ -2106,7 +2132,7 @@ const PhotoGallery = ({
           alignItems: 'center',
           paddingRight: '32px',
           paddingLeft: '32px',
-          paddingBottom: '12px',
+          paddingBottom: '8px',
           marginBottom: '0px',
           position: 'relative'
         }}>
@@ -2157,11 +2183,11 @@ const PhotoGallery = ({
           width: '100%',
           maxWidth: 'none',
           margin: '0 auto',
-          padding: isPromptSelectorMode ? '8px 32px 32px' : '32px',
-          paddingTop: isPromptSelectorMode ? '8px' : undefined,
+          padding: isPromptSelectorMode ? '4px 32px 32px' : '32px',
+          paddingTop: isPromptSelectorMode ? '4px' : undefined,
           // Force override the CSS !important rule
           ...(isPromptSelectorMode && {
-            paddingTop: '8px !important'
+            paddingTop: '4px !important'
           })
         }}
       >
