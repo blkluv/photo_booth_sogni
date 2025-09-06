@@ -812,16 +812,21 @@ const App = () => {
     // Set page back to camera
     setCurrentPage('camera');
     
-    // Restart camera when returning from Sample Gallery mode
-    // Use preferred camera device if available
-    const preferredDeviceId = preferredCameraDeviceId || selectedCameraDeviceId;
-    console.log('📹 Restarting camera from Sample Gallery mode with preferred device:', preferredDeviceId || 'auto-select');
+    // Navigate to start menu instead of directly starting camera
+    // This prevents unwanted camera permission requests on mobile/iPad
+    console.log('📸 Navigating from Style Explorer to start menu');
     
-    // Small delay to ensure smooth transition
-    setTimeout(() => {
-      startCamera(preferredDeviceId);
-      setCameraManuallyStarted(true);
-    }, 100);
+    // Scroll to top smoothly
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Hide slothicorn if visible
+    if (slothicornReference.current) {
+      slothicornReference.current.style.setProperty('bottom', '-360px', 'important');
+      slothicornReference.current.classList.remove('animating');
+    }
+    
+    // Show the start menu so user can choose camera or upload
+    setShowStartMenu(true);
   };
 
   const handleBackToPhotosFromPromptSelector = () => {
@@ -4224,7 +4229,7 @@ const App = () => {
         <>
           {/* Conditionally render photo grid in prompt selector mode */}
           {isSogniReady && sogniClient && (
-            <div className={`film-strip-container visible`}>
+            <div className={`film-strip-container visible prompt-selector-mode`}>
               <PhotoGallery
                 photos={photos}
                 selectedPhotoIndex={selectedPhotoIndex}

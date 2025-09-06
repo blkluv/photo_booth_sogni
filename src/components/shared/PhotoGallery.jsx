@@ -1884,7 +1884,8 @@ const PhotoGallery = ({
 
           {/* Workflow Options */}
           <div style={{
-            marginBottom: '16px'
+            marginBottom: '16px',
+            marginTop: '20px'
           }}>
             <h2 style={{
               fontFamily: '"Permanent Marker", cursive',

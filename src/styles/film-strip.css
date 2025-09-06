@@ -182,6 +182,11 @@
   animation: photoGridReveal 0.6s cubic-bezier(0.3, 0, 0.3, 1) forwards;
 }
 
+/* Disable slide-in animation for Style Explorer (prompt selector mode) */
+.film-strip-container.visible.prompt-selector-mode {
+  animation: none;
+}
+
 .film-strip-container.hiding {
   animation: photoGridHide 0.6s cubic-bezier(0.3, 0, 0.3, 1) forwards;
 }
@@ -1038,6 +1043,12 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
   opacity: 0;
 }
 
+/* Disable individual frame animations for Style Explorer */
+.film-strip-container.visible.prompt-selector-mode .film-frame:not(.loading):not(.newly-arrived) {
+  animation: none;
+  opacity: 1;
+}
+
 /* Ensure loading frames are always visible and can still animate */
 .film-strip-container.visible .film-frame.loading {
   opacity: 1 !important;
@@ -1071,6 +1082,11 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
 .film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(7) { animation-delay: 1.75s; }
 .film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(8) { animation-delay: 2s; }
 .film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(9) { animation-delay: 2.25s; }
+
+/* Disable staggered animation delays for Style Explorer */
+.film-strip-container.visible.prompt-selector-mode .film-frame:not(.loading):not(.newly-arrived):nth-child(n) { 
+  animation-delay: 0s; 
+}
 .film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(10) { animation-delay: 2.5s; }
 .film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(11) { animation-delay: 2.75s; }
 .film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(12) { animation-delay: 3s; }
