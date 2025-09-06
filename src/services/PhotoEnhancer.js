@@ -126,11 +126,16 @@ export const enhancePhoto = async (options) => {
       console.warn(`[ENHANCE] Enhancement timeout reached for photo #${photoIndex}, resetting state`);
       setPhotos(prev => {
         const updated = [...prev];
-        if (!updated[photoIndex]) return prev;
+        const current = updated[photoIndex];
+        if (!current) return prev;
+        // Ignore stale timers that don't match the active enhance timeout
+        if (current.enhanceTimeoutId && current.enhanceTimeoutId !== timeoutId) {
+          return prev;
+        }
         // Only show timeout error if the photo is still enhancing (not undone)
-        if (updated[photoIndex].enhancing) {
+        if (current.enhancing) {
           updated[photoIndex] = {
-            ...updated[photoIndex],
+            ...current,
             loading: false,
             enhancing: false,
             error: 'ENHANCEMENT FAILED: timeout',
@@ -264,10 +269,12 @@ export const enhancePhoto = async (options) => {
           
           setPhotos(prev => {
             const updated = [...prev];
-            if (!updated[photoIndex]) return prev;
-            
+            const current = updated[photoIndex];
+            if (!current) return prev;
+            // Ignore events from stale projects
+            if (current.projectId && current.projectId !== project.id) return prev;
             updated[photoIndex] = {
-              ...updated[photoIndex],
+              ...current,
               progress: progressValue,
               enhancementProgress: progressValue
             };
@@ -288,10 +295,12 @@ export const enhancePhoto = async (options) => {
         
         setPhotos(prev => {
           const updated = [...prev];
-          if (!updated[photoIndex]) return prev;
-          
+          const current = updated[photoIndex];
+          if (!current) return prev;
+          // Ignore events from stale projects
+          if (current.projectId && current.projectId !== project.id) return prev;
           updated[photoIndex] = {
-            ...updated[photoIndex],
+            ...current,
             progress: progressValue,
             enhancementProgress: progressValue
           };
@@ -320,8 +329,11 @@ export const enhancePhoto = async (options) => {
             
             setPhotos(prev => {
               const updated = [...prev];
-              if (!updated[photoIndex]) return prev;
-              const updatedImages = [...updated[photoIndex].images];
+              const current = updated[photoIndex];
+              if (!current) return prev;
+              // Ignore completion from stale projects
+              if (current.projectId && current.projectId !== project.id) return prev;
+              const updatedImages = [...current.images];
               const indexToReplace = subIndex < updatedImages.length ? subIndex : updatedImages.length - 1;
               if (indexToReplace >= 0) {
                 updatedImages[indexToReplace] = job.resultUrl;
@@ -329,7 +341,7 @@ export const enhancePhoto = async (options) => {
                 updatedImages.push(job.resultUrl);
               }
               updated[photoIndex] = {
-                ...updated[photoIndex],
+                ...current,
                 loading: false,
                 enhancing: false,
                 images: updatedImages,
@@ -354,8 +366,11 @@ export const enhancePhoto = async (options) => {
             
             setPhotos(prev => {
               const updated = [...prev];
-              if (!updated[photoIndex]) return prev;
-              const updatedImages = [...updated[photoIndex].images];
+              const current = updated[photoIndex];
+              if (!current) return prev;
+              // Ignore completion from stale projects
+              if (current.projectId && current.projectId !== project.id) return prev;
+              const updatedImages = [...current.images];
               const indexToReplace = subIndex < updatedImages.length ? subIndex : updatedImages.length - 1;
               if (indexToReplace >= 0) {
                 updatedImages[indexToReplace] = job.resultUrl;
@@ -363,7 +378,7 @@ export const enhancePhoto = async (options) => {
                 updatedImages.push(job.resultUrl);
               }
               updated[photoIndex] = {
-                ...updated[photoIndex],
+                ...current,
                 loading: false,
                 enhancing: false,
                 images: updatedImages,
@@ -387,12 +402,16 @@ export const enhancePhoto = async (options) => {
           
           setPhotos(prev => {
             const updated = [...prev];
-            if (!updated[photoIndex]) return prev;
+            const current = updated[photoIndex];
+            if (!current) return prev;
+            // Ignore completion from stale projects
+            if (current.projectId && current.projectId !== project.id) return prev;
             updated[photoIndex] = {
-              ...updated[photoIndex],
+              ...current,
               loading: false,
               enhancing: false,
-              error: 'No enhanced image generated'
+              error: 'No enhanced image generated',
+              enhanceTimeoutId: null
             };
             return updated;
           });
@@ -408,13 +427,17 @@ export const enhancePhoto = async (options) => {
         // onSetActiveProject(null); // Commented out since we don't set it
         setPhotos(prev => {
           const updated = [...prev];
-          if (!updated[photoIndex]) return prev;
+          const current = updated[photoIndex];
+          if (!current) return prev;
+          // Ignore failures from stale projects
+          if (current.projectId && current.projectId !== project.id) return prev;
           updated[photoIndex] = {
-            ...updated[photoIndex],
+            ...current,
             loading: false,
             enhancing: false,
             error: 'ENHANCEMENT FAILED: processing error',
-            enhancementError: 'Enhancement failed during processing. Please try again.'
+            enhancementError: 'Enhancement failed during processing. Please try again.',
+            enhanceTimeoutId: null
           };
           return updated;
         });
