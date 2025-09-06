@@ -105,8 +105,7 @@ const PhotoGallery = ({
   onOneOfEachSelect = null,
   onCustomSelect = null,
   onThemeChange = null,
-  onBackToPhotos = null,
-  userPhotosCount = 0
+  onBackToPhotos = null
 }) => {
 
   
@@ -1313,11 +1312,18 @@ const PhotoGallery = ({
           {isGenerating ? 'Cancel & More ✨' : 'More ✨'}
         </button>
       )}
-      {/* View Photos button - only show in prompt selector mode when user has photos */}
-      {isPromptSelectorMode && onBackToPhotos && userPhotosCount > 0 && selectedPhotoIndex === null && (
+      {/* Generate button - only show in prompt selector mode when reference photo exists */}
+      {isPromptSelectorMode && onBackToPhotos && lastPhotoData && lastPhotoData.blob && selectedPhotoIndex === null && (
         <button
           className="view-photos-btn corner-btn"
-          onClick={onBackToPhotos}
+          onClick={() => {
+            // Switch back to regular Photos Grid view and generate fresh batch
+            onBackToPhotos();
+            // Small delay to ensure state updates properly, then generate
+            setTimeout(() => {
+              handleGenerateMorePhotos();
+            }, 100);
+          }}
           style={{
             position: 'fixed',
             right: '20px',
@@ -1325,9 +1331,9 @@ const PhotoGallery = ({
             left: 'auto',
             zIndex: 9999,
           }}
-          title="View your photos"
+          title="Generate fresh batch with current settings"
         >
-          <span className="view-photos-label">View Photos ({userPhotosCount})</span>
+          <span className="view-photos-label">Generate ✨</span>
         </button>
       )}
       {/* Navigation buttons - only show when a photo is selected */}
@@ -3093,8 +3099,7 @@ PhotoGallery.propTypes = {
   onOneOfEachSelect: PropTypes.func,
   onCustomSelect: PropTypes.func,
   onThemeChange: PropTypes.func,
-  onBackToPhotos: PropTypes.func,
-  userPhotosCount: PropTypes.number
+  onBackToPhotos: PropTypes.func
 };
 
 export default PhotoGallery; 

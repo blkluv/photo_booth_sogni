@@ -937,7 +937,7 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
   right: 20px;
 }
 
-/* Improved button for showing the photos */
+/* Generate button for Style Explorer - generates fresh batch with current settings */
 .view-photos-btn {
   position: fixed;
   bottom: 20px;
@@ -961,7 +961,7 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
-/* Responsive styling for View Photos button on mobile */
+/* Responsive styling for Generate button on mobile */
 @media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
   .view-photos-btn {
     right: 10px;

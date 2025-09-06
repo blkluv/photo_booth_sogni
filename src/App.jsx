@@ -4304,7 +4304,6 @@ const App = () => {
                 onCustomSelect={handleCustomFromSampleGallery}
                 onThemeChange={handleThemeChange}
                 onBackToPhotos={handleBackToPhotosFromPromptSelector}
-                userPhotosCount={regularPhotos.length}
               />
             </div>
           )}
