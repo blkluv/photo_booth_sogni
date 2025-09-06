@@ -70,7 +70,7 @@ const TwitterShareModal = ({
         
         const initialMessage = styleDisplayText 
           ? `${defaultMessage} #${styleDisplayText.toLowerCase().replace(/\s+/g, '')} ${currentUrl.split('?')[0]}?prompt=${styleDisplayText.toLowerCase().replace(/\s+/g, '')}`
-          : `${defaultMessage} ${currentUrl}`;
+          : defaultMessage;
         
           setMessage(initialMessage);
         }
