@@ -1412,55 +1412,64 @@ const PhotoGallery = ({
         </button>
       )}
       {/* Add these buttons when a photo is selected */}
-      {selectedPhotoIndex !== null && photos[selectedPhotoIndex] && (
-        <div className="photo-action-buttons" style={{
-          display: 'flex',
-          justifyContent: 'center',
-          position: 'fixed',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          // Ensure this toolbar and its popups are above sloth mascot
-          zIndex: 999999,
-        }}>
-          {/* Share to X Button or Use this Prompt Button for Gallery Images */}
-          {photos[selectedPhotoIndex].isGalleryImage ? (
-            <button
-              className="action-button use-prompt-btn"
-              onClick={(e) => {
-                if (isPromptSelectorMode && onPromptSelect && photos[selectedPhotoIndex].promptKey) {
-                  onPromptSelect(photos[selectedPhotoIndex].promptKey);
-                } else if (onUseGalleryPrompt && photos[selectedPhotoIndex].promptKey) {
-                  onUseGalleryPrompt(photos[selectedPhotoIndex].promptKey);
+      {(() => {
+        if (selectedPhotoIndex === null) return null;
+        
+        // Get the correct photo from the appropriate array (filtered or original)
+        const currentPhotosArray = isPromptSelectorMode ? filteredPhotos : photos;
+        const selectedPhoto = currentPhotosArray[selectedPhotoIndex];
+        
+        if (!selectedPhoto) return null;
+        
+        return (
+          <div className="photo-action-buttons" style={{
+            display: 'flex',
+            justifyContent: 'center',
+            position: 'fixed',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            // Ensure this toolbar and its popups are above sloth mascot
+            zIndex: 999999,
+          }}>
+            {/* Share to X Button or Use this Prompt Button for Gallery Images */}
+            {selectedPhoto.isGalleryImage ? (
+              <button
+                className="action-button use-prompt-btn"
+                onClick={(e) => {
+                  if (isPromptSelectorMode && onPromptSelect && selectedPhoto.promptKey) {
+                    onPromptSelect(selectedPhoto.promptKey);
+                  } else if (onUseGalleryPrompt && selectedPhoto.promptKey) {
+                    onUseGalleryPrompt(selectedPhoto.promptKey);
+                  }
+                  e.stopPropagation();
+                }}
+                disabled={
+                  !selectedPhoto.promptKey ||
+                  (!onUseGalleryPrompt && !onPromptSelect)
                 }
-                e.stopPropagation();
-              }}
-              disabled={
-                !photos[selectedPhotoIndex].promptKey ||
-                (!onUseGalleryPrompt && !onPromptSelect)
-              }
-            >
-              <svg fill="currentColor" width="16" height="16" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-              Use this Style
-            </button>
-          ) : (
-            <button
-              className="action-button twitter-btn"
-              onClick={(e) => {
-                handleShareToX(selectedPhotoIndex);
-                e.stopPropagation();
-              }}
-              disabled={
-                photos[selectedPhotoIndex].loading || 
-                photos[selectedPhotoIndex].enhancing ||
-                photos[selectedPhotoIndex].error ||
-                !photos[selectedPhotoIndex].images ||
-                photos[selectedPhotoIndex].images.length === 0
-              }
-            >
-              <svg fill="currentColor" width="16" height="16" viewBox="0 0 24 24"><path d="M22.46 6c-.77.35-1.6.58-2.46.67.9-.53 1.59-1.37 1.92-2.38-.84.5-1.78.86-2.79 1.07C18.27 4.49 17.01 4 15.63 4c-2.38 0-4.31 1.94-4.31 4.31 0 .34.04.67.11.99C7.83 9.09 4.16 7.19 1.69 4.23-.07 6.29.63 8.43 2.49 9.58c-.71-.02-1.38-.22-1.97-.54v.05c0 2.09 1.49 3.83 3.45 4.23-.36.1-.74.15-1.14.15-.28 0-.55-.03-.81-.08.55 1.71 2.14 2.96 4.03 3-1.48 1.16-3.35 1.85-5.37 1.85-.35 0-.69-.02-1.03-.06 1.92 1.23 4.2 1.95 6.67 1.95 8.01 0 12.38-6.63 12.38-12.38 0-.19 0-.38-.01-.56.85-.61 1.58-1.37 2.16-2.24z"/></svg>
-              {tezdevTheme !== 'off' ? 'Get your print!' : 'Share'}
-            </button>
-          )}
+              >
+                <svg fill="currentColor" width="16" height="16" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                Use this Style
+              </button>
+            ) : (
+              <button
+                className="action-button twitter-btn"
+                onClick={(e) => {
+                  handleShareToX(selectedPhotoIndex);
+                  e.stopPropagation();
+                }}
+                disabled={
+                  selectedPhoto.loading || 
+                  selectedPhoto.enhancing ||
+                  selectedPhoto.error ||
+                  !selectedPhoto.images ||
+                  selectedPhoto.images.length === 0
+                }
+              >
+                <svg fill="currentColor" width="16" height="16" viewBox="0 0 24 24"><path d="M22.46 6c-.77.35-1.6.58-2.46.67.9-.53 1.59-1.37 1.92-2.38-.84.5-1.78.86-2.79 1.07C18.27 4.49 17.01 4 15.63 4c-2.38 0-4.31 1.94-4.31 4.31 0 .34.04.67.11.99C7.83 9.09 4.16 7.19 1.69 4.23-.07 6.29.63 8.43 2.49 9.58c-.71-.02-1.38-.22-1.97-.54v.05c0 2.09 1.49 3.83 3.45 4.23-.36.1-.74.15-1.14.15-.28 0-.55-.03-.81-.08.55 1.71 2.14 2.96 4.03 3-1.48 1.16-3.35 1.85-5.37 1.85-.35 0-.69-.02-1.03-.06 1.92 1.23 4.2 1.95 6.67 1.95 8.01 0 12.38-6.63 12.38-12.38 0-.19 0-.38-.01-.56.85-.61 1.58-1.37 2.16-2.24z"/></svg>
+                {tezdevTheme !== 'off' ? 'Get your print!' : 'Share'}
+              </button>
+            )}
 
           {/* Download Framed Button - Always show */}
           <button
@@ -1801,12 +1810,13 @@ const PhotoGallery = ({
                 }}
                 title="Click to dismiss"
               >
-                {photos[selectedPhotoIndex].enhancementError}
+                {selectedPhoto.enhancementError}
               </div>
             )}
           </div>
         </div>
-      )}
+        );
+      })()}
       {/* Settings button when viewing a photo */}
       {selectedPhotoIndex !== null && (
         <button
@@ -2278,7 +2288,10 @@ const PhotoGallery = ({
           
           <span style={{
             fontSize: '20px',
-            fontFamily: '"Permanent Marker", cursive'
+            fontFamily: '"Permanent Marker", cursive',
+            opacity: showSearchInput ? 0 : 1,
+            visibility: showSearchInput ? 'hidden' : 'visible',
+            transition: 'opacity 0.2s ease, visibility 0.2s ease'
           }}>
             Or select a style ↓
           </span>
