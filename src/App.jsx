@@ -414,6 +414,20 @@ const App = () => {
   
   // Separate state for regular photos (so they can continue loading in background)
   const [regularPhotos, setRegularPhotos] = useState([]);
+
+  // Ensure updates from enhancement write to the source-of-truth and the displayed list
+  const setPhotosProxy = useCallback((updater) => {
+    // Update the underlying regularPhotos (source of truth)
+    setRegularPhotos(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      return next;
+    });
+    // Also update the currently displayed photos for immediate UI response
+    setPhotos(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      return next;
+    });
+  }, [setRegularPhotos, setPhotos]);
   
   // Separate state for gallery photos
   const [galleryPhotos, setGalleryPhotos] = useState([]);
@@ -4247,7 +4261,7 @@ const App = () => {
                 activeProjectReference={activeProjectReference}
                 isSogniReady={isSogniReady}
                 toggleNotesModal={toggleNotesModal}
-                setPhotos={setPhotos}
+                setPhotos={setPhotosProxy}
                 selectedStyle={selectedStyle}
                 stylePrompts={stylePrompts}
                 enhancePhoto={enhancePhoto}
@@ -5489,7 +5503,7 @@ const App = () => {
           activeProjectReference={activeProjectReference}
           isSogniReady={isSogniReady}
           toggleNotesModal={toggleNotesModal}
-          setPhotos={setPhotos}
+          setPhotos={setPhotosProxy}
           selectedStyle={selectedStyle}
           stylePrompts={stylePrompts}
           enhancePhoto={enhancePhoto}

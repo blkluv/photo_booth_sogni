@@ -630,7 +630,7 @@ body .film-frame.selected,
   }
   body.has-selected-photo .film-strip-container.visible .film-frame.selected.loaded .photo-label:not(:empty),
   body.has-selected-photo .film-strip-container.visible .film-frame.selected[data-enhancing="true"] .photo-label:not(:empty) {
-    font-size: 48px !important;
+    font-size: 40px !important;
   }
 }
 

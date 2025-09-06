@@ -618,49 +618,54 @@ const PhotoGallery = ({
     }
     
     const migratePhotos = async () => {
-      const updatedPhotos = await Promise.all(
+      // Build minimal per-photo updates to avoid overwriting concurrent changes (e.g., enhancement)
+      const updates = await Promise.all(
         photos.map(async (photo, index) => {
-          // Only update photos that need migration and haven't been migrated yet
-          if (!migrationDoneRef.current.has(photo.id) && 
-              (!photo.taipeiFrameNumber || photo.framePadding === undefined)) {
-            
-            const updatedPhoto = { ...photo };
-            
-            // Add frame number if missing
-            if (!updatedPhoto.taipeiFrameNumber) {
-              updatedPhoto.taipeiFrameNumber = (index % 6) + 1;
-            }
-            
-            // Add frame padding if missing and we have a theme
-            if (updatedPhoto.framePadding === undefined && tezdevTheme !== 'off') {
+          if (migrationDoneRef.current.has(photo.id)) {
+            return null;
+          }
+          const needsFrameNumber = !photo.taipeiFrameNumber;
+          const needsPadding = photo.framePadding === undefined;
+          if (!needsFrameNumber && !needsPadding) {
+            return null;
+          }
+          const nextTaipeiFrameNumber = needsFrameNumber ? ((index % 6) + 1) : photo.taipeiFrameNumber;
+          let nextFramePadding = photo.framePadding;
+          if (needsPadding) {
+            if (tezdevTheme !== 'off') {
               try {
-                const padding = await themeConfigService.getFramePadding(tezdevTheme);
-                updatedPhoto.framePadding = padding;
+                nextFramePadding = await themeConfigService.getFramePadding(tezdevTheme);
               } catch (error) {
                 console.warn('Could not get frame padding for photo migration:', error);
-                updatedPhoto.framePadding = 0;
+                nextFramePadding = 0;
               }
-            } else if (updatedPhoto.framePadding === undefined) {
-              updatedPhoto.framePadding = 0;
+            } else {
+              nextFramePadding = 0;
             }
-            
-            // Mark this photo as migrated
-            migrationDoneRef.current.add(photo.id);
-            
-            return updatedPhoto;
           }
-          return photo;
+          migrationDoneRef.current.add(photo.id);
+          return { id: photo.id, index, taipeiFrameNumber: nextTaipeiFrameNumber, framePadding: nextFramePadding };
         })
       );
       
-      // Only update if there were actual changes
-      const hasChanges = updatedPhotos.some((photo, index) => 
-        photo !== photos[index]
-      );
-      
-      if (hasChanges) {
-        setPhotos(updatedPhotos);
+      const effectiveUpdates = updates.filter(Boolean);
+      if (effectiveUpdates.length === 0) {
+        return;
       }
+      
+      // Apply only the migrated fields to the latest state to prevent stale overwrites
+      setPhotos(prev => {
+        const idToUpdate = new Map(effectiveUpdates.map(u => [u.id, u]));
+        return prev.map(photo => {
+          const u = idToUpdate.get(photo.id);
+          if (!u) return photo;
+          return {
+            ...photo,
+            taipeiFrameNumber: u.taipeiFrameNumber,
+            framePadding: u.framePadding
+          };
+        });
+      });
     };
     
     migratePhotos();
