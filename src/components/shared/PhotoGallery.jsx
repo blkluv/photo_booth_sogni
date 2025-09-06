@@ -1888,7 +1888,7 @@ const PhotoGallery = ({
           }}>
             <h2 style={{
               fontFamily: '"Permanent Marker", cursive',
-              fontSize: '18px',
+              fontSize: '20px',
               margin: '0 0 12px 0',
               textAlign: 'center'
             }}>
@@ -1899,7 +1899,7 @@ const PhotoGallery = ({
             <div style={{
               display: 'flex',
               gap: '8px',
-              marginBottom: '20px',
+              marginBottom: '30px',
               flexWrap: 'wrap',
               justifyContent: 'center'
             }}>
@@ -2154,10 +2154,10 @@ const PhotoGallery = ({
           position: 'relative'
         }} className="style-selector-text-container">
           <span style={{
-            fontSize: '18px',
+            fontSize: '20px',
             fontFamily: '"Permanent Marker", cursive'
           }}>
-            Or select a style ⬇
+            Or select a style ↓
           </span>
           <button 
             onClick={() => setShowThemeFilters(!showThemeFilters)}
@@ -2165,20 +2165,14 @@ const PhotoGallery = ({
               position: 'absolute',
               right: '22px',
               paddingTop: '8px',
-              fontSize: '16px',
+              fontSize: '14px',
               fontWeight: 500,
               display: 'inline-block',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               background: 'none',
-              color: 'pink',
-              fontFamily: '"Permanent Marker", cursive'
-            }}
-            onMouseOver={e => {
-              e.currentTarget.style.color = 'white';
-            }}
-            onMouseOut={e => {
-              e.currentTarget.style.color = 'pink';
+              fontFamily: '"Permanent Marker", cursive',
+              color: 'white'
             }}
           >
             Filter ({filteredPhotos.length})

@@ -381,14 +381,14 @@
 
 /* Larger font size for completed photos with hashtags */
 .film-frame.loaded .photo-label:not(:empty) {
-  font-size: 26px !important;
+  font-size: 24px !important;
   font-weight: 500 !important;
   /* Ensure ellipsis works with larger font size */
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   display: block !important;
-  line-height: 35px !important;
+  line-height: 37px !important;
 }
 body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty),
 body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label:not(:empty) {
@@ -615,13 +615,18 @@ body .film-frame.selected,
   body .film-frame.selected,
   .film-frame.selected {
     /* Reduce max height to ensure proper spacing above action buttons */
-    max-height: 82vh !important; /* Reduced from 96vh to 82vh for iPad */
+    max-height: 85vh !important; /* Reduced from 96vh to 82vh for iPad */
     /* Move slightly higher to center better with reduced height */
     top: 47% !important; /* Moved up slightly from 48% */
   }
   
   body .film-strip-content.has-selected .film-frame.selected img {
     max-height: calc(82vh - var(--polaroid-side-border) - var(--polaroid-bottom-border)) !important;
+  }
+  body.has-selected-photo .film-strip-container.visible .film-frame.selected.loaded .photo-label:not(:empty),
+  body.has-selected-photo .film-strip-container.visible .film-frame.selected[data-enhancing="true"] .photo-label:not(:empty) {
+    font-size: 48px !important;
+    bottom: 10px !important;
   }
 }
 
@@ -1201,5 +1206,58 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
   .twitter-btn svg {
     width: 14px !important;
     height: 14px !important;
+  }
+}
+
+/* Mobile Style Explorer improvements */
+@media (max-width: 768px) and (orientation: portrait) {
+  /* Reduce padding between header and photo grid */
+  .film-strip-content.prompt-selector-mode {
+    padding-top: 8px !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+  
+  /* Better spacing for random style buttons */
+  .prompt-selector-header > div {
+    margin-bottom: 12px !important;
+    padding-top: 15px !important;
+  }
+  
+  /* Enhanced selected state for random buttons on mobile */
+  .prompt-selector-header button {
+    font-size: 13px !important;
+    padding: 12px 18px !important;
+    min-height: 44px !important;
+    font-weight: 600 !important;
+  }
+  
+  /* More prominent selected state on mobile */
+  .prompt-selector-header button[style*="rgba(114, 227, 242, 0.9)"] {
+    background: linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%) !important;
+    border: 3px solid #ffffff !important;
+    box-shadow: 0 4px 16px rgba(114, 227, 242, 0.6) !important;
+    color: white !important;
+    font-weight: 700 !important;
+  }
+  
+  /* Better unselected state on mobile */
+  .prompt-selector-header button[style*="rgba(255, 255, 255, 0.9)"] {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border: 2px solid rgba(114, 227, 242, 0.3) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+    color: #333 !important;
+  }
+  
+  /* Custom button special styling on mobile */
+  .prompt-selector-header button[style*="linear-gradient(135deg, #3b82f6"] {
+    border: 3px solid #ffffff !important;
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.6) !important;
+    font-weight: 700 !important;
+  }
+  
+  .prompt-selector-header button[style*="linear-gradient(135deg, #60a5fa"] {
+    border: 2px solid rgba(59, 130, 246, 0.3) !important;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3) !important;
   }
 }
