@@ -4224,8 +4224,8 @@ const App = () => {
       justifyContent: 'center',
       overflow: 'hidden',
     }}>
-      {/* Style selector in top left - shown in all views except prompt selector page and start menu */}
-      {currentPage !== 'prompts' && !showStartMenu && (
+      {/* Style selector in top left - shown on photo grid page when not in Style Explorer */}
+      {showPhotoGrid && currentPage !== 'prompts' && (
         <div className="top-left-style-selector" style={{
           position: 'fixed',
           top: '24px',
@@ -4391,7 +4391,7 @@ const App = () => {
 
           
           {/* Move the corner button outside of CameraStartMenu */}
-          {showStartMenu && photos.length > 0 && (
+          {showStartMenu && photos.length > 0 && !showPhotoGrid && (
             <button 
               className="corner-btn photos-corner-btn"
               onClick={() => {

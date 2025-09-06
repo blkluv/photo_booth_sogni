@@ -1907,8 +1907,6 @@ const PhotoGallery = ({
         ?
       </button>
 
-
-
       {/* Prompt Selector Mode Header */}
       {isPromptSelectorMode && (
         <div className="prompt-selector-header" style={{
