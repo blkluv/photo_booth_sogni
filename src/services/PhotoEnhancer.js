@@ -33,6 +33,22 @@ export const enhancePhoto = async (options) => {
     customPrompt = ''
   } = options;
 
+  // Input validation
+  if (typeof photoIndex !== 'number' || photoIndex < 0) {
+    console.error(`[ENHANCE] Invalid photoIndex: ${photoIndex}`);
+    return;
+  }
+  
+  if (!photo) {
+    console.error(`[ENHANCE] No photo provided for enhancement at index ${photoIndex}`);
+    return;
+  }
+  
+  if (!setPhotos || typeof setPhotos !== 'function') {
+    console.error(`[ENHANCE] Invalid setPhotos function provided`);
+    return;
+  }
+
   let timeoutId; // Declare timeoutId in outer scope
 
   try {
@@ -78,10 +94,16 @@ export const enhancePhoto = async (options) => {
       console.log(`[ENHANCE] Setting loading state for photo #${photoIndex}`);
       const updated = [...prev];
       
+      // Check if the photo exists at the given index
+      if (!updated[photoIndex]) {
+        console.error(`[ENHANCE] Photo at index ${photoIndex} does not exist`);
+        return prev; // Return unchanged if photo doesn't exist
+      }
+      
       // Persist the very first generated/original image ONCE so Undo can return to it reliably.
       let originalImage = null;
       if (!updated[photoIndex].originalEnhancedImage) {
-        originalImage = updated[photoIndex].images[subIndex] || updated[photoIndex].originalDataUrl;
+        originalImage = updated[photoIndex].images?.[subIndex] || updated[photoIndex].originalDataUrl;
         console.log(`[ENHANCE] Capturing original baseline for undo: ${originalImage?.substring(0, 100)}...`);
       }
 
@@ -557,12 +579,20 @@ export const redoEnhancement = ({ photoIndex, subIndex, setPhotos, clearFrameCac
         console.log(`[ENHANCE] Restored enhanced image at index ${indexToRestore}`);
       }
       
+      // Clear any pending enhancement timeout to prevent false timeout errors during redo
+      if (photo.enhanceTimeoutId) {
+        try {
+          clearTimeout(photo.enhanceTimeoutId);
+        } catch (e) { /* no-op */ }
+      }
+
       const next = {
         ...photo,
         enhanced: true,
         images: updatedImages,
         canRedo: false, // Can't redo again until next undo
-        enhancementError: null
+        enhancementError: null,
+        enhanceTimeoutId: null
       };
       updated[photoIndex] = next;
       console.log('[ENHANCE] ✅ REDO applied state:', {

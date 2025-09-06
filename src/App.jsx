@@ -415,22 +415,42 @@ const App = () => {
   // Separate state for regular photos (so they can continue loading in background)
   const [regularPhotos, setRegularPhotos] = useState([]);
 
-  // Ensure updates from enhancement write to the source-of-truth and the displayed list
-  const setPhotosProxy = useCallback((updater) => {
-    // Update the underlying regularPhotos (source of truth)
-    setRegularPhotos(prev => {
-      const next = typeof updater === 'function' ? updater(prev) : updater;
-      return next;
-    });
-    // Also update the currently displayed photos for immediate UI response
-    setPhotos(prev => {
-      const next = typeof updater === 'function' ? updater(prev) : updater;
-      return next;
-    });
-  }, [setRegularPhotos, setPhotos]);
-  
   // Separate state for gallery photos
   const [galleryPhotos, setGalleryPhotos] = useState([]);
+
+  // Ensure updates from enhancement write to the appropriate source-of-truth and the displayed list
+  const setPhotosProxy = useCallback((updater) => {
+    try {
+      // Determine source-of-truth based on current page
+      const updateSource = currentPage === 'prompts' ? setGalleryPhotos : setRegularPhotos;
+
+      // Update the underlying source-of-truth (regularPhotos or galleryPhotos)
+      updateSource(prev => {
+        try {
+          const next = typeof updater === 'function' ? updater(prev) : updater;
+          return next;
+        } catch (error) {
+          console.error('[APP] Error in setPhotosProxy source updater:', error);
+          return prev; // Return unchanged state on error
+        }
+      });
+
+      // Also update the currently displayed photos for immediate UI response
+      setPhotos(prev => {
+        try {
+          const next = typeof updater === 'function' ? updater(prev) : updater;
+          return next;
+        } catch (error) {
+          console.error('[APP] Error in setPhotosProxy photos updater:', error);
+          return prev; // Return unchanged state on error
+        }
+      });
+    } catch (error) {
+      console.error('[APP] Error in setPhotosProxy:', error);
+    }
+  }, [currentPage, setGalleryPhotos, setRegularPhotos, setPhotos]);
+  
+  
   
   // Effect to sync photos state based on current page
   useEffect(() => {
