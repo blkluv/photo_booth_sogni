@@ -1406,6 +1406,7 @@ const App = () => {
       
       if (tezdevTheme !== 'off') {
         // For TezDev themes, create full frame version (no polaroid frame, just TezDev overlay)
+        // Custom frames should not include labels - they have their own styling
         console.log('Creating TezDev full frame version for mobile sharing');
         framedImageDataUrl = await createPolaroidImage(originalImageUrl, '', {
           tezdevTheme,
@@ -1416,7 +1417,14 @@ const App = () => {
           frameColor: 'transparent', // No polaroid background
           outputFormat: 'jpg', // Use JPG for mobile sharing
           // For Taipei theme, pass the current frame number to ensure consistency
-          taipeiFrameNumber: tezdevTheme === 'taipeiblockchain' ? currentTaipeiFrameNumber : undefined
+          taipeiFrameNumber: tezdevTheme === 'taipeiblockchain' ? currentTaipeiFrameNumber : undefined,
+          // Add QR watermark for mobile sharing (if enabled)
+          watermarkOptions: settings.sogniWatermark ? {
+            size: 80, // Smaller for mobile sharing
+            margin: 5, // Closer to edge
+            position: 'top-right',
+            opacity: 0.8
+          } : null
         });
       } else {
         // For non-TezDev themes, use traditional polaroid frame
@@ -1427,7 +1435,14 @@ const App = () => {
         framedImageDataUrl = await createPolaroidImage(originalImageUrl, label, {
           tezdevTheme,
           aspectRatio,
-          outputFormat: 'jpg' // Use JPG for mobile sharing
+          outputFormat: 'jpg', // Use JPG for mobile sharing
+          // Add QR watermark for mobile sharing (if enabled)
+          watermarkOptions: settings.sogniWatermark ? {
+            size: 80, // Smaller for mobile sharing
+            margin: 5, // Closer to edge
+            position: 'top-right',
+            opacity: 0.8
+          } : null
         });
       }
       
@@ -1576,6 +1591,7 @@ const App = () => {
       tezdevTheme,
       aspectRatio,
       outputFormat,
+      sogniWatermark: settings.sogniWatermark,
       onSuccess: () => {
         setSuccessMessage('Your photo has been shared to X/Twitter!');
         setShowSuccessToast(true);
@@ -3942,8 +3958,10 @@ const App = () => {
     let finalBlob;
     try {
       const { convertPngToHighQualityJpeg } = await import('./utils/imageProcessing.js');
-      finalBlob = await convertPngToHighQualityJpeg(pngBlob);
-      console.log(`📊 Upload format: JPEG (converted from PNG for efficiency)`);
+      // Don't add watermarks to camera captures - they'll be processed further
+      // Watermarks should only be applied to final outputs (downloads, shares)
+      finalBlob = await convertPngToHighQualityJpeg(pngBlob, 0.92, null);
+      console.log(`📊 Upload format: JPEG (converted from PNG, no watermark - will be processed further)`);
     } catch (conversionError) {
       console.warn('JPEG conversion failed, using original PNG:', conversionError);
       finalBlob = pngBlob;
@@ -4121,8 +4139,10 @@ const App = () => {
     let finalBlob;
     try {
       const { convertPngToHighQualityJpeg } = await import('./utils/imageProcessing.js');
-      finalBlob = await convertPngToHighQualityJpeg(pngBlob);
-      console.log(`📊 Upload format: JPEG (converted from PNG for efficiency)`);
+      // Don't add watermarks to camera captures - they'll be processed further
+      // Watermarks should only be applied to final outputs (downloads, shares)
+      finalBlob = await convertPngToHighQualityJpeg(pngBlob, 0.92, null);
+      console.log(`📊 Upload format: JPEG (converted from PNG, no watermark - will be processed further)`);
     } catch (conversionError) {
       console.warn('JPEG conversion failed, using original PNG:', conversionError);
       finalBlob = pngBlob;

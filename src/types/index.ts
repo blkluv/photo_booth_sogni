@@ -87,6 +87,7 @@ export interface Settings {
   sensitiveContentFilter: boolean;
   preferredCameraDeviceId?: string;
   kioskMode: boolean;
+  sogniWatermark: boolean;
   // Worker preferences
   requiredWorkers: string[];
   preferWorkers: string[];

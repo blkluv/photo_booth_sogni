@@ -12,6 +12,7 @@ import { THEME_GROUPS, getDefaultThemeGroupState, getEnabledPrompts } from '../.
 import { getThemeGroupPreferences, saveThemeGroupPreferences } from '../../utils/cookies';
 import { isFluxKontextModel, SAMPLE_GALLERY_CONFIG } from '../../constants/settings';
 import { themeConfigService } from '../../services/themeConfig';
+import { useApp } from '../../context/AppContext';
 
 // Memoized placeholder image component to prevent blob reloading
 const PlaceholderImage = memo(({ placeholderUrl }) => {
@@ -107,6 +108,8 @@ const PhotoGallery = ({
   onThemeChange = null,
   onBackToPhotos = null
 }) => {
+  // Get settings from context
+  const { settings } = useApp();
 
   
   // State to track when to show the "more" button during generation
@@ -721,7 +724,14 @@ const PhotoGallery = ({
                 frameColor: isGalleryImage ? 'white' : 'transparent',
                 outputFormat: outputFormat,
                 // For Taipei theme, pass the current frame number to ensure consistency (but not for gallery images)
-                taipeiFrameNumber: (!isGalleryImage && tezdevTheme === 'taipeiblockchain') ? currentTaipeiFrameNumber : undefined
+                taipeiFrameNumber: (!isGalleryImage && tezdevTheme === 'taipeiblockchain') ? currentTaipeiFrameNumber : undefined,
+                // Add QR watermark to preview frames (if enabled)
+                watermarkOptions: settings.sogniWatermark ? {
+                  size: 60, // Smaller for preview frames
+                  margin: 5,
+                  position: 'top-right',
+                  opacity: 0.8
+                } : null
               });
               
               // Store the framed image URL
@@ -1129,8 +1139,9 @@ const PhotoGallery = ({
       const styleDisplayText = getStyleDisplayText(photos[photoIndex]);
       
       // Determine photo label (only used for default polaroid frame)
-      const photoNumberLabel = photos[photoIndex]?.statusText?.split('#')[0]?.trim() || photos[photoIndex]?.label || '';
-      const photoLabel = photoNumberLabel + (styleDisplayText ? ` ${styleDisplayText}` : '');
+      // Fix duplicate label issue by using statusText directly or just the style
+      const photoNumberLabel = photos[photoIndex]?.statusText?.split('#')[0]?.trim() || '';
+      const photoLabel = photoNumberLabel || styleDisplayText || '';
       
       // Generate filename based on outputFormat setting
       const cleanStyleName = styleDisplayText ? styleDisplayText.toLowerCase().replace(/\s+/g, '-') : 'sogni';
@@ -1154,7 +1165,13 @@ const PhotoGallery = ({
       const isGalleryImage = photos[photoIndex].isGalleryImage;
       // Gallery images should always use default polaroid styling, regardless of theme
       const shouldUseTheme = useTheme && !isGalleryImage;
-      const polaroidUrl = await createPolaroidImage(imageUrl, !shouldUseTheme ? photoLabel : '', {
+      // Truncate label earlier to make room for QR code
+      const maxLabelLength = 20; // Shorter to make room for QR
+      const truncatedLabel = !shouldUseTheme && photoLabel.length > maxLabelLength 
+        ? photoLabel.substring(0, maxLabelLength) + '...' 
+        : photoLabel;
+
+      const polaroidUrl = await createPolaroidImage(imageUrl, !shouldUseTheme ? truncatedLabel : '', {
         tezdevTheme: shouldUseTheme ? tezdevTheme : 'off',
         aspectRatio,
         // If theme is not supported or it's a gallery image, use default polaroid frame; otherwise no polaroid frame
@@ -1164,7 +1181,14 @@ const PhotoGallery = ({
         frameColor: !shouldUseTheme ? 'white' : 'transparent',
         outputFormat: outputFormat, // Use the actual outputFormat setting for framed downloads
         // For Taipei theme, pass the current frame number to ensure consistency (but not for gallery images)
-        taipeiFrameNumber: shouldUseTheme && tezdevTheme === 'taipeiblockchain' ? photos[photoIndex].taipeiFrameNumber : undefined
+        taipeiFrameNumber: shouldUseTheme && tezdevTheme === 'taipeiblockchain' ? photos[photoIndex].taipeiFrameNumber : undefined,
+        // Add QR watermark for downloads with improved settings (if enabled)
+        watermarkOptions: settings.sogniWatermark ? {
+          size: 90, // Standardized size for consistency
+          margin: 5, // Closer to edge
+          position: 'top-right',
+          opacity: 0.9 // Higher opacity for better visibility
+        } : null
       });
       
              // Handle download
@@ -1222,9 +1246,59 @@ const PhotoGallery = ({
       
       const filename = `sogni-photobooth-${cleanStyleName}-raw${actualExtension}`;
       
-      // Raw download is ALWAYS the original image without any frames or processing
-      console.log(`[RAW DOWNLOAD] Downloading original image as: ${filename}`);
-      downloadImage(imageUrl, filename);
+      // For raw downloads, add QR watermark to the original image without frames (if enabled)
+      console.log(`[RAW DOWNLOAD] Processing original image${settings.sogniWatermark ? ' with QR watermark' : ''}: ${filename}`);
+      
+      // Load the original image and optionally add QR watermark
+      const processedImageUrl = await new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        img.onload = async () => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            
+            // Enable high-quality image resampling
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            
+            // Draw the original image
+            ctx.drawImage(img, 0, 0);
+            
+            // Add QR watermark to raw image (if enabled)
+            if (settings.sogniWatermark) {
+              const { addQRWatermark } = await import('../../utils/imageProcessing.js');
+              await addQRWatermark(ctx, canvas.width, canvas.height, {
+                size: 90, // Standardized size for consistency
+                margin: 5, // Closer to edge
+                position: 'top-right',
+                opacity: 0.9
+              });
+            }
+            
+            // Convert to data URL
+            const dataUrl = canvas.toDataURL(actualExtension === '.png' ? 'image/png' : 'image/jpeg', 0.95);
+            resolve(dataUrl);
+          } catch (error) {
+            console.error('Error processing raw image with watermark:', error);
+            // Fallback to original image if watermark fails
+            resolve(imageUrl);
+          }
+        };
+        
+        img.onerror = () => {
+          console.error('Error loading image for raw download processing');
+          // Fallback to original image if loading fails
+          resolve(imageUrl);
+        };
+        
+        img.src = imageUrl;
+      });
+      
+      downloadImage(processedImageUrl, filename);
     } catch (error) {
       console.error('Error downloading raw photo:', error);
     }

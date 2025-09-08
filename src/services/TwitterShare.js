@@ -39,6 +39,7 @@ export const getPhotoHashtag = (photo) => {
  * @param {string} [params.tezdevTheme='off'] - TezDev theme or 'off'
  * @param {string} [params.aspectRatio] - Aspect ratio of the image
  * @param {string} [params.outputFormat='png'] - Output format ('png' or 'jpg') - Note: Twitter always uses JPG regardless of this setting
+ * @param {boolean} [params.sogniWatermark=true] - Whether to include Sogni watermark
  * @returns {Promise<void>}
  */
 export const shareToTwitter = async ({
@@ -52,6 +53,7 @@ export const shareToTwitter = async ({
   tezdevTheme = 'off',
   aspectRatio = null,
   outputFormat = 'png',
+  sogniWatermark = true,
 }) => {
   if (photoIndex === null || !photos[photoIndex] || !photos[photoIndex].images || !photos[photoIndex].images[0]) {
     console.error('No image selected or image URL is missing for sharing.');
@@ -162,6 +164,7 @@ export const shareToTwitter = async ({
     
     if (tezdevTheme !== 'off') {
       // For TezDev themes, create full frame version (no polaroid frame, just TezDev overlay)
+      // Custom frames should not include labels - they have their own styling
       console.log('Creating TezDev full frame version for sharing (always JPG for Twitter)');
       imageDataUrl = await createPolaroidImage(originalImageUrl, '', {
         tezdevTheme,
@@ -170,7 +173,14 @@ export const shareToTwitter = async ({
         frameTopWidth: 0,   // No polaroid frame
         frameBottomWidth: 0, // No polaroid frame
         frameColor: 'transparent', // No polaroid background
-        outputFormat: 'jpg' // Always use JPG for Twitter sharing
+        outputFormat: 'jpg', // Always use JPG for Twitter sharing
+        // Add QR watermark for Twitter sharing (if enabled)
+        watermarkOptions: sogniWatermark ? {
+          size: 90, // Standardized size for consistency
+          margin: 5, // Closer to edge
+          position: 'top-right',
+          opacity: 0.8
+        } : null
       });
     } else {
       // For non-TezDev themes, use traditional polaroid frame
@@ -181,7 +191,14 @@ export const shareToTwitter = async ({
       imageDataUrl = await createPolaroidImage(originalImageUrl, label, {
         tezdevTheme,
         aspectRatio,
-        outputFormat: 'jpg' // Always use JPG for Twitter sharing
+        outputFormat: 'jpg', // Always use JPG for Twitter sharing
+        // Add QR watermark for Twitter sharing (if enabled)
+        watermarkOptions: sogniWatermark ? {
+          size: 90, // Standardized size for consistency
+          margin: 5, // Closer to edge
+          position: 'top-right',
+          opacity: 0.8
+        } : null
       });
     }
     

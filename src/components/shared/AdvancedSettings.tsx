@@ -742,6 +742,17 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
           <label htmlFor="sensitive-content-filter-toggle" className="control-label">Sensitive Content Filter</label>
         </div>
 
+        {/* Sogni Watermark toggle */}
+        <div className="control-option checkbox">
+          <input
+            type="checkbox"
+            id="sogni-watermark-toggle"
+            checked={settings.sogniWatermark}
+            onChange={(e) => updateSetting('sogniWatermark', e.target.checked)}
+          />
+          <label htmlFor="sogni-watermark-toggle" className="control-label">Sogni watermark</label>
+        </div>
+
         {/* Flash toggle */}
         <div className="control-option checkbox">
           <input

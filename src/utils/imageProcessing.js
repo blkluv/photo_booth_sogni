@@ -80,21 +80,24 @@ export async function resizeDataUrl(dataUrl, width, height) {
  * @param {string} options.tezdevTheme - TezDev theme or 'off'
  * @param {string} options.aspectRatio - Aspect ratio of the original image
  * @param {string} options.outputFormat - Output format ('png' or 'jpg', default: 'png')
+ * @param {Object} options.watermarkOptions - Options for QR watermark (optional)
  * @returns {Promise<string>} Data URL of the generated polaroid image
  */
 export async function createPolaroidImage(imageUrl, label, options = {}) {
-  return new Promise(async (resolve, reject) => {
-    const {
-      frameWidth = 56,
-      frameTopWidth = 56,
-      frameBottomWidth = 150, // Reduced to match on-screen display better
-      frameColor = 'white',
-      labelFont = '70px "Permanent Marker", cursive',
-      labelColor = '#333',
-      tezdevTheme = 'off',
-      aspectRatio = 'portrait',
-      outputFormat = 'png'
-    } = options;
+  const {
+    frameWidth = 56,
+    frameTopWidth = 56,
+    frameBottomWidth = 150, // Reduced to match on-screen display better
+    frameColor = 'white',
+    labelFont = '70px "Permanent Marker", cursive',
+    labelColor = '#333',
+    tezdevTheme = 'off',
+    aspectRatio = 'portrait',
+    outputFormat = 'png',
+    watermarkOptions = null
+  } = options;
+
+  return new Promise((resolve, reject) => {
 
     // Load the Permanent Marker font if it's not already loaded
     if (!document.querySelector('link[href*="Permanent+Marker"]')) {
@@ -187,18 +190,18 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
       // Apply TezDev frame if enabled (works on all aspect ratios now)
       if (tezdevTheme !== 'off') {
         applyTezDevFrame(ctx, imageWidth, imageHeight, frameWidth, frameTopWidth, tezdevTheme, aspectRatio, options)
-          .then(() => {
-            finalizePolaroid();
+          .then(async () => {
+            await finalizePolaroid();
           })
-          .catch((err) => {
+          .catch(async (err) => {
             console.warn('Failed to apply TezDev frame, continuing without it:', err);
-            finalizePolaroid();
+            await finalizePolaroid();
           });
       } else {
-        finalizePolaroid();
+        await finalizePolaroid();
       }
       
-      function finalizePolaroid() {
+      async function finalizePolaroid() {
       // Add subtle inner shadow to make it look more realistic
       ctx.shadowColor = 'rgba(0,0,0,0.1)';
       ctx.shadowBlur = 6;
@@ -244,6 +247,26 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
         console.log(`Drew label: "${displayLabel}" at y=${labelY} with bottom width ${frameBottomWidth}`);
       }
       
+      // Add QR watermark if options provided - position within image area, not full polaroid
+      if (watermarkOptions) {
+        try {
+          // Position QR watermark within the image area to avoid overlapping with label
+          const imageAreaWatermarkOptions = {
+            ...watermarkOptions,
+            position: 'top-right', // Always use top-right for polaroid frames
+            // Adjust positioning to be within the image area
+            imageAreaOnly: true,
+            imageWidth,
+            imageHeight,
+            frameOffsetX: frameWidth,
+            frameOffsetY: frameTopWidth
+          };
+          await addQRWatermark(ctx, polaroidWidth, polaroidHeight, imageAreaWatermarkOptions);
+        } catch (watermarkError) {
+          console.warn('Failed to add QR watermark to polaroid, continuing without it:', watermarkError);
+        }
+      }
+      
       // Convert to data URL with maximum quality using the specified format
       const mimeType = outputFormat === 'jpg' ? 'image/jpeg' : 'image/png';
       const dataUrl = canvas.toDataURL(mimeType, 1.0);
@@ -274,15 +297,15 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
  * @param {string} theme - TezDev theme (dynamic themes supported)
  */
 async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, frameOffsetY, theme, aspectRatio, options = {}) {
-  return new Promise(async (resolve, reject) => {
-    // Handle dynamic themes
-    try {
-      const frameUrls = await themeConfigService.getFrameUrls(theme, aspectRatio);
-      if (frameUrls.length === 0) {
-        console.log(`No frame URLs found for theme ${theme} with aspect ratio ${aspectRatio}`);
-        resolve();
-        return;
-      }
+  // Handle dynamic themes
+  try {
+    const frameUrls = await themeConfigService.getFrameUrls(theme, aspectRatio);
+    if (frameUrls.length === 0) {
+      console.log(`No frame URLs found for theme ${theme} with aspect ratio ${aspectRatio}`);
+      return;
+    }
+
+    return new Promise((resolve, reject) => {
 
       // Determine which frame to use
       let frameUrl;
@@ -322,28 +345,26 @@ async function applyTezDevFrame(ctx, imageWidth, imageHeight, frameOffsetX, fram
       };
       
       themeFrame.src = frameUrl;
-      return;
+    });
       
-    } catch (error) {
-      console.error(`Error loading theme configuration for ${theme}:`, error);
-      resolve(); // Continue without frame
-      return;
-    }
-    
-    // No legacy corner frame themes supported anymore
-    console.log(`No legacy corner frame support for theme: ${theme}`);
-    resolve();
-  });
+  } catch (error) {
+    console.error(`Error loading theme configuration for ${theme}:`, error);
+    return; // Continue without frame
+  }
 }
 
 /** 
  * Center crop an image to match portrait aspect ratio on mobile
  * This is specifically for photos selected from the camera roll
+ * @param {Blob} imageBlob - The image blob to crop
+ * @param {number} targetWidth - Target width for the cropped image
+ * @param {number} targetHeight - Target height for the cropped image
+ * @param {Object} watermarkOptions - Options for QR watermark (optional)
  */
-export async function centerCropImage(imageBlob, targetWidth, targetHeight) {
+export async function centerCropImage(imageBlob, targetWidth, targetHeight, watermarkOptions = null) {
   return new Promise((resolve) => {
     const img = new Image();
-    img.onload = () => {
+    img.onload = async () => {
       const canvas = document.createElement('canvas');
       canvas.width = targetWidth;
       canvas.height = targetHeight;
@@ -384,6 +405,15 @@ export async function centerCropImage(imageBlob, targetWidth, targetHeight) {
         0, 0, targetWidth, targetHeight
       );
       
+      // Add QR watermark if options provided
+      if (watermarkOptions) {
+        try {
+          await addQRWatermark(ctx, targetWidth, targetHeight, watermarkOptions);
+        } catch (watermarkError) {
+          console.warn('Failed to add QR watermark to cropped image, continuing without it:', watermarkError);
+        }
+      }
+      
       // Convert to blob with maximum quality
       canvas.toBlob((blob) => {
         resolve(blob);
@@ -407,20 +437,131 @@ export const blobToDataURL = (blob) => {
 };
 
 /**
+ * Add QR code watermark to an image
+ * @param {CanvasRenderingContext2D} ctx - Canvas context to draw on
+ * @param {number} canvasWidth - Width of the canvas
+ * @param {number} canvasHeight - Height of the canvas
+ * @param {Object} options - Watermark options
+ * @param {number} options.size - Size of the QR code (default: 80)
+ * @param {number} options.margin - Margin from edges (default: 20)
+ * @param {string} options.position - Position ('bottom-right', 'bottom-left', 'top-right', 'top-left')
+ * @param {number} options.opacity - Opacity of the watermark (0-1, default: 0.8)
+ */
+export async function addQRWatermark(ctx, canvasWidth, canvasHeight, options = {}) {
+  const {
+    size = 80,
+    margin = 20,
+    position = 'bottom-right',
+    opacity = 0.8
+  } = options;
+
+  return new Promise((resolve) => {
+    const qrImage = new Image();
+    qrImage.crossOrigin = 'anonymous';
+    
+    qrImage.onload = () => {
+      // Save current context state
+      ctx.save();
+      
+      // Set opacity for watermark
+      ctx.globalAlpha = opacity;
+      
+      // Calculate position based on preference
+      let x, y;
+      
+      // If imageAreaOnly is specified, position within the image area, not the full canvas
+      if (options.imageAreaOnly && options.imageWidth && options.imageHeight) {
+        const imageWidth = options.imageWidth;
+        const imageHeight = options.imageHeight;
+        const offsetX = options.frameOffsetX || 0;
+        const offsetY = options.frameOffsetY || 0;
+        
+        switch (position) {
+          case 'bottom-left':
+            x = offsetX + margin;
+            y = offsetY + imageHeight - size - margin;
+            break;
+          case 'top-right':
+            x = offsetX + imageWidth - size - margin;
+            y = offsetY + margin;
+            break;
+          case 'top-left':
+            x = offsetX + margin;
+            y = offsetY + margin;
+            break;
+          case 'bottom-right':
+          default:
+            // Position in bottom-right of image area
+            x = offsetX + imageWidth - size - margin;
+            y = offsetY + imageHeight - size - margin;
+            break;
+        }
+      } else {
+        // Original positioning for full canvas
+        switch (position) {
+          case 'bottom-left':
+            x = margin;
+            y = canvasHeight - size - margin;
+            break;
+          case 'top-right':
+            x = canvasWidth - size - margin;
+            y = margin;
+            break;
+          case 'top-left':
+            x = margin;
+            y = margin;
+            break;
+          case 'bottom-right':
+          default:
+            // For bottom-right, position exactly in corner without margin
+            x = canvasWidth - size;
+            y = canvasHeight - size;
+            break;
+        }
+      }
+      
+      // No drop shadow for cleaner appearance
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+      
+      // Draw the QR code
+      ctx.drawImage(qrImage, x, y, size, size);
+      
+      // Restore context state
+      ctx.restore();
+      
+      console.log(`✅ QR watermark applied at ${position} (${x}, ${y}) with size ${size}px`);
+      resolve();
+    };
+    
+    qrImage.onerror = (error) => {
+      console.warn('Failed to load QR code watermark, continuing without it:', error);
+      resolve(); // Don't reject, just continue without watermark
+    };
+    
+    // Load the QR code image using the same path pattern as custom frames
+    qrImage.src = '/assets/sogni-linktree-qr.png';
+  });
+}
+
+/**
  * Convert a PNG blob to high-quality JPEG blob for efficient upload
  * Maintains high quality while reducing file size for faster uploads
  * @param {Blob} pngBlob - The PNG blob to convert
  * @param {number} quality - JPEG quality (0.1-1.0), default 0.92 for high quality
+ * @param {Object} watermarkOptions - Options for QR watermark (optional)
  * @returns {Promise<Blob>} High-quality JPEG blob
  */
-export async function convertPngToHighQualityJpeg(pngBlob, quality = 0.92) {
+export async function convertPngToHighQualityJpeg(pngBlob, quality = 0.92, watermarkOptions = null) {
   return new Promise((resolve, reject) => {
     // Log original file size
     const originalSizeMB = (pngBlob.size / 1024 / 1024).toFixed(2);
     console.log(`🖼️ Converting PNG to JPEG - Original size: ${originalSizeMB}MB`);
 
     const img = new Image();
-    img.onload = () => {
+    img.onload = async () => {
       const canvas = document.createElement('canvas');
       canvas.width = img.width;
       canvas.height = img.height;
@@ -436,6 +577,15 @@ export async function convertPngToHighQualityJpeg(pngBlob, quality = 0.92) {
       
       // Draw the image
       ctx.drawImage(img, 0, 0);
+      
+      // Add QR watermark if options provided
+      if (watermarkOptions) {
+        try {
+          await addQRWatermark(ctx, canvas.width, canvas.height, watermarkOptions);
+        } catch (watermarkError) {
+          console.warn('Failed to add QR watermark, continuing without it:', watermarkError);
+        }
+      }
       
       // Convert to high-quality JPEG blob
       canvas.toBlob((jpegBlob) => {

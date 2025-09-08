@@ -539,8 +539,10 @@ const ImageAdjuster = ({
       let finalBlob;
       try {
         const { convertPngToHighQualityJpeg } = await import('../../utils/imageProcessing.js');
-        finalBlob = await convertPngToHighQualityJpeg(pngBlob);
-        console.log(`📊 ImageAdjuster: JPEG format selected for upload`);
+        // Don't add watermarks to adjusted images - they're used as placeholders
+        // Watermarks should only be applied to final outputs (downloads, shares)
+        finalBlob = await convertPngToHighQualityJpeg(pngBlob, 0.92, null);
+        console.log(`📊 ImageAdjuster: JPEG format selected for upload (no watermark - used as placeholder)`);
       } catch (conversionError) {
         console.warn('ImageAdjuster: JPEG conversion failed, using PNG:', conversionError);
         finalBlob = pngBlob;

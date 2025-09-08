@@ -2,10 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import '../../styles/components/TwitterShareModal.css';
 import { createPolaroidImage } from '../../utils/imageProcessing';
-import { getPhotoHashtag } from '../../services/TwitterShare';
+// import { getPhotoHashtag } from '../../services/TwitterShare'; // Unused import
 import { themeConfigService } from '../../services/themeConfig';
 import { styleIdToDisplay } from '../../utils';
 import { TWITTER_SHARE_CONFIG } from '../../constants/settings';
+import { useApp } from '../../context/AppContext';
 
 // Helper to ensure Permanent Marker font is loaded
 const ensureFontLoaded = () => {
@@ -37,17 +38,20 @@ const TwitterShareModal = ({
   const textareaRef = useRef(null);
   const modalRef = useRef(null);
   
+  // Get settings from context
+  const { settings } = useApp();
+  
   // Get style display text (spaced format, no hashtags) from photo data if available
   const styleDisplayText = photoData?.promptDisplay || 
     (photoData?.stylePrompt && styleIdToDisplay(
       Object.entries(stylePrompts || {}).find(([, value]) => value === photoData.stylePrompt)?.[0] || ''
     )) || '';
   
-  // Determine photo label - prefer status text if available, otherwise use a combination of number label and style
-  const photoNumberLabel = photoData?.statusText?.split('#')[0]?.trim() || photoData?.label || '';
+  // Determine photo label - fix duplicate label issue by using statusText directly or just the style
+  // This matches the fix applied in PhotoGallery.jsx
+  const photoNumberLabel = photoData?.statusText?.split('#')[0]?.trim() || '';
+  const photoLabel = photoNumberLabel || styleDisplayText || '';
   
-  // Combine the number label and style display text for polaroid display
-  const photoLabel = photoNumberLabel + (styleDisplayText ? ` ${styleDisplayText}` : '');
   
   // Initialize message with default and hashtag when modal opens
   useEffect(() => {
@@ -107,6 +111,7 @@ const TwitterShareModal = ({
           
           if (tezdevTheme !== 'off') {
             // For TezDev themes, create full frame version (no polaroid frame, just TezDev overlay)
+            // Custom frames should not include labels - they have their own styling
             console.log('Creating TezDev full frame preview (always JPG for Twitter)');
             previewImageUrl = await createPolaroidImage(imageUrl, '', {
               tezdevTheme,
@@ -115,7 +120,14 @@ const TwitterShareModal = ({
               frameTopWidth: 0,   // No polaroid frame
               frameBottomWidth: 0, // No polaroid frame
               frameColor: 'transparent', // No polaroid background
-              outputFormat: 'jpg' // Always use JPG for Twitter sharing
+              outputFormat: 'jpg', // Always use JPG for Twitter sharing
+              // Add QR watermark for Twitter sharing (if enabled)
+              watermarkOptions: settings.sogniWatermark ? {
+                size: 90, // Standardized size for consistency
+                margin: 5, // Closer to edge
+                position: 'top-right',
+                opacity: 0.9
+              } : null
             });
           } else {
             // For non-TezDev themes, use traditional polaroid frame
@@ -123,7 +135,14 @@ const TwitterShareModal = ({
             previewImageUrl = await createPolaroidImage(imageUrl, photoLabel, {
               tezdevTheme,
               aspectRatio,
-              outputFormat: 'jpg' // Always use JPG for Twitter sharing
+              outputFormat: 'jpg', // Always use JPG for Twitter sharing
+              // Add QR watermark for Twitter sharing - positioned to not overlap label (if enabled)
+              watermarkOptions: settings.sogniWatermark ? {
+                size: 90, // Standardized size for consistency
+                margin: 5, // Closer to edge
+                position: 'top-right',
+                opacity: 0.9
+              } : null
             });
           }
           

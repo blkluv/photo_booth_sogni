@@ -162,6 +162,7 @@ const createDefaultSettings = (): Settings => {
     sensitiveContentFilter: false,
     preferredCameraDeviceId: undefined,
     kioskMode: false,
+    sogniWatermark: true, // Default to enabled
     // Worker preferences
     requiredWorkers: [],
     preferWorkers: ['SPICE.MUST.FLOW'],
@@ -212,7 +213,7 @@ export const defaultStylePrompts: { [key: string]: string } = {
 // Twitter share configuration
 export const TWITTER_SHARE_CONFIG = {
   // Default fallback message for Twitter sharing
-  DEFAULT_MESSAGE: "Just took my photo at the @sogni_protocol AI photobooth https://photobooth.sogni.ai",
+  DEFAULT_MESSAGE: "Just took my photo with the free @sogni_protocol AI photobooth https://photobooth.sogni.ai",
 } as const;
 
 // Sample Gallery constants - hard-coded values that cannot be changed by user settings
