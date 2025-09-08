@@ -229,7 +229,8 @@ export const getOneOfEachPrompts = (themeGroupState, allPrompts, count) => {
       }
     }
     
-    return selectedPrompts;
+    // Return pipe-separated format for batch generation
+    return selectedPrompts.length > 0 ? `{${selectedPrompts.join('|')}}` : '';
   }
   
   // Use one prompt from each enabled group in order
@@ -250,5 +251,6 @@ export const getOneOfEachPrompts = (themeGroupState, allPrompts, count) => {
     groupIndex = (groupIndex + 1) % enabledGroups.length;
   }
   
-  return selectedPrompts;
+  // Return pipe-separated format for batch generation
+  return selectedPrompts.length > 0 ? `{${selectedPrompts.join('|')}}` : '';
 };
