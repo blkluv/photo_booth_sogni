@@ -345,6 +345,19 @@
     padding: 10px 4px 20px 4px !important;
   }
   
+  /* Enhancement preview fixes for very small mobile screens */
+  .film-frame.selected img.enhancement-preview-selected,
+  .film-frame.selected[data-enhancing="true"] img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    min-width: 100% !important;
+    min-height: 100% !important;
+    /* Prevent tiny thumbnails from appearing on very small screens */
+    max-width: none !important;
+    max-height: none !important;
+  }
+  
   .film-strip-content,
   .film-strip-container .film-strip-content,
   [class*="film-strip-content"] {
@@ -1230,6 +1243,28 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
   .twitter-btn svg {
     width: 14px !important;
     height: 14px !important;
+  }
+}
+
+/* Mobile enhancement preview fixes - ensure thumbnails display at full size */
+@media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
+  /* Fix for enhancement progress thumbnails on mobile - maintain original dimensions to prevent Polaroid frame shrinking */
+  .film-frame.selected img.enhancement-preview-selected {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    /* Override the auto sizing that causes frame shrinking with tiny thumbnails */
+    min-width: 100% !important;
+    min-height: 100% !important;
+  }
+
+  /* While enhancing on mobile, ensure any in-progress image fills the selected frame */
+  .film-frame.selected[data-enhancing="true"] img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    min-width: 100% !important;
+    min-height: 100% !important;
   }
 }
 
