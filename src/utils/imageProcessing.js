@@ -460,14 +460,14 @@ export const blobToDataURL = (blob) => {
  * @param {number} options.size - Size of the QR code (default: 80)
  * @param {number} options.margin - Margin from edges (default: 20)
  * @param {string} options.position - Position ('bottom-right', 'bottom-left', 'top-right', 'top-left')
- * @param {number} options.opacity - Opacity of the watermark (0-1, default: 0.8)
+ * @param {number} options.opacity - Opacity of the watermark (0-1, default: 1.0)
  */
 export async function addQRWatermark(ctx, canvasWidth, canvasHeight, options = {}) {
   const {
     size = 80,
     margin = 20,
     position = 'bottom-right',
-    opacity = 0.8
+    opacity = 1.0
   } = options;
 
   return new Promise((resolve) => {

@@ -1423,7 +1423,7 @@ const App = () => {
             size: 80, // Smaller for mobile sharing
             margin: 5, // Closer to edge
             position: 'top-right',
-            opacity: 0.8
+            opacity: 1.0
           } : null
         });
       } else {
@@ -1441,7 +1441,7 @@ const App = () => {
             size: 80, // Smaller for mobile sharing
             margin: 5, // Closer to edge
             position: 'top-right',
-            opacity: 0.8
+            opacity: 1.0
           } : null
         });
       }

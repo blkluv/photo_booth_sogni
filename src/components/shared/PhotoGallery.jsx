@@ -1187,7 +1187,7 @@ const PhotoGallery = ({
           size: 90, // Standardized size for consistency
           margin: 5, // Closer to edge
           position: 'top-right',
-          opacity: 0.9 // Higher opacity for better visibility
+          opacity: 1.0 // Maximum opacity for best clarity
         } : null
       });
       
@@ -1275,7 +1275,7 @@ const PhotoGallery = ({
                 size: 90, // Standardized size for consistency
                 margin: 5, // Closer to edge
                 position: 'top-right',
-                opacity: 0.9
+                opacity: 1.0
               });
             }
             
