@@ -250,6 +250,16 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
       // Add QR watermark if options provided - position within image area, not full polaroid
       if (watermarkOptions) {
         try {
+          // Get frame padding for custom themes to position QR correctly
+          let framePadding = 0;
+          if (tezdevTheme !== 'off') {
+            try {
+              framePadding = await themeConfigService.getFramePadding(tezdevTheme);
+            } catch (error) {
+              console.warn('Could not get frame padding for QR positioning, using default:', error);
+            }
+          }
+          
           // Position QR watermark within the image area to avoid overlapping with label
           const imageAreaWatermarkOptions = {
             ...watermarkOptions,
@@ -259,7 +269,9 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
             imageWidth,
             imageHeight,
             frameOffsetX: frameWidth,
-            frameOffsetY: frameTopWidth
+            frameOffsetY: frameTopWidth,
+            // Add frame padding for custom themes
+            framePadding
           };
           await addQRWatermark(ctx, polaroidWidth, polaroidHeight, imageAreaWatermarkOptions);
         } catch (watermarkError) {
@@ -267,12 +279,15 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
         }
       }
       
-      // Convert to data URL with maximum quality using the specified format
+      // Convert to data URL using the specified format with appropriate quality
       const mimeType = outputFormat === 'jpg' ? 'image/jpeg' : 'image/png';
-      const dataUrl = canvas.toDataURL(mimeType, 1.0);
+      // Use reasonable JPEG quality for smaller file sizes, PNG ignores quality parameter
+      const quality = outputFormat === 'jpg' ? 0.92 : 1.0;
+      const dataUrl = canvas.toDataURL(mimeType, quality);
       
-      // For debugging: display the image in the console
-      console.log(`Generated polaroid with dimensions: ${polaroidWidth}x${polaroidHeight}`);
+      // For debugging: display the image in the console and file size
+      const fileSizeKB = Math.round(dataUrl.length * 0.75 / 1024); // Rough estimate of base64 to binary size
+      console.log(`Generated polaroid with dimensions: ${polaroidWidth}x${polaroidHeight}, format: ${outputFormat}, quality: ${quality}, estimated size: ${fileSizeKB}KB`);
       
       resolve(dataUrl);
       }
@@ -475,26 +490,37 @@ export async function addQRWatermark(ctx, canvasWidth, canvasHeight, options = {
         const imageHeight = options.imageHeight;
         const offsetX = options.frameOffsetX || 0;
         const offsetY = options.frameOffsetY || 0;
+        const framePadding = options.framePadding || 0;
+        
+        // Account for frame padding in positioning - QR should be inside the frame border
+        const adjustedOffsetX = offsetX + framePadding;
+        const adjustedOffsetY = offsetY + framePadding;
+        const adjustedImageWidth = imageWidth - (framePadding * 2);
+        const adjustedImageHeight = imageHeight - (framePadding * 2);
         
         switch (position) {
           case 'bottom-left':
-            x = offsetX + margin;
-            y = offsetY + imageHeight - size - margin;
+            x = adjustedOffsetX + margin;
+            y = adjustedOffsetY + adjustedImageHeight - size - margin;
             break;
           case 'top-right':
-            x = offsetX + imageWidth - size - margin;
-            y = offsetY + margin;
+            x = adjustedOffsetX + adjustedImageWidth - size - margin;
+            y = adjustedOffsetY + margin;
             break;
           case 'top-left':
-            x = offsetX + margin;
-            y = offsetY + margin;
+            x = adjustedOffsetX + margin;
+            y = adjustedOffsetY + margin;
             break;
           case 'bottom-right':
           default:
             // Position in bottom-right of image area
-            x = offsetX + imageWidth - size - margin;
-            y = offsetY + imageHeight - size - margin;
+            x = adjustedOffsetX + adjustedImageWidth - size - margin;
+            y = adjustedOffsetY + adjustedImageHeight - size - margin;
             break;
+        }
+        
+        if (framePadding > 0) {
+          console.log(`QR positioned with frame padding: ${framePadding}px, adjusted position: (${x}, ${y})`);
         }
       } else {
         // Original positioning for full canvas
