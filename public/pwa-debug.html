@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWA Debug Tool - Sogni Photobooth</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .debug-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status-good { color: #28a745; }
+        .status-bad { color: #dc3545; }
+        .status-warning { color: #ffc107; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .test-pass {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .test-fail {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .test-warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <h1>PWA Debug Tool - Sogni Photobooth</h1>
+    <p>Use this tool to diagnose PWA installation issues on Android Chrome kiosks.</p>
+
+    <div class="debug-section">
+        <h2>Quick Actions</h2>
+        <button onclick="runAllTests()">🔍 Run All Tests</button>
+        <button onclick="testInstallPrompt()">📱 Test Install Prompt</button>
+        <button onclick="resetPWASettings()">🔄 Reset PWA Settings</button>
+        <button onclick="goToMainApp()">🏠 Go to Main App</button>
+    </div>
+
+    <div class="debug-section">
+        <h2>PWA Installation Tests</h2>
+        <div id="test-results"></div>
+    </div>
+
+    <div class="debug-section">
+        <h2>Browser Information</h2>
+        <div id="browser-info"></div>
+    </div>
+
+    <div class="debug-section">
+        <h2>Manifest Analysis</h2>
+        <div id="manifest-info"></div>
+    </div>
+
+    <div class="debug-section">
+        <h2>Service Worker Status</h2>
+        <div id="sw-info"></div>
+    </div>
+
+    <div class="debug-section">
+        <h2>Console Logs</h2>
+        <div id="console-logs"></div>
+        <button onclick="clearLogs()">Clear Logs</button>
+    </div>
+
+    <script>
+        let logs = [];
+        
+        // Capture console logs
+        const originalLog = console.log;
+        const originalWarn = console.warn;
+        const originalError = console.error;
+        
+        console.log = function(...args) {
+            logs.push({type: 'log', message: args.join(' '), time: new Date().toLocaleTimeString()});
+            updateConsoleLogs();
+            originalLog.apply(console, args);
+        };
+        
+        console.warn = function(...args) {
+            logs.push({type: 'warn', message: args.join(' '), time: new Date().toLocaleTimeString()});
+            updateConsoleLogs();
+            originalWarn.apply(console, args);
+        };
+        
+        console.error = function(...args) {
+            logs.push({type: 'error', message: args.join(' '), time: new Date().toLocaleTimeString()});
+            updateConsoleLogs();
+            originalError.apply(console, args);
+        };
+
+        function updateConsoleLogs() {
+            const logsDiv = document.getElementById('console-logs');
+            logsDiv.innerHTML = logs.slice(-20).map(log => 
+                `<div class="test-result test-${log.type === 'error' ? 'fail' : log.type === 'warn' ? 'warning' : 'pass'}">
+                    <strong>[${log.time}]</strong> ${log.message}
+                </div>`
+            ).join('');
+        }
+
+        function clearLogs() {
+            logs = [];
+            updateConsoleLogs();
+        }
+
+        function addTestResult(name, passed, message, details = '') {
+            const resultsDiv = document.getElementById('test-results');
+            const className = passed ? 'test-pass' : 'test-fail';
+            const icon = passed ? '✅' : '❌';
+            
+            resultsDiv.innerHTML += `
+                <div class="test-result ${className}">
+                    <strong>${icon} ${name}</strong><br>
+                    ${message}
+                    ${details ? `<pre>${details}</pre>` : ''}
+                </div>
+            `;
+        }
+
+        function addWarningResult(name, message, details = '') {
+            const resultsDiv = document.getElementById('test-results');
+            
+            resultsDiv.innerHTML += `
+                <div class="test-result test-warning">
+                    <strong>⚠️ ${name}</strong><br>
+                    ${message}
+                    ${details ? `<pre>${details}</pre>` : ''}
+                </div>
+            `;
+        }
+
+        async function runAllTests() {
+            document.getElementById('test-results').innerHTML = '<h3>Running PWA Installation Tests...</h3>';
+            
+            // Test 1: HTTPS
+            testHTTPS();
+            
+            // Test 2: Manifest
+            await testManifest();
+            
+            // Test 3: Service Worker
+            await testServiceWorker();
+            
+            // Test 4: Icons
+            await testIcons();
+            
+            // Test 5: beforeinstallprompt
+            testBeforeInstallPrompt();
+            
+            // Test 6: Display mode
+            testDisplayMode();
+            
+            // Test 7: User engagement
+            testUserEngagement();
+            
+            // Update browser info
+            updateBrowserInfo();
+        }
+
+        function testHTTPS() {
+            const isHTTPS = location.protocol === 'https:';
+            const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+            
+            if (isHTTPS || isLocalhost) {
+                addTestResult('HTTPS Requirement', true, 'Site is served over HTTPS or localhost');
+            } else {
+                addTestResult('HTTPS Requirement', false, 'PWAs require HTTPS. Current protocol: ' + location.protocol);
+            }
+        }
+
+        async function testManifest() {
+            try {
+                const response = await fetch('/manifest.json');
+                const manifest = await response.json();
+                
+                // Check required fields
+                const requiredFields = ['name', 'start_url', 'display', 'icons'];
+                const missingFields = requiredFields.filter(field => !manifest[field]);
+                
+                if (missingFields.length === 0) {
+                    addTestResult('Manifest Required Fields', true, 'All required manifest fields are present');
+                } else {
+                    addTestResult('Manifest Required Fields', false, 'Missing required fields: ' + missingFields.join(', '));
+                }
+                
+                // Check display mode
+                if (manifest.display === 'standalone' || manifest.display === 'fullscreen' || manifest.display === 'minimal-ui') {
+                    addTestResult('Display Mode', true, `Display mode is "${manifest.display}"`);
+                } else {
+                    addTestResult('Display Mode', false, `Display mode "${manifest.display}" may not trigger install prompt`);
+                }
+                
+                // Check prefer_related_applications
+                if (manifest.prefer_related_applications === false || manifest.prefer_related_applications === undefined) {
+                    addTestResult('Prefer Related Applications', true, 'prefer_related_applications is false or undefined');
+                } else {
+                    addTestResult('Prefer Related Applications', false, 'prefer_related_applications is true - this prevents PWA install');
+                }
+                
+                // Display manifest info
+                document.getElementById('manifest-info').innerHTML = `<pre>${JSON.stringify(manifest, null, 2)}</pre>`;
+                
+            } catch (error) {
+                addTestResult('Manifest Loading', false, 'Failed to load manifest.json: ' + error.message);
+            }
+        }
+
+        async function testServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registration = await navigator.serviceWorker.getRegistration();
+                    if (registration) {
+                        addTestResult('Service Worker', true, 'Service Worker is registered and active');
+                        document.getElementById('sw-info').innerHTML = `
+                            <p><strong>State:</strong> ${registration.active ? registration.active.state : 'No active worker'}</p>
+                            <p><strong>Scope:</strong> ${registration.scope}</p>
+                            <p><strong>Update Via Cache:</strong> ${registration.updateViaCache}</p>
+                        `;
+                    } else {
+                        addTestResult('Service Worker', false, 'No Service Worker registration found');
+                    }
+                } catch (error) {
+                    addTestResult('Service Worker', false, 'Service Worker check failed: ' + error.message);
+                }
+            } else {
+                addTestResult('Service Worker', false, 'Service Worker not supported in this browser');
+            }
+        }
+
+        async function testIcons() {
+            try {
+                const response = await fetch('/manifest.json');
+                const manifest = await response.json();
+                
+                if (!manifest.icons || manifest.icons.length === 0) {
+                    addTestResult('Icons', false, 'No icons found in manifest');
+                    return;
+                }
+                
+                // Check for required icon sizes
+                const requiredSizes = ['192x192', '512x512'];
+                const availableSizes = manifest.icons.map(icon => icon.sizes);
+                const missingRequired = requiredSizes.filter(size => !availableSizes.includes(size));
+                
+                if (missingRequired.length === 0) {
+                    addTestResult('Required Icon Sizes', true, 'Required icon sizes (192x192, 512x512) are present');
+                } else {
+                    addTestResult('Required Icon Sizes', false, 'Missing required icon sizes: ' + missingRequired.join(', '));
+                }
+                
+                // Test if icons actually load
+                let iconLoadTests = [];
+                for (const icon of manifest.icons.slice(0, 3)) { // Test first 3 icons
+                    iconLoadTests.push(testIconLoad(icon.src, icon.sizes));
+                }
+                
+                const iconResults = await Promise.all(iconLoadTests);
+                const failedIcons = iconResults.filter(result => !result.success);
+                
+                if (failedIcons.length === 0) {
+                    addTestResult('Icon Loading', true, 'All tested icons load successfully');
+                } else {
+                    addWarningResult('Icon Loading', `${failedIcons.length} icons failed to load`, 
+                        failedIcons.map(f => f.src).join('\n'));
+                }
+                
+            } catch (error) {
+                addTestResult('Icons', false, 'Failed to test icons: ' + error.message);
+            }
+        }
+
+        function testIconLoad(src, size) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => resolve({ success: true, src, size });
+                img.onerror = () => resolve({ success: false, src, size });
+                img.src = src;
+            });
+        }
+
+        function testBeforeInstallPrompt() {
+            // Check if beforeinstallprompt has fired
+            const hasPrompt = window.deferredPrompt !== undefined;
+            
+            if (hasPrompt) {
+                addTestResult('beforeinstallprompt Event', true, 'beforeinstallprompt event has been captured');
+            } else {
+                addWarningResult('beforeinstallprompt Event', 
+                    'beforeinstallprompt event has not fired yet. This could mean:\n' +
+                    '• PWA criteria not met\n' +
+                    '• Already installed\n' +
+                    '• User has dismissed install prompt before\n' +
+                    '• Browser doesn\'t support PWA install');
+            }
+        }
+
+        function testDisplayMode() {
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            const isIOSStandalone = isIOS && (window.navigator.standalone === true);
+            
+            if (isStandalone || isIOSStandalone) {
+                addTestResult('Already Installed', true, 'App is running in standalone mode (already installed)');
+            } else {
+                addTestResult('Installation Status', true, 'App is running in browser (not installed)');
+            }
+        }
+
+        function testUserEngagement() {
+            // Chrome requires user engagement before showing install prompt
+            addWarningResult('User Engagement', 
+                'Chrome requires user interaction before showing install prompt.\n' +
+                'Make sure users have clicked, tapped, or interacted with the page.');
+        }
+
+        function updateBrowserInfo() {
+            const info = {
+                userAgent: navigator.userAgent,
+                platform: navigator.platform,
+                language: navigator.language,
+                cookieEnabled: navigator.cookieEnabled,
+                onLine: navigator.onLine,
+                serviceWorkerSupported: 'serviceWorker' in navigator,
+                pushSupported: 'PushManager' in window,
+                notificationSupported: 'Notification' in window
+            };
+            
+            document.getElementById('browser-info').innerHTML = `<pre>${JSON.stringify(info, null, 2)}</pre>`;
+        }
+
+        async function testInstallPrompt() {
+            if (window.deferredPrompt) {
+                try {
+                    await window.deferredPrompt.prompt();
+                    const choiceResult = await window.deferredPrompt.userChoice;
+                    console.log('Install prompt result:', choiceResult);
+                    alert(`Install prompt result: ${choiceResult.outcome}`);
+                } catch (error) {
+                    console.error('Install prompt failed:', error);
+                    alert('Install prompt failed: ' + error.message);
+                }
+            } else {
+                alert('No install prompt available. Check the test results above for issues.');
+            }
+        }
+
+        function resetPWASettings() {
+            // Clear PWA-related localStorage
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.includes('pwa') || key.includes('install') || key.includes('sogni'))) {
+                    keysToRemove.push(key);
+                }
+            }
+            
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+            
+            // Clear sessionStorage
+            sessionStorage.clear();
+            
+            console.log('Cleared PWA settings:', keysToRemove);
+            alert(`Cleared ${keysToRemove.length} PWA-related settings. Refresh the page to test again.`);
+        }
+
+        function goToMainApp() {
+            window.location.href = '/';
+        }
+
+        // Store beforeinstallprompt event for testing
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('beforeinstallprompt event fired!');
+            e.preventDefault();
+            window.deferredPrompt = e;
+        });
+
+        // Auto-run tests on page load
+        window.addEventListener('load', () => {
+            setTimeout(runAllTests, 1000);
+        });
+    </script>
+</body>
+</html>
