@@ -2,7 +2,7 @@
 export const THEME_GROUPS = {
   'pro-editorial': {
     name: 'Pro / Editorial',
-    prompts: ['bougieWhite', 'bougieBlack', 'filmGrainB&W', 'vintageHollywood', 'relaxBath']
+    prompts: ['bougieWhite', 'bougieBlack', 'filmGrainB&W', 'vintageHollywood', 'relaxBath', 'magazineCoverStudio', 'mallGlamour90s', 'doubleExposureForest']
   },
   'neon-vapor-glitch': {
     name: 'Neon / Vapor / Glitch', 
@@ -21,7 +21,9 @@ export const THEME_GROUPS = {
       'sprayGlow', 
       'cosmicGraffiti', 
       'retroFuturist', 
-      'pscyhedlicPortrait'
+      'pscyhedlicPortrait',
+      'prismKaleidoscope',
+      'discoBallReflections'
     ]
   },
   'raver-costume-space-party': {
@@ -35,7 +37,9 @@ export const THEME_GROUPS = {
       'spaceSlothi',
       'spaceBot',
       'tronDon',
-      'tribalBruh'
+      'tribalBruh',
+      'festivalColorPowder',
+      'crystalCrownPrism'
     ]
   },
   'anime-manga-chibi': {
@@ -108,7 +112,10 @@ export const THEME_GROUPS = {
       'chalkboard',
       'lowInkRiso',
       'gorillaz',
-      'banksyStencil'
+      'banksyStencil',
+      'foilStickerSheet',
+      'glitterGelPen',
+      'popart'
     ]
   },
   'classical-vintage': {
@@ -121,7 +128,20 @@ export const THEME_GROUPS = {
       'neoBaroque',
       'stoneMoss',
       'sepiaDaguerreotype',
-      'dapperVictorian'
+      'dapperVictorian',
+      'retroHandheldDither',
+      'byzantineMosaicGold',
+      'lightPainting',
+      'artNouveauGold',
+      'klimtGilded',
+      'muchaNouveau',
+      'picassoCubist',
+      'vangoghSwirl',
+      'warholPopQuad',
+      'kusamaDots',
+      'pollockDrip',
+      'kahloFloral',
+      'haringLineDance'
     ]
   },
   'fantasy-sci-fi': {
@@ -133,7 +153,9 @@ export const THEME_GROUPS = {
       'arcticExplorer',
       'cyberGlow',
       'techBlueprint',
-      'tikiRetro'
+      'tikiRetro',
+      'asciiTerminal',
+      'wireframeHead'
     ]
   },
   'materials-printmaking': {
@@ -151,7 +173,16 @@ export const THEME_GROUPS = {
       'dripPaint',
       'chalkPastel',
       'woodblockVintage',
-      'cyanoBlueprint'
+      'cyanoBlueprint',
+      'claymationStudio',
+      'embroideryStitch',
+      'origamiShadowbox',
+      'paperQuilling',
+      'patchworkQuilt',
+      'pointillismDots',
+      'stainedInkMarbling',
+      'halftoneBenDay',
+      'xrayRadiograph'
     ]
   },
   'comics-caricature': {
@@ -159,7 +190,9 @@ export const THEME_GROUPS = {
     prompts: [
       'sketchCaricature',
       'digitalCaricature',
-      'celShade3D'
+      'celShade3D',
+      'foilEmbossVariant',
+      'holoTradingCard'
     ]
   },
   'kitsch-gags-animals': {
@@ -169,7 +202,14 @@ export const THEME_GROUPS = {
       'clownPastel',
       'kittySwarm',
       'llamaPhotobomb',
-      'aHugFromSlothi'
+      'aHugFromSlothi',
+      'produceArcimboldo'
+    ]
+  },
+  'roleplay-sport': {
+    name: 'Roleplay / Sport',
+    prompts: [
+      'makeMeABoxer'
     ]
   }
 };
