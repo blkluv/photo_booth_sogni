@@ -1,4 +1,10 @@
-import promptsData from '../prompts.json';
+import promptsDataRaw from '../prompts.json';
+
+// Extract prompts from the new nested structure
+const promptsData = {};
+Object.values(promptsDataRaw).forEach(themeGroup => {
+  Object.assign(promptsData, themeGroup.prompts);
+});
 import { FLUX_KONTEXT_PROMPTS } from '../constants/fluxPrompts';
 import { isFluxKontextModel } from '../constants/settings';
 

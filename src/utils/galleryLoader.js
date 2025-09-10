@@ -1,30 +1,26 @@
 import { styleIdToDisplay } from './index';
 
 /**
- * Maps gallery image filenames to prompt keys
- * Gallery images follow the pattern: sogni-photobooth-[promptkey]-raw.jpg
+ * Converts camelCase prompt key to lowercase filename (no hyphens)
+ * @param {string} promptKey - The camelCase prompt key
+ * @returns {string} The lowercase filename part
  */
-const createFilenameToPromptMapping = (stylePrompts) => {
-  const mapping = {};
-  
-  // Create mapping from filename patterns to prompt keys
-  Object.keys(stylePrompts).forEach(promptKey => {
-    if (promptKey === 'custom' || promptKey === 'random' || promptKey === 'randomMix' || promptKey === 'oneOfEach') {
-      return; // Skip special prompt types
-    }
-    
-    // Convert camelCase prompt key to lowercase for filename matching
-    // Handle special cases and characters
-    let filenameKey = promptKey.toLowerCase();
-    
-    // Handle special character replacements that might occur in filenames
-    filenameKey = filenameKey.replace(/&/g, ''); // Remove & characters
-    
-    const expectedFilename = `sogni-photobooth-${filenameKey}-raw.jpg`;
-    mapping[expectedFilename] = promptKey;
-  });
-  
-  return mapping;
+const promptKeyToFilename = (promptKey) => {
+  return promptKey
+    // Convert to lowercase
+    .toLowerCase()
+    // Remove any special characters
+    .replace(/[^a-z0-9]/g, '');
+};
+
+/**
+ * Generates the expected gallery filename for a prompt key
+ * @param {string} promptKey - The prompt key
+ * @returns {string} The expected filename
+ */
+const generateGalleryFilename = (promptKey) => {
+  const kebabCase = promptKeyToFilename(promptKey);
+  return `sogni-photobooth-${kebabCase}-raw.jpg`;
 };
 
 /**
@@ -36,207 +32,20 @@ export const loadGalleryImages = async (stylePrompts) => {
   try {
     const galleryPhotos = [];
     
-    // Complete list of all gallery image filenames (generated from filesystem)
-    const knownGalleryFiles = [
-      'sogni-photobooth-ahugfromslothi-raw.jpg',
-      'sogni-photobooth-anime1990s-raw.jpg',
-      'sogni-photobooth-animeclassic-raw.jpg',
-      'sogni-photobooth-animekawaii-raw.jpg',
-      'sogni-photobooth-arcadevector-raw.jpg',
-      'sogni-photobooth-arcticexplorer-raw.jpg',
-      'sogni-photobooth-art-nouveau-gold-raw.jpg',
-      'sogni-photobooth-ascii-terminal-raw.jpg',
-      'sogni-photobooth-banksystencil-raw.jpg',
-      'sogni-photobooth-bougieblack-raw.jpg',
-      'sogni-photobooth-bougiewhite-raw.jpg',
-      'sogni-photobooth-bubblecomic-raw.jpg',
-      'sogni-photobooth-byzantine-mosaic-gold-raw.jpg',
-      'sogni-photobooth-candyraver-raw.jpg',
-      'sogni-photobooth-celestialsketch-raw.jpg',
-      'sogni-photobooth-celshade3d-raw.jpg',
-      'sogni-photobooth-chalkboard-raw.jpg',
-      'sogni-photobooth-chalkpastel-raw.jpg',
-      'sogni-photobooth-charcoalgesture-raw.jpg',
-      'sogni-photobooth-claymation-studio-raw.jpg',
-      'sogni-photobooth-clownmakeup-raw.jpg',
-      'sogni-photobooth-clownpastel-raw.jpg',
-      'sogni-photobooth-collagemagazine-raw.jpg',
-      'sogni-photobooth-comicmanga-raw.jpg',
-      'sogni-photobooth-cosmicgraffiti-raw.jpg',
-      'sogni-photobooth-crowndrip-raw.jpg',
-      'sogni-photobooth-crystal-crown-prism-raw.jpg',
-      'sogni-photobooth-cyanoblueprint-raw.jpg',
-      'sogni-photobooth-cyberglow-raw.jpg',
-      'sogni-photobooth-dappervictorian-raw.jpg',
-      'sogni-photobooth-digitalcaricature-raw.jpg',
-      'sogni-photobooth-digitallineart-raw.jpg',
-      'sogni-photobooth-disco-ball-reflections-raw.jpg',
-      'sogni-photobooth-double-exposure-forest-raw.jpg',
-      'sogni-photobooth-drippaint-raw.jpg',
-      'sogni-photobooth-dungeoncrawler-raw.jpg',
-      'sogni-photobooth-embroidery-stitch-raw.jpg',
-      'sogni-photobooth-etchedcopper-raw.jpg',
-      'sogni-photobooth-etchingvintage-raw.jpg',
-      'sogni-photobooth-festival-color-powder-raw.jpg',
-      'sogni-photobooth-filmgrainb&w-raw.jpg',
-      'sogni-photobooth-fingers4am-raw.jpg',
-      'sogni-photobooth-foil-emboss-variant-raw.jpg',
-      'sogni-photobooth-foil-sticker-sheet-raw.jpg',
-      'sogni-photobooth-ghiblimeadow-raw.jpg',
-      'sogni-photobooth-gildedrenaissance-raw.jpg',
-      'sogni-photobooth-glazeceramic-raw.jpg',
-      'sogni-photobooth-glitter-gel-pen-raw.jpg',
-      'sogni-photobooth-gorillaz-raw .jpg',
-      'sogni-photobooth-graffitistencil-raw.jpg',
-      'sogni-photobooth-gridpaperdoodle-raw.jpg',
-      'sogni-photobooth-halftone-ben-day-raw (1).jpg',
-      'sogni-photobooth-holo-trading-card-raw.jpg',
-      'sogni-photobooth-inkwash-raw.jpg',
-      'sogni-photobooth-jojostandaura-raw.jpg',
-      'sogni-photobooth-kahlo-floral-raw.jpg',
-      'sogni-photobooth-kittyswarm-raw.jpg',
-      'sogni-photobooth-klimt-gilded-raw.jpg',
-      'sogni-photobooth-kusama-dots-raw.jpg',
-      'sogni-photobooth-lasergrid-raw.jpg',
-      'sogni-photobooth-light-painting-raw.jpg',
-      'sogni-photobooth-llamaphotobomb-raw.jpg',
-      'sogni-photobooth-lowinkriso-raw.jpg',
-      'sogni-photobooth-lunarchibi-raw.jpg',
-      'sogni-photobooth-magazine-cover-studio-raw.jpg',
-      'sogni-photobooth-mall-glamour-90s-raw.jpg',
-      'sogni-photobooth-midnightneon-raw.jpg',
-      'sogni-photobooth-miyazakiflying-raw.jpg',
-      'sogni-photobooth-mucha-nouveau-raw.jpg',
-      'sogni-photobooth-mythicmermaid-raw.jpg',
-      'sogni-photobooth-neobaroque-raw.jpg',
-      'sogni-photobooth-neonoir-raw.jpg',
-      'sogni-photobooth-neontropical-raw.jpg',
-      'sogni-photobooth-neonzen-raw.jpg',
-      'sogni-photobooth-nftazuki-raw.jpg',
-      'sogni-photobooth-nftboredape-raw.jpg',
-      'sogni-photobooth-nftcryptopunk-raw.jpg',
-      'sogni-photobooth-nftdoodles-raw.jpg',
-      'sogni-photobooth-oil-slick-iridescence-raw.jpg',
-      'sogni-photobooth-origami-shadowbox-raw.jpg',
-      'sogni-photobooth-paper-quilling-raw.jpg',
-      'sogni-photobooth-pastelpixel-raw.jpg',
-      'sogni-photobooth-patchwork-quilt-raw.jpg',
-      'sogni-photobooth-picasso-cubist-raw.jpg',
-      'sogni-photobooth-pixelart-raw.jpg',
-      'sogni-photobooth-pixelchibi-raw.jpg',
-      'sogni-photobooth-pixelknight-raw.jpg',
-      'sogni-photobooth-pixelportrait-raw.jpg',
-      'sogni-photobooth-pointillism-dots-raw.jpg',
-      'sogni-photobooth-polishedbronze-raw.jpg',
-      'sogni-photobooth-pollock-drip-raw.jpg',
-      'sogni-photobooth-popart-raw.jpg',
-      'sogni-photobooth-popgraffiti-raw.jpg',
-      'sogni-photobooth-prism-kaleidoscope-raw.jpg',
-      'sogni-photobooth-produce-arcimboldo-raw.jpg',
-      'sogni-photobooth-pscyhedlicportrait-raw.jpg',
-      'sogni-photobooth-punkposter-raw.jpg',
-      'sogni-photobooth-rainbowgraffiti-raw.jpg',
-      'sogni-photobooth-relaxbath-raw.jpg',
-      'sogni-photobooth-retro-handheld-dither-raw.jpg',
-      'sogni-photobooth-retrodecal-raw.jpg',
-      'sogni-photobooth-retrofuturist-raw.jpg',
-      'sogni-photobooth-retrovhs-raw.jpg',
-      'sogni-photobooth-rockposter70s-raw.jpg',
-      'sogni-photobooth-royalbust-raw.jpg',
-      'sogni-photobooth-sepiadaguerreotype-raw.jpg',
-      'sogni-photobooth-sketchbookink-raw.jpg',
-      'sogni-photobooth-sketchcaricature-raw.jpg',
-      'sogni-photobooth-spacebot-raw.jpg',
-      'sogni-photobooth-spacechibi-raw.jpg',
-      'sogni-photobooth-spaceslothi-raw.jpg',
-      'sogni-photobooth-sprayglow-raw.jpg',
-      'sogni-photobooth-spraysticker-raw.jpg',
-      'sogni-photobooth-stained-ink-marbling-raw.jpg',
-      'sogni-photobooth-statueroman-raw.jpg',
-      'sogni-photobooth-stonemoss-raw.jpg',
-      'sogni-photobooth-storybookastral-raw.jpg',
-      'sogni-photobooth-storybookastronaut-raw.jpg',
-      'sogni-photobooth-storybookchef-raw.jpg',
-      'sogni-photobooth-storybookdragon-raw.jpg',
-      'sogni-photobooth-storybookelf-raw.jpg',
-      'sogni-photobooth-storybooklion-raw.jpg',
-      'sogni-photobooth-storybookmercat-raw.jpg',
-      'sogni-photobooth-storybookmermaidcat-raw.jpg',
-      'sogni-photobooth-storybookmoon-raw.jpg',
-      'sogni-photobooth-storybookninja-raw.jpg',
-      'sogni-photobooth-storybookpilot-raw.jpg',
-      'sogni-photobooth-storybookpirate-raw.jpg',
-      'sogni-photobooth-storybookprincess-raw.jpg',
-      'sogni-photobooth-storybookpuppy-raw.jpg',
-      'sogni-photobooth-storybooksakura-raw.jpg',
-      'sogni-photobooth-storybooksnow-raw.jpg',
-      'sogni-photobooth-storybookviking-raw.jpg',
-      'sogni-photobooth-storybookwatercolor-raw.jpg',
-      'sogni-photobooth-storybookyokai-raw.jpg',
-      'sogni-photobooth-sumidragon-raw.jpg',
-      'sogni-photobooth-synthwavegrid-raw.jpg',
-      'sogni-photobooth-tarotglitch-raw.jpg',
-      'sogni-photobooth-techblueprint-raw.jpg',
-      'sogni-photobooth-tikiretro-raw.jpg',
-      'sogni-photobooth-tribalbruh-raw.jpg',
-      'sogni-photobooth-trondon-raw.jpg',
-      'sogni-photobooth-vangogh-swirl-raw.jpg',
-      'sogni-photobooth-vaporstatue-raw.jpg',
-      'sogni-photobooth-vaporwave-raw.jpg',
-      'sogni-photobooth-vectorpop-raw.jpg',
-      'sogni-photobooth-vectorwave-raw.jpg',
-      'sogni-photobooth-vintagehollywood-raw.jpg',
-      'sogni-photobooth-warhol-pop-quad-raw.jpg',
-      'sogni-photobooth-watercolorbleed-raw.jpg',
-      'sogni-photobooth-wireframe-head-raw.jpg',
-      'sogni-photobooth-woodblockvintage-raw.jpg',
-      'sogni-photobooth-woodcutink-raw.jpg',
-      'sogni-photobooth-xray-radiograph-raw.jpg',
-      'sogni-photobooth-y2kraverkid-raw.jpg',
-      'sogni-photobooth-make-me-a-boxer-raw.jpg',
-    ];
-    
-    // Create mapping from filename to prompt key
-    const filenameToPromptKey = {};
-    
-    // Try to match each filename to a prompt key
-    const unmatchedFiles = [];
-    const matchedFiles = [];
-    
-    knownGalleryFiles.forEach(filename => {
-      // Extract the key part from filename: sogni-photobooth-[key]-raw.jpg
-      const keyPart = filename.replace('sogni-photobooth-', '').replace('-raw.jpg', '').replace('-raw (1).jpg', '').replace('-raw .jpg', '');
-      
-      // Find matching prompt key (case-insensitive, handle special characters)
-      const matchingPromptKey = Object.keys(stylePrompts).find(promptKey => {
-        if (promptKey === 'custom' || promptKey === 'random' || promptKey === 'randomMix' || promptKey === 'oneOfEach') {
-          return false;
-        }
-        
-        // Convert camelCase to lowercase for comparison (remove all non-alphanumeric)
-        const normalizedPromptKey = promptKey.toLowerCase().replace(/[^a-z0-9]/g, '');
-        const normalizedKeyPart = keyPart.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
-        
-        return normalizedPromptKey === normalizedKeyPart;
-      });
-      
-      if (matchingPromptKey) {
-        filenameToPromptKey[filename] = matchingPromptKey;
-        matchedFiles.push({ filename, promptKey: matchingPromptKey });
-      } else {
-        unmatchedFiles.push({ filename, keyPart });
-      }
-    });
-    
-    console.log(`Gallery loader: ${matchedFiles.length} files matched, ${unmatchedFiles.length} unmatched`);
-    
-    // Create gallery photos for matched files
+    // Create gallery photos for all prompts
     let photoIndex = 0;
-    for (const [filename, promptKey] of Object.entries(filenameToPromptKey)) {
-      const imagePath = `/gallery/prompts/${filename}`;
+    
+    Object.keys(stylePrompts).forEach(promptKey => {
+      // Skip special prompts
+      if (['custom', 'random', 'randomMix', 'oneOfEach'].includes(promptKey)) {
+        return;
+      }
       
-      // Create photo object similar to generated photos
-      // Images will load lazily when displayed (no preloading)
+      // Generate the expected filename using strict naming convention
+      const expectedFilename = generateGalleryFilename(promptKey);
+      const imagePath = `/gallery/prompts/${expectedFilename}`;
+      
+      // Create photo object - will show placeholder if file doesn't exist
       const galleryPhoto = {
         id: `gallery-${promptKey}-${Date.now()}-${photoIndex}`,
         generating: false,
@@ -254,49 +63,16 @@ export const loadGalleryImages = async (stylePrompts) => {
         taipeiFrameNumber: (photoIndex % 6) + 1,
         framePadding: 0,
         // Mark as gallery image to prevent custom frame application
-        isGalleryImage: true
+        isGalleryImage: true,
+        // Add expected filename for debugging
+        expectedFilename: expectedFilename
       };
       
       galleryPhotos.push(galleryPhoto);
       photoIndex++;
-    }
-    
-    // Add prompts without images as "No Preview" entries
-    Object.keys(stylePrompts).forEach(promptKey => {
-      // Skip special prompts
-      if (['custom', 'random', 'randomMix', 'oneOfEach'].includes(promptKey)) {
-        return;
-      }
-      
-      // Check if this prompt already has an image
-      const alreadyMatched = matchedFiles.some(m => m.promptKey === promptKey);
-      if (!alreadyMatched) {
-        const noPreviewPhoto = {
-          id: `gallery-${promptKey}-nopreview-${Date.now()}-${photoIndex}`,
-          generating: false,
-          loading: false,
-          images: ['/placeholder-no-preview.svg'], // Placeholder for missing images
-          originalDataUrl: '/placeholder-no-preview.svg',
-          newlyArrived: false,
-          isOriginal: false,
-          sourceType: 'gallery',
-          promptKey: promptKey,
-          promptDisplay: styleIdToDisplay(promptKey),
-          promptText: stylePrompts[promptKey] || '',
-          taipeiFrameNumber: (photoIndex % 6) + 1,
-          framePadding: 0,
-          isGalleryImage: true,
-          hasPreview: false // Mark as no preview
-        };
-        
-        galleryPhotos.push(noPreviewPhoto);
-        photoIndex++;
-      }
     });
 
-    console.log(`Created ${galleryPhotos.length} gallery photo objects (${matchedFiles.length} with images, ${galleryPhotos.length - matchedFiles.length} no preview)`);
-    console.log(`Total knownGalleryFiles: ${knownGalleryFiles.length}`);
-    console.log(`Total filenameToPromptKey entries: ${Object.keys(filenameToPromptKey).length}`);
+    console.log(`Created ${galleryPhotos.length} gallery photo objects using strict naming convention`);
     return galleryPhotos;
     
   } catch (error) {
@@ -321,3 +97,6 @@ export const checkImageExists = (imagePath) => {
     img.src = imagePath;
   });
 };
+
+// Export the utility functions for use in renaming scripts
+export { promptKeyToFilename, generateGalleryFilename };

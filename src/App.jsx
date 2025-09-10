@@ -35,7 +35,13 @@ import CameraStartMenu from './components/camera/CameraStartMenu';
 import AdvancedSettings from './components/shared/AdvancedSettings';
 import PWAInstallPrompt from './components/shared/PWAInstallPrompt';
 import './services/pwaInstaller'; // Initialize PWA installer service
-import promptsData from './prompts.json';
+import promptsDataRaw from './prompts.json';
+
+// Extract prompts from the new nested structure
+const promptsData = {};
+Object.values(promptsDataRaw).forEach(themeGroup => {
+  Object.assign(promptsData, themeGroup.prompts);
+});
 import PhotoGallery from './components/shared/PhotoGallery';
 import { useApp } from './context/AppContext.tsx';
 import TwitterShareModal from './components/shared/TwitterShareModal';
@@ -344,6 +350,7 @@ const App = () => {
   
   // Track if confetti has been shown this session (using useRef to persist across renders)
   const confettiShownThisSession = useRef(false);
+  const galleryImagesLoadedThisSession = useRef(false);
   
   // Hide confetti immediately when background animations are disabled
   useEffect(() => {
@@ -570,9 +577,16 @@ const App = () => {
   useEffect(() => {
     const loadGalleryForPromptSelector = async () => {
       if (currentPage === 'prompts' && stylePrompts && Object.keys(stylePrompts).length > 0) {
-        // Check if we already have gallery images loaded to prevent infinite loop
+        // Prevent loading more than once per session
+        if (galleryImagesLoadedThisSession.current) {
+          console.log('Gallery images already loaded this session, skipping reload');
+          return;
+        }
+        
+        // Also check if we already have gallery images loaded
         if (galleryPhotos.length > 0 && galleryPhotos[0]?.isGalleryImage) {
-          console.log('Gallery images already loaded, skipping reload');
+          console.log('Gallery images already loaded in state, skipping reload');
+          galleryImagesLoadedThisSession.current = true;
           return;
         }
         
@@ -581,11 +595,12 @@ const App = () => {
           
           // Import the loadGalleryImages function
           const { loadGalleryImages } = await import('./utils/galleryLoader');
-          const galleryPhotos = await loadGalleryImages(stylePrompts);
+          const loadedGalleryPhotos = await loadGalleryImages(stylePrompts);
           
-          if (galleryPhotos.length > 0) {
-            console.log(`Loaded ${galleryPhotos.length} gallery images for prompt selector`);
-            setGalleryPhotos(galleryPhotos);
+          if (loadedGalleryPhotos.length > 0) {
+            console.log(`Loaded ${loadedGalleryPhotos.length} gallery images for prompt selector`);
+            setGalleryPhotos(loadedGalleryPhotos);
+            galleryImagesLoadedThisSession.current = true; // Mark as loaded
           } else {
             console.warn('No gallery images found for prompt selector');
           }
@@ -596,7 +611,7 @@ const App = () => {
     };
 
     loadGalleryForPromptSelector();
-  }, [currentPage, stylePrompts, galleryPhotos]);
+  }, [currentPage, stylePrompts]);
 
   // Manage polaroid border CSS variables for sample gallery mode
   useEffect(() => {

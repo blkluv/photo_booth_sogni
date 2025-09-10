@@ -2621,6 +2621,17 @@ const PhotoGallery = ({
                     }
                   }}
                   onError={e => {
+                    // Prevent infinite reload loops for gallery images
+                    if (photo.isGalleryImage) {
+                      // For gallery images, use placeholder instead of retrying
+                      e.target.src = '/placeholder-no-preview.svg';
+                      e.target.style.opacity = '0.7';
+                      e.target.classList.add('fallback', 'gallery-fallback');
+                      console.log(`Gallery image failed to load: ${photo.expectedFilename || 'unknown'}`);
+                      return;
+                    }
+                    
+                    // For regular photos, try fallback to originalDataUrl if different
                     if (photo.originalDataUrl && e.target.src !== photo.originalDataUrl) {
                       e.target.src = photo.originalDataUrl;
                       e.target.style.opacity = '0.7';

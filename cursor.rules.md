@@ -22,6 +22,16 @@
 - **Server management**: Do NOT use `npm run dev` or start/stop servers - they're managed outside Cursor
 - **Testing**: Use the live local development URL for testing changes
 
+## Debugging & Problem Solving Rules 🔍
+- **ALWAYS start with symptoms** - analyze error messages, console logs, and network requests FIRST
+- **NEVER assume root cause** - trace the actual code execution path before making changes
+- **ALWAYS ask for browser dev tools info** when debugging UI issues (console, network tab, elements)
+- **ONE hypothesis at a time** - test each theory with minimal changes before moving to next
+- **ALWAYS verify the fix** - ensure the change actually resolves the reported issue
+- **NEVER apply multiple "solutions"** without confirming each one works
+- **ALWAYS trace data flow** - follow variables from creation to usage when debugging
+- **STOP and ask for clarification** if symptoms don't match expected behavior
+
 ## General Rules
 - You may ask me follow up questions until you are at least 95% certain you can complete the task well and then continue.
 - Never rewrite or delete files unless I explicitly ask.
