@@ -158,6 +158,14 @@ export function styleIdToDisplay(styleId: string): string {
   return styleId
     .replace(/([a-z])([A-Z])/g, '$1 $2')  // Add space between lowercase and uppercase (but not between consecutive capitals)
     .replace(/([a-zA-Z])(\d)/g, '$1 $2')  // Add space between letters and numbers
+    .replace(/(\d+)([a-zA-Z])/g, (match, numbers, letters) => {
+      // Don't separate common patterns like F1, 1990s, 90s, 3D, etc.
+      const commonPatterns = /^(f1|1990s|90s|3d|2d|8k|4k|24x24|128x112)$/i;
+      if (commonPatterns.test(numbers + letters)) {
+        return match; // Keep as-is
+      }
+      return `${numbers} ${letters}`; // Add space after numbers
+    })
     .replace(/^./, (str) => str.toUpperCase())
     .trim();
 }

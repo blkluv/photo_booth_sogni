@@ -194,7 +194,11 @@
       "velodromeCyclist": "track cyclist banked on steep velodrome curve, aero helmet, skinsuit, speed lines and wheel spoke blur",
       "rockClimber": "lead climber dyno on colorful indoor holds, chalk burst, quickdraws and rope, overhead gym lighting",
       "soccerGoalie": "hero shot socker goalie, action sports photography, motion blur, airborne goalkeeper save, goalie gloves, soccer ball flying, sneaker cleats, stadium bokeh, neon sideline LEDs, grass clippings frozen midair, no readable text",
-      "fencer": "hero shot, one single Fencing rapier pointing at viewer, motion blur, lunge action shot, white lamé suit and mask lifted to reveal face, crisp high key backlight"
+      "fencer": "hero shot, one single Fencing rapier pointing at viewer, motion blur, lunge action shot, white lamé suit and mask lifted to reveal face, crisp high key backlight",
+      "luchaLibre": "Mexican lucha libre. triumphant",
+      "kungFuMaster": "dynamic wushu long-fist pose, flowing silk uniform, temple courtyard, motion trails, drifting leaves",
+      "mmaChampion": "octagon cage backdrop, 4oz gloves, corner floodlights, coach towels bokeh, dynamic feint blur, head to head, bloody nose",
+      "kendoDuelist": "kendo armor (bogu) with shinai clash at impact, dojang backlight beams, subtle breath fog, no readable text"
     }
   },
   "storybook-kidlit": {
@@ -237,6 +241,14 @@
       "rockPoster70s": "Attractive, 1970s psychedelic rock-poster style portrait, swirling paisley orange-cyan gradients, chunky hand lettering.",
       "spraySticker": "Attractive, sticker-bomb street-art portrait, vinyl decal, graffiti style, sticker collage, urban setting",
       "vectorPop": "Attractive, bold vector pop-portrait, flat CMY blocks, thick white outline, shadow offset."
+    }
+  },
+  "zombies-horror": {
+    "name": "Zombies / Horror",
+    "prompts": {
+      "grindhouse": "70s grindhouse poster vibe, deep reds, film scratches, dramatic chiaroscuro, torn wardrobe, suggestive splatter (non-graphic), no readable text",
+      "classicZombieBW": "zombie with bone hands reaching hand out to camera, mouth open, 1960s black-and-white undead portrait, film grain, harsh key light, haunted farmhouse vibe, cracked makeup, subtle bloodless grime",
+      "apocalypseRooftop": "zombie portrait, solo survivor-turned-undead on rooftop, city smoke plumes, helicopter silhouette, dusk gradient sky, tattered clothes"
     }
   }
 }
