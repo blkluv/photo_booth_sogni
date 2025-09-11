@@ -133,9 +133,30 @@ export function styleIdToDisplay(styleId: string): string {
   if (styleId === 'random') {
     return 'Random Single';
   }
+  if (styleId === 'rnBSoulSinger') {
+    return 'R&B Soul Singer';
+  }
+  if (styleId === 'makeMeABoxer') {
+    return 'Make Me A Boxer';
+  }
+  if (styleId === 'nftAzuki') {
+    return 'NFT Azuki';
+  }
+  if (styleId === 'nftBoredApe') {
+    return 'NFT Bored Ape';
+  }
+  if (styleId === 'nftCryptoPunk') {
+    return 'NFT Crypto Punk';
+  }
+  if (styleId === 'nftDoodles') {
+    return 'NFT Doodles';
+  }
+  if (styleId === 'y2kRaverKid') {
+    return 'Y2K Raver Kid';
+  }
   
   return styleId
-    .replace(/([A-Z])/g, ' $1')  // Add space before uppercase letters
+    .replace(/([a-z])([A-Z])/g, '$1 $2')  // Add space between lowercase and uppercase (but not between consecutive capitals)
     .replace(/([a-zA-Z])(\d)/g, '$1 $2')  // Add space between letters and numbers
     .replace(/^./, (str) => str.toUpperCase())
     .trim();

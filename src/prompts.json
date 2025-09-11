@@ -171,10 +171,30 @@
       "y2kRaverKid": "trippy, acid, raver, leather yellow, blue hair, alicorn on head, sitcom lighting, bedroom wall background"
     }
   },
-  "roleplay-sport": {
-    "name": "Roleplay / Sport",
+  "roleplay": {
+    "name": "Roleplay",
     "prompts": {
-      "makeMeABoxer": "tribal face tattoo, boxer in boxing ring, leotard, holding championship belt"
+      "makeMeABoxer": "tribal face tattoo, boxer in boxing ring, leotard, holding championship belt",
+      "loFiBeatmaker": "Attractive, lo-fi beatmaker in front of bedroom studio, headphones, MPC keyboard, potted plants, cassette deck, cozy lamp glow, rain on window, no readable text",
+      "rnBSoulSinger": "Attractive, R&B soul singer at vintage ribbon mic, gloves, velvet curtain, soft rim light, glossy stage reflections, intimate pose, no readable text",
+      "popIdol": "Japanese glossy pop idol stage pose, in-ear monitors, glitter confetti, pastel LED wall, backup dancers bokeh, sparkle highlights, no readable text",
+      "clubDJ": "loud vibrant club, club DJ at turntables, vinyl and mixer close-up, laser grid, crowd silhouettes, fog haze, motion trails, no readable text",
+      "hipHopMC": "hip-hop MC with handheld gold mic, gold tooth, urban street style, block-party stage, boombox, crowd, dynamic frame, no readable text",
+      "mariachiVocalist": "mariachi vocalist with guitar/vihuela, embroidered suit details, plaza string lights, trumpet bokeh, respectful traditional styling, no readable text",
+      "jazzSaxophonist": "jazz sax solo under moody spotlight, smoky club, brass bell reflections, upright bass bokeh, deep blue gels, no readable text",
+      "reggaeVocalist": "reggae vocalist at beach stage, red-gold-green lighting wash, palm shadow patterns, relaxed groove, vintage mic, no readable text",
+      "countrySinger": "country singer with acoustic guitar, felt hat, string-light barn backdrop, warm amber wash, dust motes, no readable text",
+      "punkRocker": "punk frontperson shout-singing into wired mic, piercings, nose ring, ripped denim, safety-pin accents, stickered guitar, tiny club stage, motion blur, no readable text",
+      "f1Driver": "carbon-fiber race suit and glossy helmet visor, pit-lane reflections, speed streaks, tire smoke wisp, standing in front of racecar, sponsor panels abstracted, no readable text",
+      "proWrestler": "ring entrance pose, feathered robe flare, pyro spark fountains, championship belt shine, ropes and fog machine haze, no readable text",
+      "basketballStar": "action sports photography, soaring slam dunk in basketball court basket, rim angle, glossy hardwood reflections, sweaty headband, jersey, sweat highlights, arena jumbotron glow, crowd blur, no readable text",
+      "quarterback": "American football quarterback mid-throw,football helmet, eye-black stripes, stadium lights flare, confetti drift, turf spray, dynamic motion blur, no readable text",
+      "figureSkater": "triple-axel freeze frame, ice skate, legs, sequined costume sparkles, ice spray arc, spotlight cones, cool arena haze",
+      "sumoChampion": "yokozuna stance on dohyo, ceremonial belt, salt toss captured midair, lantern glow, taiko drum vibe",
+      "velodromeCyclist": "track cyclist banked on steep velodrome curve, aero helmet, skinsuit, speed lines and wheel spoke blur",
+      "rockClimber": "lead climber dyno on colorful indoor holds, chalk burst, quickdraws and rope, overhead gym lighting",
+      "soccerGoalie": "hero shot socker goalie, action sports photography, motion blur, airborne goalkeeper save, goalie gloves, soccer ball flying, sneaker cleats, stadium bokeh, neon sideline LEDs, grass clippings frozen midair, no readable text",
+      "fencer": "hero shot, one single Fencing rapier pointing at viewer, motion blur, lunge action shot, white lamé suit and mask lifted to reveal face, crisp high key backlight"
     }
   },
   "storybook-kidlit": {
