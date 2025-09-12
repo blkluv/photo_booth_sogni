@@ -3,17 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sogni Photobooth Pirate Converter</title>
+  <title>Sogni Style Explorer</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div class="popup-container">
     <!-- Header -->
     <div class="header">
-      <div class="logo">🏴‍☠️</div>
+      <div class="logo">
+        <img src="icons/logo.png" alt="Sogni Logo" style="width: 32px; height: 32px; object-fit: contain;">
+      </div>
       <div class="title">
-        <h1>Pirate Converter</h1>
-        <p>Transform profile photos into pirates</p>
+        <h1>Sogni Style Explorer</h1>
+        <p>Transform profile photos with AI styles</p>
       </div>
     </div>
 
@@ -26,17 +28,28 @@
           Checking...
         </div>
       </div>
+      <div class="status-item">
+        <div class="status-label">Environment:</div>
+        <div class="status-value">
+          <label class="dev-mode-toggle">
+            <input type="checkbox" id="dev-mode-toggle" checked>
+            <span class="toggle-slider"></span>
+            <span class="toggle-label">Dev Mode</span>
+          </label>
+        </div>
+      </div>
     </div>
 
     <!-- Main Actions -->
     <div class="actions-section">
-      <button id="scan-page-btn" class="primary-btn" disabled>
-        <span class="btn-icon">🔍</span>
-        <span class="btn-text">Scan Page for Profiles</span>
-      </button>
-      
-      <div class="action-description">
-        Automatically finds and converts profile photos on speaker pages, team pages, and similar grids.
+      <div class="style-selector-info">
+        <div class="info-icon">
+          <img src="icons/logo.png" alt="Sogni Logo" class="popup-logo-img">
+        </div>
+        <div class="info-text">
+          <strong>Style Selector Active!</strong><br>
+          Look for the Sogni logo in the top-left corner of any webpage to access the full Sogni Style Explorer.
+        </div>
       </div>
     </div>
 
@@ -45,9 +58,9 @@
       <h3>How to Use:</h3>
       <ol>
         <li>Navigate to a page with profile photos (like speaker listings)</li>
-        <li>Click "Scan Page for Profiles" or right-click any image</li>
-        <li>Wait for the AI to convert photos to pirates</li>
-        <li>Enjoy your pirate crew! 🏴‍☠️</li>
+        <li>Click the Sogni logo in the top-left corner</li>
+        <li>Browse and select from hundreds of AI styles</li>
+        <li>Watch as photos transform with your chosen style!</li>
       </ol>
     </div>
 

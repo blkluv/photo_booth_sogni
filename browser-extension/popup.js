@@ -23,14 +23,46 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Load session stats
   loadSessionStats();
+  
+  // Load dev mode setting
+  await loadDevModeSetting();
+  
+  // Activate extension - add logo to current page
+  await activateExtension();
 });
+
+// Activate extension on current page
+async function activateExtension() {
+  console.log('Activating extension on current page...');
+  
+  try {
+    // Get current active tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    if (!tab) {
+      throw new Error('No active tab found');
+    }
+    
+    console.log('Active tab found:', tab.url);
+    
+    // Send activation message to content script
+    console.log('Sending activation message to content script...');
+    
+    try {
+      const response = await chrome.tabs.sendMessage(tab.id, { action: 'activateExtension' });
+      console.log('Extension activated successfully:', response);
+    } catch (messageError) {
+      console.error('Failed to send activation message to content script:', messageError);
+      // This is not critical - the user can still use the extension
+    }
+    
+  } catch (error) {
+    console.error('Failed to activate extension:', error);
+  }
+}
 
 // Setup event listeners
 function setupEventListeners() {
-  // Scan page button
-  const scanBtn = document.getElementById('scan-page-btn');
-  scanBtn.addEventListener('click', handleScanPage);
-  
   // Help and about links
   document.getElementById('help-link').addEventListener('click', (e) => {
     e.preventDefault();
@@ -41,12 +73,32 @@ function setupEventListeners() {
     e.preventDefault();
     showAbout();
   });
+  
+  // Dev mode toggle
+  document.getElementById('dev-mode-toggle').addEventListener('change', (e) => {
+    const isDevMode = e.target.checked;
+    console.log('Dev mode toggled:', isDevMode);
+    
+    // Save dev mode setting
+    chrome.storage.local.set({ devMode: isDevMode }, () => {
+      console.log('Dev mode setting saved:', isDevMode);
+    });
+    
+    // Send message to content script about dev mode change
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]) {
+        chrome.tabs.sendMessage(tabs[0].id, { 
+          action: 'updateDevMode', 
+          devMode: isDevMode 
+        });
+      }
+    });
+  });
 }
 
 // Check API status
 async function checkApiStatus() {
   const statusElement = document.getElementById('api-status');
-  const scanBtn = document.getElementById('scan-page-btn');
   
   try {
     console.log('Checking API status via background script...');
@@ -69,7 +121,6 @@ async function checkApiStatus() {
         <span class="status-indicator connected"></span>
         Connected
       `;
-      scanBtn.disabled = false;
       console.log('API is connected');
     } else {
       throw new Error(response.error || 'Connection failed');
@@ -80,11 +131,6 @@ async function checkApiStatus() {
     statusElement.innerHTML = `
       <span class="status-indicator error"></span>
       Offline
-    `;
-    scanBtn.disabled = true;
-    scanBtn.innerHTML = `
-      <span class="btn-icon">⚠️</span>
-      <span class="btn-text">API Unavailable</span>
     `;
   }
 }
@@ -225,6 +271,31 @@ function resetUIState() {
   scanBtn.disabled = false;
 }
 
+// Load dev mode setting from storage
+async function loadDevModeSetting() {
+  try {
+    const result = await chrome.storage.local.get(['devMode']);
+    const isDevMode = result.devMode !== undefined ? result.devMode : true; // Default to true
+    
+    console.log('Loaded dev mode setting:', isDevMode);
+    document.getElementById('dev-mode-toggle').checked = isDevMode;
+    
+    // Send current dev mode to content script
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]) {
+        chrome.tabs.sendMessage(tabs[0].id, { 
+          action: 'updateDevMode', 
+          devMode: isDevMode 
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Failed to load dev mode setting:', error);
+    // Default to dev mode enabled
+    document.getElementById('dev-mode-toggle').checked = true;
+  }
+}
+
 // Load session stats from storage
 async function loadSessionStats() {
   try {
@@ -268,27 +339,29 @@ function updateSessionStatsDisplay() {
 // Show help dialog
 function showHelp() {
   const helpText = `
-Sogni Photobooth Pirate Converter Help
+Sogni Style Explorer Help
 
 HOW TO USE:
 1. Navigate to a webpage with profile photos (like speaker listings, team pages, etc.)
-2. Click "Scan Page for Profiles" to automatically find and convert all profile photos
-3. Or right-click on any individual image and select "Convert to Pirate"
+2. Click the Sogni logo in the top-left corner to open the Style Explorer
+3. Browse hundreds of AI styles and click "Use This Style" on any photo
+4. Watch as all profile photos on the page transform with your chosen style!
 
 WHAT IT LOOKS FOR:
 - Images in containers with "speaker", "profile", "team", or "member" in their class/id
 - Square-ish images between 50x50 and 800x800 pixels
 - Images arranged in grid patterns
 
-LIMITATIONS:
-- Maximum 1 image processed at a time
-- Images are resized to max 1080x1080 pixels
-- Requires internet connection to Sogni API
+FEATURES:
+- Hundreds of AI transformation styles
+- Real-time progress tracking
+- Hover to compare original vs transformed
+- Powered by Sogni.XLT SDXL Turbo AI
 
 TROUBLESHOOTING:
 - If "API Unavailable" appears, check your internet connection
 - If no profiles found, try right-clicking individual images
-- Processing may take 1-3 minutes per image depending on server load
+- Processing may take 1-2 minutes per image depending on server load
   `;
   
   alert(helpText);
@@ -297,17 +370,18 @@ TROUBLESHOOTING:
 // Show about dialog
 function showAbout() {
   const aboutText = `
-Sogni Photobooth Pirate Converter v1.0.0
+Sogni Style Explorer v1.0.0
 
-This browser extension uses advanced AI to transform profile photos into pirate portraits. It integrates with the Sogni Photobooth API to provide high-quality image transformations.
+This browser extension brings the full power of Sogni Photobooth's AI style transformation to any webpage. Browse hundreds of artistic styles and transform profile photos with cutting-edge AI technology.
 
-Created for automatically converting speaker photos, team member photos, and other profile image grids into fun pirate versions.
+Created for automatically transforming speaker photos, team member photos, and other profile image grids with your choice of artistic styles.
 
 Technology:
-- Sogni AI Image Generation
+- Sogni.XLT SDXL Turbo AI Model
+- Hundreds of curated artistic styles
 - Chrome Extension Manifest V3
 - Real-time progress tracking
-- Batch processing with rate limiting
+- Advanced image processing pipeline
 
 © 2024 Sogni AI
   `;

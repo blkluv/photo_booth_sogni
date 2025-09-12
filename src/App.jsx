@@ -87,6 +87,37 @@ const getHashtagForStyle = (styleKey) => {
 
 
 const App = () => {
+  // --- Immediate URL Check (runs before any useEffect) ---
+  console.log('🚀 App component loading...');
+  console.log('🌍 Immediate URL check:', window.location.href);
+  console.log('🔍 Immediate search params:', window.location.search);
+  
+  const immediateUrl = new URL(window.location.href);
+  const immediatePageParam = immediateUrl.searchParams.get('page');
+  const immediateExtensionParam = immediateUrl.searchParams.get('extension');
+  
+  console.log('🔍 Immediate URL parameters:');
+  console.log('  - pageParam:', immediatePageParam);
+  console.log('  - extensionParam:', immediateExtensionParam);
+  console.log('  - All params:', Array.from(immediateUrl.searchParams.entries()));
+  
+  // Set up extension mode immediately if detected
+  if (immediateExtensionParam === 'true') {
+    console.log('🔌 Extension mode detected immediately - setting up');
+    window.extensionMode = true;
+    console.log('✅ Extension mode enabled:', window.extensionMode);
+    
+    // Add message listener immediately for extension communication
+    const handleExtensionMessage = (event) => {
+      console.log('📨 Received message in React app:', event.data);
+      if (event.data.type === 'extensionReady') {
+        console.log('🤝 Extension communication channel established');
+        console.log('🔄 Extension ready message received');
+      }
+    };
+    window.addEventListener('message', handleExtensionMessage);
+    console.log('🎧 Extension message listener added immediately');
+  }
 
   
   const videoReference = useRef(null);
@@ -197,14 +228,18 @@ const App = () => {
 
   // Info modal state - adding back the missing state
   const [showInfoModal, setShowInfoModal] = useState(false);
-  const [showPhotoGrid, setShowPhotoGrid] = useState(false);
+  const [showPhotoGrid, setShowPhotoGrid] = useState(
+    immediatePageParam === 'prompts' && immediateExtensionParam === 'true'
+  );
   
   // State for tracking gallery prompt application
   const [pendingGalleryPrompt, setPendingGalleryPrompt] = useState(null);
   
   
   // State for current page routing
-  const [currentPage, setCurrentPage] = useState('camera');
+  const [currentPage, setCurrentPage] = useState(
+    immediatePageParam === 'prompts' ? 'prompts' : 'camera'
+  );
   
   // PWA install prompt state - for manual testing only
   const [showPWAPromptManually, setShowPWAPromptManually] = useState(false);
@@ -553,9 +588,86 @@ const App = () => {
 
   // --- Handle URL parameters for deeplinks ---
   useEffect(() => {
+    console.log('🚀 URL Parameter useEffect triggered!');
+    console.log('🌍 Window location:', window.location.href);
+    console.log('🔍 Window search params:', window.location.search);
+    
     // Check for prompt parameter in URL
     const url = new URL(window.location.href);
     const promptParam = url.searchParams.get('prompt');
+    const pageParam = url.searchParams.get('page');
+    const extensionParam = url.searchParams.get('extension');
+    
+    console.log('🔍 URL Parameter Check:');
+    console.log('  - Full URL:', url.href);
+    console.log('  - promptParam:', promptParam);
+    console.log('  - pageParam:', pageParam);
+    console.log('  - extensionParam:', extensionParam);
+    console.log('  - currentPage:', currentPage);
+    console.log('  - window.parent !== window:', window.parent !== window);
+    console.log('  - All URL params:', Array.from(url.searchParams.entries()));
+    
+    // Handle page parameter for direct navigation
+    if (pageParam === 'prompts') {
+      console.log('✅ Navigating to prompts page from URL parameter');
+      console.log('🔄 Current page before navigation:', currentPage);
+      setCurrentPage('prompts');
+      setShowPhotoGrid(true);
+      console.log('🔄 Navigation commands executed');
+      
+      // If this is from the extension, set up extension mode
+      if (extensionParam === 'true') {
+        console.log('🔌 Extension mode detected - setting up message posting');
+        console.log('🪟 Window parent check:', window.parent !== window ? 'In iframe' : 'Not in iframe');
+        // Set up message posting for extension communication
+        window.extensionMode = true;
+        console.log('✅ Extension mode enabled:', window.extensionMode);
+        
+        // Set up message listener for extension communication
+        const handleExtensionMessage = (event) => {
+          console.log('📨 Received message in React app:', event.data);
+          if (event.data.type === 'extensionReady') {
+            console.log('🤝 Extension communication channel established');
+            // Force navigation to prompts page when extension is ready
+            console.log('🔄 Forcing navigation to prompts page...');
+            console.log('🔄 Current page before:', currentPage);
+            setCurrentPage('prompts');
+            setShowPhotoGrid(true);
+            console.log('🔄 Navigation commands sent');
+            
+            // Also try to force it after a delay in case of timing issues
+            setTimeout(() => {
+              console.log('🔄 Secondary navigation attempt...');
+              setCurrentPage('prompts');
+              setShowPhotoGrid(true);
+            }, 500);
+          }
+        };
+        
+        window.addEventListener('message', handleExtensionMessage);
+        console.log('🎧 Extension message listener added');
+        
+        // Backup navigation attempt after delay
+        setTimeout(() => {
+          console.log('🔄 Backup navigation attempt...');
+          if (currentPage !== 'prompts') {
+            console.log('🔄 Still not on prompts page, forcing navigation...');
+            setCurrentPage('prompts');
+            setShowPhotoGrid(true);
+          }
+        }, 1000);
+      }
+    }
+    
+    // Always try to navigate if we have the page parameter, regardless of extension mode
+    if (pageParam === 'prompts') {
+      console.log('🔄 Additional navigation attempt for page=prompts...');
+      setTimeout(() => {
+        setCurrentPage('prompts');
+        setShowPhotoGrid(true);
+        console.log('🔄 Delayed navigation executed');
+      }, 500);
+    }
     
     if (promptParam && stylePrompts && promptParam !== selectedStyle) {
       // If the prompt exists in our style prompts, select it
@@ -570,7 +682,7 @@ const App = () => {
         setCurrentHashtag(promptParam);
       }
     }
-  }, [stylePrompts, updateSetting, selectedStyle, promptsData]);
+  }, [stylePrompts, updateSetting, selectedStyle, promptsData, currentPage]);
 
 
   // Load gallery images when entering prompt selector mode
@@ -826,6 +938,40 @@ const App = () => {
     try {
       console.log(`Using gallery prompt: ${promptKey}`);
       
+      // Check if we're in extension mode
+      console.log('🔍 Extension mode check:');
+      console.log('  - window.extensionMode:', window.extensionMode);
+      console.log('  - window.parent !== window:', window.parent !== window);
+      console.log('  - Both conditions:', window.extensionMode && window.parent !== window);
+      
+      if (window.extensionMode && window.parent !== window) {
+        console.log('🚀 Extension mode: posting useThisStyle message to parent window');
+        console.log('🎯 PromptKey:', promptKey);
+        // Get the style prompt for this key
+        const stylePrompt = stylePrompts[promptKey] || promptsData[promptKey] || `Transform into ${promptKey} style`;
+        console.log('📝 Style prompt:', stylePrompt);
+        console.log('📚 Available stylePrompts keys:', Object.keys(stylePrompts).slice(0, 10));
+        console.log('📚 Available promptsData keys:', Object.keys(promptsData).slice(0, 10));
+        
+        const message = {
+          type: 'useThisStyle',
+          promptKey: promptKey,
+          stylePrompt: stylePrompt
+        };
+        console.log('📤 Sending message:', JSON.stringify(message, null, 2));
+        
+        try {
+          // Post message to parent window (the extension)
+          window.parent.postMessage(message, '*');
+          console.log('✅ Message sent to parent window successfully');
+        } catch (error) {
+          console.error('❌ Error sending message to parent:', error);
+        }
+        return;
+      } else {
+        console.log('❌ Extension mode conditions not met - proceeding with normal flow');
+      }
+      
       // First, close the photo detail view and return to grid
       setSelectedPhotoIndex(null);
       
@@ -945,6 +1091,27 @@ const App = () => {
 
   // Prompt selection handlers for the new page
   const handlePromptSelectFromPage = (promptKey) => {
+    // Check if we're in extension mode
+    if (window.extensionMode && window.parent !== window) {
+      console.log('🚀 Extension mode: posting styleSelected message to parent window');
+      console.log('🎯 PromptKey:', promptKey);
+      // Get the style prompt for this key
+      const stylePrompt = stylePrompts[promptKey] || promptsData[promptKey] || `Transform into ${promptKey} style`;
+      console.log('📝 Style prompt:', stylePrompt);
+      
+      const message = {
+        type: 'styleSelected',
+        styleKey: promptKey,
+        stylePrompt: stylePrompt
+      };
+      console.log('📤 Sending message:', message);
+      
+      // Post message to parent window (the extension)
+      window.parent.postMessage(message, '*');
+      console.log('✅ Message sent to parent window');
+      return;
+    }
+    
     // Update style without URL changes to avoid navigation issues
     updateSetting('selectedStyle', promptKey);
     if (promptKey === 'custom') {

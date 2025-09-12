@@ -9,7 +9,7 @@ body {
   width: 350px;
   min-height: 400px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #ff61d5 0%, #7132e8 100%);
   color: #333;
 }
 
@@ -22,11 +22,12 @@ body {
   margin: 8px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
   overflow: hidden;
+  border: 3px solid #ff3366;
 }
 
 /* Header */
 .header {
-  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+  background: linear-gradient(135deg, #ff61d5 0%, #7132e8 100%);
   color: white;
   padding: 16px;
   display: flex;
@@ -99,15 +100,98 @@ body {
   50% { opacity: 0.5; }
 }
 
+/* Dev Mode Toggle */
+.dev-mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.dev-mode-toggle input[type="checkbox"] {
+  display: none;
+}
+
+.toggle-slider {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  background: #d1d5db;
+  border-radius: 18px;
+  transition: background 0.2s ease;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+}
+
+.dev-mode-toggle input:checked + .toggle-slider {
+  background: #ff3366;
+}
+
+.dev-mode-toggle input:checked + .toggle-slider::before {
+  transform: translateX(14px);
+}
+
+.toggle-label {
+  font-weight: 500;
+  color: #374151;
+}
+
 /* Actions Section */
 .actions-section {
   padding: 16px;
   border-bottom: 1px solid #e5e7eb;
 }
 
+.style-selector-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(135deg, #ff61d5 0%, #7132e8 100%);
+  color: white;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(255, 97, 213, 0.2);
+}
+
+.info-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.popup-logo-img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.info-text {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.info-text strong {
+  font-weight: 600;
+}
+
 .primary-btn {
   width: 100%;
-  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+  background: linear-gradient(135deg, #ff61d5 0%, #7132e8 100%);
   color: white;
   border: none;
   border-radius: 8px;
@@ -125,7 +209,7 @@ body {
 
 .primary-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+  box-shadow: 0 4px 12px rgba(255, 97, 213, 0.3);
 }
 
 .primary-btn:active:not(:disabled) {
@@ -200,7 +284,7 @@ body {
 .stat-number {
   font-size: 18px;
   font-weight: 700;
-  color: #ff6b35;
+  color: #ff3366;
   line-height: 1;
 }
 
@@ -236,7 +320,7 @@ body {
 }
 
 .footer-links a:hover {
-  color: #ff6b35;
+  color: #ff3366;
 }
 
 .separator {

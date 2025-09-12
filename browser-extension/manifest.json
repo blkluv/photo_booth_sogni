@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Sogni Photobooth Pirate Converter",
+  "name": "Sogni Style Explorer",
   "version": "1.0.0",
-  "description": "Convert profile photos on web pages into pirates using Sogni Photobooth AI",
+  "description": "Transform profile photos with hundreds of AI styles using Sogni Photobooth",
   
   "permissions": [
     "activeTab",
@@ -30,7 +30,7 @@
   
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Convert Profile Photos to Pirates",
+    "default_title": "Sogni Style Explorer",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",

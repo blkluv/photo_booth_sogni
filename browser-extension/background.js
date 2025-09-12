@@ -173,6 +173,22 @@ class SSEConnectionManager {
     }
   }
 
+  // Wait for project completion and return result
+  waitForProjectCompletion(projectId, imageUrl) {
+    return new Promise((resolve, reject) => {
+      this.trackProject(projectId, imageUrl, (result) => {
+        resolve({ imageUrl: result.pirateImageUrl || result.imageUrl });
+      }, reject);
+      
+      // Set up timeout for the entire process (2 minutes)
+      setTimeout(() => {
+        console.error(`Background: ⏰ Conversion timeout reached for project ${projectId}`);
+        this.activeProjects.delete(projectId);
+        reject(new Error('Conversion timeout (2 minutes)'));
+      }, 120000);
+    });
+  }
+
   // Handle events for a specific project
   handleProjectEvent(projectId, data) {
     const project = this.activeProjects.get(projectId);
@@ -324,6 +340,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: false, error: error.message });
       });
     return true; // Keep message channel open for async response
+  } else if (message.action === "convertImageWithStyle") {
+    // Handle image conversion with custom style
+    handleImageConversionWithStyle(message.imageUrl, message.imageSize, message.style, message.stylePrompt)
+      .then(result => {
+        sendResponse({ success: true, result });
+      })
+      .catch(error => {
+        console.error('Image conversion with style failed in background:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true; // Keep message channel open for async response
   } else if (message.action === "checkApiHealth") {
     console.log('Background: Handling API health check request');
     // Check API health
@@ -381,6 +408,102 @@ async function checkApiHealthInBackground() {
 }
 
 // Client app ID is defined at the top of the file
+
+// Handle image conversion with custom style in background
+async function handleImageConversionWithStyle(imageUrl, imageSize, styleKey, stylePrompt) {
+  console.log('Background: Converting image with style:', styleKey, imageUrl);
+  
+  // Use the SAME client app ID for all conversions (like main photobooth frontend)
+  console.log('Background: Using shared client app ID for this conversion:', extensionClientAppId);
+  
+  try {
+    // Use correct local API domain
+    const apiBaseUrl = 'https://photobooth-api-local.sogni.ai';
+    console.log('Background: Using local API domain for image conversion:', apiBaseUrl);
+
+    // Ensure shared SSE is connected (or reconnecting) before/while we generate
+    // Wait for stable client ID first to avoid ID mismatch between SSE and generate
+    try { await clientIdReady; } catch (e) {}
+    sseManager.ensureConnected(apiBaseUrl);
+    // Optionally wait briefly for SSE to open; server will buffer if not yet
+    await sseManager.waitForOpen(1000);
+    
+    // Fetch the image (background script can bypass CORS)
+    console.log('Background: Fetching image...');
+    const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) {
+      throw new Error(`Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`);
+    }
+    
+    const imageBlob = await imageResponse.blob();
+    console.log('Background: Image fetched, size:', imageBlob.size);
+    
+    // Resize if needed (simple check)
+    let finalBlob = imageBlob;
+    if (imageSize && (imageSize.width > 1080 || imageSize.height > 1080)) {
+      // For now, just use original - we can add canvas resizing later if needed
+      console.log('Background: Image is large, but using original for now');
+    }
+    
+    // Convert with custom style using image data directly
+    console.log(`Background: Starting ${styleKey} conversion with:`, `${apiBaseUrl}/api/sogni/generate`);
+    const imageArrayBuffer = await finalBlob.arrayBuffer();
+    const imageData = Array.from(new Uint8Array(imageArrayBuffer));
+
+    const generateParams = {
+      selectedModel: 'coreml-sogniXLturbo_alpha1_ad', // Sogni.XLT SDXL Turbo
+      stylePrompt: stylePrompt,
+      numberImages: 1,
+      outputFormat: 'jpg',
+      sensitiveContentFilter: false,
+      sourceType: 'extension',
+      imageData: imageData,
+      // Required dimensions for SDXL models
+      sizePreset: 'custom',
+      width: 1024,
+      height: 1024,
+      // SDXL Turbo optimized settings
+      promptGuidance: 2.0,
+      scheduler: 'DPM++ SDE',
+      timeStepSpacing: 'Karras',
+      inferenceSteps: 7,
+      controlNetStrength: 0.7,
+      controlNetGuidanceEnd: 0.6
+    };
+
+    console.log(`Background: Sending ${styleKey} generation request...`);
+    const generateResponse = await fetch(`${apiBaseUrl}/api/sogni/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Client-App-ID': extensionClientAppId
+      },
+      body: JSON.stringify(generateParams)
+    });
+
+    if (!generateResponse.ok) {
+      const errorText = await generateResponse.text();
+      throw new Error(`Generate request failed: ${generateResponse.status} ${errorText}`);
+    }
+
+    const generateResult = await generateResponse.json();
+    console.log(`Background: ${styleKey} generation started:`, generateResult.projectId);
+
+    // Wait for completion via SSE
+    const finalResult = await sseManager.waitForProjectCompletion(generateResult.projectId, imageUrl);
+    console.log(`Background: ${styleKey} conversion completed:`, finalResult);
+
+    return {
+      convertedImageUrl: finalResult.imageUrl,
+      projectId: generateResult.projectId,
+      styleKey: styleKey
+    };
+
+  } catch (error) {
+    console.error(`Background: ${styleKey} conversion failed:`, error);
+    throw error;
+  }
+}
 
 // Handle image conversion in background (avoids CORS issues)
 async function handleImageConversion(imageUrl, imageSize) {
