@@ -14,8 +14,14 @@ import { Buffer } from 'buffer';
 
 const router = express.Router();
 
-// Map to store active project SSE connections
+// Map to store active project SSE connections (legacy)
 const activeProjects = new Map();
+
+// Map to store active client SSE connections (for multiple concurrent projects)
+const activeClients = new Map();
+
+// Map to store active session SSE connections (session-wide multiplexed stream)
+const activeSessions = new Map();
 
 // Map to store pending events for projects that don't have SSE clients yet
 const pendingProjectEvents = new Map();
@@ -75,6 +81,51 @@ const ensureSessionId = (req, res, next) => {
 };
 
 // Helper function to send SSE messages
+// Helper function to forward events to both project-based and client-based SSE connections
+function forwardEventToSSE(localProjectId, clientAppId, sseEvent, sessionId) {
+  let totalClients = 0;
+  
+  // Send to project-based connections (legacy)
+  if (activeProjects.has(localProjectId)) {
+    const projectClients = activeProjects.get(localProjectId);
+    projectClients.forEach(client => {
+      sendSSEMessage(client, sseEvent);
+    });
+    totalClients += projectClients.size;
+  }
+  
+  // Send to client-based connections (new architecture)
+  if (clientAppId && activeClients.has(clientAppId)) {
+    const clientConnections = activeClients.get(clientAppId);
+    clientConnections.forEach(client => {
+      sendSSEMessage(client, sseEvent);
+    });
+    totalClients += clientConnections.size;
+  }
+
+  // Send to session-based connections (single SSE carrying all projects in session)
+  if (sessionId && activeSessions.has(sessionId)) {
+    const sessionConnections = activeSessions.get(sessionId);
+    sessionConnections.forEach(client => {
+      sendSSEMessage(client, sseEvent);
+    });
+    totalClients += sessionConnections.size;
+  }
+  
+  if (totalClients > 0) {
+    console.log(`[${localProjectId}] Forwarded '${sseEvent.type}' event to ${totalClients} SSE client(s)`);
+  } else {
+    console.log(`[${localProjectId}] No SSE clients found - storing event for later pickup`);
+    // Store for later pickup
+    if (!pendingProjectEvents.has(localProjectId)) {
+      pendingProjectEvents.set(localProjectId, []);
+    }
+    // Add clientAppId to event for client-based retrieval
+    const eventWithClient = { ...sseEvent, clientAppId, sessionId };
+    pendingProjectEvents.get(localProjectId).push(eventWithClient);
+  }
+}
+
 const sendSSEMessage = (client, data) => {
   if (!client || !client.writable) {
     return false;
@@ -171,7 +222,134 @@ router.options('/progress/:projectId', (req, res) => {
   res.status(204).end();
 });
 
-// SSE endpoint for getting real-time progress updates
+// Client-based SSE endpoint for multiple concurrent projects (like main frontend)
+router.get('/progress/client', ensureSessionId, (req, res) => {
+  const clientAppId = req.query.clientAppId;
+  
+  if (!clientAppId) {
+    return res.status(400).json({ error: 'clientAppId is required' });
+  }
+  
+  console.log(`SSE connection request for client: ${clientAppId}`);
+  
+  // Set headers for SSE
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Content-Encoding', 'identity');
+  res.setHeader('X-Accel-Buffering', 'no');
+  
+  // Send immediate response
+  res.write(`data: ${JSON.stringify({ type: 'connected', clientId: clientAppId, timestamp: Date.now() })}\n\n`);
+  
+  try {
+    res.flushHeaders();
+  } catch (err) {
+    console.error(`Error flushing headers: ${err.message}`);
+  }
+  
+  // Set up client tracking for ALL projects from this client
+  if (!activeClients.has(clientAppId)) {
+    activeClients.set(clientAppId, new Set());
+  }
+  activeClients.get(clientAppId).add(res);
+  
+  // Send any pending events for ALL projects from this client
+  for (const [projectId, events] of pendingProjectEvents.entries()) {
+    if (events.length > 0 && events[0].clientAppId === clientAppId) {
+      console.log(`[${clientAppId}] Sending ${events.length} stored events for project ${projectId}`);
+      try {
+        for (const event of events) {
+          res.write(`data: ${JSON.stringify(event)}\n\n`);
+        }
+        pendingProjectEvents.delete(projectId);
+      } catch (error) {
+        console.error(`Error sending pending events for client ${clientAppId}:`, error);
+      }
+    }
+  }
+  
+  // Handle client disconnect
+  req.on('close', () => {
+    console.log(`[${clientAppId}] Client disconnected from SSE stream`);
+    if (activeClients.has(clientAppId)) {
+      activeClients.get(clientAppId).delete(res);
+      if (activeClients.get(clientAppId).size === 0) {
+        activeClients.delete(clientAppId);
+      }
+    }
+  });
+  
+  req.on('error', (err) => {
+    console.error(`[${clientAppId}] SSE connection error:`, err);
+    if (activeClients.has(clientAppId)) {
+      activeClients.get(clientAppId).delete(res);
+      if (activeClients.get(clientAppId).size === 0) {
+        activeClients.delete(clientAppId);
+      }
+    }
+  });
+});
+
+// Session-based SSE endpoint: streams all projects for the current session
+router.get('/progress/session', ensureSessionId, (req, res) => {
+  const sessionId = req.sessionId;
+  console.log(`SSE connection request for session: ${sessionId}`);
+
+  // SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Content-Encoding', 'identity');
+  res.setHeader('X-Accel-Buffering', 'no');
+
+  // Send immediate connected event
+  res.write(`data: ${JSON.stringify({ type: 'connected', sessionId, timestamp: Date.now() })}\n\n`);
+  try { res.flushHeaders(); } catch {}
+
+  // Track this session connection
+  if (!activeSessions.has(sessionId)) {
+    activeSessions.set(sessionId, new Set());
+  }
+  activeSessions.get(sessionId).add(res);
+
+  // Flush any pending events for this session (across all projects)
+  for (const [projectId, events] of pendingProjectEvents.entries()) {
+    if (events.length > 0 && events[0].sessionId === sessionId) {
+      console.log(`[session:${sessionId}] Sending ${events.length} stored events for project ${projectId}`);
+      try {
+        for (const event of events) {
+          res.write(`data: ${JSON.stringify(event)}\n\n`);
+        }
+        pendingProjectEvents.delete(projectId);
+      } catch (error) {
+        console.error(`Error sending pending events for session ${sessionId}:`, error);
+      }
+    }
+  }
+
+  // Disconnect handlers
+  req.on('close', () => {
+    if (activeSessions.has(sessionId)) {
+      activeSessions.get(sessionId).delete(res);
+      if (activeSessions.get(sessionId).size === 0) {
+        activeSessions.delete(sessionId);
+      }
+    }
+  });
+
+  req.on('error', (err) => {
+    console.error(`[${sessionId}] SSE connection error:`, err);
+    if (activeSessions.has(sessionId)) {
+      activeSessions.get(sessionId).delete(res);
+      if (activeSessions.get(sessionId).size === 0) {
+        activeSessions.delete(sessionId);
+      }
+    }
+  });
+});
+
+// SSE endpoint for getting real-time progress updates (legacy - per project)
 router.get('/progress/:projectId', ensureSessionId, (req, res) => {
   const projectId = req.params.projectId;
   
@@ -464,35 +642,22 @@ router.post('/generate', ensureSessionId, async (req, res) => {
           projectId: localProjectId, // Standardize on the localProjectId for client-side tracking
           queuePosition: eventData.queuePosition,
         };
-        if (activeProjects.has(localProjectId)) {
-          const clients = activeProjects.get(localProjectId);
-          console.log(`[${localProjectId}] Forwarding 'queued' event to ${clients.size} SSE client(s):`, JSON.stringify(sseEvent));
-          clients.forEach(client => {
-            sendSSEMessage(client, sseEvent);
-          });
-        }
+        // Use new unified forwarding function
+        forwardEventToSSE(localProjectId, clientAppId, sseEvent, req.sessionId);
         return; // Exit the handler for this specific event type after processing
       }
 
-      if (activeProjects.has(localProjectId)) {
-        const clients = activeProjects.get(localProjectId);
-        
-        clients.forEach(client => {
-          sendSSEMessage(client, sseEvent);
-        });
-      } else {
-        console.log(`[${localProjectId}] No SSE clients found for this request.`);
-        
-        // Store ALL events for later pickup when SSE connects (not just errors)
-        console.log(`[${localProjectId}] Storing event for later pickup:`, JSON.stringify(sseEvent));
-        
+      // Forward all events (not just 'queued') to legacy, client-based, and session-based SSE connections
+      forwardEventToSSE(localProjectId, clientAppId, sseEvent, req.sessionId);
+
+      // Also maintain legacy pending storage for late project-based SSE connections
+      if (!activeProjects.has(localProjectId)) {
         // Initialize pending events array for this project if it doesn't exist
         if (!pendingProjectEvents.has(localProjectId)) {
           pendingProjectEvents.set(localProjectId, []);
         }
-        
         // Store the event
-        pendingProjectEvents.get(localProjectId).push(sseEvent);
+        pendingProjectEvents.get(localProjectId).push({ ...sseEvent, clientAppId });
         
         // Limit stored events to prevent memory issues (keep last 50 events)
         const events = pendingProjectEvents.get(localProjectId);
@@ -502,23 +667,16 @@ router.post('/generate', ensureSessionId, async (req, res) => {
         
         // Also handle error events in the old system for compatibility
         if (eventData.type === 'failed' || eventData.type === 'error') {
-          // Store the error event for immediate pickup when SSE connects
           if (!globalThis.pendingProjectErrors) {
             globalThis.pendingProjectErrors = new Map();
           }
-          
-          // Check if this is an insufficient funds error
           const isInsufficientFundsError = (eventData.error && eventData.error.code === 4024) || 
-                                         (eventData.error && eventData.error.message && eventData.error.message.includes('Insufficient funds')) ||
-                                         (eventData.error && eventData.error.message && eventData.error.message.includes('Debit Error'));
-          
+                                           (eventData.error && eventData.error.message && eventData.error.message.includes('Insufficient funds')) ||
+                                           (eventData.error && eventData.error.message && eventData.error.message.includes('Debit Error'));
           let errorMessage = (eventData.error && eventData.error.message) || eventData.message || 'Image generation failed';
-          
-          // Provide a user-friendly message for insufficient funds
           if (isInsufficientFundsError) {
             errorMessage = 'Insufficient Sogni credits to generate images. Please add more credits to your account.';
           }
-          
           const errorEvent = { 
             type: 'error', 
             projectId: localProjectId,
@@ -529,10 +687,7 @@ router.post('/generate', ensureSessionId, async (req, res) => {
             status: 500,
             isInsufficientFunds: isInsufficientFundsError
           };
-          
           globalThis.pendingProjectErrors.set(localProjectId, errorEvent);
-          console.log(`[${localProjectId}] Error stored for project. Total pending errors: ${globalThis.pendingProjectErrors.size}`);
-          
           // Clean up after 30 seconds
           setTimeout(() => {
             if (globalThis.pendingProjectErrors) {
@@ -544,7 +699,6 @@ router.post('/generate', ensureSessionId, async (req, res) => {
         // Clean up pending events after 2 minutes
         setTimeout(() => {
           if (pendingProjectEvents.has(localProjectId)) {
-            console.log(`[${localProjectId}] Cleaning up pending events after timeout`);
             pendingProjectEvents.delete(localProjectId);
           }
         }, 2 * 60 * 1000);
@@ -553,7 +707,7 @@ router.post('/generate', ensureSessionId, async (req, res) => {
     
     // Get or create a client for this session, using the client-provided app ID
     const client = await getSessionClient(req.sessionId, clientAppId);
-    const params = req.body;
+    const params = { ...req.body, clientAppId };
 
     // console.log(`DEBUG - ${new Date().toISOString()} - [${localProjectId}] Calling Sogni SDK (generateImage function) with params:`, Object.keys(params));
     

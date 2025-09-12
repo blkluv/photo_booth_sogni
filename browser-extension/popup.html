@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sogni Photobooth Pirate Converter</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo">🏴‍☠️</div>
+      <div class="title">
+        <h1>Pirate Converter</h1>
+        <p>Transform profile photos into pirates</p>
+      </div>
+    </div>
+
+    <!-- Status Section -->
+    <div class="status-section">
+      <div class="status-item">
+        <div class="status-label">API Status:</div>
+        <div class="status-value" id="api-status">
+          <span class="status-indicator checking"></span>
+          Checking...
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Actions -->
+    <div class="actions-section">
+      <button id="scan-page-btn" class="primary-btn" disabled>
+        <span class="btn-icon">🔍</span>
+        <span class="btn-text">Scan Page for Profiles</span>
+      </button>
+      
+      <div class="action-description">
+        Automatically finds and converts profile photos on speaker pages, team pages, and similar grids.
+      </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="instructions-section">
+      <h3>How to Use:</h3>
+      <ol>
+        <li>Navigate to a page with profile photos (like speaker listings)</li>
+        <li>Click "Scan Page for Profiles" or right-click any image</li>
+        <li>Wait for the AI to convert photos to pirates</li>
+        <li>Enjoy your pirate crew! 🏴‍☠️</li>
+      </ol>
+    </div>
+
+    <!-- Stats Section -->
+    <div class="stats-section" id="stats-section" style="display: none;">
+      <h3>Current Session:</h3>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-number" id="images-found">0</div>
+          <div class="stat-label">Images Found</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number" id="images-converted">0</div>
+          <div class="stat-label">Converted</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number" id="conversion-time">0s</div>
+          <div class="stat-label">Total Time</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <div class="footer-links">
+        <a href="#" id="help-link">Help</a>
+        <span class="separator">•</span>
+        <a href="#" id="about-link">About</a>
+      </div>
+      <div class="version">v1.0.0</div>
+    </div>
+  </div>
+
+  <script src="api-service.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

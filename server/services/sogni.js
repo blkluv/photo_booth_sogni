@@ -9,13 +9,18 @@ let SogniClient;
 export const activeConnections = new Map();
 const connectionLastActivity = new Map();
 export const sessionClients = new Map();
+// Map session+clientAppId -> clientId
+const sessionAppClients = new Map();
 
 // Single global Sogni client and session management
 let globalSogniClient = null;
+let clientCreationPromise = null; // Prevent concurrent client creation
 let sogniUsername = null;
 let sogniEnv = null;
 let sogniUrls = null;
 let password = null;
+// Serialize SDK logins to avoid nonce races across concurrent clients
+let authLoginPromise = null;
 
 // Token refresh cooldown to prevent excessive refresh attempts
 const lastRefreshAttempt = { timestamp: 0 };
@@ -118,22 +123,31 @@ async function getOrCreateGlobalSogniClient() {
     return globalSogniClient;
   }
   
-  // Initialize environment and credentials
-  if (!sogniUsername || !password) {
-    sogniEnv = process.env.SOGNI_ENV || 'production';
-    sogniUsername = process.env.SOGNI_USERNAME;
-    password = process.env.SOGNI_PASSWORD;
-    sogniUrls = getSogniUrls(sogniEnv);
-    
-    if (!sogniUsername || !password) {
-      throw new Error('Sogni credentials not configured - check SOGNI_USERNAME and SOGNI_PASSWORD');
-    }
+  // If client creation is already in progress, wait for it
+  if (clientCreationPromise) {
+    console.log(`[GLOBAL] Client creation already in progress, waiting...`);
+    return await clientCreationPromise;
   }
   
-  // Generate a unique app ID for this instance
-  const clientAppId = `photobooth-${uuidv4()}`;
-  
-  console.log(`[GLOBAL] Creating new global Sogni client with app ID: ${clientAppId}`);
+  // Create the client creation promise to prevent race conditions
+  clientCreationPromise = (async () => {
+    try {
+      // Initialize environment and credentials
+      if (!sogniUsername || !password) {
+        sogniEnv = process.env.SOGNI_ENV || 'production';
+        sogniUsername = process.env.SOGNI_USERNAME;
+        password = process.env.SOGNI_PASSWORD;
+        sogniUrls = getSogniUrls(sogniEnv);
+        
+        if (!sogniUsername || !password) {
+          throw new Error('Sogni credentials not configured - check SOGNI_USERNAME and SOGNI_PASSWORD');
+        }
+      }
+      
+      // Generate a unique app ID for this instance
+      const clientAppId = `photobooth-${uuidv4()}`;
+      
+      console.log(`[GLOBAL] Creating new global Sogni client with app ID: ${clientAppId}`);
   
   // Import SogniClient if not already imported
   if (!SogniClient) {
@@ -188,12 +202,22 @@ async function getOrCreateGlobalSogniClient() {
     });
   }
   
-  globalSogniClient = client;
-  activeConnections.set(clientAppId, client);
-  recordClientActivity(clientAppId);
-  logConnectionStatus('Created', clientAppId);
+      globalSogniClient = client;
+      activeConnections.set(clientAppId, client);
+      recordClientActivity(clientAppId);
+      logConnectionStatus('Created', clientAppId);
+      
+      return globalSogniClient;
+    } catch (error) {
+      console.error(`[GLOBAL] Failed to create global client:`, error);
+      throw error;
+    } finally {
+      // Clear the creation promise so future requests can try again
+      clientCreationPromise = null;
+    }
+  })();
   
-  return globalSogniClient;
+  return await clientCreationPromise;
 }
 
 // Enhanced wrapper for Sogni operations with proper error handling
@@ -230,6 +254,8 @@ async function withSogniClient(operation, operationName = 'operation') {
             connectionLastActivity.delete(globalSogniClient.appId);
           }
           globalSogniClient = null;
+    clientCreationPromise = null;
+          clientCreationPromise = null;
         }
         
         retryCount++;
@@ -264,6 +290,7 @@ export function clearInvalidTokens() {
       connectionLastActivity.delete(globalSogniClient.appId);
     }
     globalSogniClient = null;
+    clientCreationPromise = null;
   }
 }
 
@@ -282,6 +309,7 @@ export async function forceAuthReset() {
       connectionLastActivity.delete(globalSogniClient.appId);
     }
     globalSogniClient = null;
+    clientCreationPromise = null;
   }
   
   // Clear session mappings but don't cleanup other services
@@ -290,22 +318,71 @@ export async function forceAuthReset() {
   console.log('[AUTH] Force auth reset completed - next request will re-authenticate');
 }
 
-// Backwards compatibility - create client (now returns global client)
-async function createSogniClient() {
-  console.log(`[LEGACY] Creating Sogni client (using global client)`);
-  return await getOrCreateGlobalSogniClient();
+// Create a dedicated client for a given appId (used for per-app concurrency)
+async function createDedicatedClient(appId) {
+  // Import SogniClient if not already imported
+  if (!SogniClient) {
+    const sogniModule = await import('@sogni-ai/sogni-client');
+    SogniClient = sogniModule.SogniClient;
+  }
+  if (!sogniUsername || !password) {
+    sogniEnv = process.env.SOGNI_ENV || 'production';
+    sogniUsername = process.env.SOGNI_USERNAME;
+    password = process.env.SOGNI_PASSWORD;
+    sogniUrls = getSogniUrls(sogniEnv);
+    if (!sogniUsername || !password) {
+      throw new Error('Sogni credentials not configured - check SOGNI_USERNAME and SOGNI_PASSWORD');
+    }
+  }
+  const client = await SogniClient.createInstance({
+    appId,
+    network: 'fast',
+    restEndpoint: sogniUrls.rest,
+    socketEndpoint: sogniUrls.socket,
+    testnet: sogniEnv === 'local' || sogniEnv === 'staging'
+  });
+  // Serialize the login to avoid concurrent nonce usage
+  if (authLoginPromise) {
+    console.log('[AUTH] Waiting for ongoing SDK login to complete to avoid nonce race');
+    try { await authLoginPromise; } catch (e) { /* ignore */ }
+  }
+  authLoginPromise = (async () => {
+    await client.account.login(sogniUsername, password);
+  })();
+  try {
+    await authLoginPromise;
+  } finally {
+    authLoginPromise = null;
+  }
+  activeConnections.set(appId, client);
+  recordClientActivity(appId);
+  logConnectionStatus('Created', appId);
+  return client;
 }
 
 // Simplified session client management - all sessions use the same global authenticated client
-export async function getSessionClient(sessionId) {
-  console.log(`[SESSION] Getting client for session ${sessionId}`);
-  
+export async function getSessionClient(sessionId, clientAppId) {
+  console.log(`[SESSION] Getting client for session ${sessionId}${clientAppId ? ` appId ${clientAppId}` : ''}`);
   try {
+    if (clientAppId) {
+      const key = `${sessionId}:${clientAppId}`;
+      const existingId = sessionAppClients.get(key);
+      if (existingId && activeConnections.has(existingId)) {
+        const existing = activeConnections.get(existingId);
+        console.log(`[SESSION] Reusing per-app client for ${key}: ${existingId}`);
+        recordClientActivity(existingId);
+        return existing;
+      }
+      console.log(`[SESSION] Creating new per-app client for ${key}`);
+      const dedicated = await createDedicatedClient(clientAppId);
+      sessionAppClients.set(key, dedicated.appId);
+      sessionClients.set(sessionId, dedicated.appId);
+      console.log(`[SESSION] Successfully provided per-app client to session ${sessionId}`);
+      return dedicated;
+    }
+    // Fallback to global client
     const client = await getOrCreateGlobalSogniClient();
-    
-    // Map this session to the global client for tracking
     sessionClients.set(sessionId, client.appId);
-    
     console.log(`[SESSION] Successfully provided global client to session ${sessionId}`);
     return client;
   } catch (error) {
@@ -326,13 +403,18 @@ export async function disconnectSessionClient(sessionId) {
 
 // Image generation with comprehensive error handling and streaming (restored from original)
 export async function generateImage(client, params, progressCallback, localProjectId = null) {
-  return await withSogniClient(async (sogniClient) => {
+  const runGeneration = async (sogniClient) => {
     console.log('[IMAGE] Starting image generation with params:', {
       model: params.selectedModel,
       outputFormat: params.outputFormat,
       sensitiveContentFilter: params.sensitiveContentFilter,
       // prompt: params.prompt?.substring(0, 50) + '...',
       //...Object.fromEntries(Object.entries(params).filter(([key]) => key !== 'prompt'))
+    });
+    console.log('[IMAGE][DEBUG] init', {
+      localProjectId,
+      clientAppId: params.clientAppId,
+      numberImages: params.numberImages || 1
     });
 
     // Prepare project options in the correct format for the Sogni SDK
@@ -401,20 +483,7 @@ export async function generateImage(client, params, progressCallback, localProje
 
 
 
-    // Create project
-    const project = await sogniClient.projects.create(projectOptions);
-    console.log('[IMAGE] Project created:', project.id);
-
-    // Send initial queued event (simulated since SDK doesn't provide queue info)
-    if (progressCallback) {
-      progressCallback({
-        type: 'queued',
-        projectId: localProjectId || project.id,
-        queuePosition: 1 // Simulated queue position
-      });
-    }
-
-    // Project completion tracking (restored from original)
+    // Project completion tracking (must be set up BEFORE creating project)
     const projectCompletionTracker = {
       expectedJobs: params.numberImages || 1,
       sentJobCompletions: 0,
@@ -440,6 +509,53 @@ export async function generateImage(client, params, progressCallback, localProje
     // Job index counter for proper job assignment
     let nextJobIndex = 0;
 
+    // Create project FIRST
+    const project = await sogniClient.projects.create(projectOptions);
+    console.log('[IMAGE] Project created:', project.id);
+    console.log('[IMAGE][MAP]', {
+      sdkProjectId: project.id,
+      localProjectId,
+      isExtensionClient: !!(params && typeof params.clientAppId === 'string' && params.clientAppId.startsWith('photobooth-extension-')),
+      clientAppId: params?.clientAppId
+    });
+
+    // SDK deep instrumentation: wrap project.emit to trace all low-level SDK events
+    try {
+      if (!project.__emitWrapped) {
+        const originalProjectEmit = project.emit.bind(project);
+        project.emit = (event, data) => {
+          try {
+            console.log('[SDK-INSPECT][Project.emit]', {
+              sdkProjectId: project.id,
+              localProjectId: localProjectId || project.id,
+              event,
+              keys: Array.isArray(data) ? data : undefined,
+              jobId: data && typeof data === 'object' && data.id ? data.id : undefined,
+              progressPct: typeof data === 'number' ? data : undefined
+            });
+          } catch (logErr) {
+            // ignore logging errors
+          }
+          return originalProjectEmit(event, data);
+        };
+        project.__emitWrapped = true;
+      }
+    } catch (e) {
+      console.warn('[SDK-INSPECT] Failed to wrap Project.emit', e?.message);
+    }
+
+    // Send initial queued event (simulated since SDK doesn't provide queue info)
+    if (progressCallback) {
+      progressCallback({
+        type: 'queued',
+        projectId: localProjectId || project.id,
+        queuePosition: 1 // Simulated queue position
+      });
+    }
+
+    // CRITICAL FIX: Capture localProjectId in closure to prevent sharing between concurrent projects
+    const capturedLocalProjectId = projectDetails.localProjectId;
+    
     // Return promise that resolves when project is complete but streams individual jobs
     return new Promise((resolve, reject) => {
       let projectFinished = false;
@@ -447,13 +563,41 @@ export async function generateImage(client, params, progressCallback, localProje
       // Set up cleanup function that can be used by all handlers
       let cleanup = () => {}; // Default no-op function
       
+      // Per-project event de-duplication to avoid double-emits when multiple handlers are active
+      const emittedKeys = new Set();
+      const emitToProgressCallback = (evt) => {
+        if (!progressCallback) return;
+        const key = `${evt.type}:${evt.jobId || 'na'}:${evt.step || 'na'}:${evt.projectId}`;
+        if (emittedKeys.has(key)) {
+          return;
+        }
+        emittedKeys.add(key);
+        progressCallback(evt);
+      };
+
       // Set up progress monitoring with comprehensive error handling using global client events
-      if (progressCallback) {
+      const isExtensionClient = (projectDetails && params && typeof params.clientAppId === 'string' && params.clientAppId.startsWith('photobooth-extension-'));
+      console.log('[IMAGE][DEBUG] handler selection', {
+        sdkProjectId: project.id,
+        localProjectId,
+        isExtensionClient
+      });
+
+      if (progressCallback && !isExtensionClient) {
         
         // Create job event handler for this project (restored from original)
         const jobHandler = (event) => {
+          console.log('[IMAGE][GLOBAL][EVENT]', {
+            type: event.type,
+            sdkProjectId: event.projectId,
+            targetSdkProjectId: project.id,
+            localProjectId,
+            jobId: event.jobId,
+            step: event.step,
+            stepCount: event.stepCount
+          });
           try {
-            // Only process events for this specific project
+            // Only process events for this specific project (CRITICAL for global handler)
             if (event.projectId !== project.id) {
               return;
             }
@@ -481,7 +625,7 @@ export async function generateImage(client, params, progressCallback, localProje
                 progressEvent = {
                   type: 'preview',
                   jobId: event.jobId,
-                  projectId: projectDetails.localProjectId || event.projectId,
+                  projectId: capturedLocalProjectId || event.projectId,
                   previewUrl: event.url,
                   resultUrl: event.url, // Also set as resultUrl for compatibility
                   positivePrompt: event.positivePrompt || projectDetails.positivePrompt,
@@ -513,7 +657,7 @@ export async function generateImage(client, params, progressCallback, localProje
                   progressEvent = {
                     type: event.type,
                     jobId: event.jobId,
-                    projectId: projectDetails.localProjectId || event.projectId,
+                    projectId: capturedLocalProjectId || event.projectId,
                     workerName: event.workerName || 'unknown',
                     positivePrompt: event.positivePrompt || projectDetails.positivePrompt,
                     jobIndex: jobIndex !== undefined ? jobIndex : 0
@@ -545,7 +689,7 @@ export async function generateImage(client, params, progressCallback, localProje
                     step: event.step,
                     stepCount: projectCompletionTracker.isEnhancement ? projectCompletionTracker.actualSteps : event.stepCount,
                     jobId: event.jobId,
-                    projectId: projectDetails.localProjectId || event.projectId,
+                    projectId: capturedLocalProjectId || event.projectId,
                     workerName: workerName
                   };
                   
@@ -567,7 +711,7 @@ export async function generateImage(client, params, progressCallback, localProje
                         const fallbackProgressEvent = {
                           type: 'jobCompleted',
                           jobId: event.jobId,
-                          projectId: projectDetails.localProjectId || event.projectId,
+                          projectId: capturedLocalProjectId || event.projectId,
                           resultUrl: null,
                           positivePrompt: event.positivePrompt || projectDetails.positivePrompt,
                           stylePrompt: projectDetails.stylePrompt,
@@ -624,7 +768,7 @@ export async function generateImage(client, params, progressCallback, localProje
                       type: 'progress',
                       progress: event.progress || 0,
                       jobId: event.jobId,
-                      projectId: projectDetails.localProjectId || event.projectId,
+                      projectId: capturedLocalProjectId || event.projectId,
                       workerName: workerName
                     };
                   }
@@ -655,7 +799,7 @@ export async function generateImage(client, params, progressCallback, localProje
                 progressEvent = {
                   type: 'jobCompleted',
                   jobId: event.jobId,
-                  projectId: projectDetails.localProjectId || event.projectId,
+                  projectId: capturedLocalProjectId || event.projectId,
                   resultUrl: resultUrl,
                   positivePrompt: event.positivePrompt || projectDetails.positivePrompt,
                   stylePrompt: projectDetails.stylePrompt,
@@ -707,7 +851,15 @@ export async function generateImage(client, params, progressCallback, localProje
             
             // Send the event to frontend
             if (progressEvent && progressCallback) {
-              progressCallback(progressEvent);
+              console.log('[IMAGE][GLOBAL][EMIT]', {
+                type: progressEvent.type,
+                localProjectId: progressEvent.projectId,
+                sdkProjectId: project.id,
+                jobId: progressEvent.jobId
+              });
+              emitToProgressCallback(progressEvent);
+            } else {
+              console.log(`[IMAGE] NOT sending event - progressEvent: ${!!progressEvent}, progressCallback: ${!!progressCallback}`);
             }
             
           } catch (jobHandlerError) {
@@ -715,9 +867,10 @@ export async function generateImage(client, params, progressCallback, localProje
           }
         };
         
-        // Register the global job event handler
+        // Register the global job event handler (RESTORED - needed for main photobooth client)
         try {
           sogniClient.projects.on('job', jobHandler);
+          console.log('[IMAGE][GLOBAL] attached job handler for sdkProjectId', project.id);
         } catch (eventRegistrationError) {
           console.error(`[IMAGE] Error registering job event handler:`, eventRegistrationError);
         }
@@ -726,6 +879,7 @@ export async function generateImage(client, params, progressCallback, localProje
         cleanup = () => {
           try {
             sogniClient.projects.off('job', jobHandler);
+            console.log('[IMAGE][GLOBAL] detached job handler for sdkProjectId', project.id);
           } catch (err) {
             console.error(`[IMAGE] Error removing job event handler:`, err);
           }
@@ -739,6 +893,176 @@ export async function generateImage(client, params, progressCallback, localProje
         });
       }
 
+      // For the extension client, prefer project-specific event handlers to avoid global cross-talk
+      if (progressCallback && isExtensionClient) {
+        const capturedLocalProjectId = projectDetails.localProjectId;
+        console.log('[IMAGE][EXT] attaching per-project handlers', {
+          sdkProjectId: project.id,
+          localProjectId: capturedLocalProjectId || project.id
+        });
+        // Assign job indices and emit started
+        project.on('jobStarted', (job) => {
+          console.log('[IMAGE][EXT][jobStarted]', {
+            sdkProjectId: project.id,
+            localProjectId: capturedLocalProjectId || project.id,
+            jobId: job.id,
+            workerName: job.workerName
+          });
+          const jobIndex = nextJobIndex++;
+          projectCompletionTracker.jobIndexMap.set(job.id, jobIndex);
+          emitToProgressCallback({
+            type: 'started',
+            projectId: capturedLocalProjectId || project.id,
+            jobId: job.id,
+            workerName: job.workerName || 'unknown',
+            positivePrompt: projectDetails.positivePrompt,
+            jobIndex
+          });
+        });
+        // Emit progress using project-level percentage mapped to active job
+        project.on('progress', (pct) => {
+          const activeJob = project.jobs.find(j => j.status === 'processing') || project.jobs[0];
+          if (!activeJob) return;
+          console.log('[IMAGE][EXT][progress]', {
+            sdkProjectId: project.id,
+            localProjectId: capturedLocalProjectId || project.id,
+            jobId: activeJob.id,
+            pct
+          });
+          emitToProgressCallback({
+            type: 'progress',
+            projectId: capturedLocalProjectId || project.id,
+            jobId: activeJob.id,
+            progress: Math.max(0, Math.min(1, (pct / 100))),
+            step: activeJob.step,
+            stepCount: activeJob.stepCount
+          });
+        });
+        // Emit job completion
+        project.on('jobCompleted', (job) => {
+          console.log('[IMAGE][EXT][jobCompleted]', {
+            sdkProjectId: project.id,
+            localProjectId: capturedLocalProjectId || project.id,
+            jobId: job.id,
+            hasResult: !!job.resultUrl
+          });
+          emitToProgressCallback({
+            type: 'jobCompleted',
+            projectId: capturedLocalProjectId || project.id,
+            jobId: job.id,
+            resultUrl: job.resultUrl,
+            steps: job.step,
+            seed: job.seed,
+            isNSFW: job.isNSFW || false,
+            userCanceled: job.userCanceled || false
+          });
+          projectCompletionTracker.sentJobCompletions++;
+        });
+        // Emit job failure
+        project.on('jobFailed', (job) => {
+          console.log('[IMAGE][EXT][jobFailed]', {
+            sdkProjectId: project.id,
+            localProjectId: capturedLocalProjectId || project.id,
+            jobId: job.id,
+            error: job.error
+          });
+          emitToProgressCallback({
+            type: 'error',
+            projectId: capturedLocalProjectId || project.id,
+            jobId: job.id,
+            error: job.error
+          });
+        });
+
+        // Fallback: also register a filtered global handler for this project to catch any missed events
+        const extGlobalHandler = (event) => {
+          try {
+            if (event.projectId !== project.id) return;
+            console.log('[IMAGE][EXT][GLOBAL_FALLBACK][EVENT]', {
+              type: event.type,
+              sdkProjectId: event.projectId,
+              localProjectId: capturedLocalProjectId || project.id,
+              jobId: event.jobId,
+              step: event.step,
+              stepCount: event.stepCount
+            });
+            let progressEvent = null;
+            switch (event.type) {
+              case 'started':
+              case 'initiating': {
+                if (!event.jobId) break;
+                const jobIndex = projectCompletionTracker.jobIndexMap.get(event.jobId) ?? 0;
+                progressEvent = {
+                  type: 'started',
+                  jobId: event.jobId,
+                  projectId: capturedLocalProjectId || project.id,
+                  workerName: event.workerName || 'unknown',
+                  positivePrompt: event.positivePrompt || projectDetails.positivePrompt,
+                  jobIndex
+                };
+                break;
+              }
+              case 'progress': {
+                if (event.step && event.stepCount) {
+                  const adjustedProgress = Math.floor(event.step / event.stepCount * 100);
+                  const workerName = event.workerName || 'unknown';
+                  progressEvent = {
+                    type: 'progress',
+                    progress: adjustedProgress / 100,
+                    step: event.step,
+                    stepCount: event.stepCount,
+                    jobId: event.jobId,
+                    projectId: capturedLocalProjectId || event.projectId,
+                    workerName
+                  };
+                }
+                break;
+              }
+              case 'jobCompleted': {
+                if (!event.jobId) break;
+                const jobIndex = projectCompletionTracker.jobIndexMap.get(event.jobId) || 0;
+                progressEvent = {
+                  type: 'jobCompleted',
+                  jobId: event.jobId,
+                  projectId: capturedLocalProjectId || event.projectId,
+                  resultUrl: event.resultUrl,
+                  positivePrompt: event.positivePrompt || projectDetails.positivePrompt,
+                  stylePrompt: projectDetails.stylePrompt,
+                  jobIndex,
+                  isNSFW: event.isNSFW,
+                  seed: event.seed,
+                  steps: event.steps
+                };
+                projectCompletionTracker.sentJobCompletions++;
+                break;
+              }
+              default:
+                break;
+            }
+            if (progressEvent) {
+              emitToProgressCallback(progressEvent);
+            }
+          } catch (e) {
+            console.error('[IMAGE][EXT][GLOBAL_FALLBACK] error', e);
+          }
+        };
+        try {
+          sogniClient.projects.on('job', extGlobalHandler);
+          const prevCleanup = cleanup;
+          cleanup = () => {
+            prevCleanup();
+            try { sogniClient.projects.off('job', extGlobalHandler); } catch (offErr) {
+              // ignore
+            }
+            console.log('[IMAGE][EXT] detached global fallback handler', { sdkProjectId: project.id });
+          };
+          console.log('[IMAGE][EXT] attached global fallback handler', { sdkProjectId: project.id });
+        } catch (e) {
+          console.error('[IMAGE][EXT] Failed to attach global fallback handler', e);
+        }
+      }
+
+
       // Handle project completion (all jobs done) - with fix for SDK timing issue
       project.on('completed', (imageUrls) => {
         // Prevent duplicate processing of project completion
@@ -748,6 +1072,13 @@ export async function generateImage(client, params, progressCallback, localProje
         }
         
         console.log('[IMAGE] Project completed, all jobs finished. Total images:', imageUrls.length);
+        console.log('[IMAGE][STATE]', {
+          sdkProjectId: project.id,
+          localProjectId: projectDetails.localProjectId || project.id,
+          sentJobCompletions: projectCompletionTracker.sentJobCompletions,
+          expectedJobs: projectCompletionTracker.expectedJobs,
+          jobIds: Array.isArray(project.jobs) ? project.jobs.map(j => ({ id: j.id, hasResult: !!j.resultUrl, status: j.status })) : 'no-jobs'
+        });
         if (projectCompletionTracker.isEnhancement) {
           console.log(`[IMAGE] Enhancement job completed - Expected steps: ${params.inferenceSteps || 4}, Actual steps: ${projectCompletionTracker.actualSteps}, Strength: ${params.startingImageStrength || 0.80}`);
         }
@@ -776,7 +1107,7 @@ export async function generateImage(client, params, progressCallback, localProje
             cleanup();
             
             if (progressCallback) {
-              progressCallback(completionEvent);
+              emitToProgressCallback(completionEvent);
             }
             
             resolve(imageUrls);
@@ -840,7 +1171,7 @@ export async function generateImage(client, params, progressCallback, localProje
               cleanup();
               
               if (progressCallback) {
-                progressCallback(completionEvent);
+                emitToProgressCallback(completionEvent);
               }
               
               resolve(imageUrls);
@@ -884,7 +1215,7 @@ export async function generateImage(client, params, progressCallback, localProje
           if (progressCallback) {
             progressCallback({
               type: 'error',
-              projectId: project.id,
+              projectId: projectDetails.localProjectId || project.id,
               message: errorMessage,
               details: error.toString(),
               errorCode: isAuthError ? 'auth_error' : 
@@ -921,7 +1252,12 @@ export async function generateImage(client, params, progressCallback, localProje
         }
       }, 5 * 60 * 1000); // 5 minute timeout
     });
-  }, 'image generation');
+  };
+
+  if (client) {
+    return await runGeneration(client);
+  }
+  return await withSogniClient(runGeneration, 'image generation');
 }
 
 // Client info for debugging
@@ -956,7 +1292,7 @@ export async function getClientInfo(sessionId) {
 
 // Backwards compatibility
 export async function initializeSogniClient() {
-  return createSogniClient();
+  return getOrCreateGlobalSogniClient();
 }
 
 // Simplified cleanup - only affects global client
@@ -982,6 +1318,7 @@ export async function cleanupSogniClient({ logout = false, includeSessionClients
     
     if (logout) {
       globalSogniClient = null;
+    clientCreationPromise = null;
     }
   }
   
