@@ -580,6 +580,12 @@ const App = () => {
     const promptParam = url.searchParams.get('prompt');
     const pageParam = url.searchParams.get('page');
     const extensionParam = url.searchParams.get('extension');
+    const skipWelcomeParam = url.searchParams.get('skipWelcome');
+    
+    // Skip welcome screen if requested (e.g., from browser extension)
+    if (skipWelcomeParam === 'true') {
+      setShowSplashScreen(false);
+    }
     
     // Handle page parameter for direct navigation
     if (pageParam === 'prompts') {

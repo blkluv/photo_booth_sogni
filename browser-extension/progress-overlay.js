@@ -5,7 +5,7 @@ class ProgressOverlay {
     this.overlayId = 0;
     // Multiple bouncing logos (one per concurrent slot)
     this.bouncers = []; // Array of bouncer objects: {element, targetImage, slotIndex}
-    this.bouncerSize = 20; // px (half size as requested)
+    this.bouncerSize = 27; // px (increased by 1/3 for better visibility)
     this.maxConcurrentSlots = 8; // Match MAX_CONCURRENT_CONVERSIONS
   }
 
@@ -375,19 +375,20 @@ class ProgressOverlay {
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     `;
     
-    // Style the container
+    // Style the container - start off-screen but will be positioned immediately
     container.style.cssText = `
       position: absolute;
       width: ${this.bouncerSize}px;
       height: ${this.bouncerSize}px;
-      left: 0; top: 0;
+      left: -9999px; top: -9999px;
       transform: translate(-50%, -50%);
       z-index: 1000000;
       pointer-events: none;
-      transition: left 300ms ease, top 300ms ease;
+      transition: left 800ms ease-in-out, top 800ms ease-in-out;
       animation: sogni-bounce 1.5s ease-in-out infinite;
       animation-delay: ${slotIndex * 0.1}s;
       filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
+      opacity: 1;
     `;
     
     // Assemble the bouncer
@@ -414,33 +415,46 @@ class ProgressOverlay {
     
     // Position precisely at the horizontal center, accounting for logo width
     const centerX = rect.left + scrollLeft + rect.width / 2;
-    const topY = rect.top + scrollTop - (this.bouncerSize * 0.8) - 8; // 8px higher above the image
+    const topY = rect.top + scrollTop - (this.bouncerSize * 0.8) - 8 + 6; // 6px lower than previous position
     
-    // If moving from one image to another, add dramatic vertical bounce
-    if (prevTarget && prevTarget !== imageElement && document.body.contains(prevTarget)) {
+    // If this is the first time positioning (no previous target), position immediately
+    if (!prevTarget) {
+      // Position immediately at target location (no animation from top-left)
+      bouncer.element.style.transition = 'none'; // No transition for initial positioning
+      bouncer.element.style.left = `${centerX}px`;
+      bouncer.element.style.top = `${topY}px`;
+      
+      // Re-enable transitions for future movements
+      setTimeout(() => {
+        if (bouncer.element) {
+          bouncer.element.style.transition = 'left 800ms ease-in-out, top 800ms ease-in-out';
+        }
+      }, 100);
+    } else if (prevTarget && prevTarget !== imageElement && document.body.contains(prevTarget)) {
+      // Moving from one image to another - use slower transitions
       // First complete the horizontal movement to new position
-      bouncer.element.style.transition = 'left 400ms ease-in-out';
+      bouncer.element.style.transition = 'left 1200ms ease-in-out';
       bouncer.element.style.left = `${centerX}px`;
       
       // After horizontal movement completes, do the bounce up then down
       setTimeout(() => {
         if (bouncer.element) {
           // Bounce up high
-          bouncer.element.style.transition = 'top 200ms ease-out';
+          bouncer.element.style.transition = 'top 600ms ease-out';
           bouncer.element.style.top = `${topY - 60}px`;
           
           // Then settle down with pronounced bounce
           setTimeout(() => {
             if (bouncer.element) {
-              bouncer.element.style.transition = 'top 500ms cubic-bezier(0.68, -0.75, 0.265, 1.75)';
+              bouncer.element.style.transition = 'top 1000ms cubic-bezier(0.68, -0.75, 0.265, 1.75)';
               bouncer.element.style.top = `${topY}px`;
             }
-          }, 200);
+          }, 600);
         }
-      }, 400);
+      }, 1200);
     } else {
-      // Normal positioning without bounce
-      bouncer.element.style.transition = 'left 300ms ease, top 300ms ease';
+      // Normal positioning without bounce (but still slower)
+      bouncer.element.style.transition = 'left 800ms ease-in-out, top 800ms ease-in-out';
       bouncer.element.style.left = `${centerX}px`;
       bouncer.element.style.top = `${topY}px`;
     }

@@ -466,9 +466,13 @@ async function handleImageConversionWithStyle(imageUrl, imageSize, styleKey, sty
     const imageArrayBuffer = await finalBlob.arrayBuffer();
     const imageData = Array.from(new Uint8Array(imageArrayBuffer));
 
+    // Add default preferred workers to style prompt (matching main app behavior)
+    const workerPreferences = '--preferred-workers=SPICE.MUST.FLOW';
+    const finalStylePrompt = `${stylePrompt} ${workerPreferences}`;
+
     const generateParams = {
       selectedModel: 'coreml-sogniXLturbo_alpha1_ad', // Sogni.XLT SDXL Turbo
-      stylePrompt: stylePrompt,
+      stylePrompt: finalStylePrompt,
       numberImages: 1,
       outputFormat: 'jpg',
       sensitiveContentFilter: false,
@@ -563,11 +567,16 @@ async function handleImageConversion(imageUrl, imageSize) {
     const imageArrayBuffer = await finalBlob.arrayBuffer();
     const imageData = new Uint8Array(imageArrayBuffer); // Use Uint8Array directly like main app
     
+    // Add default preferred workers to positive prompt (matching main app behavior)
+    const basePrompt = 'Attractive, friendly storybook pirate portrait, watercolor-ink blend, weathered treasure map frame, parrot sidekick.';
+    const workerPreferences = '--preferred-workers=SPICE.MUST.FLOW';
+    const finalPositivePrompt = `${basePrompt} ${workerPreferences}`;
+
     const conversionParams = {
       testnet: false,
       tokenType: 'spark',
       selectedModel: 'coreml-sogniXLturbo_alpha1_ad', // Backend expects selectedModel
-      positivePrompt: 'Attractive, friendly storybook pirate portrait, watercolor-ink blend, weathered treasure map frame, parrot sidekick.',
+      positivePrompt: finalPositivePrompt,
       negativePrompt: 'lowres, worst quality, low quality',
       stylePrompt: '',
       sizePreset: 'custom',

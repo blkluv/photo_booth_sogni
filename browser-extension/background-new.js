@@ -273,11 +273,16 @@ async function handleImageConversion(imageUrl, imageSize) {
     // Step 1: Send conversion request
     console.log('Background: Starting pirate conversion with:', `${apiBaseUrl}/api/sogni/generate`);
     
+    // Add default preferred workers to positive prompt (matching main app behavior)
+    const basePrompt = 'Attractive, friendly storybook pirate portrait, watercolor-ink blend, weathered treasure map frame, parrot sidekick.';
+    const workerPreferences = '--preferred-workers=SPICE.MUST.FLOW';
+    const finalPositivePrompt = `${basePrompt} ${workerPreferences}`;
+
     const conversionParams = {
       testnet: false,
       tokenType: 'spark',
       selectedModel: 'coreml-sogniXLturbo_alpha1_ad',
-      positivePrompt: 'Attractive, friendly storybook pirate portrait, watercolor-ink blend, weathered treasure map frame, parrot sidekick.',
+      positivePrompt: finalPositivePrompt,
       negativePrompt: 'lowres, worst quality, low quality',
       stylePrompt: '',
       sizePreset: 'custom',

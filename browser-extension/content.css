@@ -176,13 +176,13 @@
 /* Animations */
 @keyframes sogni-bounce {
   0%, 20%, 50%, 80%, 100% {
-    transform: translateY(0) rotate(0deg);
+    transform: translateY(0);
   }
   40% {
-    transform: translateY(-10px) rotate(-5deg);
+    transform: translateY(-10px);
   }
   60% {
-    transform: translateY(-5px) rotate(5deg);
+    transform: translateY(-5px);
   }
 }
 

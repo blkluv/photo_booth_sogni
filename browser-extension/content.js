@@ -95,10 +95,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   
   if (message.action === 'openStyleExplorerDirect') {
-    // Opening Style Explorer directly
-    // Open Style Explorer directly without showing any logo or animations
-    openStyleExplorer();
-    sendResponse({ success: true, message: 'Style Explorer opened directly' });
+    // Toggle Style Explorer directly
+    // Use toggle functionality to prevent multiple instances
+    toggleStyleExplorer();
+    const isOpen = document.getElementById('sogni-style-explorer-overlay') !== null;
+    sendResponse({ success: true, message: isOpen ? 'Style Explorer opened' : 'Style Explorer closed' });
     return false;
   }
   
@@ -521,113 +522,192 @@ async function convertImageWithDefaultStyle(imageElement) {
   }
 }
 
-// Replace image with hover comparison functionality
+// Replace image with Before/After scrubber comparison functionality
 async function replaceImageWithHoverComparison(originalImage, pirateImageUrl) {
   return new Promise((resolve, reject) => {
     // Create new image to preload
     const newImg = new Image();
     
     newImg.onload = () => {
-      // Store both URLs for hover comparison
+      // Store both URLs for comparison
       const originalUrl = originalImage.dataset.originalUrl;
       originalImage.dataset.transformedUrl = pirateImageUrl;
       
       // Get original dimensions
       const originalRect = originalImage.getBoundingClientRect();
       
-      // Replace source with transformed version
-      originalImage.src = pirateImageUrl;
+      // Create Before/After comparison container
+      const comparisonContainer = document.createElement('div');
+      comparisonContainer.className = 'sogni-before-after-container';
       
-      // Maintain original size if it was explicitly set
-      if (originalImage.style.width || originalImage.style.height) {
-        // Keep existing styles
-      } else if (originalImage.width || originalImage.height) {
-        // Preserve original dimensions
-        originalImage.style.width = `${originalRect.width}px`;
-        originalImage.style.height = `${originalRect.height}px`;
-        originalImage.style.objectFit = 'cover';
-      }
+      // Create two image elements for comparison
+      const beforeImg = document.createElement('img');
+      const afterImg = document.createElement('img');
       
-      // Reset processing filter and add hover functionality
-      originalImage.style.filter = '';
-      originalImage.style.transition = 'opacity 0.2s ease, filter 0.2s ease';
-      originalImage.style.cursor = 'pointer';
+      beforeImg.src = originalUrl;
+      afterImg.src = pirateImageUrl;
+      beforeImg.className = 'sogni-before-image';
+      afterImg.className = 'sogni-after-image';
       
-      // Create download icon
+      // Create scrubber line (hidden by default)
+      const scrubberLine = document.createElement('div');
+      scrubberLine.className = 'sogni-scrubber-line';
+      
+      // Style the container to match original image
+      const containerStyle = `
+        position: relative;
+        width: ${originalRect.width}px;
+        height: ${originalRect.height}px;
+        overflow: hidden;
+        cursor: ew-resize;
+        border-radius: ${window.getComputedStyle(originalImage).borderRadius || '0'};
+      `;
+      comparisonContainer.style.cssText = containerStyle;
+      
+      // Style the images
+      const imageStyle = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        user-select: none;
+        pointer-events: none;
+      `;
+      beforeImg.style.cssText = imageStyle;
+      afterImg.style.cssText = imageStyle; // Show full transformed image by default
+      
+      // Style the scrubber line (hidden by default)
+      scrubberLine.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 50%;
+        width: 2px;
+        height: 100%;
+        background: white;
+        box-shadow: 0 0 0 1px rgba(0,0,0,0.3);
+        z-index: 10;
+        pointer-events: none;
+        transform: translateX(-50%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      `;
+      
+      // Create download icon positioned outside of any masks
       const downloadIcon = document.createElement('div');
       downloadIcon.innerHTML = `
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M7 10L12 15L17 10" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M12 15V3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       `;
+      downloadIcon.className = 'sogni-download-icon';
       
-      // Position download icon relative to image
-      const updateIconPosition = () => {
-        const imageRect = originalImage.getBoundingClientRect();
+      // Position download icon relative to viewport to avoid mask clipping
+      const updateDownloadPosition = () => {
+        const containerRect = comparisonContainer.getBoundingClientRect();
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+        
         downloadIcon.style.position = 'fixed';
-        downloadIcon.style.top = `${imageRect.top + 10}px`;
-        downloadIcon.style.left = `${imageRect.right - 50}px`;
+        downloadIcon.style.top = `${containerRect.top + 10}px`;
+        downloadIcon.style.left = `${containerRect.right - 42}px`; // 32px width + 10px margin
       };
       
       downloadIcon.style.cssText = `
         position: fixed;
-        width: 40px;
-        height: 40px;
+        width: 32px;
+        height: 32px;
         background: rgba(0, 0, 0, 0.7);
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        opacity: 0;
-        transition: opacity 0.2s ease, background-color 0.2s ease;
+        opacity: 0.8;
+        transition: opacity 0.3s ease, background-color 0.2s ease;
         z-index: 999999;
-        pointer-events: none;
+        pointer-events: auto;
       `;
       
       // Set initial position
-      updateIconPosition();
+      updateDownloadPosition();
       
-      // Update position on scroll and resize
-      const updatePosition = () => updateIconPosition();
-      window.addEventListener('scroll', updatePosition);
-      window.addEventListener('resize', updatePosition);
-      downloadIcon.id = `download-icon-${Date.now()}`;
+      // Assemble the comparison widget (download icon added to body separately)
+      comparisonContainer.appendChild(beforeImg);
+      comparisonContainer.appendChild(afterImg);
+      comparisonContainer.appendChild(scrubberLine);
       
-      // Add hover event listeners for comparison and download icon
-      const showOriginal = () => {
-        originalImage.src = originalUrl;
-        originalImage.style.filter = 'brightness(1.1)';
-        originalImage.title = 'Original image - mouse out to see transformed version';
-        // Keep download icon visible even when showing original
-        downloadIcon.style.opacity = '1';
-        downloadIcon.style.pointerEvents = 'auto';
+      // Add download icon to body to avoid mask clipping
+      document.body.appendChild(downloadIcon);
+      
+      // Replace original image with comparison container
+      originalImage.parentNode.insertBefore(comparisonContainer, originalImage);
+      originalImage.style.display = 'none';
+      
+      // Mouse interaction for scrubber
+      let isActive = false;
+      
+      const updateScrubber = (e) => {
+        const rect = comparisonContainer.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+        
+        // Update clip path for after image
+        afterImg.style.clipPath = `inset(0 ${100 - percentage}% 0 0)`;
+        
+        // Update scrubber line position
+        scrubberLine.style.left = `${percentage}%`;
       };
       
-      const showTransformed = () => {
-        originalImage.src = pirateImageUrl;
-        originalImage.style.filter = '';
-        originalImage.title = 'Transformed image - hover to download or see original';
+      // Add scroll and resize listeners to keep download button positioned correctly
+      const updatePositionHandler = () => updateDownloadPosition();
+      window.addEventListener('scroll', updatePositionHandler);
+      window.addEventListener('resize', updatePositionHandler);
+      
+      // Event listeners for scrubber interaction
+      comparisonContainer.addEventListener('mouseenter', () => {
+        isActive = true;
+        scrubberLine.style.opacity = '1';
         downloadIcon.style.opacity = '1';
-        downloadIcon.style.pointerEvents = 'auto';
-      };
+        comparisonContainer.style.boxShadow = '0 0 0 2px rgba(255,255,255,0.5)';
+        // Start with 50/50 split when entering
+        afterImg.style.clipPath = 'inset(0 50% 0 0)';
+        scrubberLine.style.left = '50%';
+        // Update download position when hovering
+        updateDownloadPosition();
+      });
+      
+      comparisonContainer.addEventListener('mouseleave', () => {
+        isActive = false;
+        scrubberLine.style.opacity = '0';
+        downloadIcon.style.opacity = '0.8'; // Keep download button visible but dimmed
+        comparisonContainer.style.boxShadow = 'none';
+        // Show full transformed image when not hovering
+        afterImg.style.clipPath = 'inset(0 0% 0 0)';
+      });
+      
+      comparisonContainer.addEventListener('mousemove', (e) => {
+        if (isActive) {
+          updateScrubber(e);
+        }
+      });
       
       // Download functionality
-      const downloadTransformedImage = async () => {
+      downloadIcon.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         try {
           const filename = `sogni-transformed-${Date.now()}.jpg`;
           await downloadImageFromUrl(pirateImageUrl, filename);
         } catch (error) {
           console.error('Download failed:', error);
         }
-      };
+      });
       
-      // Download icon event listeners
       downloadIcon.addEventListener('mouseenter', () => {
-        // Keep showing transformed image when hovering over download icon
-        showTransformed();
         downloadIcon.style.background = 'rgba(0, 0, 0, 0.9)';
       });
       
@@ -635,51 +715,21 @@ async function replaceImageWithHoverComparison(originalImage, pirateImageUrl) {
         downloadIcon.style.background = 'rgba(0, 0, 0, 0.7)';
       });
       
-      downloadIcon.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        downloadTransformedImage();
-      });
-      
-      // Clean up existing download icon if it exists
+      // Clean up existing elements if they exist
       if (originalImage._downloadIcon && originalImage._downloadIcon.parentNode) {
         originalImage._downloadIcon.parentNode.removeChild(originalImage._downloadIcon);
       }
-      
-      // Clean up existing event listeners
-      if (originalImage._updatePosition) {
-        window.removeEventListener('scroll', originalImage._updatePosition);
-        window.removeEventListener('resize', originalImage._updatePosition);
+      if (originalImage._updatePositionHandler) {
+        window.removeEventListener('scroll', originalImage._updatePositionHandler);
+        window.removeEventListener('resize', originalImage._updatePositionHandler);
       }
       
-      // Remove any existing listeners to avoid duplicates
-      originalImage.removeEventListener('mouseenter', originalImage._showOriginal);
-      originalImage.removeEventListener('mouseleave', originalImage._showPirate);
-      
-      // Store references for removal
-      originalImage._showOriginal = showOriginal;
-      originalImage._showPirate = showTransformed;
-      
-      // Add new listeners
-      originalImage.addEventListener('mouseenter', showOriginal);
-      originalImage.addEventListener('mouseleave', showTransformed);
-      
-      // Add download icon to page
-      document.body.appendChild(downloadIcon);
-      
       // Store references for cleanup
+      originalImage._comparisonContainer = comparisonContainer;
       originalImage._downloadIcon = downloadIcon;
-      originalImage._updatePosition = updatePosition;
+      originalImage._updatePositionHandler = updatePositionHandler;
       
-      // Set initial state
-      showTransformed();
-      
-      // Add a subtle animation for the replacement
-      originalImage.style.opacity = '0';
-      setTimeout(() => {
-        originalImage.style.opacity = '1';
-        resolve();
-      }, 100);
+      resolve();
     };
     
     newImg.onerror = () => {
@@ -836,12 +886,12 @@ function addStyleSelectorIcon() {
   
   icon.appendChild(logoImg);
   
-  // Add click handler to open style explorer directly
+  // Add click handler to toggle style explorer
   icon.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    // Extension icon clicked
-    openStyleExplorer();
+    // Extension icon clicked - toggle Style Explorer
+    toggleStyleExplorer();
   });
   
   document.body.appendChild(icon);
@@ -859,8 +909,28 @@ function getBaseUrl() {
   return isDevMode ? LOCAL_DEV_URL : 'https://photobooth.sogni.ai';
 }
 
+// Toggle the Sogni Style Explorer overlay
+function toggleStyleExplorer() {
+  const existingOverlay = document.getElementById('sogni-style-explorer-overlay');
+  
+  if (existingOverlay) {
+    console.log('Style Explorer already open, closing it...');
+    closeStyleExplorer();
+  } else {
+    console.log('Opening Style Explorer...');
+    openStyleExplorer();
+  }
+}
+
 // Open the Sogni Style Explorer overlay
 async function openStyleExplorer() {
+  // Check if overlay already exists
+  const existingOverlay = document.getElementById('sogni-style-explorer-overlay');
+  if (existingOverlay) {
+    console.log('Style Explorer already open, ignoring request to open another');
+    return;
+  }
+  
   console.log('Opening Sogni Style Explorer...');
   
   // Create overlay container
@@ -875,6 +945,7 @@ async function openStyleExplorer() {
   const params = new URLSearchParams({
     page: 'prompts',
     extension: 'true',
+    skipWelcome: 'true',
     t: Date.now().toString()
   });
   iframe.src = `${baseUrl}/?${params.toString()}`;
