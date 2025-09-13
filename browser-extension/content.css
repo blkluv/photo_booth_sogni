@@ -98,7 +98,7 @@
   height: 100vh !important;
   background: rgba(0, 0, 0, 0.95) !important;
   z-index: 999999 !important;
-  animation: sogni-fade-in 0.3s ease !important;
+  animation: sogni-slide-in 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
 }
 
 .sogni-style-explorer-close {
@@ -145,12 +145,25 @@
 }
 
 /* Animations */
-@keyframes sogni-fade-in {
+@keyframes sogni-slide-in {
   from {
     opacity: 0;
+    transform: translateY(20px) scale(0.95);
   }
   to {
     opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes sogni-slide-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
   }
 }
 

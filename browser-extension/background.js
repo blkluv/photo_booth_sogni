@@ -1,7 +1,7 @@
 // Background script for Sogni Photobooth Extension
 console.log('Sogni Photobooth Extension: Background script loaded');
 
-// Generate a stable client app ID for the extension
+// Generate a stable client app ID for the extension (like main photobooth frontend)
 let extensionClientAppId = `photobooth-extension-fallback-${Date.now()}`;
 let resolveClientIdReady = null;
 const clientIdReady = new Promise((resolve) => { resolveClientIdReady = resolve; });
@@ -15,16 +15,18 @@ chrome.storage.local.get(['sogni_extension_app_id'], (result) => {
     extensionClientAppId = `photobooth-extension-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     chrome.storage.local.set({ 'sogni_extension_app_id': extensionClientAppId });
   }
-  console.log('Extension client app ID initialized:', extensionClientAppId);
+  
+  console.log('Extension client app ID initialized (single shared ID like main frontend):', extensionClientAppId);
+  
   try { if (resolveClientIdReady) resolveClientIdReady(); } catch (e) {}
-  // Establish shared SSE only after client app ID is finalized so it matches generate requests
+  
+  // Use client-based SSE connection like main photobooth frontend
   try {
     sseManager.connect(DEFAULT_API_BASE_URL);
   } catch (e) {
     console.warn('Background: initial SSE connect failed, will retry on demand', e);
   }
 });
-console.log('Extension client app ID:', extensionClientAppId);
 
 // Shared SSE Connection Manager for multiple concurrent projects
 class SSEConnectionManager {
@@ -41,7 +43,7 @@ class SSEConnectionManager {
     this.openWaiters = [];
   }
 
-  // Connect to client-based SSE stream (one connection for all projects)
+  // Connect to client-based SSE stream (one connection for all projects from same client)
   connect(apiBaseUrl) {
     if (this.eventSource || this.isConnecting || this.isConnected) {
       console.log('Background: SSE connect called but connection exists or is in progress');
@@ -49,8 +51,9 @@ class SSEConnectionManager {
     }
 
     this.apiBaseUrl = apiBaseUrl;
+    // Use session-based SSE for browser extension (handles multiple projects with different routing)
     const progressUrl = `${apiBaseUrl}/api/sogni/progress/session?_t=${Date.now()}`;
-    console.log('Background: Connecting to shared SESSION SSE stream:', progressUrl);
+    console.log('Background: Connecting to SESSION SSE stream (multiple projects, shared SDK):', progressUrl);
 
     this.isConnecting = true;
     this.eventSource = new EventSource(progressUrl, { withCredentials: true });
@@ -76,7 +79,13 @@ class SSEConnectionManager {
     this.eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        console.log(`Background: SSE message received:`, data);
+        console.log(`Background: [CONCURRENT-DEBUG] SSE message received:`, {
+          type: data.type,
+          projectId: data.projectId,
+          jobId: data.jobId,
+          activeProjects: Array.from(this.activeProjects.keys()),
+          pendingProjects: Array.from(this.pendingEvents.keys())
+        });
         
         // Route event to correct project
         if (data.projectId) {
@@ -88,11 +97,12 @@ class SSEConnectionManager {
               this.pendingEvents.set(data.projectId, []);
             }
             this.pendingEvents.get(data.projectId).push(data);
-            console.log('Background: Buffering SSE for untracked project', {
+            console.log('Background: [CONCURRENT-DEBUG] Buffering SSE for untracked project', {
               projectId: data.projectId,
               type: data.type,
               bufferedCount: this.pendingEvents.get(data.projectId).length,
-              activeProjectKeys: Array.from(this.activeProjects.keys())
+              activeProjectKeys: Array.from(this.activeProjects.keys()),
+              totalActiveProjects: this.activeProjects.size
             });
           }
         } else {
@@ -160,8 +170,13 @@ class SSEConnectionManager {
 
   // Register a project for tracking
   trackProject(projectId, imageUrl, resolve, reject) {
+    console.log('Background: [CONCURRENT-DEBUG] Tracking new project', {
+      projectId,
+      imageUrl,
+      totalActive: this.activeProjects.size + 1,
+      allActiveProjects: [...Array.from(this.activeProjects.keys()), projectId]
+    });
     this.activeProjects.set(projectId, { resolve, reject, imageUrl, isResolved: false });
-    console.log(`Background: Tracking project ${projectId} for image: ${imageUrl}`);
     // Flush any buffered events for this project in arrival order
     if (this.pendingEvents.has(projectId)) {
       const events = this.pendingEvents.get(projectId);
@@ -196,11 +211,12 @@ class SSEConnectionManager {
 
     const { resolve, reject, imageUrl } = project;
 
-    console.log('Background: Routing event to project', {
+    console.log('Background: [CONCURRENT-DEBUG] Routing event to project', {
       projectId,
       type: data.type,
       imageUrl,
-      activeCount: this.activeProjects.size
+      activeCount: this.activeProjects.size,
+      allActiveProjects: Array.from(this.activeProjects.keys())
     });
 
     switch (data.type) {
@@ -510,7 +526,7 @@ async function handleImageConversion(imageUrl, imageSize) {
   console.log('Background: Converting image:', imageUrl);
   
   // Use the SAME client app ID for all conversions (like main photobooth frontend)
-  // This allows the server to handle multiple concurrent projects from the same client
+  // The server creates one Sogni SDK instance per clientAppId that handles multiple concurrent projects
   console.log('Background: Using shared client app ID for this conversion:', extensionClientAppId);
   
   try {
@@ -579,9 +595,9 @@ async function handleImageConversion(imageUrl, imageSize) {
     
     console.log('Background: Sending project request for image:', imageUrl);
     
-    // Use a per-conversion client app id to mirror separate tabs behavior
-    const conversionClientAppId = `${extensionClientAppId}-${Math.random().toString(36).substr(2,6)}-${Date.now()}`;
-    console.log('Background: Using per-conversion client app ID:', conversionClientAppId);
+    // Use the SAME client app ID for all conversions (like main photobooth frontend)
+    // The server creates one Sogni SDK instance per clientAppId that handles multiple concurrent projects
+    console.log('Background: Using shared client app ID for this conversion:', extensionClientAppId);
 
     const conversionResponse = await fetch(`${apiBaseUrl}/api/sogni/generate`, {
       method: 'POST',
@@ -589,7 +605,7 @@ async function handleImageConversion(imageUrl, imageSize) {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'X-Client-App-ID': conversionClientAppId,
+        'X-Client-App-ID': extensionClientAppId,
         'Cache-Control': 'no-cache'
       },
       body: JSON.stringify(conversionParams)

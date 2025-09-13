@@ -89,8 +89,8 @@
 
 /* Enhanced grid layout for better high-resolution display support */
 .film-strip-content {
-  /* Ensure minimum 4 columns on desktop landscape - optimized for modern screens */
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+  /* Use smaller images for more columns - optimized for modern screens */
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
   /* Better responsive behavior for different screen sizes */
   container-type: inline-size;
 }
@@ -271,31 +271,31 @@
   pointer-events: auto !important;
 }
 
-/* Ensure minimum 4 images per row on desktop landscape */
+/* Ensure minimum 5 images per row on desktop landscape */
 @media (orientation: landscape) and (min-width: 1200px) {
   .film-strip-container .film-strip-content {
-    /* Force minimum 4 columns on standard desktop landscape - reduced from 22vw to ensure 4 columns */
-    grid-template-columns: repeat(auto-fill, minmax(min(20vw, 563px), 1fr)) !important;
+    /* Force minimum 5 columns on standard desktop landscape - smaller images for better density */
+    grid-template-columns: repeat(auto-fill, minmax(min(16vw, 280px), 1fr)) !important;
   }
 }
 
-/* Allow 5 columns on large resolutions - FORCE 5 COLUMNS */
+/* Allow 6 columns on large resolutions - FORCE 6 COLUMNS */
 @media screen and (orientation: landscape) and (min-width: 2700px) and (max-width: 2879px) {
-  .film-strip-container .film-strip-content,
-  body .film-strip-container .film-strip-content,
-  html body .film-strip-container .film-strip-content {
-    /* FORCE 5 columns - maximum specificity */
-    grid-template-columns: repeat(5, 1fr) !important;
-  }
-}
-
-/* Allow up to 6 columns on very large resolutions - FORCE 6 COLUMNS */
-@media (orientation: landscape) and (min-width: 2880px) {
   .film-strip-container .film-strip-content,
   body .film-strip-container .film-strip-content,
   html body .film-strip-container .film-strip-content {
     /* FORCE 6 columns - maximum specificity */
     grid-template-columns: repeat(6, 1fr) !important;
+  }
+}
+
+/* Allow up to 7 columns on very large resolutions - FORCE 7 COLUMNS */
+@media (orientation: landscape) and (min-width: 2880px) {
+  .film-strip-container .film-strip-content,
+  body .film-strip-container .film-strip-content,
+  html body .film-strip-container .film-strip-content {
+    /* FORCE 7 columns - maximum specificity */
+    grid-template-columns: repeat(7, 1fr) !important;
   }
 }
 

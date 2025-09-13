@@ -22,6 +22,10 @@ let password = null;
 // Serialize SDK logins to avoid nonce races across concurrent clients
 let authLoginPromise = null;
 
+// Global event handler management to prevent conflicts
+let globalJobHandlerAttached = false;
+const activeProjectCallbacks = new Map(); // sdkProjectId -> { callback, localProjectId, projectDetails }
+
 // Token refresh cooldown to prevent excessive refresh attempts
 const lastRefreshAttempt = { timestamp: 0 };
 const REFRESH_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
@@ -207,6 +211,7 @@ async function getOrCreateGlobalSogniClient() {
       recordClientActivity(clientAppId);
       logConnectionStatus('Created', clientAppId);
       
+      
       return globalSogniClient;
     } catch (error) {
       console.error(`[GLOBAL] Failed to create global client:`, error);
@@ -364,23 +369,9 @@ async function createDedicatedClient(appId) {
 export async function getSessionClient(sessionId, clientAppId) {
   console.log(`[SESSION] Getting client for session ${sessionId}${clientAppId ? ` appId ${clientAppId}` : ''}`);
   try {
-    if (clientAppId) {
-      const key = `${sessionId}:${clientAppId}`;
-      const existingId = sessionAppClients.get(key);
-      if (existingId && activeConnections.has(existingId)) {
-        const existing = activeConnections.get(existingId);
-        console.log(`[SESSION] Reusing per-app client for ${key}: ${existingId}`);
-        recordClientActivity(existingId);
-        return existing;
-      }
-      console.log(`[SESSION] Creating new per-app client for ${key}`);
-      const dedicated = await createDedicatedClient(clientAppId);
-      sessionAppClients.set(key, dedicated.appId);
-      sessionClients.set(sessionId, dedicated.appId);
-      console.log(`[SESSION] Successfully provided per-app client to session ${sessionId}`);
-      return dedicated;
-    }
-    // Fallback to global client
+    // CRITICAL: All clients using the same Photobooth Backend should use the same global SDK instance
+    // This includes main frontend, browser extension, and any other clients hitting this backend
+    console.log(`[SESSION] Using global SDK instance for all clients on this backend (clientAppId: ${clientAppId || 'none'})`);
     const client = await getOrCreateGlobalSogniClient();
     sessionClients.set(sessionId, client.appId);
     console.log(`[SESSION] Successfully provided global client to session ${sessionId}`);
@@ -511,6 +502,7 @@ export async function generateImage(client, params, progressCallback, localProje
 
     // Create project FIRST
     const project = await sogniClient.projects.create(projectOptions);
+    
     console.log('[IMAGE] Project created:', project.id);
     console.log('[IMAGE][MAP]', {
       sdkProjectId: project.id,
@@ -974,92 +966,9 @@ export async function generateImage(client, params, progressCallback, localProje
           });
         });
 
-        // Fallback: also register a filtered global handler for this project to catch any missed events
-        const extGlobalHandler = (event) => {
-          try {
-            if (event.projectId !== project.id) return;
-            console.log('[IMAGE][EXT][GLOBAL_FALLBACK][EVENT]', {
-              type: event.type,
-              sdkProjectId: event.projectId,
-              localProjectId: capturedLocalProjectId || project.id,
-              jobId: event.jobId,
-              step: event.step,
-              stepCount: event.stepCount
-            });
-            let progressEvent = null;
-            switch (event.type) {
-              case 'started':
-              case 'initiating': {
-                if (!event.jobId) break;
-                const jobIndex = projectCompletionTracker.jobIndexMap.get(event.jobId) ?? 0;
-                progressEvent = {
-                  type: 'started',
-                  jobId: event.jobId,
-                  projectId: capturedLocalProjectId || project.id,
-                  workerName: event.workerName || 'unknown',
-                  positivePrompt: event.positivePrompt || projectDetails.positivePrompt,
-                  jobIndex
-                };
-                break;
-              }
-              case 'progress': {
-                if (event.step && event.stepCount) {
-                  const adjustedProgress = Math.floor(event.step / event.stepCount * 100);
-                  const workerName = event.workerName || 'unknown';
-                  progressEvent = {
-                    type: 'progress',
-                    progress: adjustedProgress / 100,
-                    step: event.step,
-                    stepCount: event.stepCount,
-                    jobId: event.jobId,
-                    projectId: capturedLocalProjectId || event.projectId,
-                    workerName
-                  };
-                }
-                break;
-              }
-              case 'jobCompleted': {
-                if (!event.jobId) break;
-                const jobIndex = projectCompletionTracker.jobIndexMap.get(event.jobId) || 0;
-                progressEvent = {
-                  type: 'jobCompleted',
-                  jobId: event.jobId,
-                  projectId: capturedLocalProjectId || event.projectId,
-                  resultUrl: event.resultUrl,
-                  positivePrompt: event.positivePrompt || projectDetails.positivePrompt,
-                  stylePrompt: projectDetails.stylePrompt,
-                  jobIndex,
-                  isNSFW: event.isNSFW,
-                  seed: event.seed,
-                  steps: event.steps
-                };
-                projectCompletionTracker.sentJobCompletions++;
-                break;
-              }
-              default:
-                break;
-            }
-            if (progressEvent) {
-              emitToProgressCallback(progressEvent);
-            }
-          } catch (e) {
-            console.error('[IMAGE][EXT][GLOBAL_FALLBACK] error', e);
-          }
-        };
-        try {
-          sogniClient.projects.on('job', extGlobalHandler);
-          const prevCleanup = cleanup;
-          cleanup = () => {
-            prevCleanup();
-            try { sogniClient.projects.off('job', extGlobalHandler); } catch (offErr) {
-              // ignore
-            }
-            console.log('[IMAGE][EXT] detached global fallback handler', { sdkProjectId: project.id });
-          };
-          console.log('[IMAGE][EXT] attached global fallback handler', { sdkProjectId: project.id });
-        } catch (e) {
-          console.error('[IMAGE][EXT] Failed to attach global fallback handler', e);
-        }
+        // REMOVED: Conflicting global fallback handlers
+        // The per-project handlers above are sufficient for extension clients
+        console.log('[IMAGE][EXT] Using per-project handlers only (no conflicting global handlers)');
       }
 
 

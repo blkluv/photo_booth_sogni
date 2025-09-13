@@ -10,28 +10,58 @@ let sessionStats = {
 
 // Initialize popup when DOM is ready
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('Initializing popup...');
+  console.log('🚀 Extension popup opened - directly opening Style Explorer');
   
   // Initialize API
   api = new PhotoboothAPI();
   
-  // Setup event listeners
-  setupEventListeners();
-  
-  // Check API status
-  await checkApiStatus();
-  
-  // Load session stats
-  loadSessionStats();
-  
-  // Load dev mode setting
+  // Load dev mode setting first
   await loadDevModeSetting();
   
-  // Activate extension - add logo to current page
-  await activateExtension();
+  // Activate extension and directly open Style Explorer
+  await activateExtensionAndOpenStyleExplorer();
+  
+  // Close the popup since we're opening Style Explorer
+  window.close();
 });
 
-// Activate extension on current page
+// Activate extension and directly open Style Explorer
+async function activateExtensionAndOpenStyleExplorer() {
+  console.log('Activating extension and opening Style Explorer directly...');
+  
+  try {
+    // Get current active tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    if (!tab) {
+      throw new Error('No active tab found');
+    }
+    
+    console.log('Active tab found:', tab.url);
+    
+    // Send message to content script to open Style Explorer directly
+    console.log('Sending message to open Style Explorer directly...');
+    
+    try {
+      const response = await chrome.tabs.sendMessage(tab.id, { action: 'openStyleExplorerDirect' });
+      console.log('Style Explorer opened successfully:', response);
+    } catch (messageError) {
+      console.error('Failed to open Style Explorer:', messageError);
+      // Fallback - try to activate extension normally
+      try {
+        await chrome.tabs.sendMessage(tab.id, { action: 'activateExtension' });
+        console.log('Extension activated as fallback');
+      } catch (fallbackError) {
+        console.error('Fallback activation also failed:', fallbackError);
+      }
+    }
+    
+  } catch (error) {
+    console.error('Failed to activate extension and open Style Explorer:', error);
+  }
+}
+
+// Activate extension on current page (legacy function)
 async function activateExtension() {
   console.log('Activating extension on current page...');
   

@@ -22,7 +22,22 @@
 - **Server management**: Do NOT use `npm run dev` or start/stop servers - they're managed outside Cursor
 - **Testing**: Use the live local development URL for testing changes
 
+## Architecture & Concurrent Processing Rules 🏗️
+- **🔥 CRITICAL: ONE SDK INSTANCE PER BACKEND** - All clients hitting the same Photobooth Backend share the same global SDK instance
+- **🚨 NEVER CONCLUDE SOGNI SDK IS SEQUENTIAL** - It fully supports concurrent projects! Main frontend proves this with 16+ concurrent jobs
+- **ALWAYS reference ARCHITECTURE-ROADMAP.md** before making concurrent processing changes
+- **NEVER create multiple Sogni SDK instances** for same application/client - main photobooth uses single global instance for ALL operations
+- **NEVER create multiple clientAppIds** for concurrent projects - use single shared clientAppId per application/client
+- **ALWAYS reuse existing SDK instance** instead of creating new ones for same appId
+- **ALWAYS follow the main frontend pattern** for concurrent handling - it's the proven working implementation
+- **ALWAYS check for `code: 4015` errors** when debugging concurrent issues (indicates multiple SDK instances conflict)
+- **ALWAYS check for "Invalid nonce" errors** when debugging concurrent issues (indicates concurrent SDK creation)
+
 ## Debugging & Problem Solving Rules 🔍
+- **🚨 CRITICAL: VALIDATE ALL ASSUMPTIONS WITH ACTUAL CODE** - Never make conclusions without examining the source code
+- **ALWAYS examine the actual implementation** - Look at the code in node_modules, source files, etc. before concluding anything
+- **NEVER assume limitations exist** - Prove limitations by finding them in the actual code
+- **ALWAYS add logging to prove/disprove theories** - Instrument the actual code to see what's happening
 - **ALWAYS start with symptoms** - analyze error messages, console logs, and network requests FIRST
 - **NEVER assume root cause** - trace the actual code execution path before making changes
 - **ALWAYS ask for browser dev tools info** when debugging UI issues (console, network tab, elements)
@@ -31,11 +46,17 @@
 - **NEVER apply multiple "solutions"** without confirming each one works
 - **ALWAYS trace data flow** - follow variables from creation to usage when debugging
 - **STOP and ask for clarification** if symptoms don't match expected behavior
+- **ALWAYS check ARCHITECTURE-ROADMAP.md** for known patterns and pitfalls before debugging concurrent issues
+
+## 📚 Key Reference Documents
+- **`ARCHITECTURE-ROADMAP.md`** - Authoritative guide for concurrent processing, SSE patterns, and architectural decisions
+- **`server/services/sogni.js`** - Core SDK instance management and concurrent project handling
+- **`server/routes/sogni.js`** - SSE endpoint routing and event forwarding logic
 
 ## General Rules
 - You may ask me follow up questions until you are at least 95% certain you can complete the task well and then continue.
-- Never rewrite or delete files unless I explicitly ask.
-- If a change breaks TypeScript / ESLint / tests, STOP and ask me first.
+- Never rewrite or delete files unless I explicitly ask or it's obvious I want files changed.
+- If a change breaks TypeScript / ESLint / tests, fix it.
 - When refactoring, move only one logical unit (component / hook / util) per step.
 - Preserve import paths & CSS class names exactly.
 - Always use 2 space soft tabs. Check and enforce all project lint rules against new code like no-trailing-spaces.

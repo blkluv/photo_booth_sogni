@@ -3,10 +3,10 @@ class ProgressOverlay {
   constructor() {
     this.overlays = new Map(); // Track overlays by image element
     this.overlayId = 0;
-    // Global bouncing logo (single instance that moves from image to image)
-    this.bouncerEl = null;
-    this.bouncerSize = 40; // px
-    this.currentTargetImage = null;
+    // Multiple bouncing logos (one per concurrent slot)
+    this.bouncers = []; // Array of bouncer objects: {element, targetImage, slotIndex}
+    this.bouncerSize = 20; // px (half size as requested)
+    this.maxConcurrentSlots = 8; // Match MAX_CONCURRENT_CONVERSIONS
   }
 
   // Create progress overlay for an image
@@ -96,9 +96,8 @@ class ProgressOverlay {
       barContainer
     });
 
-    // Ensure and move global bouncer to this image's top-center
-    this._ensureBouncer();
-    this._moveBouncerTo(imageElement);
+    // Assign an available bouncer slot to this image
+    this._assignBouncerToImage(imageElement);
 
     return overlayId;
   }
@@ -183,6 +182,9 @@ class ProgressOverlay {
 
     const { overlay, barContainer } = overlayData;
     
+    // Release the bouncer assigned to this image
+    this._releaseBouncerFromImage(imageElement);
+    
     // Fade out
     overlay.style.opacity = '0';
     
@@ -200,6 +202,33 @@ class ProgressOverlay {
     }
   }
 
+  // Hide all bouncing logos
+  hideAllBouncers() {
+    // Hiding all bouncers
+    
+    this.bouncers.forEach((bouncer, index) => {
+      if (bouncer.element) {
+        // Fade out with staggered timing
+        setTimeout(() => {
+          if (bouncer.element) {
+            bouncer.element.style.opacity = '0';
+            bouncer.element.style.transform = 'translate(-50%, -50%) scale(0.5)';
+            
+            // Remove from DOM after fade
+            setTimeout(() => {
+              if (bouncer.element && bouncer.element.parentNode) {
+                bouncer.element.parentNode.removeChild(bouncer.element);
+              }
+            }, 300);
+          }
+        }, index * 50); // Stagger the hiding
+      }
+    });
+    
+    // Clear the bouncers array
+    this.bouncers = [];
+  }
+
   // Add required CSS animations
   addAnimationStyles() {
     if (document.getElementById('sogni-progress-styles')) return;
@@ -208,9 +237,15 @@ class ProgressOverlay {
     style.id = 'sogni-progress-styles';
     style.textContent = `
       @keyframes sogni-bounce {
-        0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-        40% { transform: translateY(-10px); }
-        60% { transform: translateY(-5px); }
+        0%, 20%, 50%, 80%, 100% { transform: translate(-50%, -50%) translateY(0); }
+        40% { transform: translate(-50%, -50%) translateY(-10px); }
+        60% { transform: translate(-50%, -50%) translateY(-5px); }
+      }
+      
+      @keyframes sogni-bounce-complete {
+        0% { transform: translate(-50%, -50%) scale(1); }
+        50% { transform: translate(-50%, -50%) scale(1.2); }
+        100% { transform: translate(-50%, -50%) scale(1); }
       }
       
       .sogni-progress-overlay {
@@ -244,20 +279,104 @@ class ProgressOverlay {
       }
     }
 
-    // Reposition bouncer if we have a current target
-    if (this.currentTargetImage && document.body.contains(this.currentTargetImage)) {
-      this._moveBouncerTo(this.currentTargetImage);
+    // Reposition all active bouncers
+    this.bouncers.forEach(bouncer => {
+      if (bouncer.targetImage && document.body.contains(bouncer.targetImage)) {
+        this._moveBouncerTo(bouncer, bouncer.targetImage);
+      }
+    });
+  }
+
+  // Assign an available bouncer to an image
+  _assignBouncerToImage(imageElement) {
+    // Find an available bouncer slot
+    let availableBouncer = this.bouncers.find(bouncer => !bouncer.targetImage);
+    
+    if (!availableBouncer) {
+      // Create a new bouncer if we haven't reached the limit
+      if (this.bouncers.length < this.maxConcurrentSlots) {
+        availableBouncer = this._createBouncer(this.bouncers.length);
+        this.bouncers.push(availableBouncer);
+      } else {
+        console.warn('No available bouncer slots');
+        return;
+      }
+    }
+    
+    // Assign this bouncer to the image
+    availableBouncer.targetImage = imageElement;
+    this._moveBouncerTo(availableBouncer, imageElement);
+    
+    // Bouncer assigned to image
+  }
+
+  // Release a bouncer from an image
+  _releaseBouncerFromImage(imageElement) {
+    const bouncer = this.bouncers.find(b => b.targetImage === imageElement);
+    if (bouncer) {
+      // Bouncer released from image
+      
+      // Show completion effect by changing number overlay to green
+      if (bouncer.element) {
+        const numberOverlay = bouncer.element.querySelector('div');
+        if (numberOverlay) {
+          numberOverlay.style.background = 'linear-gradient(45deg, #10b981, #059669)';
+          numberOverlay.style.transform = 'scale(1.2)';
+          
+          // Reset after a moment
+          setTimeout(() => {
+            if (numberOverlay) {
+              numberOverlay.style.background = 'linear-gradient(45deg, #6366f1, #8b5cf6)';
+              numberOverlay.style.transform = 'scale(1)';
+            }
+          }, 600);
+        }
+      }
+      
+      bouncer.targetImage = null;
     }
   }
 
-  // Create the single bouncing logo if needed
-  _ensureBouncer() {
-    if (this.bouncerEl) return;
-    const el = document.createElement('img');
-    el.src = chrome.runtime.getURL('icons/logo.png');
-    el.alt = 'Sogni Logo';
-    el.id = 'sogni-global-bouncer';
-    el.style.cssText = `
+  // Create a single bouncer element (Sogni logo with number)
+  _createBouncer(slotIndex) {
+    const container = document.createElement('div');
+    container.className = 'sogni-slot-bouncer';
+    container.id = `sogni-bouncer-${slotIndex}`;
+    
+    // Create the Sogni logo image
+    const logoImg = document.createElement('img');
+    logoImg.src = chrome.runtime.getURL('icons/logo.png');
+    logoImg.alt = 'Sogni Logo';
+    logoImg.style.cssText = `
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    `;
+    
+    // Create number overlay
+    const numberOverlay = document.createElement('div');
+    numberOverlay.textContent = slotIndex + 1;
+    numberOverlay.style.cssText = `
+      position: absolute;
+      bottom: -2px;
+      right: -2px;
+      width: 12px;
+      height: 12px;
+      background: linear-gradient(45deg, #6366f1, #8b5cf6);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 8px;
+      font-weight: bold;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      border: 1px solid white;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    `;
+    
+    // Style the container
+    container.style.cssText = `
       position: absolute;
       width: ${this.bouncerSize}px;
       height: ${this.bouncerSize}px;
@@ -267,53 +386,63 @@ class ProgressOverlay {
       pointer-events: none;
       transition: left 300ms ease, top 300ms ease;
       animation: sogni-bounce 1.5s ease-in-out infinite;
+      animation-delay: ${slotIndex * 0.1}s;
       filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
     `;
-    document.body.appendChild(el);
-    this.bouncerEl = el;
+    
+    // Assemble the bouncer
+    container.appendChild(logoImg);
+    container.appendChild(numberOverlay);
+    
+    document.body.appendChild(container);
+    
+    return {
+      element: container,
+      targetImage: null,
+      slotIndex: slotIndex
+    };
   }
 
-  // Move the global bouncer to the top-center of the given image
-  _moveBouncerTo(imageElement) {
-    const prevTarget = this.currentTargetImage;
-    this.currentTargetImage = imageElement;
+  // Move a specific bouncer to the top-center of the given image
+  _moveBouncerTo(bouncer, imageElement) {
+    if (!bouncer.element) return;
+    
+    const prevTarget = bouncer.targetImage;
     const rect = imageElement.getBoundingClientRect();
     const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
     const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
     
     // Position precisely at the horizontal center, accounting for logo width
-    const centerX = rect.left + scrollLeft + rect.width / 2 - (this.bouncerSize / 2);
+    const centerX = rect.left + scrollLeft + rect.width / 2;
     const topY = rect.top + scrollTop - (this.bouncerSize * 0.8) - 8; // 8px higher above the image
     
-    if (this.bouncerEl) {
-      // If moving from one image to another, add dramatic vertical bounce
-      if (prevTarget && prevTarget !== imageElement && document.body.contains(prevTarget)) {
-        // First complete the horizontal movement to new position
-        this.bouncerEl.style.transition = 'left 400ms ease-in-out';
-        this.bouncerEl.style.left = `${centerX}px`;
-        
-        // After horizontal movement completes, do the bounce up then down
-        setTimeout(() => {
-          if (this.bouncerEl) {
-            // Bounce up high
-            this.bouncerEl.style.transition = 'top 200ms ease-out';
-            this.bouncerEl.style.top = `${topY - 80}px`;
-            
-            // Then settle down with pronounced bounce
-            setTimeout(() => {
-              if (this.bouncerEl) {
-                this.bouncerEl.style.transition = 'top 500ms cubic-bezier(0.68, -0.75, 0.265, 1.75)';
-                this.bouncerEl.style.top = `${topY}px`;
-              }
-            }, 200);
-          }
-        }, 400);
-      } else {
-        // Normal positioning without bounce
-        this.bouncerEl.style.transition = 'left 300ms ease, top 300ms ease';
-        this.bouncerEl.style.left = `${centerX}px`;
-        this.bouncerEl.style.top = `${topY}px`;
-      }
+    // If moving from one image to another, add dramatic vertical bounce
+    if (prevTarget && prevTarget !== imageElement && document.body.contains(prevTarget)) {
+      // First complete the horizontal movement to new position
+      bouncer.element.style.transition = 'left 400ms ease-in-out';
+      bouncer.element.style.left = `${centerX}px`;
+      
+      // After horizontal movement completes, do the bounce up then down
+      setTimeout(() => {
+        if (bouncer.element) {
+          // Bounce up high
+          bouncer.element.style.transition = 'top 200ms ease-out';
+          bouncer.element.style.top = `${topY - 60}px`;
+          
+          // Then settle down with pronounced bounce
+          setTimeout(() => {
+            if (bouncer.element) {
+              bouncer.element.style.transition = 'top 500ms cubic-bezier(0.68, -0.75, 0.265, 1.75)';
+              bouncer.element.style.top = `${topY}px`;
+            }
+          }, 200);
+        }
+      }, 400);
+    } else {
+      // Normal positioning without bounce
+      bouncer.element.style.transition = 'left 300ms ease, top 300ms ease';
+      bouncer.element.style.left = `${centerX}px`;
+      bouncer.element.style.top = `${topY}px`;
     }
   }
 }

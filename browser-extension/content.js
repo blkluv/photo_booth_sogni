@@ -1,13 +1,13 @@
 // Content Script for Sogni Photobooth Extension
-console.log('Sogni Photobooth Extension: Content script loaded');
+console.log('🚀 Sogni Photobooth Extension: Content script loaded - VERSION 2.0 WITH MULTIPLE LOGOS & DIRECT STYLE EXPLORER');
 
 // Initialize components
 let api = null;
 let progressOverlay = null;
 let isDevMode = true; // Default to dev mode
 let isProcessing = false;
-let processingQueue = [];
-const MAX_CONCURRENT_CONVERSIONS = 1; // Reduced to 1 to eliminate auth conflicts
+const MAX_CONCURRENT_CONVERSIONS = 8; // Increased concurrency with continuous slot assignment
+const MAX_IMAGES_PER_PAGE = 32; // Configurable limit for images processed per page
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
@@ -55,7 +55,10 @@ async function initialize() {
 
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('Content script received message:', message);
+  // Only log important messages
+  if (!['updateDevMode'].includes(message.action)) {
+    console.log('Content script received message:', message);
+  }
   
   if (message.action === 'scanPageForProfiles') {
     // Add the style selector icon when extension is activated
@@ -91,10 +94,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false;
   }
   
+  if (message.action === 'openStyleExplorerDirect') {
+    // Opening Style Explorer directly
+    // Open Style Explorer directly without showing any logo or animations
+    openStyleExplorer();
+    sendResponse({ success: true, message: 'Style Explorer opened directly' });
+    return false;
+  }
+  
   if (message.action === 'updateDevMode') {
-    console.log('Dev mode update received:', message.devMode);
     isDevMode = message.devMode;
-    console.log('🔧 Dev mode updated to:', isDevMode);
     sendResponse({ success: true, message: 'Dev mode updated' });
     return false;
   } else if (message.action === 'convertSingleImage') {
@@ -216,22 +225,32 @@ async function handleScanPageForProfiles() {
       setTimeout(() => img.classList.remove('sogni-detected-image'), 2000);
     });
     
-    // Update scan indicator
-    updateScanIndicator(scanIndicator, `Converting ${profileImages.length} images to pirates...`, 'success');
+    // Update scan indicator with limit info
+    if (profileImages.length > MAX_IMAGES_PER_PAGE) {
+      updateScanIndicator(scanIndicator, `Converting ${MAX_IMAGES_PER_PAGE} of ${profileImages.length} images...`, 'success');
+    } else {
+      updateScanIndicator(scanIndicator, `Converting ${profileImages.length} images...`, 'success');
+    }
     
     // Process all found images
-    console.log(`Found ${profileImages.length} images, processing all images`);
+    // Limit the number of images processed per page
+    const imagesToProcess = profileImages.slice(0, MAX_IMAGES_PER_PAGE);
+    if (profileImages.length > MAX_IMAGES_PER_PAGE) {
+      console.log(`Found ${profileImages.length} images, limiting to ${MAX_IMAGES_PER_PAGE} for performance`);
+    } else {
+      console.log(`Found ${profileImages.length} images, processing all images`);
+    }
     
-    // Process images in batches
-    await processImagesBatch(profileImages);
+    // Process images with continuous assignment
+    await processImagesBatch(imagesToProcess);
     
     // Remove scan indicator after completion
     removeScanIndicator(scanIndicator);
     
     return { 
       success: true, 
-      imagesFound: testImages.length,
-      message: `Attempted to convert ${testImages.length} images to pirates!`
+      imagesFound: imagesToProcess.length,
+      message: `Attempted to convert ${imagesToProcess.length} images!`
     };
     
   } catch (error) {
@@ -346,54 +365,65 @@ function findImageGrids() {
   return largestGroup;
 }
 
-// Process images in batches
+// Process images with continuous job assignment
 async function processImagesBatch(images) {
   isProcessing = true;
   processingQueue = [...images];
   
-  console.log(`Starting batch processing of ${images.length} images`);
+  console.log(`Processing ${images.length} images`);
   
   // Track success/failure counts
   let successCount = 0;
   let failureCount = 0;
+  let completedCount = 0;
   
-  // Process in chunks of MAX_CONCURRENT_CONVERSIONS
-  const chunks = [];
-  for (let i = 0; i < images.length; i += MAX_CONCURRENT_CONVERSIONS) {
-    chunks.push(images.slice(i, i + MAX_CONCURRENT_CONVERSIONS));
-  }
+  let nextImageIndex = 0;
+  
+  // Multiple bouncing Sogni logos are handled automatically by the progress overlay system
   
   try {
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      console.log(`Processing chunk ${i + 1}/${chunks.length} (${chunk.length} images)`);
-      
-      // Process chunk in parallel
-      const promises = chunk.map(img => convertImageToPirate(img));
-      const results = await Promise.allSettled(promises);
-      
-      // Count successes and failures
-      results.forEach((result, index) => {
-        if (result.status === 'fulfilled') {
-          successCount++;
-          console.log(`✅ Image ${index + 1} converted successfully`);
-        } else {
-          failureCount++;
-          console.error(`❌ Image ${index + 1} conversion failed:`, result.reason);
+    // Process images continuously - assign next image to available slot
+    await new Promise((resolve) => {
+      const processNextImage = async (slotIndex) => {
+        while (nextImageIndex < images.length) {
+          const imageIndex = nextImageIndex++;
+          const img = images[imageIndex];
+          
+          // Processing image ${imageIndex + 1}/${images.length}
+          
+          try {
+            const result = await convertImageWithDefaultStyle(img);
+            successCount++;
+            // Image converted successfully
+          } catch (error) {
+            failureCount++;
+            console.error(`❌ Image ${imageIndex + 1} conversion failed:`, error.message);
+          }
+          
+          completedCount++;
+          
+          // Check if all images are done
+          if (completedCount >= images.length) {
+            resolve();
+            return;
+          }
         }
-      });
+        
+        // No more images for this slot
+          // No more images to process
+      };
       
-      // Small delay between chunks to avoid overwhelming the API
-      if (i < chunks.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      // Start processing in all slots
+      for (let i = 0; i < MAX_CONCURRENT_CONVERSIONS; i++) {
+        processNextImage(i);
       }
-    }
+    });
     
-    console.log(`Batch processing completed: ${successCount} succeeded, ${failureCount} failed`);
+    console.log(`Continuous processing completed: ${successCount} succeeded, ${failureCount} failed`);
     
     // Log results without showing alerts for successful conversions
     if (successCount > 0 && failureCount === 0) {
-      console.log(`✅ All ${successCount} profile photos converted to pirates successfully! 🏴‍☠️`);
+      console.log(`✅ All ${successCount} profile photos converted successfully! 🏴‍☠️`);
     } else if (successCount > 0 && failureCount > 0) {
       console.log(`⚠️ ${successCount} images converted successfully, ${failureCount} failed. Check console for errors.`);
       alert(`${successCount} images converted successfully, ${failureCount} failed. Check console for errors.`);
@@ -403,15 +433,19 @@ async function processImagesBatch(images) {
     }
     
   } catch (error) {
-    console.error('Batch processing error:', error);
-    alert(`Batch processing failed: ${error.message}`);
+    console.error('Continuous processing error:', error);
+    alert(`Processing failed: ${error.message}`);
   } finally {
+    // Clean up all bouncing logos and overlays
+    if (progressOverlay) {
+      progressOverlay.removeAllOverlays();
+      progressOverlay.hideAllBouncers();
+    }
     isProcessing = false;
-    processingQueue = [];
   }
 }
 
-// Convert single image to pirate
+// Convert single image with style
 async function handleConvertSingleImage(imageUrl) {
   if (isProcessing) {
     alert('Already processing images. Please wait for current conversion to complete.');
@@ -425,12 +459,12 @@ async function handleConvertSingleImage(imageUrl) {
     return;
   }
   
-  await convertImageToPirate(img);
+  await convertImageWithDefaultStyle(img);
 }
 
-// Convert individual image to pirate
-async function convertImageToPirate(imageElement) {
-  console.log('Converting image to pirate:', imageElement.src);
+// Convert individual image with style
+async function convertImageWithDefaultStyle(imageElement) {
+  console.log('Converting image:', imageElement.src);
   
   try {
     // Store original URL for progress tracking and hover comparison
@@ -473,7 +507,7 @@ async function convertImageToPirate(imageElement) {
     progressOverlay.updateProgress(imageElement, 95, 'Replacing image...');
     
     // Replace the original image and add hover functionality
-    await replaceImageWithHoverComparison(imageElement, result.pirateImageUrl);
+    await replaceImageWithHoverComparison(imageElement, result.transformedImageUrl);
     
     // Show success
     progressOverlay.showSuccess(imageElement);
@@ -496,12 +530,12 @@ async function replaceImageWithHoverComparison(originalImage, pirateImageUrl) {
     newImg.onload = () => {
       // Store both URLs for hover comparison
       const originalUrl = originalImage.dataset.originalUrl;
-      originalImage.dataset.pirateUrl = pirateImageUrl;
+      originalImage.dataset.transformedUrl = pirateImageUrl;
       
       // Get original dimensions
       const originalRect = originalImage.getBoundingClientRect();
       
-      // Replace source with pirate version
+      // Replace source with transformed version
       originalImage.src = pirateImageUrl;
       
       // Maintain original size if it was explicitly set
@@ -662,11 +696,7 @@ async function replaceImageOnPage(originalImage, newImageUrl) {
 }
 
 // Add style selector icon to the page
-// Global variables for interactive animations
-let slothElement = null;
-let promptTags = [];
-let animationsActive = false;
-let speechBubble = null;
+// Animation variables removed - no longer needed
 
 // Format style key to display name (replicated from photobooth)
 function styleIdToDisplay(styleId) {
@@ -769,221 +799,15 @@ async function downloadImageStandard(imageUrl, filename) {
 
 
 // Show interactive animations (sloth only)
-function showInteractiveAnimations() {
-  if (animationsActive) return;
-  animationsActive = true;
-  
-  console.log('🎭 Showing interactive animations - HOVER DETECTED');
-  
-  // Show sloth animation
-  showSlothAnimation();
-}
+// Removed showInteractiveAnimations function - no longer needed
 
-// Hide interactive animations
-function hideInteractiveAnimations() {
-  if (!animationsActive) return;
-  animationsActive = false;
-  
-  console.log('🎭 Hiding interactive animations');
-  
-  // Hide sloth
-  if (slothElement) {
-    slothElement.style.opacity = '0';
-    setTimeout(() => {
-      if (slothElement && slothElement.parentNode) {
-        slothElement.parentNode.removeChild(slothElement);
-      }
-      slothElement = null;
-    }, 500);
-  }
-  
-  // Hide SuperApps link
-  const superAppsLink = document.getElementById('sogni-superapps-link');
-  if (superAppsLink) {
-    superAppsLink.style.opacity = '0';
-    setTimeout(() => {
-      if (superAppsLink && superAppsLink.parentNode) {
-        superAppsLink.parentNode.removeChild(superAppsLink);
-      }
-    }, 500);
-  }
-  
-  // Hide prompt tags
-  promptTags.forEach((tag, index) => {
-    setTimeout(() => {
-      if (tag && tag.parentNode) {
-        tag.style.opacity = '0';
-        tag.style.transform = 'scale(0.5) translateY(-20px)';
-        setTimeout(() => {
-          if (tag.parentNode) {
-            tag.parentNode.removeChild(tag);
-          }
-        }, 300);
-      }
-    }, index * 20); // Stagger the exit
-  });
-  promptTags = [];
-}
+// Removed hideInteractiveAnimations function - no longer needed
 
-// Show sloth hop animation
-function showSlothAnimation() {
-  if (slothElement) return;
-  
-  const sloth = document.createElement('img');
-  sloth.src = chrome.runtime.getURL('icons/sloth_cam_hop_trnsparent.png');
-  sloth.alt = 'Sloth Animation';
-  sloth.className = 'sogni-sloth-animation';
-  
-  // Responsive sizing
-  const isMobile = window.innerWidth <= 768;
-  const isPortrait = window.innerHeight > window.innerWidth;
-  
-  let size;
-  if (isMobile && isPortrait) {
-    size = Math.min(window.innerWidth * 0.27, window.innerHeight * 0.2); // 2/3 of original
-  } else {
-    size = Math.min(window.innerHeight * 0.6, 267); // 2/3 of original (400 * 2/3 = 267)
-  }
-  
-  sloth.style.cssText = `
-    position: fixed;
-    right: 50px;
-    bottom: ${size * 0.3}px;
-    width: ${size}px;
-    height: auto;
-    z-index: 999998;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.5s ease-in-out;
-    filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.3));
-    animation: sogni-sloth-float 3s ease-in-out infinite;
-  `;
-  
-  document.body.appendChild(sloth);
-  slothElement = sloth;
-  
-  // Add "SOGNI SUPERAPPS" link below the sloth
-  const superAppsLink = document.createElement('a');
-  superAppsLink.href = 'https://www.sogni.ai/super-apps';
-  superAppsLink.target = '_blank';
-  superAppsLink.textContent = 'Powered by Sogni Supernet';
-  superAppsLink.id = 'sogni-superapps-link';
-  
-  superAppsLink.style.cssText = `
-    position: fixed;
-    right: 80px;
-    bottom: 80px;
-    background: #ffffff;
-    color: #111827;
-    padding: 12px 20px;
-    border-radius: 25px;
-    font-size: 14px;
-    font-weight: 700;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    text-decoration: none;
-    z-index: 999998;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    white-space: nowrap;
-    opacity: 0;
-    transform: translateY(20px);
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    cursor: pointer;
-  `;
-  
-  // Hover effects
-  superAppsLink.addEventListener('mouseenter', () => {
-    superAppsLink.style.transform = 'translateY(15px) scale(1.05)';
-    superAppsLink.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.2)';
-  });
-  
-  superAppsLink.addEventListener('mouseleave', () => {
-    superAppsLink.style.transform = 'translateY(20px) scale(1)';
-    superAppsLink.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-  });
-  
-  document.body.appendChild(superAppsLink);
-  
-  // Fade in and start floating immediately
-  setTimeout(() => {
-    sloth.style.opacity = '1';
-    superAppsLink.style.opacity = '1';
-    superAppsLink.style.transform = 'translateY(20px)';
-  }, 100);
-}
+// Static slot indicators removed - using dynamic bouncing Sogni logos instead
 
-// Show speech bubble with "EXPLORE STYLES"
-function showSpeechBubble() {
-  if (speechBubble) return; // Already showing
-  
-  const logo = document.getElementById('sogni-style-selector-icon');
-  if (!logo) return;
-  
-  speechBubble = document.createElement('div');
-  speechBubble.id = 'sogni-speech-bubble';
-  speechBubble.textContent = 'EXPLORE STYLES';
-  
-  const logoRect = logo.getBoundingClientRect();
-  
-  speechBubble.style.cssText = `
-    position: fixed;
-    left: ${logoRect.right + 10}px;
-    top: ${logoRect.top - 5}px;
-    background: #ffffff;
-    color: #111827;
-    padding: 8px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 700;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    z-index: 999999;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    white-space: nowrap;
-    opacity: 0;
-    transform: scale(0.8) translateY(5px);
-    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    pointer-events: none;
-  `;
-  
-  // Add speech bubble tail
-  const tail = document.createElement('div');
-  tail.style.cssText = `
-    position: absolute;
-    left: -6px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 0;
-    height: 0;
-    border-top: 6px solid transparent;
-    border-bottom: 6px solid transparent;
-    border-right: 6px solid #ffffff;
-  `;
-  speechBubble.appendChild(tail);
-  
-  document.body.appendChild(speechBubble);
-  
-  // Animate in
-  setTimeout(() => {
-    speechBubble.style.opacity = '1';
-    speechBubble.style.transform = 'scale(1) translateY(0)';
-  }, 10);
-}
+// Removed showSlothAnimation function - no longer needed
 
-// Hide speech bubble
-function hideSpeechBubble() {
-  if (!speechBubble) return;
-  
-  speechBubble.style.opacity = '0';
-  speechBubble.style.transform = 'scale(0.8) translateY(5px)';
-  
-  setTimeout(() => {
-    if (speechBubble && speechBubble.parentNode) {
-      speechBubble.parentNode.removeChild(speechBubble);
-    }
-    speechBubble = null;
-  }, 200);
-}
+// Removed speech bubble functions - no longer needed
 
 
 
@@ -1012,34 +836,11 @@ function addStyleSelectorIcon() {
   
   icon.appendChild(logoImg);
   
-  // Add hover handlers for interactive animations
-  let hoverTimeout;
-  icon.addEventListener('mouseenter', () => {
-    clearTimeout(hoverTimeout);
-    
-    // Show speech bubble immediately
-    showSpeechBubble();
-    
-    hoverTimeout = setTimeout(() => {
-      showInteractiveAnimations();
-    }, 200); // Small delay to prevent accidental triggers
-  });
-  
-  icon.addEventListener('mouseleave', () => {
-    clearTimeout(hoverTimeout);
-    
-    // Hide speech bubble
-    hideSpeechBubble();
-    
-    // Don't hide animations on mouse leave - they stay until interaction
-  });
-  
-  // Add click handler to open style explorer
+  // Add click handler to open style explorer directly
   icon.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Style selector icon clicked');
-    hideInteractiveAnimations();
+    // Extension icon clicked
     openStyleExplorer();
   });
   
@@ -1071,8 +872,6 @@ async function openStyleExplorer() {
   const iframe = document.createElement('iframe');
   // Get the correct base URL based on dev mode
   const baseUrl = getBaseUrl();
-  console.log('🔧 Dev mode:', isDevMode);
-  console.log('🔧 Using base URL:', baseUrl);
   const params = new URLSearchParams({
     page: 'prompts',
     extension: 'true',
@@ -1081,12 +880,6 @@ async function openStyleExplorer() {
   iframe.src = `${baseUrl}/?${params.toString()}`;
   iframe.className = 'sogni-style-explorer-iframe';
   iframe.allow = 'camera; microphone';
-  
-  console.log('🔗 Loading Style Explorer with URL:', iframe.src);
-  console.log('🔍 URL breakdown:');
-  console.log('  - Base URL:', baseUrl);
-  console.log('  - Parameters:', params.toString());
-  console.log('  - Full URL:', `${baseUrl}/?${params.toString()}`);
   
   // Create close button (floating over iframe)
   const closeButton = document.createElement('button');
@@ -1103,29 +896,18 @@ async function openStyleExplorer() {
   document.body.appendChild(overlay);
   
   // Listen for messages from the iframe
-  console.log('🎧 Adding message listener for style explorer');
   window.addEventListener('message', handleStyleExplorerMessage);
   
-  // Test message listener is working
-  console.log('🧪 Testing message listener setup...');
-  
-  // Send a test message to the iframe after it loads
+  // Send initialization message once iframe loads
+  let messagesSent = false;
   iframe.onload = function() {
-    console.log('📡 Iframe loaded successfully');
-    console.log('🔗 Iframe URL:', iframe.src);
-    console.log('📄 Iframe document:', iframe.contentDocument ? 'accessible' : 'not accessible (cross-origin)');
+    if (messagesSent) return; // Prevent duplicate messages
+    messagesSent = true;
     
-    setTimeout(() => {
-      console.log('📤 Sending extensionReady message to iframe...');
-      try {
-        iframe.contentWindow.postMessage({ type: 'extensionReady' }, '*');
-        console.log('✅ Message sent successfully');
-        
-        
-      } catch (error) {
-        console.error('❌ Error sending message to iframe:', error);
-      }
-    }, 2000); // Increased delay to 2 seconds
+    console.log('Style Explorer loaded');
+    
+    // No message needed - React app should navigate to prompts page automatically
+    // The extension URL already includes page=prompts parameter
   };
   
   iframe.onerror = function(error) {
@@ -1140,7 +922,15 @@ async function openStyleExplorer() {
 function closeStyleExplorer() {
   const overlay = document.getElementById('sogni-style-explorer-overlay');
   if (overlay) {
-    overlay.remove();
+    // Add closing animation
+    overlay.style.animation = 'sogni-slide-out 0.3s cubic-bezier(0.55, 0.055, 0.675, 0.19)';
+    
+    // Remove after animation completes
+    setTimeout(() => {
+      if (overlay.parentNode) {
+        overlay.remove();
+      }
+    }, 300);
   }
   
   // Remove message listener
@@ -1149,39 +939,24 @@ function closeStyleExplorer() {
   // Restore body scrolling
   document.body.style.overflow = '';
   
-  console.log('Style explorer closed');
+  console.log('Style explorer closing...');
 }
 
 // Handle messages from the style explorer iframe
 function handleStyleExplorerMessage(event) {
-  console.log('🔔 Message received from origin:', event.origin);
-  console.log('📦 Message data:', JSON.stringify(event.data, null, 2));
-  console.log('🔍 Message type:', event.data?.type);
-  console.log('🔍 Is this a style-related message?', ['styleSelected', 'useThisStyle'].includes(event.data?.type));
-  
   // Only accept messages from our domain (including localhost for dev)
-  console.log('🔍 Checking message origin:', event.origin);
-  console.log('🔍 Origin includes sogni.ai?', event.origin.includes('sogni.ai'));
-  console.log('🔍 Origin includes localhost?', event.origin.includes('localhost'));
-  console.log('🔍 Expected origins: photobooth.sogni.ai, photobooth-local.sogni.ai, localhost');
-  
   const isValidOrigin = event.origin.includes('sogni.ai') || 
                        event.origin.includes('localhost') ||
                        event.origin.includes('127.0.0.1');
   
-  // Temporarily allow all origins for debugging
+  // Only log important messages, not all the noise
+  if (['styleSelected', 'useThisStyle'].includes(event.data?.type)) {
+    console.log('Style Explorer message:', event.data?.type);
+  }
+  
   if (!isValidOrigin && !['styleSelected', 'useThisStyle'].includes(event.data?.type)) {
-    console.log('❌ Message rejected - not from valid domain and not a style message');
-    return;
+    return; // Silently reject unimportant messages from invalid origins
   }
-  
-  if (!isValidOrigin && ['styleSelected', 'useThisStyle'].includes(event.data?.type)) {
-    console.log('⚠️ ALLOWING style message from invalid origin for debugging:', event.origin);
-  }
-  
-  console.log('✅ Message accepted from valid domain');
-  
-  console.log('✅ Message accepted from style explorer');
   
   if (event.data.type === 'styleSelected') {
     const { styleKey, stylePrompt } = event.data;
@@ -1196,12 +971,12 @@ function handleStyleExplorerMessage(event) {
   } else if (event.data.type === 'useThisStyle') {
     // Handle "Use This Style" button clicks from the gallery
     const { promptKey, stylePrompt } = event.data;
-    console.log(`🎯 Use This Style clicked for: ${promptKey}`);
+    // Style selected from explorer
     console.log(`📝 Style prompt: ${stylePrompt}`);
     
     // Use the provided stylePrompt or get it from our lookup
     const finalStylePrompt = stylePrompt || getStylePromptForKey(promptKey);
-    console.log(`🔧 Final style prompt: ${finalStylePrompt}`);
+    // Using style prompt for processing
     
     // Close the style explorer
     closeStyleExplorer();
@@ -1247,16 +1022,23 @@ async function processImagesWithStyle(styleKey, stylePrompt) {
       return;
     }
     
-    console.log(`Found ${profileImages.length} profile images`);
-    updateScanIndicator(scanIndicator, `Converting ${profileImages.length} images with ${styleDisplayName}...`, 'success');
+    // Limit the number of images processed per page
+    const imagesToProcess = profileImages.slice(0, MAX_IMAGES_PER_PAGE);
+    if (profileImages.length > MAX_IMAGES_PER_PAGE) {
+      console.log(`Found ${profileImages.length} profile images, limiting to ${MAX_IMAGES_PER_PAGE} for performance`);
+      updateScanIndicator(scanIndicator, `Converting ${MAX_IMAGES_PER_PAGE} of ${profileImages.length} images with ${styleDisplayName}...`, 'success');
+    } else {
+      console.log(`Found ${profileImages.length} profile images`);
+      updateScanIndicator(scanIndicator, `Converting ${profileImages.length} images with ${styleDisplayName}...`, 'success');
+    }
     
-    // Process all found images with the selected style
-    await processImagesBatchWithStyle(profileImages, styleKey, stylePrompt);
+    // Process images with the selected style
+    await processImagesBatchWithStyle(imagesToProcess, styleKey, stylePrompt);
     
     // Remove scan indicator after completion
     removeScanIndicator(scanIndicator);
     
-    console.log(`Completed ${styleKey} conversion for ${profileImages.length} images`);
+    console.log(`Completed ${styleKey} conversion for ${imagesToProcess.length} images`);
     
   } catch (error) {
     console.error('Error processing images with style:', error);
@@ -1265,56 +1047,69 @@ async function processImagesWithStyle(styleKey, stylePrompt) {
   }
 }
 
-// Process images in batches with custom style
+// Process images with custom style using continuous assignment
 async function processImagesBatchWithStyle(images, styleKey, stylePrompt) {
   isProcessing = true;
   processingQueue = [...images];
   
-  console.log(`Starting batch processing of ${images.length} images with style: ${styleKey}`);
+  console.log(`Processing ${images.length} images with ${styleKey}`);
   
   // Track success/failure counts
   let successCount = 0;
   let failureCount = 0;
+  let completedCount = 0;
+  let nextImageIndex = 0;
   
-  // Process in chunks of MAX_CONCURRENT_CONVERSIONS
-  const chunks = [];
-  for (let i = 0; i < images.length; i += MAX_CONCURRENT_CONVERSIONS) {
-    chunks.push(images.slice(i, i + MAX_CONCURRENT_CONVERSIONS));
-  }
+  // Multiple bouncing Sogni logos are handled automatically by the progress overlay system
   
   try {
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      console.log(`Processing chunk ${i + 1}/${chunks.length} (${chunk.length} images) with ${styleKey}`);
-      
-      // Process chunk in parallel with custom style
-      const promises = chunk.map(img => convertImageWithStyle(img, styleKey, stylePrompt));
-      const results = await Promise.allSettled(promises);
-      
-      // Count successes and failures
-      results.forEach((result, index) => {
-        if (result.status === 'fulfilled') {
-          successCount++;
-          console.log(`✅ Image ${index + 1} converted successfully with ${styleKey}`);
-        } else {
-          failureCount++;
-          console.error(`❌ Image ${index + 1} conversion failed:`, result.reason);
+    // Process images continuously - assign next image to available slot
+    await new Promise((resolve) => {
+      const processNextImage = async (slotIndex) => {
+        while (nextImageIndex < images.length) {
+          const imageIndex = nextImageIndex++;
+          const img = images[imageIndex];
+          
+          // Processing image with style
+          
+          try {
+            const result = await convertImageWithStyle(img, styleKey, stylePrompt);
+            successCount++;
+            // Image converted successfully
+          } catch (error) {
+            failureCount++;
+            console.error(`❌ Image ${imageIndex + 1} conversion failed:`, error.message);
+          }
+          
+          completedCount++;
+          
+          // Check if all images are done
+          if (completedCount >= images.length) {
+            resolve();
+            return;
+          }
         }
-      });
+        
+        // No more images for this slot
+      };
       
-      // Small delay between chunks to avoid overwhelming the API
-      if (i < chunks.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      // Start processing in all slots
+      for (let i = 0; i < MAX_CONCURRENT_CONVERSIONS; i++) {
+        processNextImage(i);
       }
-    }
+    });
     
-    console.log(`Batch processing completed with ${styleKey}: ${successCount} succeeded, ${failureCount} failed`);
+    console.log(`Continuous processing completed with ${styleKey}: ${successCount} succeeded, ${failureCount} failed`);
     
   } catch (error) {
-    console.error('Error in batch processing with style:', error);
+    console.error('Error in continuous processing with style:', error);
   } finally {
+    // Clean up all bouncing logos and overlays
+    if (progressOverlay) {
+      progressOverlay.removeAllOverlays();
+      progressOverlay.hideAllBouncers();
+    }
     isProcessing = false;
-    processingQueue = [];
   }
 }
 

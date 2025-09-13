@@ -8,89 +8,18 @@
 </head>
 <body>
   <div class="popup-container">
-    <!-- Header -->
-    <div class="header">
-      <div class="logo">
-        <img src="icons/logo.png" alt="Sogni Logo" style="width: 32px; height: 32px; object-fit: contain;">
-      </div>
-      <div class="title">
-        <h1>Sogni Style Explorer</h1>
-        <p>Transform profile photos with AI styles</p>
+    <!-- Loading Message -->
+    <div class="loading-section">
+      <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <h2>Opening Style Explorer...</h2>
+        <p>Launching Sogni Style Explorer directly in the current tab.</p>
       </div>
     </div>
-
-    <!-- Status Section -->
-    <div class="status-section">
-      <div class="status-item">
-        <div class="status-label">API Status:</div>
-        <div class="status-value" id="api-status">
-          <span class="status-indicator checking"></span>
-          Checking...
-        </div>
-      </div>
-      <div class="status-item">
-        <div class="status-label">Environment:</div>
-        <div class="status-value">
-          <label class="dev-mode-toggle">
-            <input type="checkbox" id="dev-mode-toggle" checked>
-            <span class="toggle-slider"></span>
-            <span class="toggle-label">Dev Mode</span>
-          </label>
-        </div>
-      </div>
-    </div>
-
-    <!-- Main Actions -->
-    <div class="actions-section">
-      <div class="style-selector-info">
-        <div class="info-icon">
-          <img src="icons/logo.png" alt="Sogni Logo" class="popup-logo-img">
-        </div>
-        <div class="info-text">
-          <strong>Style Selector Active!</strong><br>
-          Look for the Sogni logo in the top-left corner of any webpage to access the full Sogni Style Explorer.
-        </div>
-      </div>
-    </div>
-
-    <!-- Instructions -->
-    <div class="instructions-section">
-      <h3>How to Use:</h3>
-      <ol>
-        <li>Navigate to a page with profile photos (like speaker listings)</li>
-        <li>Click the Sogni logo in the top-left corner</li>
-        <li>Browse and select from hundreds of AI styles</li>
-        <li>Watch as photos transform with your chosen style!</li>
-      </ol>
-    </div>
-
-    <!-- Stats Section -->
-    <div class="stats-section" id="stats-section" style="display: none;">
-      <h3>Current Session:</h3>
-      <div class="stats-grid">
-        <div class="stat-item">
-          <div class="stat-number" id="images-found">0</div>
-          <div class="stat-label">Images Found</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-number" id="images-converted">0</div>
-          <div class="stat-label">Converted</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-number" id="conversion-time">0s</div>
-          <div class="stat-label">Total Time</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Footer -->
-    <div class="footer">
-      <div class="footer-links">
-        <a href="#" id="help-link">Help</a>
-        <span class="separator">•</span>
-        <a href="#" id="about-link">About</a>
-      </div>
-      <div class="version">v1.0.0</div>
+    
+    <!-- Hidden dev mode toggle for settings -->
+    <div style="display: none;">
+      <input type="checkbox" id="dev-mode-toggle" checked>
     </div>
   </div>
 
