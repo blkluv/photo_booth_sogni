@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sogni Style Explorer</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Loading Message -->
+    <div class="loading-section">
+      <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <h2>Opening Style Explorer...</h2>
+        <p>Launching Sogni Style Explorer directly in the current tab.</p>
+      </div>
+    </div>
+    
+    <!-- Hidden dev mode toggle for settings -->
+    <div style="display: none;">
+      <input type="checkbox" id="dev-mode-toggle" checked>
+    </div>
+  </div>
+
+  <script src="api-service.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
