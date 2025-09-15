@@ -401,3 +401,40 @@ body {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* Dev Mode Section */
+.dev-mode-section {
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(99, 102, 241, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.dev-mode-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.dev-mode-label input[type="checkbox"] {
+  margin-right: 8px;
+  transform: scale(1.1);
+}
+
+.dev-mode-text {
+  color: #374151;
+}
+
+.dev-mode-info {
+  margin-top: 6px;
+  padding-left: 20px;
+}
+
+.dev-mode-info small {
+  color: #6b7280;
+  font-size: 11px;
+  line-height: 1.3;
+}

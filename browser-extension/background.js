@@ -1,6 +1,64 @@
 // Background script for Sogni Photobooth Extension
 console.log('Sogni Photobooth Extension: Background script loaded');
 
+// Create context menu for dev mode toggle
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.create({
+    id: 'toggle-dev-mode',
+    title: 'Toggle Development Mode',
+    contexts: ['action']
+  });
+  
+  // Load current dev mode state and update menu
+  updateDevModeContextMenu();
+});
+
+// Handle context menu clicks
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === 'toggle-dev-mode') {
+    toggleDevMode();
+  }
+});
+
+// Toggle dev mode setting
+async function toggleDevMode() {
+  try {
+    const result = await chrome.storage.local.get(['devMode']);
+    const currentDevMode = result.devMode || false;
+    const newDevMode = !currentDevMode;
+    
+    await chrome.storage.local.set({ devMode: newDevMode });
+    console.log('Dev mode toggled:', newDevMode);
+    
+    // Update context menu title
+    updateDevModeContextMenu();
+    
+    // Notify user
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon48.png',
+      title: 'Sogni Style Explorer',
+      message: `Development mode ${newDevMode ? 'enabled' : 'disabled'}`
+    });
+  } catch (error) {
+    console.error('Error toggling dev mode:', error);
+  }
+}
+
+// Update context menu based on current dev mode
+async function updateDevModeContextMenu() {
+  try {
+    const result = await chrome.storage.local.get(['devMode']);
+    const isDevMode = result.devMode || false;
+    
+    chrome.contextMenus.update('toggle-dev-mode', {
+      title: `Development Mode: ${isDevMode ? 'ON (localhost)' : 'OFF (production)'}`
+    });
+  } catch (error) {
+    console.error('Error updating context menu:', error);
+  }
+}
+
 // Generate a stable client app ID for the extension (like main photobooth frontend)
 let extensionClientAppId = `photobooth-extension-fallback-${Date.now()}`;
 let resolveClientIdReady = null;

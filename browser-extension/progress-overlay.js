@@ -323,17 +323,50 @@ class ProgressOverlay {
           numberOverlay.style.background = 'linear-gradient(45deg, #10b981, #059669)';
           numberOverlay.style.transform = 'scale(1.2)';
           
-          // Reset after a moment
+          // Reset after a moment, then check if this bouncer should be hidden
           setTimeout(() => {
             if (numberOverlay) {
               numberOverlay.style.background = 'linear-gradient(45deg, #6366f1, #8b5cf6)';
               numberOverlay.style.transform = 'scale(1)';
+            }
+            
+            // Check if there are any more images that need processing for this bouncer to work on
+            const hasMoreWork = this._hasMoreWorkForBouncer();
+            if (!hasMoreWork) {
+              // Hide this individual bouncer since there's no more work for it
+              this._hideIndividualBouncer(bouncer);
             }
           }, 600);
         }
       }
       
       bouncer.targetImage = null;
+    }
+  }
+
+  // Check if there are more images that need processing (for any bouncer to work on)
+  _hasMoreWorkForBouncer() {
+    // Count how many overlays (active processing images) still exist
+    return this.overlays.size > 0;
+  }
+
+  // Hide an individual bouncer when it has no more work to do
+  _hideIndividualBouncer(bouncer) {
+    if (bouncer.element) {
+      console.log(`Hiding individual bouncer ${bouncer.slotIndex + 1} - no more work`);
+      
+      // Fade out this specific bouncer
+      bouncer.element.style.opacity = '0';
+      bouncer.element.style.transform = 'translate(-50%, -50%) scale(0.5)';
+      
+      // Remove from DOM after fade
+      setTimeout(() => {
+        if (bouncer.element && bouncer.element.parentNode) {
+          bouncer.element.parentNode.removeChild(bouncer.element);
+        }
+        // Clear the bouncer element reference
+        bouncer.element = null;
+      }, 300);
     }
   }
 

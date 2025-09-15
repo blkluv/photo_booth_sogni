@@ -6,6 +6,8 @@
   "scripts": {
     "build": "echo 'No build process needed for this extension'",
     "package": "zip -r sogni-photobooth-extension.zip . -x '*.git*' '*.DS_Store*' 'node_modules/*' 'package*.json'",
+    "package-production": "cd ../browser-extension-production && zip -r sogni-style-explorer-v$(grep '\"version\"' manifest.json | sed 's/.*\"version\": *\"\\([^\"]*\\)\".*/\\1/').zip . -x '*.git*' '*.DS_Store*' 'node_modules/*' 'package*.json' 'privatekey.pem' '.gitignore' '*.crx'",
+    "sign-crx": "cd ../browser-extension-production && ./sign-extension.sh",
     "dev": "echo 'Load extension in Chrome Developer mode from this directory'",
     "lint": "echo 'Add linting if needed'"
   },

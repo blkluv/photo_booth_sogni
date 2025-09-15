@@ -95,6 +95,7 @@ const App = () => {
   // Set up extension mode immediately if detected
   if (immediateExtensionParam === 'true') {
     window.extensionMode = true;
+    document.body.classList.add('extension-mode'); // Add CSS class for styling
     
     // Add message listener immediately for extension communication
     const handleExtensionMessage = (event) => {
@@ -595,6 +596,7 @@ const App = () => {
       // If this is from the extension, set up extension mode
       if (extensionParam === 'true') {
         window.extensionMode = true;
+        document.body.classList.add('extension-mode'); // Add CSS class for styling
         
         // Set up message listener for extension communication
         const handleExtensionMessage = (event) => {
@@ -4364,6 +4366,7 @@ const App = () => {
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
+      background: window.extensionMode ? 'transparent' : undefined, // Make transparent in extension mode
     }}>
       {/* Style selector in top left - shown on photo grid page when not in Style Explorer */}
       {showPhotoGrid && currentPage !== 'prompts' && (
@@ -4391,7 +4394,7 @@ const App = () => {
             padding: '8px 16px',
             paddingRight: '24px',
             borderRadius: '20px',
-            background: 'rgba(255, 255, 255, 0.9)',
+            background: window.extensionMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(255, 255, 255, 0.9)',
             boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
             transition: 'all 0.2s',
             whiteSpace: 'nowrap',
@@ -4445,7 +4448,9 @@ const App = () => {
         <>
           {/* Conditionally render photo grid in prompt selector mode */}
           {isSogniReady && sogniClient && (
-            <div className={`film-strip-container visible prompt-selector-mode`}>
+            <div className={`film-strip-container visible prompt-selector-mode ${window.extensionMode ? 'extension-mode' : ''}`} style={{
+              background: window.extensionMode ? 'transparent' : undefined
+            }}>
               <PhotoGallery
                 photos={photos}
                 selectedPhotoIndex={selectedPhotoIndex}
@@ -5686,7 +5691,9 @@ const App = () => {
 
         {/* Conditionally render photo grid only if Sogni client is ready and NOT in Sample Gallery mode */}
         {showPhotoGrid && isSogniReady && sogniClient && currentPage !== 'prompts' && (
-          <div className={`film-strip-container ${showPhotoGrid ? 'visible' : ''}`}>
+          <div className={`film-strip-container ${showPhotoGrid ? 'visible' : ''} ${window.extensionMode ? 'extension-mode' : ''}`} style={{
+            background: window.extensionMode ? 'transparent' : undefined
+          }}>
         <PhotoGallery
           photos={photos}
           selectedPhotoIndex={selectedPhotoIndex}

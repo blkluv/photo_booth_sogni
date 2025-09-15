@@ -15,14 +15,44 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize API
   api = new PhotoboothAPI();
   
-  // Production mode - no dev mode settings needed
+  // Load dev mode setting
+  await loadDevModeSettings();
+  
+  // Setup event listeners
+  setupEventListeners();
   
   // Activate extension and directly open Style Explorer
-  await activateExtensionAndOpenStyleExplorer();
+  try {
+    await activateExtensionAndOpenStyleExplorer();
+    console.log('Style Explorer activation completed');
+  } catch (error) {
+    console.error('Error activating Style Explorer:', error);
+  }
   
-  // Close the popup since we're opening Style Explorer
-  window.close();
+  // Close the popup since we're opening Style Explorer (with delay for debugging)
+  setTimeout(() => {
+    window.close();
+  }, 2000); // 2 second delay to see any errors
 });
+
+// Load dev mode settings
+async function loadDevModeSettings() {
+  try {
+    const result = await new Promise((resolve) => {
+      chrome.storage.local.get(['devMode'], resolve);
+    });
+    
+    const isDevMode = result.devMode || false;
+    const toggle = document.getElementById('dev-mode-toggle');
+    if (toggle) {
+      toggle.checked = isDevMode;
+    }
+    
+    console.log('Dev mode loaded:', isDevMode);
+  } catch (error) {
+    console.error('Error loading dev mode settings:', error);
+  }
+}
 
 // Activate extension and directly open Style Explorer
 async function activateExtensionAndOpenStyleExplorer() {
@@ -46,12 +76,100 @@ async function activateExtensionAndOpenStyleExplorer() {
       console.log('Style Explorer opened successfully:', response);
     } catch (messageError) {
       console.error('Failed to open Style Explorer:', messageError);
-      // Fallback - try to activate extension normally
+      console.log('This might be because the content script is not yet loaded on this page.');
+      
+      // Fallback 1 - try to activate extension first, then open Style Explorer
       try {
+        console.log('Attempting to activate extension first...');
         await chrome.tabs.sendMessage(tab.id, { action: 'activateExtension' });
-        console.log('Extension activated as fallback');
+        console.log('Extension activated, now trying to open Style Explorer...');
+        
+        // Wait a moment for activation to complete
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Try again to open Style Explorer
+        const secondAttempt = await chrome.tabs.sendMessage(tab.id, { action: 'openStyleExplorerDirect' });
+        console.log('Style Explorer opened on second attempt:', secondAttempt);
+        
       } catch (fallbackError) {
         console.error('Fallback activation also failed:', fallbackError);
+        console.log('The page might not support the extension or content script failed to load.');
+        
+        // Final fallback - try to inject and execute script directly
+        try {
+          console.log('Attempting direct script injection...');
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: () => {
+              // Direct inline Style Explorer creation
+              console.log('Direct script execution - creating Style Explorer overlay');
+              
+              // Check if overlay already exists
+              if (document.getElementById('sogni-style-explorer-overlay')) {
+                console.log('Style Explorer overlay already exists');
+                return;
+              }
+              
+              // Create overlay
+              const overlay = document.createElement('div');
+              overlay.id = 'sogni-style-explorer-overlay';
+              overlay.style.cssText = `
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100vw !important;
+                height: 100vh !important;
+                background: transparent !important;
+                z-index: 999999 !important;
+              `;
+              
+              // Create iframe
+              const iframe = document.createElement('iframe');
+              iframe.src = 'https://photobooth.sogni.ai/?page=prompts&extension=true&skipWelcome=true&t=' + Date.now();
+              iframe.style.cssText = `
+                width: 100% !important;
+                height: 100% !important;
+                border: none !important;
+                background: transparent !important;
+              `;
+              
+              // Create close button
+              const closeButton = document.createElement('button');
+              closeButton.innerHTML = '✕';
+              closeButton.style.cssText = `
+                position: absolute !important;
+                top: 20px !important;
+                right: 20px !important;
+                background: rgba(0, 0, 0, 0.7) !important;
+                border: 1px solid rgba(255, 255, 255, 0.2) !important;
+                color: white !important;
+                font-size: 24px !important;
+                cursor: pointer !important;
+                padding: 8px 12px !important;
+                border-radius: 50% !important;
+                width: 44px !important;
+                height: 44px !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                z-index: 1000000 !important;
+              `;
+              
+              closeButton.onclick = () => {
+                overlay.remove();
+              };
+              
+              overlay.appendChild(iframe);
+              overlay.appendChild(closeButton);
+              document.body.appendChild(overlay);
+              
+              console.log('Style Explorer overlay created via direct injection');
+            }
+          });
+          console.log('Direct script injection completed');
+        } catch (scriptError) {
+          console.error('Direct script injection failed:', scriptError);
+        }
       }
     }
     
@@ -92,37 +210,46 @@ async function activateExtension() {
 
 // Setup event listeners
 function setupEventListeners() {
-  // Help and about links
-  document.getElementById('help-link').addEventListener('click', (e) => {
-    e.preventDefault();
-    showHelp();
-  });
+  // Help and about links (only if they exist)
+  const helpLink = document.getElementById('help-link');
+  if (helpLink) {
+    helpLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      showHelp();
+    });
+  }
   
-  document.getElementById('about-link').addEventListener('click', (e) => {
-    e.preventDefault();
-    showAbout();
-  });
+  const aboutLink = document.getElementById('about-link');
+  if (aboutLink) {
+    aboutLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      showAbout();
+    });
+  }
   
   // Dev mode toggle
-  document.getElementById('dev-mode-toggle').addEventListener('change', (e) => {
-    const isDevMode = e.target.checked;
-    console.log('Dev mode toggled:', isDevMode);
-    
-    // Save dev mode setting
-    chrome.storage.local.set({ devMode: isDevMode }, () => {
-      console.log('Dev mode setting saved:', isDevMode);
+  const devModeToggle = document.getElementById('dev-mode-toggle');
+  if (devModeToggle) {
+    devModeToggle.addEventListener('change', (e) => {
+      const isDevMode = e.target.checked;
+      console.log('Dev mode toggled:', isDevMode);
+      
+      // Save dev mode setting
+      chrome.storage.local.set({ devMode: isDevMode }, () => {
+        console.log('Dev mode setting saved:', isDevMode);
+      });
+      
+      // Send message to content script about dev mode change
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0]) {
+          chrome.tabs.sendMessage(tabs[0].id, { 
+            action: 'updateDevMode', 
+            devMode: isDevMode 
+          });
+        }
+      });
     });
-    
-    // Send message to content script about dev mode change
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]) {
-        chrome.tabs.sendMessage(tabs[0].id, { 
-          action: 'updateDevMode', 
-          devMode: isDevMode 
-        });
-      }
-    });
-  });
+  }
 }
 
 // Check API status

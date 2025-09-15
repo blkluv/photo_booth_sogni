@@ -1,11 +1,13 @@
 // API Service for Sogni Photobooth Integration
 class PhotoboothAPI {
   constructor() {
-    this.apiBaseUrl = 'https://photobooth-api.sogni.ai';
     this.productionApiUrl = 'https://photobooth-api.sogni.ai'; // Production API domain
+    this.localApiUrl = 'https://photobooth-api-local.sogni.ai'; // Local development API
+    this.apiBaseUrl = this.productionApiUrl; // Default to production
     this.sessionId = null;
     this.clientAppId = null; // Will be set from background script's stable ID
     this.clientAppIdReady = this.initializeClientAppId();
+    this.isDevMode = false;
   }
 
   // Get the stable client app ID from background script
@@ -31,10 +33,39 @@ class PhotoboothAPI {
     }
   }
 
-  // Use production API endpoint
+  // Detect API endpoint based on dev mode
   async detectApiEndpoint() {
-    // Always use production API for released extension
+    // Check dev mode from storage
+    try {
+      const result = await new Promise((resolve) => {
+        chrome.storage.local.get(['devMode'], resolve);
+      });
+      this.isDevMode = result.devMode || false;
+    } catch (error) {
+      console.log('Could not read dev mode setting, defaulting to production');
+      this.isDevMode = false;
+    }
+
+    if (this.isDevMode) {
+      // Try local API first in dev mode
+      try {
+        const response = await fetch(`${this.localApiUrl}/api/health`, {
+          method: 'GET',
+          timeout: 3000
+        });
+        if (response.ok) {
+          console.log('Using local development API:', this.localApiUrl);
+          this.apiBaseUrl = this.localApiUrl;
+          return this.localApiUrl;
+        }
+      } catch (error) {
+        console.log('Local API not available, falling back to production');
+      }
+    }
+
+    // Use production API
     console.log('Using production API:', this.productionApiUrl);
+    this.apiBaseUrl = this.productionApiUrl;
     return this.productionApiUrl;
   }
 

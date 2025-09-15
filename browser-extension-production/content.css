@@ -96,7 +96,7 @@
   left: 0 !important;
   width: 100vw !important;
   height: 100vh !important;
-  background: rgba(0, 0, 0, 0.95) !important;
+  background: transparent !important;
   z-index: 999999 !important;
   animation: sogni-slide-in 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
 }
@@ -131,7 +131,7 @@
   width: 100% !important;
   height: 100% !important;
   border: none !important;
-  background: white !important;
+  background: transparent !important;
 }
 
 /* Hover Comparison Styles */

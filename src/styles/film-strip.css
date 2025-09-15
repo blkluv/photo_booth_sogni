@@ -28,6 +28,69 @@
   transition: opacity 0.4s ease-out;
 }
 
+/* Extension mode - transparent background with blur effect on underlying page */
+.film-strip-container.extension-mode {
+  background: transparent !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+/* Make body background darker for visibility on white pages in extension mode */
+body.extension-mode {
+  background: rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Make photobooth-app background transparent in extension mode */
+body.extension-mode .photobooth-app {
+  background: transparent !important;
+}
+
+/* Make main-content-area transparent in extension mode */
+body.extension-mode .main-content-area {
+  background: transparent !important;
+}
+
+/* Make top-left-style-selector transparent in extension mode */
+body.extension-mode .top-left-style-selector {
+  background: transparent !important;
+}
+
+/* Hide studio lights in extension mode */
+body.extension-mode .studio-lights-container {
+  display: none !important;
+}
+
+/* Hide corner buttons in extension mode */
+body.extension-mode .corner-btn {
+  display: none !important;
+}
+
+/* Hide all action buttons except use-prompt-btn in extension mode */
+body.extension-mode .action-button:not(.use-prompt-btn) {
+  display: none !important;
+}
+
+/* Specific rule for Style Explorer in extension mode - higher specificity */
+.film-strip-container.visible.extension-mode.prompt-selector-mode {
+  background: transparent !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+/* Keep selected photo frames (polaroids) white in extension mode but enhance shadows */
+.film-strip-container.extension-mode .film-frame.selected {
+  background: white !important; /* Keep polaroid frames white */
+  box-shadow: 0 8px 30px rgba(0,0,0,0.5) !important; /* Darker shadow for visibility on web pages */
+}
+
+/* Keep selected photo frames (polaroids) white in extension mode on mobile too */
+@media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
+  .film-strip-container.extension-mode .film-frame.selected {
+    background: white !important; /* Keep polaroid frames white */
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5) !important; /* Darker shadow for visibility on web pages */
+  }
+}
+
 .film-strip-holes {
   display: none !important;
 }

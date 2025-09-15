@@ -2,31 +2,26 @@
   "manifest_version": 3,
   "name": "Sogni Style Explorer",
   "version": "1.1.0",
-  "description": "Transform profile photos with hundreds of AI styles using Sogni Photobooth",
+  "description": "Easily convert grids of profile photos on websites into AI generated alternate portrait theme versions quickly and efficiently.",
+  "author": "Sogni",
+  "homepage_url": "https://photobooth.sogni.ai",
   
   "permissions": [
     "activeTab",
     "contextMenus",
-    "storage"
+    "storage",
+    "scripting"
   ],
   
   "host_permissions": [
     "https://photobooth-api.sogni.ai/*",
-    "https://photobooth.sogni.ai/*",
-    "<all_urls>"
+    "https://photobooth.sogni.ai/*"
   ],
   
   "background": {
     "service_worker": "background.js"
   },
   
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["api-service.js", "progress-overlay.js", "content.js"],
-      "css": ["content.css"]
-    }
-  ],
   
   "action": {
     "default_popup": "popup.html",

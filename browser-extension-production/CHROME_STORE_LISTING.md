@@ -11,13 +11,13 @@ Transform profile photos with hundreds of AI styles using Sogni Photobooth's cut
 
 ## Detailed Description (16,000 characters max)
 
-Transform any webpage's profile photos with hundreds of artistic AI styles using the Sogni Style Explorer browser extension!
+The Sogni Style Explorer easily converts grids of profile photos on websites into AI generated alternate portrait theme versions quickly and efficiently: from conference speaker lineups, team / employee / staff directories, sports and other club rosters / organization memberships, yearbooks, social profiles, friend lists, and more.
 
 **🎨 What it does:**
 - Instantly transforms profile photos on any webpage with AI-generated artistic styles
 - Browse hundreds of curated artistic styles from the Sogni Photobooth collection
-- Perfect for speaker listings, team pages, conference websites, and social profiles
-- Powered by Sogni.XLT SDXL Turbo AI for fast, high-quality transformations
+- Perfect for speaker listings, team pages, conference websites, sports rosters, yearbooks, and social profiles
+- Powered by the Sogni decentralized Supernet, a network of AI art inference GPU worker nodes
 
 **🚀 Key Features:**
 - **One-Click Activation**: Click the Sogni logo that appears on any webpage to open the Style Explorer
@@ -35,13 +35,14 @@ Transform any webpage's profile photos with hundreds of artistic AI styles using
 - Any webpage with profile photo grids
 
 **🔧 How to Use:**
-1. Navigate to any webpage with profile photos
-2. Look for the Sogni logo icon in the top-left corner of the page
-3. Click the icon to open the Style Explorer overlay
-4. Browse through hundreds of artistic styles
-5. Click "Use This Style" on any photo to transform all profile photos on the page
-6. Watch as AI transforms each photo with your chosen style
-7. Hover over transformed images to see before/after comparisons
+1. Install the free extension securely from the Chrome Web Store
+2. Navigate to any webpage with profile photos (conference speaker lineups, team directories, sports rosters, etc.)
+3. Click on the extension icon to activate the Sogni Style Explorer
+4. The extension will overlay over the page and automagically detect every profile photo
+5. Browse through hundreds of artistic styles
+6. Simply pick your style and click "Use This Style" to transform all profile photos on the page
+7. Watch as AI transforms each photo with your chosen style
+8. A download link appears next to each transformed photo for easy saving
 
 **⚡ Technology:**
 - Powered by Sogni.XLT SDXL Turbo AI model
@@ -57,7 +58,7 @@ Transform any webpage's profile photos with hundreds of artistic AI styles using
 - Open source and transparent
 
 **🌟 About Sogni:**
-Sogni is a leading AI art platform that makes advanced AI image generation accessible to everyone. The Sogni Photobooth has been used at major conferences and events worldwide, creating thousands of AI-transformed photos.
+Sogni is a leading AI art platform that makes advanced AI image generation accessible to everyone. This browser extension is a Sogni Superapp that is powered by the Sogni decentralized Supernet, a network of AI art inference GPU worker nodes. The Sogni Photobooth has been used at major conferences and events worldwide, creating thousands of AI-transformed photos.
 
 Transform your browsing experience and bring AI art to any webpage with Sogni Style Explorer!
 

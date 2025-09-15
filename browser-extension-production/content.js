@@ -1,5 +1,6 @@
 // Content Script for Sogni Photobooth Extension
 console.log('🚀 Sogni Photobooth Extension: Content script loaded - VERSION 2.0 WITH MULTIPLE LOGOS & DIRECT STYLE EXPLORER');
+console.log('Content script initialization starting...');
 
 // Initialize components
 let api = null;
@@ -95,11 +96,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   
   if (message.action === 'openStyleExplorerDirect') {
+    console.log('Received openStyleExplorerDirect message');
     // Toggle Style Explorer directly
     // Use toggle functionality to prevent multiple instances
-    toggleStyleExplorer();
-    const isOpen = document.getElementById('sogni-style-explorer-overlay') !== null;
-    sendResponse({ success: true, message: isOpen ? 'Style Explorer opened' : 'Style Explorer closed' });
+    try {
+      toggleStyleExplorer();
+      const isOpen = document.getElementById('sogni-style-explorer-overlay') !== null;
+      console.log('Style Explorer toggle completed, isOpen:', isOpen);
+      sendResponse({ success: true, message: isOpen ? 'Style Explorer opened' : 'Style Explorer closed' });
+    } catch (error) {
+      console.error('Error toggling Style Explorer:', error);
+      sendResponse({ success: false, error: error.message });
+    }
     return false;
   }
   
@@ -898,14 +906,46 @@ function addStyleSelectorIcon() {
   console.log('Style selector icon added to page');
 }
 
-// Get the production base URL
-function getBaseUrl() {
-  // Always use production URL for released extension
-  return 'https://photobooth.sogni.ai';
+// Get base URL based on dev mode setting
+async function getBaseUrl() {
+  try {
+    // Check dev mode from storage
+    const result = await new Promise((resolve) => {
+      chrome.storage.local.get(['devMode'], resolve);
+    });
+    
+    const isDevMode = result.devMode || false;
+    console.log('Dev mode setting:', isDevMode);
+    
+    if (isDevMode) {
+      // In dev mode, try local development server first
+      const localUrl = 'https://photobooth-local.sogni.ai'; // Local development URL
+      console.log('Dev mode enabled, attempting to use local URL:', localUrl);
+      
+      try {
+        // Simple connectivity check - just try to create the URL
+        // If localhost is not available, the iframe will handle the error
+        // and we can fall back in the iframe's onerror handler
+        console.log('Using local development URL:', localUrl);
+        return localUrl;
+      } catch (error) {
+        console.log('Error with local URL, falling back to production:', error);
+      }
+    }
+    
+    // Use production URL
+    const productionUrl = 'https://photobooth.sogni.ai';
+    console.log('Using production URL:', productionUrl);
+    return productionUrl;
+  } catch (error) {
+    console.log('Error checking dev mode, defaulting to production:', error);
+    return 'https://photobooth.sogni.ai';
+  }
 }
 
 // Toggle the Sogni Style Explorer overlay
 function toggleStyleExplorer() {
+  console.log('toggleStyleExplorer called');
   const existingOverlay = document.getElementById('sogni-style-explorer-overlay');
   
   if (existingOverlay) {
@@ -913,7 +953,9 @@ function toggleStyleExplorer() {
     closeStyleExplorer();
   } else {
     console.log('Opening Style Explorer...');
-    openStyleExplorer();
+    openStyleExplorer().catch(error => {
+      console.error('Error opening Style Explorer:', error);
+    });
   }
 }
 
@@ -935,17 +977,35 @@ async function openStyleExplorer() {
   
   // Create iframe to load the main Sogni app directly to Style Explorer
   const iframe = document.createElement('iframe');
+  
   // Get the correct base URL based on dev mode
-  const baseUrl = getBaseUrl();
+  console.log('Getting base URL for Style Explorer...');
+  const baseUrl = await getBaseUrl();
+  console.log('Base URL resolved to:', baseUrl);
+  
   const params = new URLSearchParams({
     page: 'prompts',
     extension: 'true',
     skipWelcome: 'true',
     t: Date.now().toString()
   });
-  iframe.src = `${baseUrl}/?${params.toString()}`;
+  
+  const fullUrl = `${baseUrl}/?${params.toString()}`;
+  console.log('Loading Style Explorer at URL:', fullUrl);
+  
+  iframe.src = fullUrl;
   iframe.className = 'sogni-style-explorer-iframe';
   iframe.allow = 'camera; microphone';
+  
+  // Add error handling for iframe loading
+  iframe.onerror = function() {
+    console.error('Failed to load Style Explorer iframe');
+    // If we were trying localhost and it failed, try production
+    if (baseUrl.includes('localhost')) {
+      console.log('Localhost failed, attempting production fallback...');
+      iframe.src = `https://photobooth.sogni.ai/?${params.toString()}`;
+    }
+  };
   
   // Create close button (floating over iframe)
   const closeButton = document.createElement('button');

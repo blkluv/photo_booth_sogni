@@ -1,6 +1,64 @@
 // Background script for Sogni Photobooth Extension
 console.log('Sogni Photobooth Extension: Background script loaded');
 
+// Create context menu for dev mode toggle
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.create({
+    id: 'toggle-dev-mode',
+    title: 'Toggle Development Mode',
+    contexts: ['action']
+  });
+  
+  // Load current dev mode state and update menu
+  updateDevModeContextMenu();
+});
+
+// Handle context menu clicks
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === 'toggle-dev-mode') {
+    toggleDevMode();
+  }
+});
+
+// Toggle dev mode setting
+async function toggleDevMode() {
+  try {
+    const result = await chrome.storage.local.get(['devMode']);
+    const currentDevMode = result.devMode || false;
+    const newDevMode = !currentDevMode;
+    
+    await chrome.storage.local.set({ devMode: newDevMode });
+    console.log('Dev mode toggled:', newDevMode);
+    
+    // Update context menu title
+    updateDevModeContextMenu();
+    
+    // Notify user
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon48.png',
+      title: 'Sogni Style Explorer',
+      message: `Development mode ${newDevMode ? 'enabled' : 'disabled'}`
+    });
+  } catch (error) {
+    console.error('Error toggling dev mode:', error);
+  }
+}
+
+// Update context menu based on current dev mode
+async function updateDevModeContextMenu() {
+  try {
+    const result = await chrome.storage.local.get(['devMode']);
+    const isDevMode = result.devMode || false;
+    
+    chrome.contextMenus.update('toggle-dev-mode', {
+      title: `Development Mode: ${isDevMode ? 'ON (localhost)' : 'OFF (production)'}`
+    });
+  } catch (error) {
+    console.error('Error updating context menu:', error);
+  }
+}
+
 // Generate a stable client app ID for the extension (like main photobooth frontend)
 let extensionClientAppId = `photobooth-extension-fallback-${Date.now()}`;
 let resolveClientIdReady = null;
@@ -663,9 +721,27 @@ async function handleImageConversion(imageUrl, imageSize) {
 }
 
 // Handle extension icon click (when popup is not available)
-chrome.action.onClicked.addListener((tab) => {
-  console.log('Extension icon clicked, scanning page for profiles');
-  chrome.tabs.sendMessage(tab.id, {
-    action: "scanPageForProfiles"
-  });
+chrome.action.onClicked.addListener(async (tab) => {
+  console.log('Extension icon clicked, injecting content scripts and scanning page for profiles');
+  
+  try {
+    // Inject content scripts programmatically using activeTab permission
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['api-service.js', 'progress-overlay.js', 'content.js']
+    });
+    
+    // Inject CSS
+    await chrome.scripting.insertCSS({
+      target: { tabId: tab.id },
+      files: ['content.css']
+    });
+    
+    // Now send the message to scan for profiles
+    chrome.tabs.sendMessage(tab.id, {
+      action: "scanPageForProfiles"
+    });
+  } catch (error) {
+    console.error('Failed to inject content scripts:', error);
+  }
 });
