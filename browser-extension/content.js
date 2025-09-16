@@ -6,7 +6,7 @@ console.log('Content script initialization starting...');
 let api = null;
 let progressOverlay = null;
 let settingsService = null;
-let isDevMode = false; // Production mode
+// Production mode by default
 let isProcessing = false;
 let processingQueue = []; // Queue of images waiting to be processed
 window.processingQueue = processingQueue; // Make it globally accessible
@@ -227,7 +227,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   
   if (message.action === 'updateDevMode') {
-    isDevMode = message.devMode;
+    // Dev mode updated (no longer storing in variable)
     sendResponse({ success: true, message: 'Dev mode updated' });
     return false;
   }
@@ -424,8 +424,19 @@ function findProfileImages() {
   const seenUrls = new Set(); // Track URLs to prevent duplicates
   const seenElements = new Set(); // Track DOM elements to prevent duplicates
   
-  // Look for containers with "speakers" or "speaker" in class/id
-  const speakerContainers = document.querySelectorAll([
+  // Enhanced debugging for Netflix page
+  console.log('🔍 DEBUGGING: Starting profile image search...');
+  console.log('🔍 Current URL:', window.location.href);
+  
+  // Check for Netflix-specific patterns first
+  const netflixHeadshotImages = document.querySelectorAll('img[class*="headshot" i], img[class*="Headshot" i]');
+  console.log(`🔍 Found ${netflixHeadshotImages.length} images with "headshot" in class name`);
+  netflixHeadshotImages.forEach((img, index) => {
+    console.log(`   ${index + 1}. Class: "${img.className}" | Src: ${img.src}`);
+  });
+  
+  // Look for containers with profile-related keywords in class/id
+  const profileContainers = document.querySelectorAll([
     '[class*="speaker" i]',
     '[id*="speaker" i]',
     '[class*="profile" i]',
@@ -433,25 +444,31 @@ function findProfileImages() {
     '[class*="team" i]',
     '[id*="team" i]',
     '[class*="member" i]',
-    '[id*="member" i]'
+    '[id*="member" i]',
+    '[class*="management" i]',
+    '[id*="management" i]',
+    '[class*="leadership" i]',
+    '[id*="leadership" i]',
+    '[class*="headshot" i]',
+    '[id*="headshot" i]'
   ].join(', '));
   
-  console.log(`Found ${speakerContainers.length} potential speaker containers`);
-  
-  for (const container of speakerContainers) {
+  for (const container of profileContainers) {
     const images = container.querySelectorAll('img');
-    console.log(`Container has ${images.length} images`);
     
     for (const img of images) {
       // Skip if we've already seen this exact element
       if (seenElements.has(img)) {
-        console.log(`❌ Skipping duplicate DOM element: ${img.src}`);
         continue;
       }
       
       // Skip if we've already seen this URL
       if (seenUrls.has(img.src)) {
-        console.log(`❌ Skipping duplicate URL: ${img.src}`);
+        continue;
+      }
+
+      // Skip if this image has already been converted by our extension (extra check)
+      if (isAlreadyConvertedImage(img)) {
         continue;
       }
       
@@ -464,9 +481,42 @@ function findProfileImages() {
     }
   }
   
-  // If no speaker containers found, look for grid patterns
+  // If no profile containers found, look for direct headshot images (Netflix-style)
   if (profileImages.length === 0) {
-    console.log('No speaker containers found, looking for image grids...');
+    console.log('🔍 No profile containers found, looking for direct headshot images...');
+    const directHeadshotImages = document.querySelectorAll('img[class*="headshot" i], img[class*="Headshot" i]');
+    console.log(`🔍 Found ${directHeadshotImages.length} direct headshot images`);
+    
+    for (const img of directHeadshotImages) {
+      if (seenElements.has(img) || seenUrls.has(img.src)) {
+        continue;
+      }
+      
+      if (isAlreadyConvertedImage(img)) {
+        continue;
+      }
+      
+      // For headshot images, be more lenient with validation
+      const rect = img.getBoundingClientRect();
+      if (rect.width >= 50 && rect.height >= 50 && rect.width <= 800 && rect.height <= 800) {
+        const aspectRatio = rect.width / rect.height;
+        if (aspectRatio >= 0.5 && aspectRatio <= 2.0) { // More lenient aspect ratio for headshots
+          profileImages.push(img);
+          seenUrls.add(img.src);
+          seenElements.add(img);
+          console.log(`✅ Added direct headshot image: ${img.src}`);
+        } else {
+          console.log(`❌ Headshot aspect ratio rejected: ${aspectRatio.toFixed(2)}`);
+        }
+      } else {
+        console.log(`❌ Headshot size rejected: ${rect.width}x${rect.height}`);
+      }
+    }
+  }
+  
+  // If still no images found, look for grid patterns
+  if (profileImages.length === 0) {
+    console.log('🔍 No direct headshots found, looking for image grids...');
     profileImages.push(...findImageGrids());
   }
   
@@ -478,13 +528,83 @@ function findProfileImages() {
   return profileImages;
 }
 
+// Check if an image has already been converted by our extension
+function isAlreadyConvertedImage(img) {
+  // Method 1: Check if the image element has our conversion markers
+  if (img.dataset.originalUrl || img.dataset.transformedUrl) {
+    return true;
+  }
+
+  // Method 2: Check if the image is part of our comparison container
+  const parent = img.parentElement;
+  if (parent && parent.classList.contains('sogni-before-after-container')) {
+    return true;
+  }
+
+  // Method 3: Check if the image has our specific classes
+  if (img.classList.contains('sogni-before-image') || img.classList.contains('sogni-after-image')) {
+    return true;
+  }
+
+  // Method 4: Check if the image source contains our API domain patterns (converted images)
+  const src = img.src.toLowerCase();
+  if (src.includes('photobooth-api.sogni.ai') || 
+      src.includes('photobooth-api-local.sogni.ai') ||
+      src.includes('storage.googleapis.com') && src.includes('sogni')) {
+    return true;
+  }
+
+  // Method 5: Check if there's a comparison container nearby (sibling or parent)
+  let element = img;
+  for (let i = 0; i < 3; i++) { // Check up to 3 levels
+    if (element.parentElement) {
+      element = element.parentElement;
+      const comparisonContainer = element.querySelector('.sogni-before-after-container');
+      if (comparisonContainer) {
+        // Check if this image is related to the comparison container
+        const containerImages = comparisonContainer.querySelectorAll('img');
+        for (const containerImg of containerImages) {
+          if (containerImg === img) {
+            return true;
+          }
+        }
+      }
+    } else {
+      break;
+    }
+  }
+
+  // Method 6: Check if the image is hidden (our original images are hidden after conversion)
+  const computedStyle = window.getComputedStyle(img);
+  if (computedStyle.display === 'none' && img.dataset.originalUrl) {
+    return true;
+  }
+
+  return false;
+}
 
 // Check if an image looks like a profile photo
 function isProfileImage(img) {
-  // Skip if image is too small or too large (more restrictive)
+  console.log(`🔍 Checking image: ${img.src}`);
+  console.log(`🔍 Image class: "${img.className}"`);
+  
+  // Skip if this image has already been converted by our extension
+  if (isAlreadyConvertedImage(img)) {
+    console.log(`❌ Skipping already converted image: ${img.src}`);
+    return false;
+  }
+
+  // Skip if image is too small or too large (flexible sizing)
   const rect = img.getBoundingClientRect();
-  if (rect.width < 80 || rect.height < 80) return false; // Increased minimum size
-  if (rect.width > 400 || rect.height > 400) return false; // Decreased maximum size
+  console.log(`🔍 Image dimensions: ${rect.width}x${rect.height}`);
+  if (rect.width < 50 || rect.height < 50) {
+    console.log(`❌ Image too small: ${rect.width}x${rect.height}`);
+    return false;
+  }
+  if (rect.width > 800 || rect.height > 800) {
+    console.log(`❌ Image too large: ${rect.width}x${rect.height}`);
+    return false;
+  }
   
   // Skip if image is not visible
   if (rect.width === 0 || rect.height === 0) return false;
@@ -495,9 +615,13 @@ function isProfileImage(img) {
     return false;
   }
   
-  // STRICT aspect ratio check (profile photos should be more square)
+  // Flexible aspect ratio check (allow more variation for different sites)
   const aspectRatio = rect.width / rect.height;
-  if (aspectRatio < 0.7 || aspectRatio > 1.4) return false; // Much more restrictive
+  console.log(`🔍 Image aspect ratio: ${aspectRatio.toFixed(2)}`);
+  if (aspectRatio < 0.5 || aspectRatio > 2.0) {
+    console.log(`❌ Aspect ratio rejected: ${aspectRatio.toFixed(2)} (must be between 0.5 and 2.0)`);
+    return false; // More flexible for different sites
+  }
   
   // Check if image source looks like a profile photo
   const src = img.src.toLowerCase();
@@ -545,8 +669,24 @@ function isProfileImage(img) {
     depth++;
   }
   
-  // REQUIRE that the image is in a container that suggests it's a profile
-  // This is very restrictive - only accept images in likely profile contexts
+  // Check if the image itself has profile-related classes (Netflix-style)
+  const imgClass = img.className.toLowerCase();
+  const imgId = img.id.toLowerCase();
+  const directProfilePatterns = ['headshot', 'profile', 'avatar', 'portrait'];
+  
+  console.log(`🔍 Checking direct profile patterns in: "${imgClass}" "${imgId}"`);
+  const matchedPattern = directProfilePatterns.find(pattern => 
+    imgClass.includes(pattern) || imgId.includes(pattern)
+  );
+  
+  if (matchedPattern) {
+    console.log(`✅ Image has direct profile class (${matchedPattern}): ${imgClass} ${imgId}`);
+    return true;
+  } else {
+    console.log(`🔍 No direct profile patterns found in image class/id`);
+  }
+  
+  // Check for profile context but be more flexible
   let profileContext = false;
   parent = img.parentElement;
   depth = 0;
@@ -556,36 +696,105 @@ function isProfileImage(img) {
     
     const profileContextPatterns = [
       'speaker', 'profile', 'team', 'member', 'person', 'people',
-      'staff', 'employee', 'founder', 'executive', 'bio', 'about'
+      'staff', 'employee', 'founder', 'executive', 'bio', 'about',
+      'management', 'leadership', 'headshot', 'leader', 'director'
     ];
     
     if (profileContextPatterns.some(pattern => 
       parentClass.includes(pattern) || parentId.includes(pattern)
     )) {
       profileContext = true;
-      console.log(`Image found in profile context: ${parentClass} ${parentId}`);
+      console.log(`✅ Image found in profile context: ${parentClass} ${parentId}`);
       break;
     }
     parent = parent.parentElement;
     depth++;
   }
   
-  // Only return true if we found a profile context
-  return profileContext;
+  if (profileContext) {
+    return true;
+  }
+  
+  // If no explicit profile context found, check if this looks like a profile image grid
+  // by looking for multiple similar-sized images in the same container or nearby containers
+  const parentContainer = img.parentElement;
+  if (parentContainer) {
+    const siblingImages = Array.from(parentContainer.querySelectorAll('img')).filter(siblingImg => {
+      if (siblingImg === img || isAlreadyConvertedImage(siblingImg)) return false;
+      
+      const siblingRect = siblingImg.getBoundingClientRect();
+      const sizeDiff = Math.abs(siblingRect.width - rect.width) + Math.abs(siblingRect.height - rect.height);
+      
+      // Consider images similar if they're within 100px of each other in total size difference
+      return sizeDiff < 200 && siblingRect.width > 0 && siblingRect.height > 0;
+    });
+    
+    console.log(`🔍 Found ${siblingImages.length} similar-sized sibling images in container`);
+    
+    // If there are similar-sized images, likely a profile grid
+    if (siblingImages.length >= 1) {
+      console.log(`✅ Image appears to be in a grid of ${siblingImages.length + 1} similar images`);
+      return true;
+    }
+    
+    // Also check parent's parent for a broader search (sometimes images are in nested containers)
+    const grandparentContainer = parentContainer.parentElement;
+    if (grandparentContainer) {
+      const cousinImages = Array.from(grandparentContainer.querySelectorAll('img')).filter(cousinImg => {
+        if (cousinImg === img || isAlreadyConvertedImage(cousinImg)) return false;
+        
+        const cousinRect = cousinImg.getBoundingClientRect();
+        const sizeDiff = Math.abs(cousinRect.width - rect.width) + Math.abs(cousinRect.height - rect.height);
+        
+        return sizeDiff < 200 && cousinRect.width > 0 && cousinRect.height > 0;
+      });
+      
+      console.log(`🔍 Found ${cousinImages.length} similar-sized images in grandparent container`);
+      
+      if (cousinImages.length >= 2) {
+        console.log(`✅ Image appears to be in a broader grid of ${cousinImages.length + 1} similar images`);
+        return true;
+      }
+    }
+  }
+  
+  console.log(`❌ No profile context or image grid detected`);
+  return false;
 }
 
 // Find image grids (fallback method)
 function findImageGrids() {
-  const gridImages = [];
   const allImages = document.querySelectorAll('img');
   
-  // Group images by similar size and position
+  // Group images by similar size and position using basic validation
   const imageGroups = new Map();
   
   for (const img of allImages) {
-    if (!isProfileImage(img)) continue;
+    // Use basic validation to avoid circular dependency
+    if (isAlreadyConvertedImage(img)) continue;
     
     const rect = img.getBoundingClientRect();
+    
+    // Basic size and visibility checks
+    if (rect.width < 50 || rect.height < 50) continue;
+    if (rect.width > 800 || rect.height > 800) continue;
+    if (rect.width === 0 || rect.height === 0) continue;
+    
+    // Basic aspect ratio check
+    const aspectRatio = rect.width / rect.height;
+    if (aspectRatio < 0.5 || aspectRatio > 2.0) continue;
+    
+    // Check if image is hidden
+    const style = window.getComputedStyle(img);
+    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') continue;
+    
+    // Skip obvious non-profile images
+    const src = img.src.toLowerCase();
+    if (src.includes('logo') || src.includes('icon') || src.includes('banner')) continue;
+    
+    const alt = img.alt.toLowerCase();
+    if (alt.includes('logo') || alt.includes('icon') || alt.includes('banner')) continue;
+    
     const sizeKey = `${Math.round(rect.width / 50) * 50}x${Math.round(rect.height / 50) * 50}`;
     
     if (!imageGroups.has(sizeKey)) {
@@ -602,6 +811,7 @@ function findImageGrids() {
     }
   }
   
+  console.log(`🔍 Grid detection found ${largestGroup.length} images in largest group`);
   return largestGroup;
 }
 
@@ -623,7 +833,7 @@ async function processImagesBatch(images) {
   try {
     // Process images continuously - assign next image to available slot
     await new Promise((resolve) => {
-      const processNextImage = async (slotIndex) => {
+      const processNextImage = async () => {
         while (processingQueue.length > 0) {
           const img = processingQueue.shift(); // Remove from queue as we start processing
           const imageIndex = images.indexOf(img);
@@ -631,7 +841,7 @@ async function processImagesBatch(images) {
           // Processing image ${imageIndex + 1}/${images.length}
           
           try {
-            const result = await convertImageWithDefaultStyle(img);
+            await convertImageWithDefaultStyle(img);
             successCount++;
             // Image converted successfully
           } catch (error) {
@@ -654,7 +864,7 @@ async function processImagesBatch(images) {
       
       // Start processing in all slots
       for (let i = 0; i < MAX_CONCURRENT_CONVERSIONS; i++) {
-        processNextImage(i);
+        processNextImage();
       }
     });
     
@@ -858,7 +1068,9 @@ async function replaceImageWithHoverComparison(originalImage, pirateImageUrl) {
       
       // Create Before/After comparison container
       const comparisonContainer = document.createElement('div');
-      comparisonContainer.className = 'sogni-before-after-container';
+      // Copy original image's class and add our own
+      comparisonContainer.className = `sogni-before-after-container ${originalImage.className}`;
+      console.log('🎯 Container classes:', comparisonContainer.className);
       
       // Create two image elements for comparison
       const beforeImg = document.createElement('img');
@@ -892,6 +1104,15 @@ async function replaceImageWithHoverComparison(originalImage, pirateImageUrl) {
       // Analyze original image sizing to determine best approach
       const originalComputedStyle = window.getComputedStyle(originalImage);
       const shouldUsePercentageSizing = detectResponsiveImageSizing(originalImage, originalComputedStyle);
+      
+      console.log('🎯 Image replacement analysis:', {
+        shouldUsePercentageSizing,
+        originalClass: originalImage.className,
+        parentClass: originalImage.parentElement?.className,
+        originalDimensions: `${originalRect.width}x${originalRect.height}`,
+        computedWidth: originalComputedStyle.width,
+        computedHeight: originalComputedStyle.height
+      });
       
       // Style the container to match original image
       let containerStyle;
@@ -931,6 +1152,11 @@ async function replaceImageWithHoverComparison(originalImage, pirateImageUrl) {
           overflow: hidden;
           cursor: ew-resize;
           border-radius: ${originalComputedStyle.borderRadius || '0'};
+          display: ${originalComputedStyle.display || 'block'};
+          margin: ${originalComputedStyle.margin || '0'};
+          padding: ${originalComputedStyle.padding || '0'};
+          box-sizing: ${originalComputedStyle.boxSizing || 'content-box'};
+          vertical-align: ${originalComputedStyle.verticalAlign || 'baseline'};
         `;
       }
       comparisonContainer.style.cssText = containerStyle;
@@ -975,16 +1201,34 @@ async function replaceImageWithHoverComparison(originalImage, pirateImageUrl) {
         </svg>
       `;
       downloadIcon.className = 'sogni-download-icon';
+
+      // Create regenerate icon positioned next to download icon
+      const regenerateIcon = document.createElement('div');
+      regenerateIcon.innerHTML = `
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M1 4V10H7" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M23 20V14H17" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10M23 14L18.36 18.36A9 9 0 0 1 3.51 15" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      `;
+      regenerateIcon.className = 'sogni-regenerate-icon';
+      regenerateIcon.title = 'Regenerate this image';
       
-      // Position download icon relative to viewport to avoid mask clipping
-      const updateDownloadPosition = () => {
+      // Position icons relative to viewport to avoid mask clipping
+      const updateIconPositions = () => {
         const containerRect = comparisonContainer.getBoundingClientRect();
-        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-        const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+        // const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        // const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
         
+        // Position download icon (rightmost)
         downloadIcon.style.position = 'fixed';
         downloadIcon.style.top = `${containerRect.top + 10}px`;
         downloadIcon.style.left = `${containerRect.right - 42}px`; // 32px width + 10px margin
+        
+        // Position regenerate icon (left of download icon)
+        regenerateIcon.style.position = 'fixed';
+        regenerateIcon.style.top = `${containerRect.top + 10}px`;
+        regenerateIcon.style.left = `${containerRect.right - 84}px`; // 32px width + 10px margin + 32px for download + 10px spacing
       };
       
       downloadIcon.style.cssText = `
@@ -1002,21 +1246,133 @@ async function replaceImageWithHoverComparison(originalImage, pirateImageUrl) {
         z-index: 999999;
         pointer-events: auto;
       `;
+
+      regenerateIcon.style.cssText = `
+        position: fixed;
+        width: 32px;
+        height: 32px;
+        background: rgba(0, 0, 0, 0.7);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        opacity: 0.8;
+        transition: opacity 0.3s ease, background-color 0.2s ease;
+        z-index: 999999;
+        pointer-events: auto;
+      `;
       
-      // Set initial position
-      updateDownloadPosition();
+      // Set initial positions
+      updateIconPositions();
       
-      // Assemble the comparison widget (download icon added to body separately)
+      // Assemble the comparison widget (icons added to body separately)
       comparisonContainer.appendChild(beforeImg);
       comparisonContainer.appendChild(afterImg);
       comparisonContainer.appendChild(scrubberLine);
       
-      // Add download icon to body to avoid mask clipping
+      // Add icons to body to avoid mask clipping
       document.body.appendChild(downloadIcon);
+      document.body.appendChild(regenerateIcon);
+      
+      // Copy additional important styles from original image to container
+      const additionalStyles = [
+        'margin', 'marginTop', 'marginRight', 'marginBottom', 'marginLeft',
+        'padding', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+        'transform', 'transformOrigin', 'transition',
+        'zIndex', 'opacity', 'visibility',
+        'gridColumn', 'gridRow', 'gridArea',
+        'alignSelf', 'justifySelf',
+        'float', 'clear'
+      ];
+      
+      additionalStyles.forEach(prop => {
+        const value = originalComputedStyle[prop];
+        if (value && value !== 'auto' && value !== 'none' && value !== 'normal') {
+          comparisonContainer.style[prop] = value;
+        }
+      });
+      
+      // Ensure container is visible and has proper display
+      comparisonContainer.style.visibility = 'visible';
+      comparisonContainer.style.opacity = '1';
+      
+      console.log('🎯 Replacement container styles applied:', {
+        width: comparisonContainer.style.width,
+        height: comparisonContainer.style.height,
+        display: comparisonContainer.style.display,
+        position: comparisonContainer.style.position,
+        visibility: comparisonContainer.style.visibility,
+        opacity: comparisonContainer.style.opacity
+      });
       
       // Replace original image with comparison container
       originalImage.parentNode.insertBefore(comparisonContainer, originalImage);
       originalImage.style.display = 'none';
+      
+      // Double-check that container is visible after insertion
+      setTimeout(() => {
+        const containerRect = comparisonContainer.getBoundingClientRect();
+        console.log('🎯 Container after insertion:', {
+          visible: containerRect.width > 0 && containerRect.height > 0,
+          dimensions: `${containerRect.width}x${containerRect.height}`,
+          position: `${containerRect.x}, ${containerRect.y}`,
+          computedDisplay: window.getComputedStyle(comparisonContainer).display,
+          computedVisibility: window.getComputedStyle(comparisonContainer).visibility,
+          computedOpacity: window.getComputedStyle(comparisonContainer).opacity
+        });
+        
+        if (containerRect.width === 0 || containerRect.height === 0) {
+          console.error('❌ Container has zero dimensions after insertion!');
+          console.error('❌ Attempting emergency fixes...');
+          
+          // Emergency fix: Force dimensions and display
+          comparisonContainer.style.cssText = `
+            position: relative !important;
+            width: ${originalRect.width}px !important;
+            height: ${originalRect.height}px !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            overflow: hidden !important;
+            cursor: ew-resize !important;
+            min-width: ${originalRect.width}px !important;
+            min-height: ${originalRect.height}px !important;
+            max-width: none !important;
+            max-height: none !important;
+            margin: ${originalComputedStyle.margin} !important;
+            padding: ${originalComputedStyle.padding} !important;
+            border-radius: ${originalComputedStyle.borderRadius || '0'} !important;
+          `;
+          
+          // Also ensure the images inside are properly sized
+          beforeImg.style.cssText = `
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+          `;
+          
+          afterImg.style.cssText = `
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+          `;
+          
+          console.log('🎯 Emergency fixes applied');
+        }
+      }, 100);
       
       // Mouse interaction for scrubber
       let isActive = false;
@@ -1033,8 +1389,8 @@ async function replaceImageWithHoverComparison(originalImage, pirateImageUrl) {
         scrubberLine.style.left = `${percentage}%`;
       };
       
-      // Add scroll and resize listeners to keep download button positioned correctly
-      const updatePositionHandler = () => updateDownloadPosition();
+      // Add scroll and resize listeners to keep icons positioned correctly
+      const updatePositionHandler = () => updateIconPositions();
       window.addEventListener('scroll', updatePositionHandler);
       window.addEventListener('resize', updatePositionHandler);
       
@@ -1043,18 +1399,20 @@ async function replaceImageWithHoverComparison(originalImage, pirateImageUrl) {
         isActive = true;
         scrubberLine.style.opacity = '1';
         downloadIcon.style.opacity = '1';
+        regenerateIcon.style.opacity = '1';
         comparisonContainer.style.boxShadow = '0 0 0 2px rgba(255,255,255,0.5)';
         // Start with 50/50 split when entering
         afterImg.style.clipPath = 'inset(0 50% 0 0)';
         scrubberLine.style.left = '50%';
-        // Update download position when hovering
-        updateDownloadPosition();
+        // Update icon positions when hovering
+        updateIconPositions();
       });
       
       comparisonContainer.addEventListener('mouseleave', () => {
         isActive = false;
         scrubberLine.style.opacity = '0';
-        downloadIcon.style.opacity = '0.8'; // Keep download button visible but dimmed
+        downloadIcon.style.opacity = '0.8'; // Keep icons visible but dimmed
+        regenerateIcon.style.opacity = '0.8';
         comparisonContainer.style.boxShadow = 'none';
         // Show full transformed image when not hovering
         afterImg.style.clipPath = 'inset(0 0% 0 0)';
@@ -1085,10 +1443,148 @@ async function replaceImageWithHoverComparison(originalImage, pirateImageUrl) {
       downloadIcon.addEventListener('mouseleave', () => {
         downloadIcon.style.background = 'rgba(0, 0, 0, 0.7)';
       });
+
+      // Regenerate functionality
+      regenerateIcon.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+          // Get the original image element and its stored data
+          const originalImageElement = originalImage;
+          const originalUrl = originalImageElement.dataset.originalUrl;
+          
+          if (!originalUrl) {
+            console.error('No original URL found for regeneration');
+            return;
+          }
+
+          // Determine which style to use for regeneration
+          let styleKey = null;
+          let stylePrompt = null;
+          
+          // Check if we have stored style information from the last conversion
+          if (userSettings.lastUsedStyle && userSettings.lastUsedStylePrompt) {
+            styleKey = userSettings.lastUsedStyle;
+            stylePrompt = userSettings.lastUsedStylePrompt;
+          }
+
+          console.log('Regenerating image with style:', styleKey || 'default pirate');
+          
+          // Show loading state on regenerate icon
+          regenerateIcon.style.background = 'rgba(59, 130, 246, 0.9)';
+          regenerateIcon.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="10" stroke="white" stroke-width="2" stroke-dasharray="31.416" stroke-dashoffset="31.416">
+                <animate attributeName="stroke-dashoffset" dur="2s" values="31.416;0" repeatCount="indefinite"/>
+              </circle>
+            </svg>
+          `;
+
+          // Perform the regeneration
+          let result;
+          if (styleKey && stylePrompt) {
+            // Use custom style
+            result = await new Promise((resolve, reject) => {
+              chrome.runtime.sendMessage({
+                action: 'convertImageWithStyle',
+                imageUrl: originalUrl,
+                styleKey: styleKey,
+                stylePrompt: stylePrompt,
+                imageSize: {
+                  width: originalImageElement.naturalWidth || originalImageElement.width,
+                  height: originalImageElement.naturalHeight || originalImageElement.height
+                }
+              }, (response) => {
+                if (chrome.runtime.lastError) {
+                  reject(new Error(`Runtime error: ${chrome.runtime.lastError.message}`));
+                } else if (response && response.success) {
+                  resolve(response.result);
+                } else {
+                  reject(new Error(response?.error || 'Unknown error from background script'));
+                }
+              });
+            });
+          } else {
+            // Use default pirate style
+            result = await new Promise((resolve, reject) => {
+              chrome.runtime.sendMessage({
+                action: 'convertImage',
+                imageUrl: originalUrl,
+                imageSize: {
+                  width: originalImageElement.naturalWidth || originalImageElement.width,
+                  height: originalImageElement.naturalHeight || originalImageElement.height
+                }
+              }, (response) => {
+                if (chrome.runtime.lastError) {
+                  reject(new Error(`Runtime error: ${chrome.runtime.lastError.message}`));
+                } else if (response && response.success) {
+                  resolve(response.result);
+                } else {
+                  reject(new Error(response?.error || 'Unknown error from background script'));
+                }
+              });
+            });
+          }
+
+          // Update the after image with the new result
+          const newImageUrl = result.convertedImageUrl || result.transformedImageUrl || result.pirateImageUrl;
+          if (newImageUrl) {
+            afterImg.src = newImageUrl;
+            // Update stored transformed URL
+            originalImageElement.dataset.transformedUrl = newImageUrl;
+            console.log('Image regenerated successfully');
+          }
+
+          // Reset regenerate icon
+          regenerateIcon.style.background = 'rgba(0, 0, 0, 0.7)';
+          regenerateIcon.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M1 4V10H7" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M23 20V14H17" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10M23 14L18.36 18.36A9 9 0 0 1 3.51 15" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          `;
+
+        } catch (error) {
+          console.error('Regeneration failed:', error);
+          
+          // Reset regenerate icon to error state briefly
+          regenerateIcon.style.background = 'rgba(220, 38, 38, 0.9)';
+          regenerateIcon.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="10" stroke="white" stroke-width="2"/>
+              <line x1="15" y1="9" x2="9" y2="15" stroke="white" stroke-width="2"/>
+              <line x1="9" y1="9" x2="15" y2="15" stroke="white" stroke-width="2"/>
+            </svg>
+          `;
+          
+          setTimeout(() => {
+            regenerateIcon.style.background = 'rgba(0, 0, 0, 0.7)';
+            regenerateIcon.innerHTML = `
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 4V10H7" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M23 20V14H17" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10M23 14L18.36 18.36A9 9 0 0 1 3.51 15" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            `;
+          }, 2000);
+        }
+      });
+      
+      regenerateIcon.addEventListener('mouseenter', () => {
+        regenerateIcon.style.background = 'rgba(0, 0, 0, 0.9)';
+      });
+      
+      regenerateIcon.addEventListener('mouseleave', () => {
+        regenerateIcon.style.background = 'rgba(0, 0, 0, 0.7)';
+      });
       
       // Clean up existing elements if they exist
       if (originalImage._downloadIcon && originalImage._downloadIcon.parentNode) {
         originalImage._downloadIcon.parentNode.removeChild(originalImage._downloadIcon);
+      }
+      if (originalImage._regenerateIcon && originalImage._regenerateIcon.parentNode) {
+        originalImage._regenerateIcon.parentNode.removeChild(originalImage._regenerateIcon);
       }
       if (originalImage._updatePositionHandler) {
         window.removeEventListener('scroll', originalImage._updatePositionHandler);
@@ -1098,6 +1594,7 @@ async function replaceImageWithHoverComparison(originalImage, pirateImageUrl) {
       // Store references for cleanup
       originalImage._comparisonContainer = comparisonContainer;
       originalImage._downloadIcon = downloadIcon;
+      originalImage._regenerateIcon = regenerateIcon;
       originalImage._updatePositionHandler = updatePositionHandler;
       
       resolve();
@@ -1112,9 +1609,9 @@ async function replaceImageWithHoverComparison(originalImage, pirateImageUrl) {
 }
 
 // Legacy function for compatibility (if needed elsewhere)
-async function replaceImageOnPage(originalImage, newImageUrl) {
-  return replaceImageWithHoverComparison(originalImage, newImageUrl);
-}
+// async function replaceImageOnPage(originalImage, newImageUrl) {
+//   return replaceImageWithHoverComparison(originalImage, newImageUrl);
+// }
 
 // Add style selector icon to the page
 // Animation variables removed - no longer needed
@@ -1588,7 +2085,7 @@ async function processImagesBatchWithStyle(images, styleKey, stylePrompt) {
   try {
     // Process images continuously - assign next image to available slot
     await new Promise((resolve) => {
-      const processNextImage = async (slotIndex) => {
+      const processNextImage = async () => {
         while (processingQueue.length > 0) {
           const img = processingQueue.shift(); // Remove from queue as we start processing
           const imageIndex = images.indexOf(img);
@@ -1596,7 +2093,7 @@ async function processImagesBatchWithStyle(images, styleKey, stylePrompt) {
           // Processing image with style
           
           try {
-            const result = await convertImageWithStyle(img, styleKey, stylePrompt);
+            await convertImageWithStyle(img, styleKey, stylePrompt);
             successCount++;
             // Image converted successfully
           } catch (error) {
@@ -1618,7 +2115,7 @@ async function processImagesBatchWithStyle(images, styleKey, stylePrompt) {
       
       // Start processing in all slots
       for (let i = 0; i < MAX_CONCURRENT_CONVERSIONS; i++) {
-        processNextImage(i);
+        processNextImage();
       }
     });
     
