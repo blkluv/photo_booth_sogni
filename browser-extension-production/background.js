@@ -358,6 +358,66 @@ class SSEConnectionManager {
 // Global SSE connection manager instance
 const sseManager = new SSEConnectionManager();
 
+// Helper function to convert AVIF to JPEG
+async function convertAvifToJpeg(imageBlob) {
+  try {
+    // Use createImageBitmap instead of Image constructor (works in service workers)
+    const imageBitmap = await createImageBitmap(imageBlob);
+    const canvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
+    const ctx = canvas.getContext('2d');
+
+    // Draw the AVIF image to canvas
+    ctx.drawImage(imageBitmap, 0, 0);
+
+    // Convert to JPEG blob
+    const jpegBlob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 });
+    console.log(`Background: AVIF converted to JPEG: ${imageBlob.size} bytes -> ${jpegBlob.size} bytes`);
+    
+    // Clean up
+    imageBitmap.close();
+    
+    return jpegBlob;
+  } catch (error) {
+    throw new Error('Failed to convert AVIF to JPEG: ' + error.message);
+  }
+}
+
+// Helper function to resize images
+async function resizeImage(imageBlob, maxSize = 1080) {
+  try {
+    // Use createImageBitmap instead of Image constructor (works in service workers)
+    const imageBitmap = await createImageBitmap(imageBlob);
+    let { width, height } = imageBitmap;
+
+    // Calculate new dimensions maintaining aspect ratio
+    if (width > maxSize || height > maxSize) {
+      if (width > height) {
+        height = (height * maxSize) / width;
+        width = maxSize;
+      } else {
+        width = (width * maxSize) / height;
+        height = maxSize;
+      }
+    }
+
+    const canvas = new OffscreenCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+
+    // Draw and resize
+    ctx.drawImage(imageBitmap, 0, 0, width, height);
+
+    // Always output as JPEG for consistency
+    const resizedBlob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 });
+    
+    // Clean up
+    imageBitmap.close();
+    
+    return resizedBlob;
+  } catch (error) {
+    throw new Error('Failed to resize image: ' + error.message);
+  }
+}
+
 // Helper function to inject content scripts (using activeTab permission)
 async function injectContentScripts(tabId) {
   console.log('Background: Injecting content scripts into tab:', tabId);
@@ -585,13 +645,22 @@ async function handleImageConversionWithStyle(imageUrl, imageSize, styleKey, sty
     }
     
     const imageBlob = await imageResponse.blob();
-    console.log('Background: Image fetched, size:', imageBlob.size);
+    console.log('Background: Image fetched, size:', imageBlob.size, 'type:', imageBlob.type);
     
-    // Resize if needed (simple check)
-    let finalBlob = imageBlob;
+    // Convert AVIF to JPEG if needed
+    let processedBlob = imageBlob;
+    if (imageBlob.type.includes('avif')) {
+      console.log('Background: Converting AVIF to JPEG...');
+      processedBlob = await convertAvifToJpeg(imageBlob);
+      console.log('Background: AVIF converted to JPEG, new size:', processedBlob.size);
+    }
+    
+    // Resize if needed
+    let finalBlob = processedBlob;
     if (imageSize && (imageSize.width > 1080 || imageSize.height > 1080)) {
-      // For now, just use original - we can add canvas resizing later if needed
-      console.log('Background: Image is large, but using original for now');
+      console.log('Background: Image is large, resizing...');
+      finalBlob = await resizeImage(processedBlob, 1080);
+      console.log('Background: Image resized, new size:', finalBlob.size);
     }
     
     // Convert with custom style using image data directly
@@ -686,13 +755,22 @@ async function handleImageConversion(imageUrl, imageSize) {
     }
     
     const imageBlob = await imageResponse.blob();
-    console.log('Background: Image fetched, size:', imageBlob.size);
+    console.log('Background: Image fetched, size:', imageBlob.size, 'type:', imageBlob.type);
     
-    // Resize if needed (simple check)
-    let finalBlob = imageBlob;
+    // Convert AVIF to JPEG if needed
+    let processedBlob = imageBlob;
+    if (imageBlob.type.includes('avif')) {
+      console.log('Background: Converting AVIF to JPEG...');
+      processedBlob = await convertAvifToJpeg(imageBlob);
+      console.log('Background: AVIF converted to JPEG, new size:', processedBlob.size);
+    }
+    
+    // Resize if needed
+    let finalBlob = processedBlob;
     if (imageSize && (imageSize.width > 1080 || imageSize.height > 1080)) {
-      // For now, just use original - we can add canvas resizing later if needed
-      console.log('Background: Image is large, but using original for now');
+      console.log('Background: Image is large, resizing...');
+      finalBlob = await resizeImage(processedBlob, 1080);
+      console.log('Background: Image resized, new size:', finalBlob.size);
     }
     
     // Convert to pirate using image data directly (no upload needed like main app)

@@ -17,6 +17,25 @@
       </div>
     </div>
     
+    <!-- Debug Settings -->
+    <div class="debug-section">
+      <h3>Debug Settings</h3>
+      
+      <div class="debug-setting">
+        <label for="max-images">Max Images Per Page:</label>
+        <input type="number" id="max-images" min="1" max="100" value="32">
+      </div>
+      
+      <div class="debug-setting">
+        <label for="max-concurrent">Max Concurrent Workers:</label>
+        <input type="number" id="max-concurrent" min="1" max="16" value="8">
+      </div>
+      
+      <div class="debug-setting">
+        <button id="save-debug-settings" class="debug-button">Save Settings</button>
+      </div>
+    </div>
+
     <!-- Dev mode toggle for local development -->
     <div class="dev-mode-section">
       <label class="dev-mode-label">

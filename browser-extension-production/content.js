@@ -7,8 +7,8 @@ let api = null;
 let progressOverlay = null;
 let isDevMode = false; // Production mode
 let isProcessing = false;
-const MAX_CONCURRENT_CONVERSIONS = 8; // Increased concurrency with continuous slot assignment
-const MAX_IMAGES_PER_PAGE = 32; // Configurable limit for images processed per page
+let MAX_CONCURRENT_CONVERSIONS = 8; // Configurable concurrency
+let MAX_IMAGES_PER_PAGE = 32; // Configurable limit for images processed per page
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
@@ -32,6 +32,21 @@ async function initialize() {
       console.error('ProgressOverlay class not found. Retrying in 100ms...');
       setTimeout(initialize, 100);
       return;
+    }
+    
+    // Load debug settings
+    try {
+      const result = await new Promise((resolve) => {
+        chrome.storage.local.get(['debugSettings'], resolve);
+      });
+      
+      if (result.debugSettings) {
+        MAX_CONCURRENT_CONVERSIONS = result.debugSettings.maxConcurrent;
+        MAX_IMAGES_PER_PAGE = result.debugSettings.maxImages;
+        console.log('Debug settings loaded:', { MAX_CONCURRENT_CONVERSIONS, MAX_IMAGES_PER_PAGE });
+      }
+    } catch (error) {
+      console.log('Could not load debug settings, using defaults');
     }
     
     // Initialize API and progress overlay
@@ -124,6 +139,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'updateDevMode') {
     isDevMode = message.devMode;
     sendResponse({ success: true, message: 'Dev mode updated' });
+    return false;
+  }
+  
+  if (message.action === 'updateDebugSettings') {
+    const { debugSettings } = message;
+    MAX_CONCURRENT_CONVERSIONS = debugSettings.maxConcurrent;
+    MAX_IMAGES_PER_PAGE = debugSettings.maxImages;
+    console.log('Debug settings updated:', { MAX_CONCURRENT_CONVERSIONS, MAX_IMAGES_PER_PAGE });
+    sendResponse({ success: true, message: 'Debug settings updated' });
     return false;
   } else if (message.action === 'convertSingleImage') {
     handleConvertSingleImage(message.imageUrl)
@@ -320,10 +344,10 @@ function findProfileImages() {
 
 // Check if an image looks like a profile photo
 function isProfileImage(img) {
-  // Skip if image is too small or too large
+  // Skip if image is too small or too large (more restrictive)
   const rect = img.getBoundingClientRect();
-  if (rect.width < 50 || rect.height < 50) return false;
-  if (rect.width > 800 || rect.height > 800) return false;
+  if (rect.width < 80 || rect.height < 80) return false; // Increased minimum size
+  if (rect.width > 400 || rect.height > 400) return false; // Decreased maximum size
   
   // Skip if image is not visible
   if (rect.width === 0 || rect.height === 0) return false;
@@ -334,9 +358,9 @@ function isProfileImage(img) {
     return false;
   }
   
-  // Check aspect ratio (profile photos are usually square-ish)
+  // STRICT aspect ratio check (profile photos should be more square)
   const aspectRatio = rect.width / rect.height;
-  if (aspectRatio < 0.5 || aspectRatio > 2) return false;
+  if (aspectRatio < 0.7 || aspectRatio > 1.4) return false; // Much more restrictive
   
   // Check if image source looks like a profile photo
   const src = img.src.toLowerCase();
@@ -350,7 +374,62 @@ function isProfileImage(img) {
     return false;
   }
   
-  return true;
+  // Additional checks for common non-profile image patterns
+  if (src.includes('background') || src.includes('bg-') || src.includes('decoration')) {
+    return false;
+  }
+  
+  // Check for background images and other decorative elements
+  if (alt.includes('background') || alt.includes('decoration') || alt.includes('hero')) {
+    return false;
+  }
+  
+  // Check if image is used as CSS background (common pattern)
+  const computedStyle = window.getComputedStyle(img);
+  if (computedStyle.position === 'absolute' && (computedStyle.zIndex === '-1' || parseInt(computedStyle.zIndex) < 0)) {
+    return false; // Likely a background image
+  }
+  
+  // Check parent elements for background/hero/decoration classes
+  let parent = img.parentElement;
+  let depth = 0;
+  while (parent && depth < 3) { // Check up to 3 levels up
+    const parentClass = parent.className.toLowerCase();
+    if (parentClass.includes('background') || parentClass.includes('hero') || 
+        parentClass.includes('banner') || parentClass.includes('decoration')) {
+      return false;
+    }
+    parent = parent.parentElement;
+    depth++;
+  }
+  
+  // REQUIRE that the image is in a container that suggests it's a profile
+  // This is very restrictive - only accept images in likely profile contexts
+  let profileContext = false;
+  parent = img.parentElement;
+  depth = 0;
+  while (parent && depth < 5) {
+    const parentClass = parent.className.toLowerCase();
+    const parentId = parent.id.toLowerCase();
+    
+    const profileContextPatterns = [
+      'speaker', 'profile', 'team', 'member', 'person', 'people',
+      'staff', 'employee', 'founder', 'executive', 'bio', 'about'
+    ];
+    
+    if (profileContextPatterns.some(pattern => 
+      parentClass.includes(pattern) || parentId.includes(pattern)
+    )) {
+      profileContext = true;
+      console.log(`Image found in profile context: ${parentClass} ${parentId}`);
+      break;
+    }
+    parent = parent.parentElement;
+    depth++;
+  }
+  
+  // Only return true if we found a profile context
+  return profileContext;
 }
 
 // Find image grids (fallback method)
@@ -1010,10 +1089,17 @@ async function openStyleExplorer() {
   // Add error handling for iframe loading
   iframe.onerror = function() {
     console.error('Failed to load Style Explorer iframe');
-    // If we were trying localhost and it failed, try production
-    if (baseUrl.includes('localhost')) {
-      console.log('Localhost failed, attempting production fallback...');
-      iframe.src = `https://photobooth.sogni.ai/?${params.toString()}`;
+    // NEVER fallback to production in dev mode - fail explicitly
+    if (baseUrl.includes('localhost') || baseUrl.includes('local')) {
+      console.error('❌ LOCAL DEVELOPMENT SERVER FAILED - NOT FALLING BACK TO PRODUCTION');
+      console.error('Please ensure your local development server is running');
+      
+      // Notify popup about the error
+      try {
+        chrome.runtime.sendMessage({ action: 'styleExplorerFailed', error: 'Local development server not available' });
+      } catch (notifyError) {
+        console.error('Failed to notify popup about local server error:', notifyError);
+      }
     }
   };
   

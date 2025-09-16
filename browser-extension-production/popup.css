@@ -402,6 +402,60 @@ body {
   100% { transform: rotate(360deg); }
 }
 
+/* Debug Section */
+.debug-section {
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(0, 122, 204, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 122, 204, 0.2);
+}
+
+.debug-section h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #374151;
+}
+
+.debug-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.debug-setting label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #555;
+}
+
+.debug-setting input[type="number"] {
+  width: 60px;
+  padding: 4px 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.debug-button {
+  background: #007acc;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 500;
+  width: 100%;
+}
+
+.debug-button:hover {
+  background: #005a9e;
+}
+
 /* Dev Mode Section */
 .dev-mode-section {
   margin-top: 16px;

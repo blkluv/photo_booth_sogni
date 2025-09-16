@@ -59,11 +59,13 @@ class PhotoboothAPI {
           return this.localApiUrl;
         }
       } catch (error) {
-        console.log('Local API not available, falling back to production');
+        console.error('❌ LOCAL API NOT AVAILABLE - NOT FALLING BACK TO PRODUCTION');
+        console.error('Please ensure your local API server is running at:', this.localApiUrl);
+        throw new Error('Local development API server not available');
       }
     }
 
-    // Use production API
+    // Use production API only if not in dev mode
     console.log('Using production API:', this.productionApiUrl);
     this.apiBaseUrl = this.productionApiUrl;
     return this.productionApiUrl;
@@ -227,6 +229,46 @@ class PhotoboothAPI {
     return finalResult;
   }
 
+  // Convert AVIF to JPEG if needed
+  async convertAvifToJpegIfNeeded(imageBlob) {
+    // Check if the image is AVIF format
+    if (!imageBlob.type.includes('avif')) {
+      return imageBlob; // Not AVIF, return as-is
+    }
+
+    console.log('Converting AVIF image to JPEG...');
+    
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      img.onload = () => {
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+
+        // Draw the AVIF image to canvas
+        ctx.drawImage(img, 0, 0);
+
+        // Convert to JPEG blob
+        canvas.toBlob((jpegBlob) => {
+          if (jpegBlob) {
+            console.log(`AVIF converted to JPEG: ${imageBlob.size} bytes -> ${jpegBlob.size} bytes`);
+            resolve(jpegBlob);
+          } else {
+            reject(new Error('Failed to convert AVIF to JPEG'));
+          }
+        }, 'image/jpeg', 0.9); // 90% quality JPEG
+      };
+
+      img.onerror = () => {
+        reject(new Error('Failed to load AVIF image for conversion'));
+      };
+
+      img.src = URL.createObjectURL(imageBlob);
+    });
+  }
+
   // Resize image if it's too large
   async resizeImageIfNeeded(imageBlob, maxSize = 1080) {
     return new Promise((resolve) => {
@@ -258,9 +300,10 @@ class PhotoboothAPI {
         // Draw and resize
         ctx.drawImage(img, 0, 0, width, height);
 
+        // Always output as JPEG for consistency
         canvas.toBlob((resizedBlob) => {
           resolve(resizedBlob);
-        }, imageBlob.type, 0.9);
+        }, 'image/jpeg', 0.9);
       };
 
       img.src = URL.createObjectURL(imageBlob);

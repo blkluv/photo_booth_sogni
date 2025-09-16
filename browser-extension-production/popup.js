@@ -15,6 +15,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load dev mode setting
   await loadDevModeSettings();
   
+  // Load debug settings
+  await loadDebugSettings();
+  
   // Setup event listeners
   setupEventListeners();
   
@@ -80,6 +83,34 @@ async function injectContentScriptsAndActivate() {
   } catch (error) {
     console.error('Failed to inject content scripts:', error);
     throw error;
+  }
+}
+
+// Load debug settings
+async function loadDebugSettings() {
+  try {
+    const result = await new Promise((resolve) => {
+      chrome.storage.local.get(['debugSettings'], resolve);
+    });
+    
+    const debugSettings = result.debugSettings || {
+      maxImages: 32,
+      maxConcurrent: 8
+    };
+    
+    const maxImagesInput = document.getElementById('max-images');
+    const maxConcurrentInput = document.getElementById('max-concurrent');
+    
+    if (maxImagesInput) {
+      maxImagesInput.value = debugSettings.maxImages;
+    }
+    if (maxConcurrentInput) {
+      maxConcurrentInput.value = debugSettings.maxConcurrent;
+    }
+    
+    console.log('Debug settings loaded:', debugSettings);
+  } catch (error) {
+    console.error('Error loading debug settings:', error);
   }
 }
 
@@ -295,6 +326,40 @@ function setupEventListeners() {
     });
   }
   
+  // Debug settings save button
+  const saveDebugButton = document.getElementById('save-debug-settings');
+  if (saveDebugButton) {
+    saveDebugButton.addEventListener('click', () => {
+      const maxImages = parseInt(document.getElementById('max-images').value) || 32;
+      const maxConcurrent = parseInt(document.getElementById('max-concurrent').value) || 8;
+      
+      const debugSettings = {
+        maxImages: Math.max(1, Math.min(100, maxImages)),
+        maxConcurrent: Math.max(1, Math.min(16, maxConcurrent))
+      };
+      
+      chrome.storage.local.set({ debugSettings }, () => {
+        console.log('Debug settings saved:', debugSettings);
+        
+        // Send message to content script about settings change
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs[0]) {
+            chrome.tabs.sendMessage(tabs[0].id, { 
+              action: 'updateDebugSettings', 
+              debugSettings 
+            });
+          }
+        });
+        
+        // Visual feedback
+        saveDebugButton.textContent = 'Saved!';
+        setTimeout(() => {
+          saveDebugButton.textContent = 'Save Settings';
+        }, 1000);
+      });
+    });
+  }
+
   // Dev mode toggle
   const devModeToggle = document.getElementById('dev-mode-toggle');
   if (devModeToggle) {
