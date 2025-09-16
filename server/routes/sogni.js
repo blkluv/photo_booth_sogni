@@ -557,6 +557,37 @@ router.post('/generate', ensureSessionId, async (req, res) => {
       console.log(`[${localProjectId}] Using provided client app ID: ${clientAppId}`);
     }
     
+    // Server-side image generation caps
+    const selectedModel = req.body.selectedModel;
+    const requestedImages = parseInt(req.body.numberImages) || 1;
+    
+    // Define FLUX models that have 8 image cap
+    const fluxModelsWithCap = ['flux1-dev-kontext_fp8_scaled', 'flux1-krea-dev_fp8_scaled'];
+    const isFluxModel = fluxModelsWithCap.includes(selectedModel);
+    
+    // Apply caps
+    if (isFluxModel && requestedImages > 8) {
+      console.log(`[${localProjectId}] REJECTED: FLUX model ${selectedModel} requested ${requestedImages} images, max allowed is 8`);
+      return res.status(400).json({
+        error: 'Image generation limit exceeded',
+        message: `FLUX.1 Kontext [dev] and FLUX.1 Krea models are limited to 8 images per project. Requested: ${requestedImages}`,
+        maxAllowed: 8,
+        modelType: 'FLUX'
+      });
+    }
+    
+    if (requestedImages > 16) {
+      console.log(`[${localProjectId}] REJECTED: Model ${selectedModel} requested ${requestedImages} images, max allowed is 16`);
+      return res.status(400).json({
+        error: 'Image generation limit exceeded',
+        message: `All models are limited to 16 images per project. Requested: ${requestedImages}`,
+        maxAllowed: 16,
+        modelType: 'ALL'
+      });
+    }
+    
+    console.log(`[${localProjectId}] Image generation caps validated: ${selectedModel} requesting ${requestedImages} images`);
+    
     // Track a new batch being generated for metrics
     await incrementBatchesGenerated();
     
