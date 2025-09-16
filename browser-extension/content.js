@@ -6,6 +6,7 @@ console.log('Content script initialization starting...');
 let api = null;
 let progressOverlay = null;
 let settingsService = null;
+let styleCacheService = null;
 // Production mode by default
 let isProcessing = false;
 let processingQueue = []; // Queue of images waiting to be processed
@@ -63,8 +64,17 @@ async function initialize() {
       return;
     }
     
+    if (typeof StyleCacheService === 'undefined') {
+      console.error('StyleCacheService class not found. Retrying in 50ms...');
+      setTimeout(initialize, 50);
+      return;
+    }
+    
     // Initialize settings service
     settingsService = new SettingsService();
+    
+    // Initialize cache service
+    styleCacheService = new StyleCacheService();
     
     // Load user settings for this page
     await loadUserSettings();
@@ -316,6 +326,94 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ success: false, error: 'No last style found' });
     }
     return false;
+  } else if (message.action === 'getCachedStyles') {
+    // Get cached styles for current site
+    if (styleCacheService) {
+      styleCacheService.getCachedStyleNames()
+        .then(cachedStyles => {
+          sendResponse({ success: true, cachedStyles });
+        })
+        .catch(error => {
+          sendResponse({ success: false, error: error.message });
+        });
+    } else {
+      sendResponse({ success: false, error: 'Cache service not initialized' });
+    }
+    return true; // Keep message channel open for async response
+  } else if (message.action === 'applyCachedStyle') {
+    // Apply a cached style to current page
+    if (styleCacheService && message.styleKey) {
+      styleCacheService.applyCachedStyle(message.styleKey)
+        .then(result => {
+          sendResponse({ success: result.success, message: result.message, result });
+        })
+        .catch(error => {
+          sendResponse({ success: false, error: error.message });
+        });
+    } else {
+      sendResponse({ success: false, error: 'Cache service not initialized or missing styleKey' });
+    }
+    return true; // Keep message channel open for async response
+  } else if (message.action === 'clearStyleCache') {
+    // Clear all cached styles for current site
+    if (styleCacheService) {
+      styleCacheService.clearCache()
+        .then(success => {
+          sendResponse({ success, message: success ? 'Cache cleared' : 'Failed to clear cache' });
+        })
+        .catch(error => {
+          sendResponse({ success: false, error: error.message });
+        });
+    } else {
+      sendResponse({ success: false, error: 'Cache service not initialized' });
+    }
+    return true; // Keep message channel open for async response
+  } else if (message.action === 'getCacheStats') {
+    // Get cache statistics
+    if (styleCacheService) {
+      const stats = styleCacheService.getCacheStats();
+      sendResponse({ success: true, stats });
+    } else {
+      sendResponse({ success: false, error: 'Cache service not initialized' });
+    }
+    return false;
+  } else if (message.action === 'autoRestoreCachedImages') {
+    // Auto-restore cached images for current page
+    if (styleCacheService) {
+      styleCacheService.autoRestoreCachedImages()
+        .then(result => {
+          sendResponse({ success: result.success, message: result.message, result });
+          
+          // Show notification if images were restored
+          if (result.restoredCount > 0) {
+            showRestoreNotification(result.restoredCount);
+          }
+        })
+        .catch(error => {
+          sendResponse({ success: false, error: error.message });
+        });
+    } else {
+      sendResponse({ success: false, error: 'Cache service not initialized' });
+    }
+    return true; // Keep message channel open for async response
+  } else if (message.action === 'checkForRestorableImages') {
+    // Check if there are cached images that can be restored on this page
+    if (styleCacheService) {
+      styleCacheService.checkForRestorableImages()
+        .then(restorableImages => {
+          sendResponse({ 
+            success: true, 
+            hasRestorableImages: restorableImages.length > 0,
+            restorableCount: restorableImages.length
+          });
+        })
+        .catch(error => {
+          sendResponse({ success: false, error: error.message });
+        });
+    } else {
+      sendResponse({ success: false, error: 'Cache service not initialized' });
+    }
+    return true; // Keep message channel open for async response
   }
   
   return false;
@@ -989,6 +1087,22 @@ async function convertImageWithDefaultStyle(imageElement) {
     
     // Replace the original image and add hover functionality
     await replaceImageWithHoverComparison(imageElement, result.transformedImageUrl);
+    
+    // Cache the result with default pirate style
+    if (styleCacheService) {
+      try {
+        await styleCacheService.cacheStyledImage(
+          originalUrl,
+          result.transformedImageUrl,
+          'pirateClassic', // Default pirate style key
+          'Attractive, friendly storybook pirate portrait, watercolor-ink blend, weathered tricorn hat, eye patch, flowing beard, nautical background',
+          'Pirate Classic'
+        );
+        console.log('Cached pirate transformation for:', originalUrl);
+      } catch (cacheError) {
+        console.error('Failed to cache pirate transformation:', cacheError);
+      }
+    }
     
     // Show success
     progressOverlay.showSuccess(imageElement);
@@ -2215,6 +2329,23 @@ async function convertImageWithStyle(imageElement, styleKey, stylePrompt) {
     // Replace the original image and add hover functionality
     await replaceImageWithHoverComparison(imageElement, result.convertedImageUrl);
     
+    // Cache the result with custom style
+    if (styleCacheService) {
+      try {
+        const styleDisplayName = styleIdToDisplay(styleKey);
+        await styleCacheService.cacheStyledImage(
+          originalUrl,
+          result.convertedImageUrl,
+          styleKey,
+          stylePrompt,
+          styleDisplayName
+        );
+        console.log(`Cached ${styleKey} transformation for:`, originalUrl);
+      } catch (cacheError) {
+        console.error(`Failed to cache ${styleKey} transformation:`, cacheError);
+      }
+    }
+    
     // Show success
     progressOverlay.showSuccess(imageElement);
     
@@ -2277,12 +2408,124 @@ function removeScanIndicator(indicator) {
   }
 }
 
+// Restore cached images on page load
+async function restoreCachedImagesOnPageLoad() {
+  if (!styleCacheService) return;
+  
+  try {
+    console.log('Checking for cached images to restore on page load...');
+    const cachedStyles = styleCacheService.getCachedStyles();
+    
+    if (cachedStyles.length === 0) {
+      console.log('No cached images found for this site');
+      return;
+    }
+    
+    console.log(`Found ${cachedStyles.length} cached images for this site`);
+    let restoredCount = 0;
+    
+    // Try to find and restore cached images
+    for (const cachedImage of cachedStyles) {
+      // Look for the original image on the current page
+      const originalImg = document.querySelector(`img[src="${cachedImage.originalUrl}"]`);
+      
+      if (originalImg && !originalImg.dataset.transformedUrl) {
+        try {
+          // Store the cached URLs in dataset
+          originalImg.dataset.originalUrl = cachedImage.originalUrl;
+          originalImg.dataset.transformedUrl = cachedImage.transformedUrl;
+          
+          // Replace with hover comparison (reuse existing function)
+          await replaceImageWithHoverComparison(originalImg, cachedImage.transformedUrl);
+          restoredCount++;
+          
+          console.log(`Restored cached image: ${cachedImage.styleDisplayName} for ${cachedImage.originalUrl}`);
+        } catch (error) {
+          console.error('Error restoring cached image:', error);
+        }
+      }
+    }
+    
+    if (restoredCount > 0) {
+      console.log(`✅ Restored ${restoredCount} cached images on page load`);
+      
+      // Show a brief notification to user
+      showRestoreNotification(restoredCount);
+    }
+  } catch (error) {
+    console.error('Error restoring cached images on page load:', error);
+  }
+}
+
+// Show notification that cached images were restored
+function showRestoreNotification(count) {
+  const notification = document.createElement('div');
+  notification.className = 'sogni-restore-notification';
+  notification.innerHTML = `
+    <span class="icon">💾</span>
+    <span class="message">Restored ${count} cached image${count > 1 ? 's' : ''}</span>
+  `;
+  
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(33, 150, 243, 0.95);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    animation: sogni-slide-in-right 0.3s ease-out;
+    pointer-events: none;
+  `;
+  
+  document.body.appendChild(notification);
+  
+  // Remove after 3 seconds
+  setTimeout(() => {
+    notification.style.animation = 'sogni-slide-out-right 0.3s ease-in';
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 300);
+  }, 3000);
+}
+
 // Add some basic styles
 const style = document.createElement('style');
 style.textContent = `
   .sogni-converting {
     filter: brightness(0.7) saturate(0.8);
     transition: filter 0.3s ease;
+  }
+  
+  @keyframes sogni-slide-in-right {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes sogni-slide-out-right {
+    from {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateX(100%);
+      opacity: 0;
+    }
   }
 `;
 document.head.appendChild(style);

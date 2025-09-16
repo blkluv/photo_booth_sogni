@@ -21,6 +21,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load user settings from current page
   await loadUserSettings();
   
+  // Load cached styles for current site
+  await loadCachedStyles();
+  
+  // Check for restorable cached images
+  await checkForRestorableImages();
+  
   // Setup event listeners
   setupEventListeners();
   
@@ -68,6 +74,18 @@ async function injectContentScriptsAndActivate() {
     } catch (settingsError) {
       console.error('Failed to inject settings-service.js:', settingsError);
       throw new Error(`Settings service injection failed: ${settingsError.message}`);
+    }
+    
+    try {
+      console.log('Injecting cache-service.js...');
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['cache-service.js']
+      });
+      console.log('cache-service.js injected successfully');
+    } catch (cacheError) {
+      console.error('Failed to inject cache-service.js:', cacheError);
+      throw new Error(`Cache service injection failed: ${cacheError.message}`);
     }
     
     try {
@@ -220,6 +238,122 @@ async function loadUserSettings() {
   }
 }
 
+// Load cached styles directly from chrome.storage.local (doesn't require content script)
+async function loadCachedStyles() {
+  try {
+    // Get current active tab to determine hostname
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab) return;
+
+    const hostname = new URL(tab.url).hostname;
+    
+    // Create a cache service instance for popup context
+    // We can't use the full cache service here since it expects DOM context
+    // So we'll just read the data directly
+    const cacheKey = `sogni_style_cache_${hostname}`;
+    
+    // Get cached styles directly from chrome.storage.local
+    const result = await new Promise((resolve) => {
+      chrome.storage.local.get([cacheKey], resolve);
+    });
+    
+    const cached = result[cacheKey];
+    if (!cached || !Array.isArray(cached)) {
+      console.log('No cached styles found for', hostname);
+      return;
+    }
+
+    const maxCacheAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+    const now = Date.now();
+    
+    // Filter out expired entries
+    const validStyles = cached.filter(style => {
+      return (now - style.timestamp) < maxCacheAge;
+    });
+
+    if (validStyles.length === 0) {
+      console.log('No valid cached styles found for', hostname);
+      return;
+    }
+
+    // Group styles by style key and count images
+    const grouped = {};
+    validStyles.forEach(style => {
+      const styleName = style.styleDisplayName;
+      if (!grouped[styleName]) {
+        grouped[styleName] = {
+          styleKey: style.styleKey,
+          styleDisplayName: styleName,
+          imageCount: 0,
+          lastUsed: style.timestamp
+        };
+      }
+      grouped[styleName].imageCount++;
+      grouped[styleName].lastUsed = Math.max(grouped[styleName].lastUsed, style.timestamp);
+    });
+
+    // Convert to array and sort by last used
+    const cachedStyles = Object.values(grouped).sort((a, b) => b.lastUsed - a.lastUsed);
+    
+    console.log('Cached styles loaded directly from chrome.storage.local:', cachedStyles);
+    
+    // Update UI with cached styles
+    updateCachedStylesUI(cachedStyles);
+    
+    // Also check for restorable images
+    checkForRestorableImagesFromCache(validStyles, tab);
+    
+  } catch (error) {
+    console.error('Error loading cached styles from chrome.storage.local:', error);
+  }
+}
+
+// Check for restorable cached images from cache data (doesn't require content script)
+async function checkForRestorableImagesFromCache(cachedStyles, tab) {
+  try {
+    // We can't directly check the DOM from popup, but we can show the restore option
+    // if there are cached images for this site. The actual check will happen when
+    // content script is injected and user clicks restore.
+    
+    if (cachedStyles && cachedStyles.length > 0) {
+      const totalImages = cachedStyles.reduce((sum, style) => sum + style.imageCount, 0);
+      console.log(`Found ${totalImages} cached images that might be restorable`);
+      
+      // Show restore section - the actual restoration will inject content script if needed
+      updateRestoreCacheUI(true, totalImages);
+    } else {
+      updateRestoreCacheUI(false, 0);
+    }
+  } catch (error) {
+    console.error('Error checking for restorable images from cache:', error);
+  }
+}
+
+// Check for restorable cached images (fallback for when content script is available)
+async function checkForRestorableImages() {
+  try {
+    // Get current active tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab) return;
+
+    // Request check for restorable images from content script
+    try {
+      const response = await chrome.tabs.sendMessage(tab.id, { action: 'checkForRestorableImages' });
+      if (response && response.success) {
+        console.log('Restorable images check:', response);
+        
+        // Update UI with restorable images info
+        updateRestoreCacheUI(response.hasRestorableImages, response.restorableCount);
+      }
+    } catch (error) {
+      console.log('Content script not ready yet, will check from cache instead');
+      // This is expected when content script isn't injected yet
+    }
+  } catch (error) {
+    console.error('Error checking for restorable images:', error);
+  }
+}
+
 // Update UI with user settings
 function updateUserSettingsUI(userSettings) {
   // Show last used style if available
@@ -244,6 +378,67 @@ function updateUserSettingsUI(userSettings) {
   }
   if (userSettings.preferredMaxConcurrent && maxConcurrentInput) {
     maxConcurrentInput.value = userSettings.preferredMaxConcurrent;
+  }
+}
+
+// Update UI with cached styles
+function updateCachedStylesUI(cachedStyles) {
+  const cachedStylesSection = document.getElementById('cached-styles-section');
+  const cachedStylesCount = document.getElementById('cached-styles-count');
+  const cachedStylesSelect = document.getElementById('cached-styles-select');
+  const applyCachedStyleBtn = document.getElementById('apply-cached-style-btn');
+  
+  if (!cachedStylesSection || !cachedStylesCount || !cachedStylesSelect || !applyCachedStyleBtn) {
+    console.error('Cached styles UI elements not found');
+    return;
+  }
+  
+  if (cachedStyles && cachedStyles.length > 0) {
+    // Show cached styles section
+    cachedStylesSection.style.display = 'block';
+    
+    // Update count
+    const totalImages = cachedStyles.reduce((sum, style) => sum + style.imageCount, 0);
+    cachedStylesCount.textContent = `${cachedStyles.length} styles saved (${totalImages} images)`;
+    
+    // Clear and populate dropdown
+    cachedStylesSelect.innerHTML = '<option value="">Select a saved style...</option>';
+    
+    cachedStyles.forEach(style => {
+      const option = document.createElement('option');
+      option.value = style.styleKey;
+      option.textContent = `${style.styleDisplayName} (${style.imageCount} images)`;
+      cachedStylesSelect.appendChild(option);
+    });
+    
+    console.log(`Updated cached styles UI with ${cachedStyles.length} styles`);
+  } else {
+    // Hide cached styles section if no styles
+    cachedStylesSection.style.display = 'none';
+  }
+}
+
+// Update UI with restorable cache info
+function updateRestoreCacheUI(hasRestorableImages, restorableCount) {
+  const restoreCacheSection = document.getElementById('restore-cache-section');
+  const restoreCacheCount = document.getElementById('restore-cache-count');
+  
+  if (!restoreCacheSection || !restoreCacheCount) {
+    console.error('Restore cache UI elements not found');
+    return;
+  }
+  
+  if (hasRestorableImages && restorableCount > 0) {
+    // Show restore cache section
+    restoreCacheSection.style.display = 'block';
+    
+    // Update count
+    restoreCacheCount.textContent = `${restorableCount} cached image${restorableCount > 1 ? 's' : ''} can be restored`;
+    
+    console.log(`Updated restore cache UI with ${restorableCount} restorable images`);
+  } else {
+    // Hide restore cache section if no restorable images
+    restoreCacheSection.style.display = 'none';
   }
 }
 
@@ -648,6 +843,321 @@ function setupEventListeners() {
       } catch (error) {
         console.error('Error applying last style:', error);
         alert('Error applying last style: ' + error.message);
+      }
+    });
+  }
+
+  // Cached styles dropdown change
+  const cachedStylesSelect = document.getElementById('cached-styles-select');
+  const applyCachedStyleBtn = document.getElementById('apply-cached-style-btn');
+  
+  if (cachedStylesSelect && applyCachedStyleBtn) {
+    cachedStylesSelect.addEventListener('change', () => {
+      const selectedStyle = cachedStylesSelect.value;
+      applyCachedStyleBtn.disabled = !selectedStyle;
+    });
+  }
+
+  // Apply Cached Style button
+  if (applyCachedStyleBtn) {
+    applyCachedStyleBtn.addEventListener('click', async () => {
+      const selectedStyle = cachedStylesSelect?.value;
+      if (!selectedStyle) {
+        alert('Please select a style to apply');
+        return;
+      }
+
+      console.log('Apply Cached Style button clicked:', selectedStyle);
+      
+      try {
+        // Get current active tab
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tab) {
+          throw new Error('No active tab found');
+        }
+        
+        // Show loading state
+        applyCachedStyleBtn.disabled = true;
+        applyCachedStyleBtn.innerHTML = `
+          <span class="btn-icon">⏳</span>
+          <span class="btn-text">Applying...</span>
+        `;
+        
+        // Try to send message to content script, inject if needed
+        let response;
+        try {
+          response = await chrome.tabs.sendMessage(tab.id, { 
+            action: 'applyCachedStyle', 
+            styleKey: selectedStyle 
+          });
+        } catch (error) {
+          console.log('Content script not loaded, injecting scripts...');
+          
+          // Inject content scripts first
+          try {
+            await chrome.scripting.insertCSS({
+              target: { tabId: tab.id },
+              files: ['content.css']
+            });
+            
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: ['settings-service.js']
+            });
+            
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: ['cache-service.js']
+            });
+            
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: ['api-service.js']
+            });
+            
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: ['progress-overlay.js']
+            });
+            
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: ['content.js']
+            });
+            
+            // Wait for initialization
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Try the request again
+            response = await chrome.tabs.sendMessage(tab.id, { 
+              action: 'applyCachedStyle', 
+              styleKey: selectedStyle 
+            });
+            
+          } catch (injectionError) {
+            throw new Error(`Failed to inject content scripts: ${injectionError.message}`);
+          }
+        }
+        
+        if (response && response.success) {
+          console.log('Cached style applied successfully:', response.result);
+          
+          // Show success state
+          applyCachedStyleBtn.innerHTML = `
+            <span class="btn-icon">✅</span>
+            <span class="btn-text">Applied!</span>
+          `;
+          
+          // Close popup after successful application
+          setTimeout(() => window.close(), 1000);
+        } else {
+          console.error('Failed to apply cached style:', response?.error);
+          alert('Failed to apply cached style: ' + (response?.error || 'Unknown error'));
+          
+          // Reset button
+          applyCachedStyleBtn.disabled = false;
+          applyCachedStyleBtn.innerHTML = `
+            <span class="btn-icon">🎨</span>
+            <span class="btn-text">Apply Style</span>
+          `;
+        }
+      } catch (error) {
+        console.error('Error applying cached style:', error);
+        alert('Error applying cached style: ' + error.message);
+        
+        // Reset button
+        applyCachedStyleBtn.disabled = false;
+        applyCachedStyleBtn.innerHTML = `
+          <span class="btn-icon">🎨</span>
+          <span class="btn-text">Apply Style</span>
+        `;
+      }
+    });
+  }
+
+  // Restore Cached Images button
+  const restoreCachedImagesBtn = document.getElementById('restore-cached-images-btn');
+  if (restoreCachedImagesBtn) {
+    restoreCachedImagesBtn.addEventListener('click', async () => {
+      console.log('Restore Cached Images button clicked');
+      
+      try {
+        // Get current active tab
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tab) {
+          throw new Error('No active tab found');
+        }
+        
+        // Show loading state
+        restoreCachedImagesBtn.disabled = true;
+        restoreCachedImagesBtn.innerHTML = `
+          <span class="btn-icon">⏳</span>
+          <span class="btn-text">Restoring...</span>
+        `;
+        
+        // Try to send message to content script, inject if needed
+        let response;
+        try {
+          response = await chrome.tabs.sendMessage(tab.id, { action: 'autoRestoreCachedImages' });
+        } catch (error) {
+          console.log('Content script not loaded, injecting scripts...');
+          
+          // Inject content scripts (same as in injectContentScriptsAndActivate)
+          try {
+            // Inject CSS first
+            await chrome.scripting.insertCSS({
+              target: { tabId: tab.id },
+              files: ['content.css']
+            });
+            
+            // Inject JavaScript files in order
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: ['settings-service.js']
+            });
+            
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: ['cache-service.js']
+            });
+            
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: ['api-service.js']
+            });
+            
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: ['progress-overlay.js']
+            });
+            
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: ['content.js']
+            });
+            
+            console.log('Content scripts injected successfully');
+            
+            // Wait a moment for initialization
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Try the restore request again
+            response = await chrome.tabs.sendMessage(tab.id, { action: 'autoRestoreCachedImages' });
+            
+          } catch (injectionError) {
+            throw new Error(`Failed to inject content scripts: ${injectionError.message}`);
+          }
+        }
+        
+        if (response && response.success) {
+          console.log('Cached images restored successfully:', response.result);
+          
+          // Show success state
+          restoreCachedImagesBtn.innerHTML = `
+            <span class="btn-icon">✅</span>
+            <span class="btn-text">Restored ${response.result.restoredCount} images!</span>
+          `;
+          
+          // Hide the restore section since images are now restored
+          updateRestoreCacheUI(false, 0);
+          
+          // Refresh cached styles UI
+          await loadCachedStyles();
+          
+          // Close popup after successful restoration
+          setTimeout(() => window.close(), 2000);
+        } else {
+          console.error('Failed to restore cached images:', response?.error);
+          alert('Failed to restore cached images: ' + (response?.error || 'Unknown error'));
+          
+          // Reset button
+          restoreCachedImagesBtn.disabled = false;
+          restoreCachedImagesBtn.innerHTML = `
+            <span class="btn-icon">🔄</span>
+            <span class="btn-text">Restore Cached Images</span>
+          `;
+        }
+      } catch (error) {
+        console.error('Error restoring cached images:', error);
+        alert('Error restoring cached images: ' + error.message);
+        
+        // Reset button
+        restoreCachedImagesBtn.disabled = false;
+        restoreCachedImagesBtn.innerHTML = `
+          <span class="btn-icon">🔄</span>
+          <span class="btn-text">Restore Cached Images</span>
+        `;
+      }
+    });
+  }
+
+  // Clear Cache button
+  const clearCacheBtn = document.getElementById('clear-cache-btn');
+  if (clearCacheBtn) {
+    clearCacheBtn.addEventListener('click', async () => {
+      const confirmed = confirm('Are you sure you want to clear all saved styles for this site? This action cannot be undone.');
+      if (!confirmed) return;
+
+      console.log('Clear Cache button clicked');
+      
+      try {
+        // Get current active tab
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tab) {
+          throw new Error('No active tab found');
+        }
+        
+        // Show loading state
+        clearCacheBtn.disabled = true;
+        clearCacheBtn.innerHTML = `
+          <span class="btn-icon">⏳</span>
+          <span class="btn-text">Clearing...</span>
+        `;
+        
+        // Send message to content script to clear cache
+        const response = await chrome.tabs.sendMessage(tab.id, { action: 'clearStyleCache' });
+        
+        if (response && response.success) {
+          console.log('Cache cleared successfully');
+          
+          // Update UI to reflect cleared cache
+          updateCachedStylesUI([]);
+          updateRestoreCacheUI(false, 0);
+          
+          // Show success state briefly
+          clearCacheBtn.innerHTML = `
+            <span class="btn-icon">✅</span>
+            <span class="btn-text">Cleared!</span>
+          `;
+          
+          setTimeout(() => {
+            clearCacheBtn.disabled = false;
+            clearCacheBtn.innerHTML = `
+              <span class="btn-icon">🗑️</span>
+              <span class="btn-text">Clear All</span>
+            `;
+          }, 2000);
+        } else {
+          console.error('Failed to clear cache:', response?.error);
+          alert('Failed to clear cache: ' + (response?.error || 'Unknown error'));
+          
+          // Reset button
+          clearCacheBtn.disabled = false;
+          clearCacheBtn.innerHTML = `
+            <span class="btn-icon">🗑️</span>
+            <span class="btn-text">Clear All</span>
+          `;
+        }
+      } catch (error) {
+        console.error('Error clearing cache:', error);
+        alert('Error clearing cache: ' + error.message);
+        
+        // Reset button
+        clearCacheBtn.disabled = false;
+        clearCacheBtn.innerHTML = `
+          <span class="btn-icon">🗑️</span>
+          <span class="btn-text">Clear All</span>
+        `;
       }
     });
   }

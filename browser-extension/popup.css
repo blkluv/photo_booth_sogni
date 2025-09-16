@@ -514,6 +514,189 @@ body {
   transform: translateY(0);
 }
 
+/* Restore Cache Section */
+.restore-cache-section {
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(76, 175, 80, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(76, 175, 80, 0.2);
+}
+
+.restore-cache-section h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.restore-cache-section h3::before {
+  content: "🔄";
+  font-size: 16px;
+}
+
+.restore-cache-info {
+  margin-bottom: 12px;
+}
+
+.restore-cache-count {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.restore-cached-images-button {
+  width: 100%;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.restore-cached-images-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.restore-cached-images-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+.restore-cached-images-button:active {
+  transform: translateY(0);
+}
+
+/* Cached Styles Section */
+.cached-styles-section {
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(33, 150, 243, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(33, 150, 243, 0.2);
+}
+
+.cached-styles-section h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cached-styles-section h3::before {
+  content: "💾";
+  font-size: 16px;
+}
+
+.cached-styles-info {
+  margin-bottom: 12px;
+}
+
+.cached-styles-count {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.cached-styles-dropdown {
+  margin-bottom: 12px;
+}
+
+.cached-styles-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid rgba(33, 150, 243, 0.3);
+  border-radius: 6px;
+  font-size: 12px;
+  background: white;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cached-styles-select:focus {
+  outline: none;
+  border-color: #2196f3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+}
+
+.cached-styles-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.apply-cached-style-button,
+.clear-cache-button {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.apply-cached-style-button {
+  background: linear-gradient(135deg, #2196f3 0%, #21cbf3 100%);
+  color: white;
+}
+
+.apply-cached-style-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+}
+
+.apply-cached-style-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+.clear-cache-button {
+  background: linear-gradient(135deg, #f44336 0%, #ff6b6b 100%);
+  color: white;
+}
+
+.clear-cache-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+}
+
+.clear-cache-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+.apply-cached-style-button:active,
+.clear-cache-button:active {
+  transform: translateY(0);
+}
+
 /* Debug Section */
 .debug-section {
   margin-top: 16px;

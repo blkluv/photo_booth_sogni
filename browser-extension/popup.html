@@ -28,6 +28,41 @@
         <span class="btn-text">Use This Style Again</span>
       </button>
     </div>
+
+    <!-- Restore Cached Images Section (hidden by default) -->
+    <div id="restore-cache-section" class="restore-cache-section" style="display: none;">
+      <h3>Cached Images Available</h3>
+      <div class="restore-cache-info">
+        <span id="restore-cache-count" class="restore-cache-count">0 cached images found</span>
+      </div>
+      <button id="restore-cached-images-btn" class="restore-cached-images-button">
+        <span class="btn-icon">🔄</span>
+        <span class="btn-text">Restore Cached Images</span>
+      </button>
+    </div>
+
+    <!-- Cached Styles Section (hidden by default) -->
+    <div id="cached-styles-section" class="cached-styles-section" style="display: none;">
+      <h3>Saved Styles for This Site</h3>
+      <div class="cached-styles-info">
+        <span id="cached-styles-count" class="cached-styles-count">0 styles saved</span>
+      </div>
+      <div class="cached-styles-dropdown">
+        <select id="cached-styles-select" class="cached-styles-select">
+          <option value="">Select a saved style...</option>
+        </select>
+      </div>
+      <div class="cached-styles-actions">
+        <button id="apply-cached-style-btn" class="apply-cached-style-button" disabled>
+          <span class="btn-icon">🎨</span>
+          <span class="btn-text">Apply Style</span>
+        </button>
+        <button id="clear-cache-btn" class="clear-cache-button">
+          <span class="btn-icon">🗑️</span>
+          <span class="btn-text">Clear All</span>
+        </button>
+      </div>
+    </div>
     
     <!-- Loading Message (hidden by default) -->
     <div class="loading-section" style="display: none;">
