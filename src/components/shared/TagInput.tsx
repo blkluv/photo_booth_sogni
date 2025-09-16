@@ -6,6 +6,7 @@ interface TagInputProps {
   onTagsChange: (tags: string[]) => void;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 // Move color array outside component to prevent recreation on every render
@@ -31,7 +32,8 @@ const TagInput: React.FC<TagInputProps> = ({
   tags,
   onTagsChange,
   placeholder = "Type and press Enter to add...",
-  className = ""
+  className = "",
+  disabled = false
 }) => {
   const [inputValue, setInputValue] = useState('');
 
@@ -40,6 +42,8 @@ const TagInput: React.FC<TagInputProps> = ({
   }, []);
 
   const handleKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
+    if (disabled) return; // Don't handle key events when disabled
+    
     if (e.key === 'Enter' && inputValue.trim()) {
       e.preventDefault();
       const newTag = inputValue.trim();
@@ -54,39 +58,44 @@ const TagInput: React.FC<TagInputProps> = ({
       // Remove last tag if input is empty and backspace is pressed
       onTagsChange(tags.slice(0, -1));
     }
-  }, [inputValue, tags, onTagsChange]);
+  }, [inputValue, tags, onTagsChange, disabled]);
 
   const removeTag = useCallback((indexToRemove: number) => {
+    if (disabled) return; // Don't allow tag removal when disabled
     onTagsChange(tags.filter((_, index) => index !== indexToRemove));
-  }, [tags, onTagsChange]);
+  }, [tags, onTagsChange, disabled]);
 
   return (
-    <div className={`tag-input-container ${className}`}>
-      <div className="tag-input-wrapper">
+    <div className={`tag-input-container ${className} ${disabled ? 'disabled' : ''}`}>
+      <div className={`tag-input-wrapper ${disabled ? 'disabled' : ''}`}>
         {tags.map((tag, index) => (
           <span
             key={`${tag}-${index}`}
-            className="tag-pill"
-            style={{ background: getTagColor(index) }}
+            className={`tag-pill ${disabled ? 'disabled' : ''}`}
+            style={{ background: disabled ? '#666' : getTagColor(index) }}
           >
             {tag}
-            <button
-              type="button"
-              className="tag-remove-btn"
-              onClick={() => removeTag(index)}
-              aria-label={`Remove ${tag}`}
-            >
-              ×
-            </button>
+            {!disabled && (
+              <button
+                type="button"
+                className="tag-remove-btn"
+                onClick={() => removeTag(index)}
+                aria-label={`Remove ${tag}`}
+              >
+                ×
+              </button>
+            )}
           </span>
         ))}
         <input
           type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
+          value={disabled ? '' : inputValue}
+          onChange={(e) => !disabled && setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={tags.length === 0 ? placeholder : ""}
-          className="tag-input-field"
+          className={`tag-input-field ${disabled ? 'disabled' : ''}`}
+          disabled={disabled}
+          readOnly={disabled}
         />
       </div>
     </div>

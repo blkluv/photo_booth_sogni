@@ -68,6 +68,12 @@
   overflow: hidden;
 }
 
+.tag-pill.disabled {
+  background: #666 !important;
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .tag-pill::before {
   content: '';
   position: absolute;
@@ -139,6 +145,21 @@
   color: rgba(255, 255, 255, 0.7);
   font-style: italic;
   font-weight: 400;
+}
+
+.tag-input-wrapper.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: linear-gradient(135deg, rgba(102, 102, 102, 0.15) 0%, rgba(102, 102, 102, 0.08) 100%);
+}
+
+.tag-input-field.disabled {
+  cursor: not-allowed;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.tag-input-field.disabled::placeholder {
+  color: rgba(255, 255, 255, 0.4);
 }
 
 /* Animation for new tags */

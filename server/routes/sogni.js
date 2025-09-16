@@ -588,6 +588,49 @@ router.post('/generate', ensureSessionId, async (req, res) => {
     
     console.log(`[${localProjectId}] Image generation caps validated: ${selectedModel} requesting ${requestedImages} images`);
     
+    // Server-side worker preference enforcement
+    // Strip any client-provided worker preferences and enforce hardcoded values
+    let positivePrompt = req.body.positivePrompt || '';
+    
+    // Remove any existing worker preference flags from the prompt
+    positivePrompt = positivePrompt
+      .replace(/--workers=[^\s]+/g, '')
+      .replace(/--preferred-workers=[^\s]+/g, '')
+      .replace(/--skip-workers=[^\s]+/g, '')
+      .replace(/\s+/g, ' ') // Normalize multiple spaces to single space
+      .trim();
+    
+    // Enforce hardcoded worker preferences
+    const hardcodedWorkerPreferences = [];
+    
+    // Hardcoded required workers (empty for now)
+    const requiredWorkers = [];
+    if (requiredWorkers.length > 0) {
+      hardcodedWorkerPreferences.push(`--workers=${requiredWorkers.join(',')}`);
+    }
+    
+    // Hardcoded preferred workers
+    const preferredWorkers = ['SPICE.MUST.FLOW'];
+    if (preferredWorkers.length > 0) {
+      hardcodedWorkerPreferences.push(`--preferred-workers=${preferredWorkers.join(',')}`);
+    }
+    
+    // Hardcoded skip workers
+    const skipWorkers = ['freeman123'];
+    if (skipWorkers.length > 0) {
+      hardcodedWorkerPreferences.push(`--skip-workers=${skipWorkers.join(',')}`);
+    }
+    
+    // Apply hardcoded worker preferences to the prompt
+    if (hardcodedWorkerPreferences.length > 0) {
+      positivePrompt = `${positivePrompt} ${hardcodedWorkerPreferences.join(' ')}`.trim();
+    }
+    
+    // Override the request body with the sanitized prompt
+    req.body.positivePrompt = positivePrompt;
+    
+    console.log(`[${localProjectId}] Worker preferences enforced on server side:`, hardcodedWorkerPreferences);
+    
     // Track a new batch being generated for metrics
     await incrementBatchesGenerated();
     
