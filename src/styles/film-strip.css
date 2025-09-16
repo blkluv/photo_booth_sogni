@@ -151,8 +151,16 @@ body.extension-mode .action-button:not(.use-prompt-btn) {
 /* Clean crossfade animation for photo grid transitions */
 
 /* Enhanced grid layout for better high-resolution display support */
-.film-strip-content {
-  /* Use smaller images for more columns - optimized for modern screens */
+.film-strip-content:not(.prompt-selector-mode) {
+  /* Regular photo grid - 4 columns on desktop */
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+  /* Better responsive behavior for different screen sizes */
+  container-type: inline-size;
+}
+
+/* Style Explorer grid layout - 5 columns on desktop */
+.film-strip-content.prompt-selector-mode {
+  /* Style Explorer - 5 columns with smaller images for better density */
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
   /* Better responsive behavior for different screen sizes */
   container-type: inline-size;
@@ -334,10 +342,18 @@ body.extension-mode .action-button:not(.use-prompt-btn) {
   pointer-events: auto !important;
 }
 
-/* Ensure minimum 5 images per row on desktop landscape */
+/* Ensure minimum 4 images per row on desktop landscape for regular photo grid */
 @media (orientation: landscape) and (min-width: 1200px) {
-  .film-strip-container .film-strip-content {
-    /* Force minimum 5 columns on standard desktop landscape - smaller images for better density */
+  .film-strip-container .film-strip-content:not(.prompt-selector-mode) {
+    /* Force minimum 4 columns on standard desktop landscape for regular photo grid */
+    grid-template-columns: repeat(auto-fill, minmax(min(20vw, 320px), 1fr)) !important;
+  }
+}
+
+/* Ensure minimum 5 images per row on desktop landscape for Style Explorer */
+@media (orientation: landscape) and (min-width: 1200px) {
+  .film-strip-container .film-strip-content.prompt-selector-mode {
+    /* Force minimum 5 columns on standard desktop landscape for Style Explorer - smaller images for better density */
     grid-template-columns: repeat(auto-fill, minmax(min(16vw, 280px), 1fr)) !important;
   }
 }
