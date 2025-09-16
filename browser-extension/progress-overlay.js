@@ -329,25 +329,56 @@ class ProgressOverlay {
           numberOverlay.style.background = 'linear-gradient(45deg, #10b981, #059669)';
           numberOverlay.style.transform = 'scale(1.2)';
           
-          // Reset after a moment, then check if this bouncer should be hidden
+          // Reset after a moment, then try to find next work for this specific bouncer
           setTimeout(() => {
             if (numberOverlay) {
               numberOverlay.style.background = 'linear-gradient(45deg, #6366f1, #8b5cf6)';
               numberOverlay.style.transform = 'scale(1)';
             }
             
-            // Check if there are any more images that need processing for this bouncer to work on
-            const hasMoreWork = this._hasMoreWorkForBouncer();
-            if (!hasMoreWork) {
-              // Hide this individual bouncer since there's no more work for it
+            // Clear the current target first
+            bouncer.targetImage = null;
+            
+            // Try to find the next available image for this specific bouncer
+            const nextImage = this._findNextAvailableImage();
+            if (nextImage) {
+              // Assign this bouncer to the next image
+              bouncer.targetImage = nextImage;
+              this._moveBouncerTo(bouncer, nextImage);
+              console.log(`Bouncer ${bouncer.slotIndex + 1} moved to next image`);
+            } else {
+              // No more work for this specific bouncer - hide it
+              console.log(`Bouncer ${bouncer.slotIndex + 1} has no more work - hiding`);
               this._hideIndividualBouncer(bouncer);
             }
           }, 600);
         }
+      } else {
+        // No element, just clear the target
+        bouncer.targetImage = null;
       }
-      
-      bouncer.targetImage = null;
     }
+  }
+
+  // Find the next available image that needs processing
+  _findNextAvailableImage() {
+    // First check if there are images in the processing queue waiting to be started
+    if (window.processingQueue && Array.isArray(window.processingQueue) && window.processingQueue.length > 0) {
+      // Return the next image from the queue
+      return window.processingQueue[0]; // Don't remove it here, let the main processing loop handle that
+    }
+    
+    // If no images in queue, check if there are any active overlays that don't have bouncers assigned
+    for (const [imageElement] of this.overlays) {
+      // Check if this image already has a bouncer assigned to it
+      const hasAssignedBouncer = this.bouncers.some(bouncer => bouncer.targetImage === imageElement);
+      if (!hasAssignedBouncer) {
+        return imageElement;
+      }
+    }
+    
+    // No available images found
+    return null;
   }
 
   // Check if there are more images that need processing (for any bouncer to work on)
