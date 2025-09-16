@@ -347,7 +347,17 @@ class ProgressOverlay {
   // Check if there are more images that need processing (for any bouncer to work on)
   _hasMoreWorkForBouncer() {
     // Count how many overlays (active processing images) still exist
-    return this.overlays.size > 0;
+    const activeOverlays = this.overlays.size;
+    
+    // Also check if there are more images waiting to be processed
+    // We need to access the processing queue from the content script
+    let remainingImages = 0;
+    if (window.processingQueue && Array.isArray(window.processingQueue)) {
+      remainingImages = window.processingQueue.length;
+    }
+    
+    // There's more work if there are either active overlays or remaining images to process
+    return activeOverlays > 0 || remainingImages > 0;
   }
 
   // Hide an individual bouncer when it has no more work to do

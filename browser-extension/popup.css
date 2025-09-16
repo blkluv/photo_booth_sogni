@@ -450,6 +450,70 @@ body {
   100% { transform: rotate(360deg); }
 }
 
+/* Last Used Style Section */
+.last-style-section {
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(113, 50, 232, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(113, 50, 232, 0.2);
+}
+
+.last-style-section h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #374151;
+}
+
+.last-style-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.last-style-label {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.last-style-name {
+  color: #7132e8;
+  font-weight: 600;
+  background: rgba(113, 50, 232, 0.15);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.use-last-style-button {
+  width: 100%;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #7132e8 0%, #ff61d5 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.use-last-style-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(113, 50, 232, 0.3);
+}
+
+.use-last-style-button:active {
+  transform: translateY(0);
+}
+
 /* Debug Section */
 .debug-section {
   margin-top: 16px;

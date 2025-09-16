@@ -18,6 +18,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load debug settings
   await loadDebugSettings();
   
+  // Load user settings from current page
+  await loadUserSettings();
+  
   // Setup event listeners
   setupEventListeners();
   
@@ -55,6 +58,18 @@ async function injectContentScriptsAndActivate() {
     }
     
     // Inject JavaScript files in order
+    try {
+      console.log('Injecting settings-service.js...');
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['settings-service.js']
+      });
+      console.log('settings-service.js injected successfully');
+    } catch (settingsError) {
+      console.error('Failed to inject settings-service.js:', settingsError);
+      throw new Error(`Settings service injection failed: ${settingsError.message}`);
+    }
+    
     try {
       console.log('Injecting api-service.js...');
       await chrome.scripting.executeScript({
@@ -178,6 +193,82 @@ async function loadDebugSettings() {
   } catch (error) {
     console.error('Error loading debug settings:', error);
   }
+}
+
+// Load user settings from content script
+async function loadUserSettings() {
+  try {
+    // Get current active tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab) return;
+
+    // Request user settings from content script
+    try {
+      const response = await chrome.tabs.sendMessage(tab.id, { action: 'getUserSettings' });
+      if (response && response.success) {
+        const userSettings = response.settings;
+        console.log('User settings loaded from content script:', userSettings);
+        
+        // Update UI with user settings
+        updateUserSettingsUI(userSettings);
+      }
+    } catch (error) {
+      console.log('Content script not ready yet, user settings will load when available');
+    }
+  } catch (error) {
+    console.error('Error loading user settings:', error);
+  }
+}
+
+// Update UI with user settings
+function updateUserSettingsUI(userSettings) {
+  // Show last used style if available
+  const lastStyleSection = document.getElementById('last-style-section');
+  const lastStyleName = document.getElementById('last-style-name');
+  const useLastStyleBtn = document.getElementById('use-last-style-btn');
+  
+  if (userSettings.lastUsedStyle && lastStyleSection && lastStyleName && useLastStyleBtn) {
+    const styleDisplayName = styleIdToDisplay(userSettings.lastUsedStyle);
+    lastStyleName.textContent = styleDisplayName;
+    lastStyleSection.style.display = 'block';
+  } else if (lastStyleSection) {
+    lastStyleSection.style.display = 'none';
+  }
+  
+  // Update debug settings with user preferences
+  const maxImagesInput = document.getElementById('max-images');
+  const maxConcurrentInput = document.getElementById('max-concurrent');
+  
+  if (userSettings.preferredMaxImages && maxImagesInput) {
+    maxImagesInput.value = userSettings.preferredMaxImages;
+  }
+  if (userSettings.preferredMaxConcurrent && maxConcurrentInput) {
+    maxConcurrentInput.value = userSettings.preferredMaxConcurrent;
+  }
+}
+
+// Format style key to display name (replicated from content script)
+function styleIdToDisplay(styleId) {
+  if (!styleId) return '';
+  
+  // Handle special case
+  if (styleId === 'y2kRaverKid') {
+    return 'Y2K Raver Kid';
+  }
+  
+  return styleId
+    .replace(/([a-z])([A-Z])/g, '$1 $2')  // Add space between lowercase and uppercase
+    .replace(/([a-zA-Z])(\d)/g, '$1 $2')  // Add space between letters and numbers
+    .replace(/(\d+)([a-zA-Z])/g, (match, numbers, letters) => {
+      // Don't separate common patterns like F1, 1990s, 90s, 3D, etc.
+      const commonPatterns = /^(f1|1990s|90s|3d|2d|8k|4k|24x24|128x112)$/i;
+      if (commonPatterns.test(numbers + letters)) {
+        return match; // Keep as-is
+      }
+      return `${numbers} ${letters}`; // Add space after numbers
+    })
+    .replace(/^./, (str) => str.toUpperCase())
+    .trim();
 }
 
 // Load dev mode settings
@@ -507,6 +598,36 @@ function setupEventListeners() {
           });
         }
       });
+    });
+  }
+
+  // Use Last Style button
+  const useLastStyleBtn = document.getElementById('use-last-style-btn');
+  if (useLastStyleBtn) {
+    useLastStyleBtn.addEventListener('click', async () => {
+      console.log('Use Last Style button clicked');
+      
+      try {
+        // Get current active tab
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tab) {
+          throw new Error('No active tab found');
+        }
+        
+        // Send message to content script to use last style
+        const response = await chrome.tabs.sendMessage(tab.id, { action: 'useLastStyle' });
+        if (response && response.success) {
+          console.log('Last style applied successfully');
+          // Close popup after successful application
+          setTimeout(() => window.close(), 500);
+        } else {
+          console.error('Failed to apply last style:', response?.error);
+          alert('Failed to apply last style: ' + (response?.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error applying last style:', error);
+        alert('Error applying last style: ' + error.message);
+      }
     });
   }
 }

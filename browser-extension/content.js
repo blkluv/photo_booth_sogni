@@ -5,10 +5,23 @@ console.log('Content script initialization starting...');
 // Initialize components
 let api = null;
 let progressOverlay = null;
+let settingsService = null;
 let isDevMode = false; // Production mode
 let isProcessing = false;
+let processingQueue = []; // Queue of images waiting to be processed
+window.processingQueue = processingQueue; // Make it globally accessible
 let MAX_CONCURRENT_CONVERSIONS = 8; // Configurable concurrency
 let MAX_IMAGES_PER_PAGE = 32; // Configurable limit for images processed per page
+
+// User settings that can be saved/loaded per page
+let userSettings = {
+  lastUsedStyle: null,
+  lastUsedStylePrompt: null,
+  preferredMaxImages: null,
+  preferredMaxConcurrent: null,
+  autoProcessOnStyleSelect: true,
+  rememberLastStyle: true
+};
 
 // Lazy API initialization - only when needed for image processing
 async function ensureApiInitialized() {
@@ -37,23 +50,36 @@ async function initialize() {
   console.log('Initializing Sogni Photobooth Extension');
   
   try {
-    // Check if ProgressOverlay class is available (PhotoboothAPI will be loaded lazily)
+    // Check if required classes are available
     if (typeof ProgressOverlay === 'undefined') {
       console.error('ProgressOverlay class not found. Retrying in 50ms...');
       setTimeout(initialize, 50);
       return;
     }
     
-    // Load debug settings
+    if (typeof SettingsService === 'undefined') {
+      console.error('SettingsService class not found. Retrying in 50ms...');
+      setTimeout(initialize, 50);
+      return;
+    }
+    
+    // Initialize settings service
+    settingsService = new SettingsService();
+    
+    // Load user settings for this page
+    await loadUserSettings();
+    
+    // Load debug settings (with user preference override)
     try {
       const result = await new Promise((resolve) => {
         chrome.storage.local.get(['debugSettings'], resolve);
       });
       
       if (result.debugSettings) {
-        MAX_CONCURRENT_CONVERSIONS = result.debugSettings.maxConcurrent;
-        MAX_IMAGES_PER_PAGE = result.debugSettings.maxImages;
-        console.log('Debug settings loaded:', { MAX_CONCURRENT_CONVERSIONS, MAX_IMAGES_PER_PAGE });
+        // Use user preferences if available, otherwise use debug settings
+        MAX_CONCURRENT_CONVERSIONS = userSettings.preferredMaxConcurrent || result.debugSettings.maxConcurrent;
+        MAX_IMAGES_PER_PAGE = userSettings.preferredMaxImages || result.debugSettings.maxImages;
+        console.log('Debug settings loaded with user overrides:', { MAX_CONCURRENT_CONVERSIONS, MAX_IMAGES_PER_PAGE });
       }
     } catch (error) {
       console.log('Could not load debug settings, using defaults');
@@ -73,6 +99,55 @@ async function initialize() {
     console.error('Failed to initialize extension:', error);
     // Retry initialization after a delay
     setTimeout(initialize, 100);
+  }
+}
+
+// Load user settings for the current page
+async function loadUserSettings() {
+  try {
+    const savedSettings = await settingsService.loadBestSettings();
+    if (savedSettings && savedSettings.source !== 'default') {
+      // Merge saved settings with defaults
+      userSettings = { ...userSettings, ...savedSettings };
+      console.log('User settings loaded:', userSettings);
+      
+      // Apply loaded settings
+      if (userSettings.preferredMaxConcurrent) {
+        MAX_CONCURRENT_CONVERSIONS = userSettings.preferredMaxConcurrent;
+      }
+      if (userSettings.preferredMaxImages) {
+        MAX_IMAGES_PER_PAGE = userSettings.preferredMaxImages;
+      }
+    } else {
+      console.log('No saved settings found, using defaults');
+    }
+  } catch (error) {
+    console.error('Error loading user settings:', error);
+  }
+}
+
+// Save user settings for the current page
+async function saveUserSettings() {
+  try {
+    const success = await settingsService.savePageSettings(userSettings);
+    if (success) {
+      console.log('User settings saved successfully');
+    } else {
+      console.error('Failed to save user settings');
+    }
+  } catch (error) {
+    console.error('Error saving user settings:', error);
+  }
+}
+
+// Update a specific setting and save
+async function updateUserSetting(key, value) {
+  try {
+    userSettings[key] = value;
+    await saveUserSettings();
+    console.log(`Setting updated: ${key} = ${value}`);
+  } catch (error) {
+    console.error(`Error updating setting ${key}:`, error);
   }
 }
 
@@ -159,9 +234,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   
   if (message.action === 'updateDebugSettings') {
     const { debugSettings } = message;
-    MAX_CONCURRENT_CONVERSIONS = debugSettings.maxConcurrent;
-    MAX_IMAGES_PER_PAGE = debugSettings.maxImages;
-    console.log('Debug settings updated:', { MAX_CONCURRENT_CONVERSIONS, MAX_IMAGES_PER_PAGE });
+    // Update user preferences if they want to override debug settings
+    if (userSettings.preferredMaxConcurrent !== null) {
+      MAX_CONCURRENT_CONVERSIONS = userSettings.preferredMaxConcurrent;
+    } else {
+      MAX_CONCURRENT_CONVERSIONS = debugSettings.maxConcurrent;
+    }
+    
+    if (userSettings.preferredMaxImages !== null) {
+      MAX_IMAGES_PER_PAGE = userSettings.preferredMaxImages;
+    } else {
+      MAX_IMAGES_PER_PAGE = debugSettings.maxImages;
+    }
+    
+    console.log('Debug settings updated with user overrides:', { MAX_CONCURRENT_CONVERSIONS, MAX_IMAGES_PER_PAGE });
     sendResponse({ success: true, message: 'Debug settings updated' });
     return false;
   } else if (message.action === 'convertSingleImage') {
@@ -176,6 +262,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.action === 'updateProgress') {
     // Update progress overlay for the specific image
     updateImageProgress(message.imageUrl, message.progress, message.step, message.stepCount);
+  } else if (message.action === 'updateUserSettings') {
+    // Update user settings from popup or other sources
+    const { settings } = message;
+    userSettings = { ...userSettings, ...settings };
+    saveUserSettings().then(() => {
+      sendResponse({ success: true, message: 'User settings updated' });
+    }).catch(error => {
+      sendResponse({ success: false, error: error.message });
+    });
+    return true;
+  } else if (message.action === 'getUserSettings') {
+    // Return current user settings
+    sendResponse({ success: true, settings: userSettings });
+    return false;
+  } else if (message.action === 'useLastStyle') {
+    // Use the last used style for processing
+    if (userSettings.lastUsedStyle && userSettings.lastUsedStylePrompt) {
+      processImagesWithStyle(userSettings.lastUsedStyle, userSettings.lastUsedStylePrompt);
+      sendResponse({ success: true, message: 'Using last style' });
+    } else {
+      sendResponse({ success: false, error: 'No last style found' });
+    }
+    return false;
   }
   
   return false;
@@ -500,6 +609,7 @@ function findImageGrids() {
 async function processImagesBatch(images) {
   isProcessing = true;
   processingQueue = [...images];
+  window.processingQueue = processingQueue; // Update global reference
   
   console.log(`Processing ${images.length} images`);
   
@@ -508,17 +618,15 @@ async function processImagesBatch(images) {
   let failureCount = 0;
   let completedCount = 0;
   
-  let nextImageIndex = 0;
-  
   // Multiple bouncing Sogni logos are handled automatically by the progress overlay system
   
   try {
     // Process images continuously - assign next image to available slot
     await new Promise((resolve) => {
       const processNextImage = async (slotIndex) => {
-        while (nextImageIndex < images.length) {
-          const imageIndex = nextImageIndex++;
-          const img = images[imageIndex];
+        while (processingQueue.length > 0) {
+          const img = processingQueue.shift(); // Remove from queue as we start processing
+          const imageIndex = images.indexOf(img);
           
           // Processing image ${imageIndex + 1}/${images.length}
           
@@ -1367,6 +1475,12 @@ function handleStyleExplorerMessage(event) {
     console.log(`🎨 Style selected: ${styleKey}`);
     console.log(`📝 Style prompt: ${stylePrompt}`);
     
+    // Save the selected style as user's last used style
+    if (userSettings.rememberLastStyle) {
+      updateUserSetting('lastUsedStyle', styleKey);
+      updateUserSetting('lastUsedStylePrompt', stylePrompt);
+    }
+    
     // Close the style explorer
     closeStyleExplorer();
     
@@ -1381,6 +1495,12 @@ function handleStyleExplorerMessage(event) {
     // Use the provided stylePrompt or get it from our lookup
     const finalStylePrompt = stylePrompt || getStylePromptForKey(promptKey);
     // Using style prompt for processing
+    
+    // Save the selected style as user's last used style
+    if (userSettings.rememberLastStyle) {
+      updateUserSetting('lastUsedStyle', promptKey);
+      updateUserSetting('lastUsedStylePrompt', finalStylePrompt);
+    }
     
     // Close the style explorer
     closeStyleExplorer();
@@ -1455,6 +1575,7 @@ async function processImagesWithStyle(styleKey, stylePrompt) {
 async function processImagesBatchWithStyle(images, styleKey, stylePrompt) {
   isProcessing = true;
   processingQueue = [...images];
+  window.processingQueue = processingQueue; // Update global reference
   
   console.log(`Processing ${images.length} images with ${styleKey}`);
   
@@ -1462,17 +1583,15 @@ async function processImagesBatchWithStyle(images, styleKey, stylePrompt) {
   let successCount = 0;
   let failureCount = 0;
   let completedCount = 0;
-  let nextImageIndex = 0;
-  
   // Multiple bouncing Sogni logos are handled automatically by the progress overlay system
   
   try {
     // Process images continuously - assign next image to available slot
     await new Promise((resolve) => {
       const processNextImage = async (slotIndex) => {
-        while (nextImageIndex < images.length) {
-          const imageIndex = nextImageIndex++;
-          const img = images[imageIndex];
+        while (processingQueue.length > 0) {
+          const img = processingQueue.shift(); // Remove from queue as we start processing
+          const imageIndex = images.indexOf(img);
           
           // Processing image with style
           
