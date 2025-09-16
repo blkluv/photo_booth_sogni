@@ -7,7 +7,7 @@ set -e  # Exit on any error
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXTENSION_DIR="$SCRIPT_DIR"
-PRIVATE_KEY="$SCRIPT_DIR/../keys/privatekey.pem"
+PRIVATE_KEY="$(cd "$SCRIPT_DIR/../keys" && pwd)/privatekey.pem"
 VERSION=$(grep '"version"' "$EXTENSION_DIR/manifest.json" | sed 's/.*"version": *"\([^"]*\)".*/\1/')
 OUTPUT_CRX="$SCRIPT_DIR/sogni-style-explorer-v${VERSION}-signed.crx"
 
@@ -53,11 +53,24 @@ fi
 
 # Create signed CRX
 echo "📦 Creating signed CRX package..."
-cd "$(dirname "$EXTENSION_DIR")"
-"$CHROME_PATH" --pack-extension="$(basename "$EXTENSION_DIR")" --pack-extension-key="keys/privatekey.pem" --no-message-box
+
+# Create a temporary directory with only the necessary extension files
+TEMP_DIR=$(mktemp -d)
+TEMP_EXTENSION_DIR="$TEMP_DIR/$(basename "$EXTENSION_DIR")"
+
+echo "🗂️  Creating temporary extension directory: $TEMP_EXTENSION_DIR"
+mkdir -p "$TEMP_EXTENSION_DIR"
+
+# Copy extension files, excluding CRX files and other build artifacts
+echo "📋 Copying extension files (excluding CRX files)..."
+rsync -av --exclude='*.crx' --exclude='*.zip' --exclude='.DS_Store' --exclude='*.log' "$EXTENSION_DIR/" "$TEMP_EXTENSION_DIR/"
+
+# Package the extension from the temporary directory
+cd "$(dirname "$TEMP_EXTENSION_DIR")"
+"$CHROME_PATH" --pack-extension="$(basename "$TEMP_EXTENSION_DIR")" --pack-extension-key="$PRIVATE_KEY" --no-message-box
 
 # Chrome creates the CRX with the directory name, so we need to find and rename it
-GENERATED_CRX="$(dirname "$EXTENSION_DIR")/$(basename "$EXTENSION_DIR").crx"
+GENERATED_CRX="$TEMP_DIR/$(basename "$EXTENSION_DIR").crx"
 if [ -f "$GENERATED_CRX" ]; then
     mv "$GENERATED_CRX" "$OUTPUT_CRX"
     echo "✅ Successfully created signed CRX: $OUTPUT_CRX"
@@ -65,6 +78,10 @@ else
     echo "❌ Error: Failed to create CRX file"
     exit 1
 fi
+
+# Clean up temporary directory
+echo "🧹 Cleaning up temporary files..."
+rm -rf "$TEMP_DIR"
 
 # Display file info
 echo ""
