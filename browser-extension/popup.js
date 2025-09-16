@@ -30,9 +30,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   
   // Close the popup since we're opening Style Explorer (with delay for debugging)
+  // Only close if Style Explorer opened successfully
   setTimeout(() => {
-    window.close();
-  }, 2000); // 2 second delay to see any errors
+    const styleExplorerOpened = document.getElementById('sogni-style-explorer-overlay') !== null;
+    if (styleExplorerOpened) {
+      window.close();
+    } else {
+      console.log('Style Explorer did not open, keeping popup open for debugging');
+    }
+  }, 5000); // 5 second delay to see any errors and allow content script to load
 });
 
 // Load dev mode settings
@@ -72,10 +78,30 @@ async function activateExtensionAndOpenStyleExplorer() {
     console.log('Sending message to open Style Explorer directly...');
     
     try {
-      const response = await chrome.tabs.sendMessage(tab.id, { action: 'openStyleExplorerDirect' });
-      console.log('Style Explorer opened successfully:', response);
+      // Try multiple times with delays to allow content script to load
+      let response = null;
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      while (attempts < maxAttempts && !response) {
+        try {
+          if (attempts > 0) {
+            console.log(`Retry attempt ${attempts} to open Style Explorer...`);
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second between attempts
+          }
+          response = await chrome.tabs.sendMessage(tab.id, { action: 'openStyleExplorerDirect' });
+          console.log('Style Explorer opened successfully:', response);
+          break;
+        } catch (retryError) {
+          attempts++;
+          if (attempts >= maxAttempts) {
+            throw retryError;
+          }
+          console.log(`Attempt ${attempts} failed, retrying...`);
+        }
+      }
     } catch (messageError) {
-      console.error('Failed to open Style Explorer:', messageError);
+      console.error('Failed to open Style Explorer after retries:', messageError);
       console.log('This might be because the content script is not yet loaded on this page.');
       
       // Fallback 1 - try to activate extension first, then open Style Explorer

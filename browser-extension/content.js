@@ -274,7 +274,40 @@ async function handleScanPageForProfiles() {
 function findProfileImages() {
   const profileImages = [];
   
-  // Look for containers with "speakers" or "speaker" in class/id
+  // First, try to find images with specific speaker/profile image classes
+  const specificSpeakerImages = document.querySelectorAll([
+    'img[class*="speakers-"][class*="_image" i]',  // Flexible Token2049 pattern
+    'img[class*="speakers_"][class*="_image" i]',  // Alternative underscore pattern
+    'img[class*="speaker-"][class*="-image" i]',   // Dash-separated pattern
+    'img[class*="speaker-image" i]',               // Common speaker image classes
+    'img[class*="speaker-photo" i]',
+    'img[class*="profile-image" i]',
+    'img[class*="profile-photo" i]',
+    'img[class*="team-image" i]',
+    'img[class*="team-photo" i]',
+    'img[class*="member-image" i]',
+    'img[class*="member-photo" i]',
+    'img[class*="headshot" i]',
+    'img[class*="avatar" i]'
+  ].join(', '));
+  
+  console.log(`Found ${specificSpeakerImages.length} images with specific speaker/profile classes`);
+  
+  // Use pattern matching to validate and add images
+  for (const img of specificSpeakerImages) {
+    if (isProfileImage(img)) {
+      profileImages.push(img);
+      console.log(`Added specific speaker image: ${img.className}`);
+    }
+  }
+  
+  // If we found specific speaker images, prefer those
+  if (profileImages.length > 0) {
+    console.log(`Using ${profileImages.length} specifically classed speaker images`);
+    return profileImages;
+  }
+  
+  // Fallback: Look for containers with "speakers" or "speaker" in class/id
   const speakerContainers = document.querySelectorAll([
     '[class*="speaker" i]',
     '[id*="speaker" i]',
@@ -289,12 +322,35 @@ function findProfileImages() {
   console.log(`Found ${speakerContainers.length} potential speaker containers`);
   
   for (const container of speakerContainers) {
-    const images = container.querySelectorAll('img');
-    console.log(`Container has ${images.length} images`);
+    // First try to find specifically classed images within the container
+    const specificImages = container.querySelectorAll([
+      'img[class*="speakers-"][class*="_image" i]',  // Flexible Token2049 pattern
+      'img[class*="speakers_"][class*="_image" i]',  // Alternative underscore pattern
+      'img[class*="speaker-"][class*="-image" i]',   // Dash-separated pattern
+      'img[class*="speaker-image" i]',
+      'img[class*="speaker-photo" i]',
+      'img[class*="profile-image" i]',
+      'img[class*="profile-photo" i]',
+      'img[class*="headshot" i]',
+      'img[class*="avatar" i]'
+    ].join(', '));
     
-    for (const img of images) {
-      if (isProfileImage(img)) {
-        profileImages.push(img);
+    if (specificImages.length > 0) {
+      console.log(`Container has ${specificImages.length} specifically classed images`);
+      for (const img of specificImages) {
+        if (isProfileImage(img)) {
+          profileImages.push(img);
+        }
+      }
+    } else {
+      // Fallback to all images in container, but be more selective
+      const allImages = container.querySelectorAll('img');
+      console.log(`Container has ${allImages.length} total images, filtering...`);
+      
+      for (const img of allImages) {
+        if (isProfileImage(img) && !hasExcludedClasses(img)) {
+          profileImages.push(img);
+        }
       }
     }
   }
@@ -306,6 +362,32 @@ function findProfileImages() {
   }
   
   return profileImages;
+}
+
+// Check if an image matches flexible speaker/profile patterns
+function matchesSpeakerPattern(img) {
+  const className = img.className.toLowerCase();
+  
+  // Token2049-style patterns: speakers-{month}_image, speakers-{date}_image, etc.
+  const speakerPatterns = [
+    /speakers-\w+_image/i,           // speakers-oct_image, speakers-nov_image, etc.
+    /speakers-\d+_image/i,           // speakers-2024_image, speakers-01_image, etc.
+    /speaker-\w+-image/i,            // speaker-oct-image, speaker-main-image, etc.
+    /speakers_\w+_image/i,           // speakers_oct_image (underscore variant)
+  ];
+  
+  return speakerPatterns.some(pattern => pattern.test(className));
+}
+
+// Check if an image has excluded classes that indicate it's not a profile photo
+function hasExcludedClasses(img) {
+  const className = img.className.toLowerCase();
+  const excludedClasses = [
+    'logo', 'icon', 'banner', 'background', 'bg-', 'decoration',
+    'overlay', 'watermark', 'badge', 'button', 'arrow', 'chevron'
+  ];
+  
+  return excludedClasses.some(excluded => className.includes(excluded));
 }
 
 // Check if an image looks like a profile photo
@@ -324,6 +406,25 @@ function isProfileImage(img) {
     return false;
   }
   
+  // Check for flexible speaker/profile patterns first
+  if (matchesSpeakerPattern(img)) {
+    console.log(`Image identified as profile by flexible pattern: ${img.className}`);
+    return true;
+  }
+  
+  // Check for other common profile image classes
+  const className = img.className.toLowerCase();
+  const profileClasses = [
+    'speaker-image', 'speaker-photo', 'speakers_image', 'profile-image', 
+    'profile-photo', 'headshot', 'avatar', 'team-image', 'team-photo',
+    'member-image', 'member-photo'
+  ];
+  
+  if (profileClasses.some(cls => className.includes(cls))) {
+    console.log(`Image identified as profile by class: ${img.className}`);
+    return true;
+  }
+  
   // Check aspect ratio (profile photos are usually square-ish)
   const aspectRatio = rect.width / rect.height;
   if (aspectRatio < 0.5 || aspectRatio > 2) return false;
@@ -337,6 +438,11 @@ function isProfileImage(img) {
   // Check alt text
   const alt = img.alt.toLowerCase();
   if (alt.includes('logo') || alt.includes('icon') || alt.includes('banner')) {
+    return false;
+  }
+  
+  // Additional checks for common non-profile image patterns
+  if (src.includes('background') || src.includes('bg-') || src.includes('decoration')) {
     return false;
   }
   

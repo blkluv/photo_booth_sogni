@@ -80,7 +80,13 @@ chrome.storage.local.get(['sogni_extension_app_id'], (result) => {
   
   // Use client-based SSE connection like main photobooth frontend
   try {
-    sseManager.connect(DEFAULT_API_BASE_URL);
+    // Get the correct API base URL based on dev mode setting
+    getApiBaseUrl().then(apiBaseUrl => {
+      sseManager.connect(apiBaseUrl);
+    }).catch(e => {
+      console.warn('Background: failed to get API base URL, using default', e);
+      sseManager.connect(DEFAULT_API_BASE_URL);
+    });
   } catch (e) {
     console.warn('Background: initial SSE connect failed, will retry on demand', e);
   }
@@ -197,10 +203,11 @@ class SSEConnectionManager {
   }
 
   // Ensure there is an active connection (attempt if not connected)
-  ensureConnected(apiBaseUrl) {
+  async ensureConnected(apiBaseUrl) {
     if (!this.isConnected && !this.isConnecting) {
       console.log('Background: Ensuring SSE connection...');
-      this.connect(apiBaseUrl || this.apiBaseUrl || DEFAULT_API_BASE_URL);
+      const finalApiBaseUrl = apiBaseUrl || this.apiBaseUrl || await getApiBaseUrl();
+      this.connect(finalApiBaseUrl);
     }
   }
 
@@ -219,9 +226,10 @@ class SSEConnectionManager {
     if (this.reconnectTimer || this.isConnecting || this.isConnected) return;
     const delay = Math.min(this.backoffMs, this.maxBackoffMs);
     console.log(`Background: Scheduling SSE reconnect in ${delay}ms`);
-    this.reconnectTimer = setTimeout(() => {
+    this.reconnectTimer = setTimeout(async () => {
       this.reconnectTimer = null;
-      this.connect(this.apiBaseUrl || DEFAULT_API_BASE_URL);
+      const apiBaseUrl = this.apiBaseUrl || await getApiBaseUrl();
+      this.connect(apiBaseUrl);
       this.backoffMs = Math.min(this.backoffMs * 2, this.maxBackoffMs);
     }, delay);
   }
@@ -453,8 +461,8 @@ async function checkApiStatus() {
 // Check API health in background script
 async function checkApiHealthInBackground() {
   try {
-    // Use correct local API domain
-    const apiBaseUrl = 'https://photobooth-api.sogni.ai';
+    // Get API base URL based on dev mode setting
+    const apiBaseUrl = await getApiBaseUrl();
     console.log('Background: Checking API health at:', apiBaseUrl);
     
     const response = await fetch(`${apiBaseUrl}/api/health`, {
@@ -481,7 +489,30 @@ async function checkApiHealthInBackground() {
   }
 }
 
-// Client app ID is defined at the top of the file
+// Get API base URL based on dev mode setting
+async function getApiBaseUrl() {
+  try {
+    // Check dev mode from storage
+    const result = await chrome.storage.local.get(['devMode']);
+    const isDevMode = result.devMode || false;
+    console.log('Background: Dev mode setting:', isDevMode);
+    
+    if (isDevMode) {
+      // In dev mode, use local development server
+      const localUrl = 'https://photobooth-api-local.sogni.ai';
+      console.log('Background: Dev mode enabled, using local URL:', localUrl);
+      return localUrl;
+    }
+    
+    // Use production URL
+    const productionUrl = 'https://photobooth-api.sogni.ai';
+    console.log('Background: Using production URL:', productionUrl);
+    return productionUrl;
+  } catch (error) {
+    console.log('Background: Error checking dev mode, defaulting to production:', error);
+    return 'https://photobooth-api.sogni.ai';
+  }
+}
 
 // Handle image conversion with custom style in background
 async function handleImageConversionWithStyle(imageUrl, imageSize, styleKey, stylePrompt) {
@@ -491,9 +522,9 @@ async function handleImageConversionWithStyle(imageUrl, imageSize, styleKey, sty
   console.log('Background: Using shared client app ID for this conversion:', extensionClientAppId);
   
   try {
-    // Use correct local API domain
-    const apiBaseUrl = 'https://photobooth-api.sogni.ai';
-    console.log('Background: Using local API domain for image conversion:', apiBaseUrl);
+    // Get API base URL based on dev mode setting
+    const apiBaseUrl = await getApiBaseUrl();
+    console.log('Background: Using API domain for image conversion:', apiBaseUrl);
 
     // Ensure shared SSE is connected (or reconnecting) before/while we generate
     // Wait for stable client ID first to avoid ID mismatch between SSE and generate
@@ -592,9 +623,9 @@ async function handleImageConversion(imageUrl, imageSize) {
   console.log('Background: Using shared client app ID for this conversion:', extensionClientAppId);
   
   try {
-    // Use correct local API domain
-    const apiBaseUrl = 'https://photobooth-api.sogni.ai';
-    console.log('Background: Using local API domain for image conversion:', apiBaseUrl);
+    // Get API base URL based on dev mode setting
+    const apiBaseUrl = await getApiBaseUrl();
+    console.log('Background: Using API domain for image conversion:', apiBaseUrl);
 
     // Ensure shared SSE is connected (or reconnecting) before/while we generate
     // Wait for stable client ID first to avoid ID mismatch between SSE and generate

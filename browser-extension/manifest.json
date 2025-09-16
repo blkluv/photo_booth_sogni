@@ -23,7 +23,15 @@
     "service_worker": "background.js"
   },
   
-  
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["api-service.js", "progress-overlay.js", "content.js"],
+      "css": ["content.css"],
+      "run_at": "document_end"
+    }
+  ],
+
   "action": {
     "default_popup": "popup.html",
     "default_title": "Sogni Style Explorer",
