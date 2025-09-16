@@ -366,6 +366,54 @@ body {
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
 }
 
+/* Main Action Section */
+.main-action-section {
+  padding: 20px;
+  text-align: center;
+}
+
+.main-action-button {
+  width: 100%;
+  background: linear-gradient(135deg, #ff61d5 0%, #7132e8 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 16px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(255, 97, 213, 0.3);
+}
+
+.main-action-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 97, 213, 0.4);
+}
+
+.main-action-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.main-action-button:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.main-action-button .btn-icon {
+  font-size: 20px;
+}
+
+.main-action-button .btn-text {
+  font-size: 16px;
+}
+
 /* Loading Section */
 .loading-section {
   display: flex;

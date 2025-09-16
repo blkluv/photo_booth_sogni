@@ -10,7 +10,7 @@ let sessionStats = {
 
 // Initialize popup when DOM is ready
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('🚀 Extension popup opened - requesting permission and injecting scripts');
+  console.log('🚀 Extension popup opened - loading settings');
   
   // Load dev mode setting
   await loadDevModeSettings();
@@ -21,16 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Setup event listeners
   setupEventListeners();
   
-  // Inject content scripts and activate extension
-  try {
-    await injectContentScriptsAndActivate();
-    console.log('Extension activation completed');
-  } catch (error) {
-    console.error('Error activating extension:', error);
-  }
-  
-  // Listen for messages from content script about Style Explorer status
-  // The popup will close automatically when Style Explorer opens successfully
+  console.log('Extension popup ready - waiting for user to click "Open Style Explorer"');
 });
 
 // Inject content scripts and activate extension (only when user clicks extension icon)
@@ -309,6 +300,45 @@ async function activateExtension() {
 
 // Setup event listeners
 function setupEventListeners() {
+  // Open Style Explorer button
+  const openStyleExplorerBtn = document.getElementById('open-style-explorer-btn');
+  if (openStyleExplorerBtn) {
+    openStyleExplorerBtn.addEventListener('click', async () => {
+      console.log('Open Style Explorer button clicked');
+      
+      // Show loading state
+      const loadingSection = document.querySelector('.loading-section');
+      const mainActionSection = document.querySelector('.main-action-section');
+      
+      mainActionSection.style.display = 'none';
+      loadingSection.style.display = 'flex';
+      
+      // Inject content scripts and activate extension
+      try {
+        await injectContentScriptsAndActivate();
+        console.log('Extension activation completed');
+      } catch (error) {
+        console.error('Error activating extension:', error);
+        
+        // Show error and restore button
+        mainActionSection.style.display = 'block';
+        loadingSection.style.display = 'none';
+        
+        openStyleExplorerBtn.innerHTML = `
+          <span class="btn-icon">❌</span>
+          <span class="btn-text">Error - Try Again</span>
+        `;
+        
+        setTimeout(() => {
+          openStyleExplorerBtn.innerHTML = `
+            <span class="btn-icon">🎨</span>
+            <span class="btn-text">Open Style Explorer</span>
+          `;
+        }, 3000);
+      }
+    });
+  }
+  
   // Help and about links (only if they exist)
   const helpLink = document.getElementById('help-link');
   if (helpLink) {
@@ -672,10 +702,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Close popup after a short delay to allow user to see success
     setTimeout(() => {
       window.close();
-    }, 1000);
+    }, 500);
   } else if (message.action === 'styleExplorerFailed') {
-    console.log('Style Explorer failed to open, keeping popup open');
-    // Could add error UI here if needed
+    console.log('Style Explorer failed to open, restoring popup UI');
+    
+    // Restore the main action button
+    const loadingSection = document.querySelector('.loading-section');
+    const mainActionSection = document.querySelector('.main-action-section');
+    const openStyleExplorerBtn = document.getElementById('open-style-explorer-btn');
+    
+    if (loadingSection && mainActionSection && openStyleExplorerBtn) {
+      loadingSection.style.display = 'none';
+      mainActionSection.style.display = 'block';
+      
+      openStyleExplorerBtn.innerHTML = `
+        <span class="btn-icon">❌</span>
+        <span class="btn-text">Failed - Try Again</span>
+      `;
+      
+      setTimeout(() => {
+        openStyleExplorerBtn.innerHTML = `
+          <span class="btn-icon">🎨</span>
+          <span class="btn-text">Open Style Explorer</span>
+        `;
+      }, 3000);
+    }
   }
 });
 

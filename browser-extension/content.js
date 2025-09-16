@@ -643,8 +643,24 @@ async function replaceImageWithHoverComparison(originalImage, pirateImageUrl) {
       
       beforeImg.src = originalUrl;
       afterImg.src = pirateImageUrl;
-      beforeImg.className = 'sogni-before-image';
-      afterImg.className = 'sogni-after-image';
+      
+      // Copy original image's classes and add Sogni-specific classes
+      beforeImg.className = originalImage.className + ' sogni-before-image';
+      afterImg.className = originalImage.className + ' sogni-after-image';
+      
+      // Copy other important attributes for consistent rendering
+      if (originalImage.alt) {
+        beforeImg.alt = originalImage.alt;
+        afterImg.alt = originalImage.alt + ' (AI Enhanced)';
+      }
+      if (originalImage.title) {
+        beforeImg.title = originalImage.title;
+        afterImg.title = originalImage.title + ' (AI Enhanced)';
+      }
+      if (originalImage.loading) {
+        beforeImg.loading = originalImage.loading;
+        afterImg.loading = originalImage.loading;
+      }
       
       // Create scrubber line (hidden by default)
       const scrubberLine = document.createElement('div');
