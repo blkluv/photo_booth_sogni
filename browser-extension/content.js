@@ -87,6 +87,7 @@ async function initialize() {
     
     // Initialize progress overlay (lightweight, no API calls)
     progressOverlay = new ProgressOverlay();
+    progressOverlay.updateMaxConcurrentSlots(MAX_CONCURRENT_CONVERSIONS);
     
     // Listen for scroll and resize to update overlay positions
     window.addEventListener('scroll', () => progressOverlay.updatePositions());
@@ -235,16 +236,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'updateDebugSettings') {
     const { debugSettings } = message;
     // Update user preferences if they want to override debug settings
-    if (userSettings.preferredMaxConcurrent !== null) {
+    if (userSettings.preferredMaxConcurrent !== null && userSettings.preferredMaxConcurrent !== undefined) {
       MAX_CONCURRENT_CONVERSIONS = userSettings.preferredMaxConcurrent;
+      console.log('Using user preference for concurrent workers:', MAX_CONCURRENT_CONVERSIONS);
     } else {
       MAX_CONCURRENT_CONVERSIONS = debugSettings.maxConcurrent;
+      console.log('Using debug setting for concurrent workers:', MAX_CONCURRENT_CONVERSIONS);
     }
     
-    if (userSettings.preferredMaxImages !== null) {
+    if (userSettings.preferredMaxImages !== null && userSettings.preferredMaxImages !== undefined) {
       MAX_IMAGES_PER_PAGE = userSettings.preferredMaxImages;
+      console.log('Using user preference for max images:', MAX_IMAGES_PER_PAGE);
     } else {
       MAX_IMAGES_PER_PAGE = debugSettings.maxImages;
+      console.log('Using debug setting for max images:', MAX_IMAGES_PER_PAGE);
     }
     
     console.log('Debug settings updated with user overrides:', { MAX_CONCURRENT_CONVERSIONS, MAX_IMAGES_PER_PAGE });
@@ -266,9 +271,35 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Update user settings from popup or other sources
     const { settings } = message;
     userSettings = { ...userSettings, ...settings };
+    
+    // Immediately apply settings that affect processing
+    if (settings.preferredMaxConcurrent !== undefined) {
+      MAX_CONCURRENT_CONVERSIONS = settings.preferredMaxConcurrent;
+      console.log('Updated MAX_CONCURRENT_CONVERSIONS to:', MAX_CONCURRENT_CONVERSIONS);
+      
+      // Update progress overlay if it exists
+      if (window.progressOverlay) {
+        window.progressOverlay.updateMaxConcurrentSlots(MAX_CONCURRENT_CONVERSIONS);
+      }
+    }
+    if (settings.preferredMaxImages !== undefined) {
+      MAX_IMAGES_PER_PAGE = settings.preferredMaxImages;
+      console.log('Updated MAX_IMAGES_PER_PAGE to:', MAX_IMAGES_PER_PAGE);
+    }
+    
     saveUserSettings().then(() => {
       sendResponse({ success: true, message: 'User settings updated' });
     }).catch(error => {
+      sendResponse({ success: false, error: error.message });
+    });
+    return true;
+  } else if (message.action === 'saveUserSettings') {
+    // Save current user settings to persistent storage
+    saveUserSettings().then(() => {
+      console.log('User settings saved to persistent storage');
+      sendResponse({ success: true, message: 'User settings saved' });
+    }).catch(error => {
+      console.error('Error saving user settings to persistent storage:', error);
       sendResponse({ success: false, error: error.message });
     });
     return true;
@@ -362,6 +393,7 @@ async function handleScanPageForProfiles() {
       }
       
       progressOverlay = new ProgressOverlay();
+      progressOverlay.updateMaxConcurrentSlots(MAX_CONCURRENT_CONVERSIONS);
     }
     
     const profileImages = findProfileImages();
@@ -821,7 +853,7 @@ async function processImagesBatch(images) {
   processingQueue = [...images];
   window.processingQueue = processingQueue; // Update global reference
   
-  console.log(`Processing ${images.length} images`);
+  console.log(`Processing ${images.length} images with ${MAX_CONCURRENT_CONVERSIONS} concurrent workers`);
   
   // Track success/failure counts
   let successCount = 0;
@@ -2074,7 +2106,7 @@ async function processImagesBatchWithStyle(images, styleKey, stylePrompt) {
   processingQueue = [...images];
   window.processingQueue = processingQueue; // Update global reference
   
-  console.log(`Processing ${images.length} images with ${styleKey}`);
+  console.log(`Processing ${images.length} images with ${styleKey} using ${MAX_CONCURRENT_CONVERSIONS} concurrent workers`);
   
   // Track success/failure counts
   let successCount = 0;

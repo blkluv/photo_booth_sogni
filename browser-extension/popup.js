@@ -555,16 +555,37 @@ function setupEventListeners() {
         maxConcurrent: Math.max(1, Math.min(16, maxConcurrent))
       };
       
-      chrome.storage.local.set({ debugSettings }, () => {
+      // Save as user preferences (not debug settings)
+      const userSettings = {
+        preferredMaxImages: debugSettings.maxImages,
+        preferredMaxConcurrent: debugSettings.maxConcurrent
+      };
+      
+      // Save both debug settings (for UI) and user settings (for actual use)
+      chrome.storage.local.set({ debugSettings }, async () => {
         console.log('Debug settings saved:', debugSettings);
+        console.log('User preferences to save:', userSettings);
         
-        // Send message to content script about settings change
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        // Send message to content script to save user settings and update variables
+        chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
           if (tabs[0]) {
-            chrome.tabs.sendMessage(tabs[0].id, { 
-              action: 'updateDebugSettings', 
-              debugSettings 
-            });
+            try {
+              // First, send the settings update message
+              await chrome.tabs.sendMessage(tabs[0].id, { 
+                action: 'updateUserSettings', 
+                settings: userSettings 
+              });
+              console.log('User settings message sent successfully');
+              
+              // Also send a message to save the settings persistently
+              await chrome.tabs.sendMessage(tabs[0].id, { 
+                action: 'saveUserSettings'
+              });
+              console.log('Save user settings message sent successfully');
+              
+            } catch (error) {
+              console.error('Error sending settings messages:', error);
+            }
           }
         });
         

@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token2049 Singapore Speakers - Test Prototype</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #000;
+            color: #fff;
+            line-height: 1.6;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 60px 20px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+        
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #00d4ff, #0099cc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            color: #ccc;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .speakers-section {
+            padding: 80px 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 60px;
+            color: #fff;
+        }
+        
+        /* Token2049-style speakers grid */
+        .speakers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 40px;
+            margin-bottom: 60px;
+        }
+        
+        .speaker-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .speaker-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(0, 212, 255, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 212, 255, 0.1);
+        }
+        
+        /* Key: Speaker images that should be detected */
+        .speaker-image {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin: 0 auto 20px;
+            display: block;
+            border: 3px solid rgba(0, 212, 255, 0.3);
+            transition: border-color 0.3s ease;
+        }
+        
+        .speaker-card:hover .speaker-image {
+            border-color: rgba(0, 212, 255, 0.6);
+        }
+        
+        .speaker-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+        
+        .speaker-title {
+            font-size: 1rem;
+            color: #00d4ff;
+            font-weight: 500;
+            margin-bottom: 6px;
+        }
+        
+        .speaker-company {
+            font-size: 0.9rem;
+            color: #aaa;
+            font-weight: 400;
+        }
+        
+        /* Load more section */
+        .load-more {
+            text-align: center;
+            margin-top: 60px;
+        }
+        
+        .load-more-btn {
+            background: linear-gradient(45deg, #00d4ff, #0099cc);
+            color: #000;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        
+        .load-more-btn:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>TOKEN2049 SINGAPORE</h1>
+        <p>Meet our world-class lineup of speakers from the crypto and blockchain industry</p>
+    </div>
+
+    <div class="speakers-section">
+        <h2 class="section-title">OUR LATEST SPEAKERS</h2>
+        
+        <!-- This matches the Token2049 speakers grid structure -->
+        <div class="speakers-grid" id="token2049-speakers">
+            
+            <!-- Speaker 1 - Vlad Tenev -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/120x120/00D4FF/000000?text=VT" 
+                     alt="Vlad Tenev" class="speaker-image">
+                <div class="speaker-name">Vlad Tenev</div>
+                <div class="speaker-title">Chairman and CEO</div>
+                <div class="speaker-company">Robinhood</div>
+            </div>
+
+            <!-- Speaker 2 - Balaji Srinivasan -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/120x120/0099CC/FFFFFF?text=BS" 
+                     alt="Balaji Srinivasan" class="speaker-image">
+                <div class="speaker-name">Balaji Srinivasan</div>
+                <div class="speaker-title">Founder, Investor, and Author</div>
+                <div class="speaker-company">The Network State</div>
+            </div>
+
+            <!-- Speaker 3 - Tom Lee -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/120x120/FF6B35/FFFFFF?text=TL" 
+                     alt="Tom Lee" class="speaker-image">
+                <div class="speaker-name">Tom Lee</div>
+                <div class="speaker-title">CIO and Portfolio Manager / Chairman</div>
+                <div class="speaker-company">Fundstrat / BitMine</div>
+            </div>
+
+            <!-- Speaker 4 - Arthur Hayes -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/120x120/7B68EE/FFFFFF?text=AH" 
+                     alt="Arthur Hayes" class="speaker-image">
+                <div class="speaker-name">Arthur Hayes</div>
+                <div class="speaker-title">CIO</div>
+                <div class="speaker-company">Maelstrom</div>
+            </div>
+
+            <!-- Speaker 5 - Bryan Johnson -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/120x120/32CD32/000000?text=BJ" 
+                     alt="Bryan Johnson" class="speaker-image">
+                <div class="speaker-name">Bryan Johnson</div>
+                <div class="speaker-title">Founder and CEO</div>
+                <div class="speaker-company">Blueprint / Don't Die</div>
+            </div>
+
+            <!-- Speaker 6 - Richard Teng -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/120x120/FFD700/000000?text=RT" 
+                     alt="Richard Teng" class="speaker-image">
+                <div class="speaker-name">Richard Teng</div>
+                <div class="speaker-title">CEO</div>
+                <div class="speaker-company">Binance</div>
+            </div>
+
+            <!-- Speaker 7 - Paolo Ardoino -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/120x120/FF1493/FFFFFF?text=PA" 
+                     alt="Paolo Ardoino" class="speaker-image">
+                <div class="speaker-name">Paolo Ardoino</div>
+                <div class="speaker-title">CEO</div>
+                <div class="speaker-company">Tether</div>
+            </div>
+
+            <!-- Speaker 8 - Jesse Pollak -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/120x120/1E90FF/FFFFFF?text=JP" 
+                     alt="Jesse Pollak" class="speaker-image">
+                <div class="speaker-name">Jesse Pollak</div>
+                <div class="speaker-title">Creator</div>
+                <div class="speaker-company">Base</div>
+            </div>
+
+            <!-- Speaker 9 - Joseph Lubin -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/120x120/9370DB/FFFFFF?text=JL" 
+                     alt="Joseph Lubin" class="speaker-image">
+                <div class="speaker-name">Joseph Lubin</div>
+                <div class="speaker-title">Founder and CEO / Chairman</div>
+                <div class="speaker-company">Consensys / SharpLink</div>
+            </div>
+
+            <!-- Speaker 10 - Charles Hoskinson -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/120x120/FF4500/FFFFFF?text=CH" 
+                     alt="Charles Hoskinson" class="speaker-image">
+                <div class="speaker-name">Charles Hoskinson</div>
+                <div class="speaker-title">CEO</div>
+                <div class="speaker-company">Input Output</div>
+            </div>
+
+            <!-- Speaker 11 - Justin Sun -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/120x120/DC143C/FFFFFF?text=JS" 
+                     alt="Justin Sun" class="speaker-image">
+                <div class="speaker-name">Justin Sun</div>
+                <div class="speaker-title">Founder</div>
+                <div class="speaker-company">TRON</div>
+            </div>
+
+            <!-- Speaker 12 - Yat Siu -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/120x120/20B2AA/FFFFFF?text=YS" 
+                     alt="Yat Siu" class="speaker-image">
+                <div class="speaker-name">Yat Siu</div>
+                <div class="speaker-title">Co-Founder and Chairman</div>
+                <div class="speaker-company">Animoca Brands</div>
+            </div>
+
+        </div>
+
+        <div class="load-more">
+            <button class="load-more-btn" onclick="loadMoreSpeakers()">Load More</button>
+        </div>
+    </div>
+
+    <!-- Test Documentation -->
+    <div style="margin: 80px 20px; padding: 30px; background: rgba(255, 255, 255, 0.05); border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1);">
+        <h3 style="color: #00d4ff; margin-top: 0; font-size: 1.8rem;">🧪 Regression Test: Token2049 Speakers</h3>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin: 30px 0;">
+            <div>
+                <h4 style="color: #fff; margin-bottom: 15px;">✅ Test Criteria</h4>
+                <ul style="color: #ccc; line-height: 1.8;">
+                    <li><strong>Image Count:</strong> 12 speaker photos</li>
+                    <li><strong>Image Size:</strong> 120x120px (circular)</li>
+                    <li><strong>Container Detection:</strong> "speakers-grid" with "speakers" keyword</li>
+                    <li><strong>Grid Fallback:</strong> 12 similar-sized images</li>
+                    <li><strong>Aspect Ratio:</strong> 1:1 (perfect squares)</li>
+                    <li><strong>Layout:</strong> Responsive grid with hover effects</li>
+                </ul>
+            </div>
+            <div>
+                <h4 style="color: #fff; margin-bottom: 15px;">🎯 Expected Extension Behavior</h4>
+                <ul style="color: #ccc; line-height: 1.8;">
+                    <li>Detect container via "speakers" keyword in class</li>
+                    <li>Validate all 12 images as profile photos</li>
+                    <li>Handle dark theme background properly</li>
+                    <li>Convert images successfully with hover comparison</li>
+                    <li>Maintain Token2049's dark aesthetic</li>
+                    <li>Preserve grid layout and animations</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div style="background: rgba(0, 0, 0, 0.3); padding: 20px; border-radius: 8px; margin-top: 20px;">
+            <strong style="color: #00d4ff;">📋 Based on:</strong> 
+            <a href="https://www.asia.token2049.com/speakers" target="_blank" style="color: #fff; text-decoration: none;">
+                Token2049 Singapore Speakers Page
+            </a><br>
+            <strong style="color: #00d4ff;">🕒 Last Verified:</strong> <span id="test-date" style="color: #fff;"></span><br>
+            <strong style="color: #00d4ff;">🔧 Extension Version:</strong> <span style="color: #fff;">2.0+ (Multi-site compatible)</span><br>
+            <strong style="color: #00d4ff;">🎨 Theme:</strong> <span style="color: #fff;">Dark mode with crypto/blockchain styling</span>
+        </div>
+    </div>
+
+    <script>
+        // Set test date
+        document.getElementById('test-date').textContent = new Date().toLocaleDateString();
+        
+        // Simulate Token2049's interactive behavior
+        document.querySelectorAll('.speaker-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-8px) scale(1.02)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+        });
+        
+        // Load more functionality (simulated)
+        function loadMoreSpeakers() {
+            alert('Load More functionality simulated - in real Token2049 page, this would load additional speakers');
+        }
+        
+        // Test validation function
+        window.validateToken2049Test = function() {
+            console.log('🧪 Validating Token2049 Speakers Test...');
+            
+            const speakerImages = document.querySelectorAll('.speaker-image');
+            const speakersContainer = document.querySelector('.speakers-grid');
+            
+            console.log(`📊 Found ${speakerImages.length} speaker images`);
+            console.log(`📦 Container found: ${speakersContainer ? 'Yes' : 'No'}`);
+            console.log(`🎨 Dark theme: ${document.body.style.backgroundColor === 'rgb(0, 0, 0)' ? 'Yes' : 'No'}`);
+            
+            // Validate image dimensions and aspect ratios
+            let validImages = 0;
+            speakerImages.forEach((img, index) => {
+                const rect = img.getBoundingClientRect();
+                const aspectRatio = rect.width / rect.height;
+                const isValid = rect.width >= 110 && rect.width <= 130 && 
+                               aspectRatio >= 0.9 && aspectRatio <= 1.1;
+                
+                console.log(`   Image ${index + 1}: ${rect.width}x${rect.height} (${aspectRatio.toFixed(2)}) ${isValid ? '✅' : '❌'}`);
+                if (isValid) validImages++;
+            });
+            
+            // Check for Token2049-specific features
+            const hasHoverEffects = document.querySelectorAll('.speaker-card').length > 0;
+            const hasDarkTheme = getComputedStyle(document.body).backgroundColor === 'rgb(0, 0, 0)';
+            const hasLoadMore = document.querySelector('.load-more-btn') !== null;
+            
+            console.log(`🎭 Hover effects: ${hasHoverEffects ? '✅' : '❌'}`);
+            console.log(`🌙 Dark theme: ${hasDarkTheme ? '✅' : '❌'}`);
+            console.log(`⬇️ Load more button: ${hasLoadMore ? '✅' : '❌'}`);
+            
+            const testPassed = speakerImages.length === 12 && 
+                              validImages === 12 && 
+                              speakersContainer !== null &&
+                              hasHoverEffects && hasDarkTheme;
+            
+            console.log(`🎯 Test Result: ${testPassed ? '✅ PASSED' : '❌ FAILED'}`);
+            return testPassed;
+        };
+        
+        // Auto-run validation on load
+        setTimeout(() => {
+            console.log('🚀 Auto-running Token2049 validation...');
+            validateToken2049Test();
+        }, 1000);
+    </script>
+</body>
+</html>

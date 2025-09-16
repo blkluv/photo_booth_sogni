@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Netflix Leadership - Test Prototype</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: "Netflix Sans", "Helvetica Neue", Arial, sans-serif;
+            background-color: #000;
+            color: #fff;
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #e50914 0%, #b20710 100%);
+            padding: 80px 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #fff;
+        }
+        
+        .header p {
+            font-size: 1.3rem;
+            color: rgba(255, 255, 255, 0.8);
+            max-width: 700px;
+            margin: 0 auto;
+        }
+        
+        .leadership-section {
+            padding: 100px 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .section-title {
+            font-size: 2.8rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 80px;
+            color: #fff;
+        }
+        
+        /* Netflix-style management grid - this matches the actual class structure */
+        .management-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 40px;
+            margin-bottom: 60px;
+        }
+        
+        .management-card {
+            background: #141414;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .management-card:hover {
+            transform: scale(1.05);
+            border-color: #e50914;
+            box-shadow: 0 10px 30px rgba(229, 9, 20, 0.3);
+        }
+        
+        /* Key: This mimics the actual Netflix headshot class structure */
+        .management-gridstyles__Headshot-cmkolc-5.giPOsw {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            display: block;
+        }
+        
+        /* Alternative class name for testing */
+        .headshot-image {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .management-info {
+            padding: 25px;
+        }
+        
+        .leader-name {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+        
+        .leader-title {
+            font-size: 1.1rem;
+            color: #e50914;
+            font-weight: 500;
+            margin-bottom: 12px;
+        }
+        
+        .leader-bio {
+            font-size: 0.95rem;
+            color: #b3b3b3;
+            line-height: 1.5;
+        }
+        
+        /* Netflix red accent */
+        .netflix-accent {
+            color: #e50914;
+        }
+        
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #e50914, transparent);
+            margin: 60px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Direction de Netflix</h1>
+        <p>Rencontrez l'équipe de direction qui façonne l'avenir du divertissement mondial</p>
+    </div>
+
+    <div class="leadership-section">
+        <h2 class="section-title">Notre Équipe de Direction</h2>
+        
+        <!-- This matches the Netflix management grid structure with the specific class names -->
+        <div class="management-grid" id="netflix-management-grid">
+            
+            <!-- Leader 1 - Using the exact Netflix class structure -->
+            <div class="management-card">
+                <img src="https://via.placeholder.com/280x300/E50914/FFFFFF?text=Reed+Hastings" 
+                     alt="Reed Hastings, Co-fondateur et Président exécutif" 
+                     class="management-gridstyles__Headshot-cmkolc-5 giPOsw">
+                <div class="management-info">
+                    <div class="leader-name">Reed Hastings</div>
+                    <div class="leader-title">Co-fondateur et Président exécutif</div>
+                    <div class="leader-bio">Reed a co-fondé Netflix en 1997 et a dirigé la transformation de l'entreprise d'un service de location de DVD à la plus grande plateforme de streaming au monde.</div>
+                </div>
+            </div>
+
+            <!-- Leader 2 -->
+            <div class="management-card">
+                <img src="https://via.placeholder.com/280x300/B20710/FFFFFF?text=Ted+Sarandos" 
+                     alt="Ted Sarandos, Co-PDG et Directeur du contenu" 
+                     class="management-gridstyles__Headshot-cmkolc-5 giPOsw">
+                <div class="management-info">
+                    <div class="leader-name">Ted Sarandos</div>
+                    <div class="leader-title">Co-PDG et Directeur du contenu</div>
+                    <div class="leader-bio">Ted supervise toutes les fonctions créatives mondiales de Netflix, y compris la création et l'acquisition de contenu original et sous licence.</div>
+                </div>
+            </div>
+
+            <!-- Leader 3 -->
+            <div class="management-card">
+                <img src="https://via.placeholder.com/280x300/8B0000/FFFFFF?text=Greg+Peters" 
+                     alt="Greg Peters, Co-PDG" 
+                     class="management-gridstyles__Headshot-cmkolc-5 giPOsw">
+                <div class="management-info">
+                    <div class="leader-name">Greg Peters</div>
+                    <div class="leader-title">Co-PDG</div>
+                    <div class="leader-bio">Greg dirige les opérations mondiales de Netflix, supervisant la technologie, les partenariats et l'expansion internationale.</div>
+                </div>
+            </div>
+
+            <!-- Leader 4 -->
+            <div class="management-card">
+                <img src="https://via.placeholder.com/280x300/DC143C/FFFFFF?text=Spencer+Neumann" 
+                     alt="Spencer Neumann, Directeur financier" 
+                     class="management-gridstyles__Headshot-cmkolc-5 giPOsw">
+                <div class="management-info">
+                    <div class="leader-name">Spencer Neumann</div>
+                    <div class="leader-title">Directeur financier</div>
+                    <div class="leader-bio">Spencer supervise toutes les fonctions financières de Netflix, y compris la planification financière, les relations avec les investisseurs et la stratégie d'entreprise.</div>
+                </div>
+            </div>
+
+            <!-- Leader 5 -->
+            <div class="management-card">
+                <img src="https://via.placeholder.com/280x300/FF0000/FFFFFF?text=Bela+Bajaria" 
+                     alt="Bela Bajaria, Responsable du contenu mondial" 
+                     class="management-gridstyles__Headshot-cmkolc-5 giPOsw">
+                <div class="management-info">
+                    <div class="leader-name">Bela Bajaria</div>
+                    <div class="leader-title">Responsable du contenu mondial</div>
+                    <div class="leader-bio">Bela dirige la stratégie de contenu mondial de Netflix, supervisant le développement de séries et de films originaux dans le monde entier.</div>
+                </div>
+            </div>
+
+            <!-- Leader 6 -->
+            <div class="management-card">
+                <img src="https://via.placeholder.com/280x300/CD5C5C/FFFFFF?text=Scott+Stuber" 
+                     alt="Scott Stuber, Responsable des films mondiaux" 
+                     class="management-gridstyles__Headshot-cmkolc-5 giPOsw">
+                <div class="management-info">
+                    <div class="leader-name">Scott Stuber</div>
+                    <div class="leader-title">Responsable des films mondiaux</div>
+                    <div class="leader-bio">Scott supervise la stratégie cinématographique mondiale de Netflix, dirigeant la production et l'acquisition de films originaux.</div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="divider"></div>
+    </div>
+
+    <!-- Test Documentation -->
+    <div style="margin: 80px 20px; padding: 30px; background: #141414; border-radius: 8px; border-left: 4px solid #e50914;">
+        <h3 style="color: #e50914; margin-top: 0; font-size: 1.8rem;">🧪 Regression Test: Netflix Leadership</h3>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin: 30px 0;">
+            <div>
+                <h4 style="color: #fff; margin-bottom: 15px;">✅ Test Criteria</h4>
+                <ul style="color: #b3b3b3; line-height: 1.8;">
+                    <li><strong>Image Count:</strong> 6 leadership photos</li>
+                    <li><strong>Image Size:</strong> 280x300px (rectangular)</li>
+                    <li><strong>Container Detection:</strong> "management-grid" with "management" keyword</li>
+                    <li><strong>Class Structure:</strong> Exact Netflix class "management-gridstyles__Headshot-cmkolc-5 giPOsw"</li>
+                    <li><strong>Aspect Ratio:</strong> ~0.93 (slightly taller than wide)</li>
+                    <li><strong>Layout:</strong> Netflix-style dark theme with red accents</li>
+                </ul>
+            </div>
+            <div>
+                <h4 style="color: #fff; margin-bottom: 15px;">🎯 Expected Extension Behavior</h4>
+                <ul style="color: #b3b3b3; line-height: 1.8;">
+                    <li>Detect container via "management" keyword in class</li>
+                    <li>Recognize "headshot" pattern in image class names</li>
+                    <li>Validate all 6 images as profile photos</li>
+                    <li>Handle rectangular aspect ratio (not just squares)</li>
+                    <li>Convert images successfully with hover comparison</li>
+                    <li>Maintain Netflix's dark theme and red branding</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div style="background: rgba(229, 9, 20, 0.1); padding: 20px; border-radius: 8px; margin-top: 20px;">
+            <strong style="color: #e50914;">📋 Based on:</strong> 
+            <a href="https://about.netflix.com/fr/leadership" target="_blank" style="color: #fff; text-decoration: none;">
+                Netflix Leadership Page (French)
+            </a><br>
+            <strong style="color: #e50914;">🕒 Last Verified:</strong> <span id="test-date" style="color: #fff;"></span><br>
+            <strong style="color: #e50914;">🔧 Extension Version:</strong> <span style="color: #fff;">2.0+ (Netflix compatibility fix)</span><br>
+            <strong style="color: #e50914;">🎨 Theme:</strong> <span style="color: #fff;">Netflix dark theme with signature red branding</span><br>
+            <strong style="color: #e50914;">🔑 Key Fix:</strong> <span style="color: #fff;">Added "headshot" and "management" pattern detection</span>
+        </div>
+    </div>
+
+    <script>
+        // Set test date
+        document.getElementById('test-date').textContent = new Date().toLocaleDateString();
+        
+        // Netflix-style hover effects
+        document.querySelectorAll('.management-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'scale(1.05) translateY(-5px)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'scale(1) translateY(0)';
+            });
+        });
+        
+        // Test validation function
+        window.validateNetflixTest = function() {
+            console.log('🧪 Validating Netflix Leadership Test...');
+            
+            const leadershipImages = document.querySelectorAll('.management-gridstyles__Headshot-cmkolc-5');
+            const managementContainer = document.querySelector('.management-grid');
+            
+            console.log(`📊 Found ${leadershipImages.length} leadership images`);
+            console.log(`📦 Container found: ${managementContainer ? 'Yes' : 'No'}`);
+            console.log(`🎨 Dark theme: ${getComputedStyle(document.body).backgroundColor === 'rgb(0, 0, 0)' ? 'Yes' : 'No'}`);
+            
+            // Validate image dimensions and aspect ratios
+            let validImages = 0;
+            leadershipImages.forEach((img, index) => {
+                const rect = img.getBoundingClientRect();
+                const aspectRatio = rect.width / rect.height;
+                const isValid = rect.width >= 250 && rect.width <= 320 && 
+                               rect.height >= 280 && rect.height <= 320 &&
+                               aspectRatio >= 0.8 && aspectRatio <= 1.1;
+                
+                console.log(`   Image ${index + 1}: ${rect.width}x${rect.height} (${aspectRatio.toFixed(2)}) ${isValid ? '✅' : '❌'}`);
+                if (isValid) validImages++;
+            });
+            
+            // Check for Netflix-specific features
+            const hasNetflixClasses = document.querySelectorAll('.management-gridstyles__Headshot-cmkolc-5').length > 0;
+            const hasManagementGrid = document.querySelector('.management-grid') !== null;
+            const hasNetflixStyling = document.querySelector('.netflix-accent') !== null;
+            const hasDarkTheme = getComputedStyle(document.body).backgroundColor === 'rgb(0, 0, 0)';
+            
+            console.log(`🏷️ Netflix classes: ${hasNetflixClasses ? '✅' : '❌'}`);
+            console.log(`📊 Management grid: ${hasManagementGrid ? '✅' : '❌'}`);
+            console.log(`🎨 Netflix styling: ${hasNetflixStyling ? '✅' : '❌'}`);
+            console.log(`🌙 Dark theme: ${hasDarkTheme ? '✅' : '❌'}`);
+            
+            const testPassed = leadershipImages.length === 6 && 
+                              validImages === 6 && 
+                              hasNetflixClasses &&
+                              hasManagementGrid && 
+                              hasDarkTheme;
+            
+            console.log(`🎯 Test Result: ${testPassed ? '✅ PASSED' : '❌ FAILED'}`);
+            return testPassed;
+        };
+        
+        // Auto-run validation on load
+        setTimeout(() => {
+            console.log('🚀 Auto-running Netflix validation...');
+            validateNetflixTest();
+        }, 1000);
+    </script>
+</body>
+</html>

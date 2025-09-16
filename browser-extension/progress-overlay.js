@@ -6,7 +6,13 @@ class ProgressOverlay {
     // Multiple bouncing logos (one per concurrent slot)
     this.bouncers = []; // Array of bouncer objects: {element, targetImage, slotIndex}
     this.bouncerSize = 27; // px (increased by 1/3 for better visibility)
-    this.maxConcurrentSlots = 8; // Match MAX_CONCURRENT_CONVERSIONS
+    this.maxConcurrentSlots = 8; // Will be updated dynamically from MAX_CONCURRENT_CONVERSIONS
+  }
+
+  // Update the maximum concurrent slots
+  updateMaxConcurrentSlots(newMax) {
+    console.log(`ProgressOverlay: Updating max concurrent slots from ${this.maxConcurrentSlots} to ${newMax}`);
+    this.maxConcurrentSlots = newMax;
   }
 
   // Create progress overlay for an image

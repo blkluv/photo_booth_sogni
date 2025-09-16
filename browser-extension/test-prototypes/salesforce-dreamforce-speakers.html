@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dreamforce 2025 Speakers - Test Prototype</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f6f9;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .speakers-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .speaker-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .speaker-image {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin: 0 auto 15px;
+            display: block;
+        }
+        .speaker-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #032e61;
+        }
+        .speaker-title {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .speaker-company {
+            font-size: 14px;
+            color: #0176d3;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Dreamforce 2025 Speakers</h1>
+        <p>Meet the industry leaders and innovators speaking at Dreamforce 2025</p>
+    </div>
+
+    <div class="speakers-container" id="speakers-grid">
+        <!-- Speaker 1 -->
+        <div class="speaker-card">
+            <img src="https://via.placeholder.com/150x150/4A90E2/FFFFFF?text=Speaker+1" 
+                 alt="John Smith" class="speaker-image">
+            <div class="speaker-name">John Smith</div>
+            <div class="speaker-title">Chief Technology Officer</div>
+            <div class="speaker-company">Salesforce</div>
+        </div>
+
+        <!-- Speaker 2 -->
+        <div class="speaker-card">
+            <img src="https://via.placeholder.com/150x150/7ED321/FFFFFF?text=Speaker+2" 
+                 alt="Sarah Johnson" class="speaker-image">
+            <div class="speaker-name">Sarah Johnson</div>
+            <div class="speaker-title">VP of Product Innovation</div>
+            <div class="speaker-company">Microsoft</div>
+        </div>
+
+        <!-- Speaker 3 -->
+        <div class="speaker-card">
+            <img src="https://via.placeholder.com/150x150/F5A623/FFFFFF?text=Speaker+3" 
+                 alt="Michael Chen" class="speaker-image">
+            <div class="speaker-name">Michael Chen</div>
+            <div class="speaker-title">Director of AI Research</div>
+            <div class="speaker-company">Google</div>
+        </div>
+
+        <!-- Speaker 4 -->
+        <div class="speaker-card">
+            <img src="https://via.placeholder.com/150x150/D0021B/FFFFFF?text=Speaker+4" 
+                 alt="Emily Rodriguez" class="speaker-image">
+            <div class="speaker-name">Emily Rodriguez</div>
+            <div class="speaker-title">Head of Digital Transformation</div>
+            <div class="speaker-company">Amazon</div>
+        </div>
+
+        <!-- Speaker 5 -->
+        <div class="speaker-card">
+            <img src="https://via.placeholder.com/150x150/9013FE/FFFFFF?text=Speaker+5" 
+                 alt="David Park" class="speaker-image">
+            <div class="speaker-name">David Park</div>
+            <div class="speaker-title">Senior Engineering Manager</div>
+            <div class="speaker-company">Meta</div>
+        </div>
+
+        <!-- Speaker 6 -->
+        <div class="speaker-card">
+            <img src="https://via.placeholder.com/150x150/50E3C2/FFFFFF?text=Speaker+6" 
+                 alt="Lisa Thompson" class="speaker-image">
+            <div class="speaker-name">Lisa Thompson</div>
+            <div class="speaker-title">Chief Data Officer</div>
+            <div class="speaker-company">IBM</div>
+        </div>
+
+        <!-- Speaker 7 -->
+        <div class="speaker-card">
+            <img src="https://via.placeholder.com/150x150/B8E986/FFFFFF?text=Speaker+7" 
+                 alt="Robert Wilson" class="speaker-image">
+            <div class="speaker-name">Robert Wilson</div>
+            <div class="speaker-title">VP of Cloud Solutions</div>
+            <div class="speaker-company">Oracle</div>
+        </div>
+
+        <!-- Speaker 8 -->
+        <div class="speaker-card">
+            <img src="https://via.placeholder.com/150x150/F8E71C/FFFFFF?text=Speaker+8" 
+                 alt="Amanda Davis" class="speaker-image">
+            <div class="speaker-name">Amanda Davis</div>
+            <div class="speaker-title">Director of Customer Success</div>
+            <div class="speaker-company">HubSpot</div>
+        </div>
+    </div>
+
+    <!-- Test Notes -->
+    <div style="margin-top: 40px; padding: 20px; background: #e8f4f8; border-radius: 8px;">
+        <h3>Test Prototype Notes</h3>
+        <p><strong>Purpose:</strong> Regression testing for Sogni Photobooth Extension</p>
+        <p><strong>Expected Behavior:</strong></p>
+        <ul>
+            <li>Extension should detect 8 speaker images in the grid</li>
+            <li>Images should be identified as profile photos (150x150px, circular)</li>
+            <li>Container detection should find "speakers-container" or use grid fallback</li>
+            <li>All images should be convertible and remain visible after conversion</li>
+        </ul>
+        <p><strong>Based on:</strong> <a href="https://reg.salesforce.com/flow/plus/df25/df25speakers/page/speakers">Salesforce Dreamforce 2025 Speakers Page</a></p>
+        <p><strong>Last Updated:</strong> <span id="last-updated"></span></p>
+    </div>
+
+    <script>
+        // Set last updated timestamp
+        document.getElementById('last-updated').textContent = new Date().toLocaleString();
+        
+        // Add some interactivity to simulate real page behavior
+        document.querySelectorAll('.speaker-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-2px)';
+                this.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+                this.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+            });
+        });
+    </script>
+</body>
+</html>
