@@ -10,6 +10,22 @@ let isProcessing = false;
 let MAX_CONCURRENT_CONVERSIONS = 8; // Configurable concurrency
 let MAX_IMAGES_PER_PAGE = 32; // Configurable limit for images processed per page
 
+// Lazy API initialization - only when needed for image processing
+async function ensureApiInitialized() {
+  if (!api) {
+    console.log('Initializing API for image processing...');
+    try {
+      api = new PhotoboothAPI();
+      await api.initializeSession();
+      console.log('API initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize API:', error);
+      throw error;
+    }
+  }
+  return api;
+}
+
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initialize);
@@ -21,16 +37,10 @@ async function initialize() {
   console.log('Initializing Sogni Photobooth Extension');
   
   try {
-    // Check if required classes are available
-    if (typeof PhotoboothAPI === 'undefined') {
-      console.error('PhotoboothAPI class not found. Retrying in 100ms...');
-      setTimeout(initialize, 100);
-      return;
-    }
-    
+    // Check if ProgressOverlay class is available (PhotoboothAPI will be loaded lazily)
     if (typeof ProgressOverlay === 'undefined') {
-      console.error('ProgressOverlay class not found. Retrying in 100ms...');
-      setTimeout(initialize, 100);
+      console.error('ProgressOverlay class not found. Retrying in 50ms...');
+      setTimeout(initialize, 50);
       return;
     }
     
@@ -49,34 +59,39 @@ async function initialize() {
       console.log('Could not load debug settings, using defaults');
     }
     
-    // Initialize API and progress overlay
-    api = new PhotoboothAPI();
+    // Initialize progress overlay (lightweight, no API calls)
     progressOverlay = new ProgressOverlay();
-    
-    // Initialize session
-    await api.initializeSession();
     
     // Listen for scroll and resize to update overlay positions
     window.addEventListener('scroll', () => progressOverlay.updatePositions());
     window.addEventListener('resize', () => progressOverlay.updatePositions());
     
     console.log('Extension initialized successfully - waiting for activation');
+    console.log('API will be initialized lazily when needed for image processing');
     
   } catch (error) {
     console.error('Failed to initialize extension:', error);
     // Retry initialization after a delay
-    setTimeout(initialize, 500);
+    setTimeout(initialize, 100);
   }
 }
+
+// Content script initialization
+console.log('🎯 Sogni Content Script: Loading and initializing...');
 
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Only log important messages
-  if (!['updateDevMode'].includes(message.action)) {
-    console.log('Content script received message:', message);
+  if (!['updateDevMode', 'ping'].includes(message.action)) {
+    console.log('🎯 Content script received message:', message);
   }
   
-  if (message.action === 'scanPageForProfiles') {
+  if (message.action === 'ping') {
+    // Respond to ping test from popup
+    console.log('🎯 Content script responding to ping');
+    sendResponse({ success: true, message: 'Content script is ready' });
+    return true;
+  } else if (message.action === 'scanPageForProfiles') {
     // Add the style selector icon when extension is activated
     addStyleSelectorIcon();
     
@@ -111,7 +126,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   
   if (message.action === 'openStyleExplorerDirect') {
-    console.log('Received openStyleExplorerDirect message');
+    console.log('🎯 Content script received openStyleExplorerDirect message');
     // Toggle Style Explorer directly
     // Use toggle functionality to prevent multiple instances
     try {
@@ -226,18 +241,8 @@ async function handleScanPageForProfiles() {
       throw new Error('Already processing images. Please wait for current conversion to complete.');
     }
     
-    // Check if API is initialized
-    if (!api) {
-      console.log('API not initialized, initializing now...');
-      
-      // Check if PhotoboothAPI class is available
-      if (typeof PhotoboothAPI === 'undefined') {
-        throw new Error('PhotoboothAPI class not available. Extension may not have loaded properly.');
-      }
-      
-      api = new PhotoboothAPI();
-      await api.initializeSession();
-    }
+    // Ensure API is initialized for image processing
+    await ensureApiInitialized();
     
     // Check if progress overlay is initialized
     if (!progressOverlay) {
@@ -307,6 +312,8 @@ async function handleScanPageForProfiles() {
 // Find profile images on the page
 function findProfileImages() {
   const profileImages = [];
+  const seenUrls = new Set(); // Track URLs to prevent duplicates
+  const seenElements = new Set(); // Track DOM elements to prevent duplicates
   
   // Look for containers with "speakers" or "speaker" in class/id
   const speakerContainers = document.querySelectorAll([
@@ -327,8 +334,23 @@ function findProfileImages() {
     console.log(`Container has ${images.length} images`);
     
     for (const img of images) {
+      // Skip if we've already seen this exact element
+      if (seenElements.has(img)) {
+        console.log(`❌ Skipping duplicate DOM element: ${img.src}`);
+        continue;
+      }
+      
+      // Skip if we've already seen this URL
+      if (seenUrls.has(img.src)) {
+        console.log(`❌ Skipping duplicate URL: ${img.src}`);
+        continue;
+      }
+      
       if (isProfileImage(img)) {
         profileImages.push(img);
+        seenUrls.add(img.src);
+        seenElements.add(img);
+        console.log(`✅ Added unique profile image: ${img.src}`);
       }
     }
   }
@@ -339,8 +361,14 @@ function findProfileImages() {
     profileImages.push(...findImageGrids());
   }
   
+  console.log(`🎯 FINAL RESULTS: Found ${profileImages.length} profile images`);
+  profileImages.forEach((img, index) => {
+    const rect = img.getBoundingClientRect();
+    console.log(`   ${index + 1}. ${img.src} (${rect.width}x${rect.height}) at (${rect.x}, ${rect.y})`);
+  });
   return profileImages;
 }
+
 
 // Check if an image looks like a profile photo
 function isProfileImage(img) {
@@ -376,6 +404,11 @@ function isProfileImage(img) {
   
   // Additional checks for common non-profile image patterns
   if (src.includes('background') || src.includes('bg-') || src.includes('decoration')) {
+    return false;
+  }
+  
+  // Check for backdrop images (Token2049 fix)
+  if (src.includes('backdrop')) {
     return false;
   }
   
@@ -619,6 +652,88 @@ async function convertImageWithDefaultStyle(imageElement) {
   }
 }
 
+// Detect if image should use responsive/percentage sizing vs fixed pixel sizing
+function detectResponsiveImageSizing(originalImage, computedStyle) {
+  // Check if the image uses percentage-based width/height
+  const widthIsPercentage = computedStyle.width.includes('%');
+  const heightIsPercentage = computedStyle.height.includes('%');
+  
+  // Check if the image is in a flex container
+  const parentStyle = window.getComputedStyle(originalImage.parentElement);
+  const isInFlexContainer = parentStyle.display === 'flex' || 
+                           parentStyle.display === 'inline-flex' ||
+                           computedStyle.flex !== 'none';
+  
+  // Check if the image is in a grid container
+  const isInGridContainer = parentStyle.display === 'grid' || 
+                           parentStyle.display === 'inline-grid' ||
+                           computedStyle.gridArea !== 'auto / auto / auto / auto';
+  
+  // Check if the image has responsive CSS properties
+  const hasResponsiveProps = computedStyle.maxWidth !== 'none' ||
+                            computedStyle.maxHeight !== 'none' ||
+                            computedStyle.minWidth !== '0px' ||
+                            computedStyle.minHeight !== '0px';
+  
+  // Check if the image's container has responsive characteristics
+  let container = originalImage.parentElement;
+  let hasResponsiveContainer = false;
+  let depth = 0;
+  while (container && depth < 3) {
+    const containerStyle = window.getComputedStyle(container);
+    if (containerStyle.width.includes('%') || 
+        containerStyle.maxWidth !== 'none' ||
+        containerStyle.display === 'flex' ||
+        containerStyle.display === 'grid') {
+      hasResponsiveContainer = true;
+      break;
+    }
+    container = container.parentElement;
+    depth++;
+  }
+  
+  // Check for common responsive image patterns in class names
+  const className = originalImage.className.toLowerCase();
+  const parentClassName = originalImage.parentElement?.className?.toLowerCase() || '';
+  const hasResponsiveClasses = className.includes('responsive') ||
+                              className.includes('fluid') ||
+                              className.includes('flexible') ||
+                              parentClassName.includes('responsive') ||
+                              parentClassName.includes('fluid') ||
+                              parentClassName.includes('grid') ||
+                              parentClassName.includes('flex');
+  
+  // Token2049-specific patterns (speakers page layout)
+  const isToken2049Pattern = className.includes('speaker') ||
+                            parentClassName.includes('speaker') ||
+                            parentClassName.includes('grid') ||
+                            (computedStyle.width === '100%' && computedStyle.height === '100%');
+  
+  console.log('Responsive sizing analysis:', {
+    widthIsPercentage,
+    heightIsPercentage,
+    isInFlexContainer,
+    isInGridContainer,
+    hasResponsiveProps,
+    hasResponsiveContainer,
+    hasResponsiveClasses,
+    isToken2049Pattern,
+    computedWidth: computedStyle.width,
+    computedHeight: computedStyle.height,
+    parentDisplay: parentStyle.display
+  });
+  
+  // Use responsive sizing if any of these conditions are met
+  return widthIsPercentage || 
+         heightIsPercentage || 
+         isInFlexContainer || 
+         isInGridContainer || 
+         hasResponsiveProps || 
+         hasResponsiveContainer ||
+         hasResponsiveClasses ||
+         isToken2049Pattern;
+}
+
 // Replace image with Before/After scrubber comparison functionality
 async function replaceImageWithHoverComparison(originalImage, pirateImageUrl) {
   return new Promise((resolve, reject) => {
@@ -666,15 +781,50 @@ async function replaceImageWithHoverComparison(originalImage, pirateImageUrl) {
       const scrubberLine = document.createElement('div');
       scrubberLine.className = 'sogni-scrubber-line';
       
+      // Analyze original image sizing to determine best approach
+      const originalComputedStyle = window.getComputedStyle(originalImage);
+      const shouldUsePercentageSizing = detectResponsiveImageSizing(originalImage, originalComputedStyle);
+      
       // Style the container to match original image
-      const containerStyle = `
-        position: relative;
-        width: ${originalRect.width}px;
-        height: ${originalRect.height}px;
-        overflow: hidden;
-        cursor: ew-resize;
-        border-radius: ${window.getComputedStyle(originalImage).borderRadius || '0'};
-      `;
+      let containerStyle;
+      if (shouldUsePercentageSizing) {
+        // Use responsive sizing that matches the original image's layout
+        console.log('🎯 Using responsive sizing - original styles:', {
+          width: originalComputedStyle.width,
+          height: originalComputedStyle.height,
+          display: originalComputedStyle.display,
+          position: originalComputedStyle.position
+        });
+        
+        containerStyle = `
+          position: ${originalComputedStyle.position === 'static' ? 'relative' : originalComputedStyle.position};
+          width: ${originalComputedStyle.width};
+          height: ${originalComputedStyle.height};
+          max-width: ${originalComputedStyle.maxWidth || 'none'};
+          max-height: ${originalComputedStyle.maxHeight || 'none'};
+          min-width: ${originalComputedStyle.minWidth || '0'};
+          min-height: ${originalComputedStyle.minHeight || '0'};
+          overflow: hidden;
+          cursor: ew-resize;
+          border-radius: ${originalComputedStyle.borderRadius || '0'};
+          display: ${originalComputedStyle.display};
+          flex: ${originalComputedStyle.flex || 'none'};
+          flex-grow: ${originalComputedStyle.flexGrow || '0'};
+          flex-shrink: ${originalComputedStyle.flexShrink || '1'};
+          flex-basis: ${originalComputedStyle.flexBasis || 'auto'};
+          box-sizing: ${originalComputedStyle.boxSizing || 'content-box'};
+        `;
+      } else {
+        // Use fixed pixel sizing for traditional layouts
+        containerStyle = `
+          position: relative;
+          width: ${originalRect.width}px;
+          height: ${originalRect.height}px;
+          overflow: hidden;
+          cursor: ew-resize;
+          border-radius: ${originalComputedStyle.borderRadius || '0'};
+        `;
+      }
       comparisonContainer.style.cssText = containerStyle;
       
       // Style the images

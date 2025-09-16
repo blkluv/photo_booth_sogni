@@ -42,31 +42,106 @@ async function injectContentScriptsAndActivate() {
     console.log('Injecting content scripts...');
     
     // Inject CSS first
-    await chrome.scripting.insertCSS({
-      target: { tabId: tab.id },
-      files: ['content.css']
-    });
+    try {
+      console.log('Injecting CSS...');
+      await chrome.scripting.insertCSS({
+        target: { tabId: tab.id },
+        files: ['content.css']
+      });
+      console.log('CSS injected successfully');
+    } catch (cssError) {
+      console.error('Failed to inject CSS:', cssError);
+      throw new Error(`CSS injection failed: ${cssError.message}`);
+    }
     
     // Inject JavaScript files in order
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      files: ['api-service.js']
-    });
+    try {
+      console.log('Injecting api-service.js...');
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['api-service.js']
+      });
+      console.log('api-service.js injected successfully');
+    } catch (apiError) {
+      console.error('Failed to inject api-service.js:', apiError);
+      throw new Error(`API service injection failed: ${apiError.message}`);
+    }
     
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      files: ['progress-overlay.js']
-    });
+    try {
+      console.log('Injecting progress-overlay.js...');
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['progress-overlay.js']
+      });
+      console.log('progress-overlay.js injected successfully');
+    } catch (overlayError) {
+      console.error('Failed to inject progress-overlay.js:', overlayError);
+      throw new Error(`Progress overlay injection failed: ${overlayError.message}`);
+    }
     
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      files: ['content.js']
-    });
+    try {
+      console.log('Injecting content.js...');
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['content.js']
+      });
+      console.log('content.js injected successfully');
+      
+      // Also inject a simple test script to verify execution
+      console.log('Injecting test script to verify execution...');
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          console.log('🎯 TEST SCRIPT: Extension script execution verified on page');
+          // Add a global flag to indicate scripts are loaded
+          window.sogniExtensionLoaded = true;
+        }
+      });
+      console.log('Test script injected successfully');
+      
+    } catch (contentError) {
+      console.error('Failed to inject content.js:', contentError);
+      throw new Error(`Content script injection failed: ${contentError.message}`);
+    }
     
     console.log('Content scripts injected successfully');
     
-    // Wait a moment for scripts to initialize
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Wait briefly for scripts to initialize
+    console.log('Waiting for content scripts to initialize...');
+    await new Promise(resolve => setTimeout(resolve, 200)); // Reduced from 2000ms to 200ms
+    
+    // First check if our test script executed
+    try {
+      console.log('Checking if test script executed...');
+      const scriptCheckResult = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          return {
+            testScriptLoaded: window.sogniExtensionLoaded === true,
+            userAgent: navigator.userAgent,
+            url: window.location.href
+          };
+        }
+      });
+      console.log('Script execution check result:', scriptCheckResult[0].result);
+      
+      if (!scriptCheckResult[0].result.testScriptLoaded) {
+        throw new Error('Test script did not execute - possible CSP or script blocking issue');
+      }
+    } catch (scriptCheckError) {
+      console.error('Script execution check failed:', scriptCheckError);
+    }
+    
+    // Test if content script is responsive before proceeding
+    try {
+      console.log('Testing content script communication...');
+      const testResponse = await chrome.tabs.sendMessage(tab.id, { action: 'ping' });
+      console.log('Content script responded:', testResponse);
+    } catch (testError) {
+      console.error('Content script not responding, will retry injection...');
+      // Wait a bit more and try again
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
     
     // Now try to open Style Explorer
     await activateExtensionAndOpenStyleExplorer();
@@ -151,7 +226,7 @@ async function activateExtensionAndOpenStyleExplorer() {
         try {
           if (attempts > 0) {
             console.log(`Retry attempt ${attempts} to open Style Explorer...`);
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second between attempts
+            await new Promise(resolve => setTimeout(resolve, 300)); // Wait 300ms between attempts
           }
           response = await chrome.tabs.sendMessage(tab.id, { action: 'openStyleExplorerDirect' });
           console.log('Style Explorer opened successfully:', response);
@@ -188,9 +263,16 @@ async function activateExtensionAndOpenStyleExplorer() {
         // Final fallback - try to inject and execute script directly
         try {
           console.log('Attempting direct script injection...');
+          
+          // Get dev mode setting to pass to injected script
+          const result = await new Promise((resolve) => {
+            chrome.storage.local.get(['devMode'], resolve);
+          });
+          const isDevMode = result.devMode || false;
+          
           await chrome.scripting.executeScript({
             target: { tabId: tab.id },
-            func: () => {
+            func: (devMode) => {
               // Direct inline Style Explorer creation
               console.log('Direct script execution - creating Style Explorer overlay');
               
@@ -198,6 +280,19 @@ async function activateExtensionAndOpenStyleExplorer() {
               if (document.getElementById('sogni-style-explorer-overlay')) {
                 console.log('Style Explorer overlay already exists');
                 return;
+              }
+              
+              // Determine the correct URL based on dev mode
+              let baseUrl;
+              if (devMode) {
+                baseUrl = 'https://photobooth-local.sogni.ai';
+                console.error('❌ LOCAL DEVELOPMENT MODE - DIRECT INJECTION SHOULD NOT BE USED');
+                console.error('Please ensure your local development server is running');
+                // In dev mode, we should NOT create the overlay - fail explicitly
+                alert('Local development mode is enabled but local server is not available. Please start your local development server.');
+                return;
+              } else {
+                baseUrl = 'https://photobooth.sogni.ai';
               }
               
               // Create overlay
@@ -215,7 +310,7 @@ async function activateExtensionAndOpenStyleExplorer() {
               
               // Create iframe
               const iframe = document.createElement('iframe');
-              iframe.src = 'https://photobooth.sogni.ai/?page=prompts&extension=true&skipWelcome=true&t=' + Date.now();
+              iframe.src = `${baseUrl}/?page=prompts&extension=true&skipWelcome=true&t=${Date.now()}`;
               iframe.style.cssText = `
                 width: 100% !important;
                 height: 100% !important;
@@ -254,7 +349,8 @@ async function activateExtensionAndOpenStyleExplorer() {
               document.body.appendChild(overlay);
               
               console.log('Style Explorer overlay created via direct injection');
-            }
+            },
+            args: [isDevMode]
           });
           console.log('Direct script injection completed');
         } catch (scriptError) {
