@@ -10,10 +10,7 @@ let sessionStats = {
 
 // Initialize popup when DOM is ready
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('🚀 Extension popup opened - directly opening Style Explorer');
-  
-  // Initialize API
-  api = new PhotoboothAPI();
+  console.log('🚀 Extension popup opened - requesting permission and injecting scripts');
   
   // Load dev mode setting
   await loadDevModeSettings();
@@ -21,19 +18,70 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Setup event listeners
   setupEventListeners();
   
-  // Activate extension and directly open Style Explorer
+  // Inject content scripts and activate extension
   try {
-    await activateExtensionAndOpenStyleExplorer();
-    console.log('Style Explorer activation completed');
+    await injectContentScriptsAndActivate();
+    console.log('Extension activation completed');
   } catch (error) {
-    console.error('Error activating Style Explorer:', error);
+    console.error('Error activating extension:', error);
   }
   
-  // Close the popup since we're opening Style Explorer (with delay for debugging)
-  setTimeout(() => {
-    window.close();
-  }, 2000); // 2 second delay to see any errors
+  // Listen for messages from content script about Style Explorer status
+  // The popup will close automatically when Style Explorer opens successfully
 });
+
+// Inject content scripts and activate extension (only when user clicks extension icon)
+async function injectContentScriptsAndActivate() {
+  console.log('Injecting content scripts with user permission...');
+  
+  try {
+    // Get current active tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    if (!tab) {
+      throw new Error('No active tab found');
+    }
+    
+    console.log('Active tab found:', tab.url);
+    
+    // Inject content scripts using scripting API (requires user permission via activeTab)
+    console.log('Injecting content scripts...');
+    
+    // Inject CSS first
+    await chrome.scripting.insertCSS({
+      target: { tabId: tab.id },
+      files: ['content.css']
+    });
+    
+    // Inject JavaScript files in order
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['api-service.js']
+    });
+    
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['progress-overlay.js']
+    });
+    
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['content.js']
+    });
+    
+    console.log('Content scripts injected successfully');
+    
+    // Wait a moment for scripts to initialize
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Now try to open Style Explorer
+    await activateExtensionAndOpenStyleExplorer();
+    
+  } catch (error) {
+    console.error('Failed to inject content scripts:', error);
+    throw error;
+  }
+}
 
 // Load dev mode settings
 async function loadDevModeSettings() {
@@ -68,32 +116,34 @@ async function activateExtensionAndOpenStyleExplorer() {
     
     console.log('Active tab found:', tab.url);
     
-    // First inject content scripts using activeTab permission
-    try {
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        files: ['api-service.js', 'progress-overlay.js', 'content.js']
-      });
-      
-      await chrome.scripting.insertCSS({
-        target: { tabId: tab.id },
-        files: ['content.css']
-      });
-      
-      console.log('Content scripts injected successfully');
-    } catch (injectionError) {
-      console.error('Failed to inject content scripts:', injectionError);
-      throw new Error('Could not inject content scripts');
-    }
-    
     // Send message to content script to open Style Explorer directly
     console.log('Sending message to open Style Explorer directly...');
     
     try {
-      const response = await chrome.tabs.sendMessage(tab.id, { action: 'openStyleExplorerDirect' });
-      console.log('Style Explorer opened successfully:', response);
+      // Try multiple times with delays to allow content script to load
+      let response = null;
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      while (attempts < maxAttempts && !response) {
+        try {
+          if (attempts > 0) {
+            console.log(`Retry attempt ${attempts} to open Style Explorer...`);
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second between attempts
+          }
+          response = await chrome.tabs.sendMessage(tab.id, { action: 'openStyleExplorerDirect' });
+          console.log('Style Explorer opened successfully:', response);
+          break;
+        } catch (retryError) {
+          attempts++;
+          if (attempts >= maxAttempts) {
+            throw retryError;
+          }
+          console.log(`Attempt ${attempts} failed, retrying...`);
+        }
+      }
     } catch (messageError) {
-      console.error('Failed to open Style Explorer:', messageError);
+      console.error('Failed to open Style Explorer after retries:', messageError);
       console.log('This might be because the content script is not yet loaded on this page.');
       
       // Fallback 1 - try to activate extension first, then open Style Explorer
@@ -552,6 +602,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     updateUIState('success');
   } else if (message.action === 'conversionError') {
     updateUIState('error');
+  } else if (message.action === 'styleExplorerOpened') {
+    console.log('Style Explorer opened successfully, closing popup');
+    // Close popup after a short delay to allow user to see success
+    setTimeout(() => {
+      window.close();
+    }, 1000);
+  } else if (message.action === 'styleExplorerFailed') {
+    console.log('Style Explorer failed to open, keeping popup open');
+    // Could add error UI here if needed
   }
 });
 

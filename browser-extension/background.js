@@ -358,6 +358,40 @@ class SSEConnectionManager {
 // Global SSE connection manager instance
 const sseManager = new SSEConnectionManager();
 
+// Helper function to inject content scripts (using activeTab permission)
+async function injectContentScripts(tabId) {
+  console.log('Background: Injecting content scripts into tab:', tabId);
+  
+  try {
+    // Inject CSS first
+    await chrome.scripting.insertCSS({
+      target: { tabId: tabId },
+      files: ['content.css']
+    });
+    
+    // Inject JavaScript files in order
+    await chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      files: ['api-service.js']
+    });
+    
+    await chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      files: ['progress-overlay.js']
+    });
+    
+    await chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      files: ['content.js']
+    });
+    
+    console.log('Background: Content scripts injected successfully');
+  } catch (error) {
+    console.error('Background: Failed to inject content scripts:', error);
+    throw error;
+  }
+}
+
 
 // Create context menu when extension is installed
 chrome.runtime.onInstalled.addListener(() => {
@@ -377,20 +411,30 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 // Handle context menu clicks
-chrome.contextMenus.onClicked.addListener((info, tab) => {
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   console.log('Context menu clicked:', info.menuItemId);
   
-  if (info.menuItemId === "convert-single-image") {
-    // Convert single image
-    chrome.tabs.sendMessage(tab.id, {
-      action: "convertSingleImage",
-      imageUrl: info.srcUrl
-    });
-  } else if (info.menuItemId === "scan-page-for-profiles") {
-    // Scan page for profile photos
-    chrome.tabs.sendMessage(tab.id, {
-      action: "scanPageForProfiles"
-    });
+  try {
+    // Inject content scripts first (using activeTab permission)
+    await injectContentScripts(tab.id);
+    
+    // Wait for scripts to initialize
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    if (info.menuItemId === "convert-single-image") {
+      // Convert single image
+      chrome.tabs.sendMessage(tab.id, {
+        action: "convertSingleImage",
+        imageUrl: info.srcUrl
+      });
+    } else if (info.menuItemId === "scan-page-for-profiles") {
+      // Scan page for profile photos
+      chrome.tabs.sendMessage(tab.id, {
+        action: "scanPageForProfiles"
+      });
+    }
+  } catch (error) {
+    console.error('Failed to inject content scripts for context menu action:', error);
   }
 });
 
@@ -752,9 +796,21 @@ async function handleImageConversion(imageUrl, imageSize) {
 }
 
 // Handle extension icon click (when popup is not available)
-chrome.action.onClicked.addListener((tab) => {
-  console.log('Extension icon clicked, scanning page for profiles');
-  chrome.tabs.sendMessage(tab.id, {
-    action: "scanPageForProfiles"
-  });
+chrome.action.onClicked.addListener(async (tab) => {
+  console.log('Extension icon clicked, injecting scripts and scanning page for profiles');
+  
+  try {
+    // Inject content scripts first (using activeTab permission)
+    await injectContentScripts(tab.id);
+    
+    // Wait for scripts to initialize
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Send scan message
+    chrome.tabs.sendMessage(tab.id, {
+      action: "scanPageForProfiles"
+    });
+  } catch (error) {
+    console.error('Failed to inject content scripts for icon click:', error);
+  }
 });

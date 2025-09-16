@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Sogni Style Explorer",
-  "version": "1.1.0",
+  "version": "1.1.5",
   "description": "Transform profile photos with hundreds of AI styles using Sogni Photobooth",
   
   "permissions": [
@@ -16,21 +16,16 @@
     "https://photobooth-api.sogni.ai/*",
     "https://photobooth.sogni.ai/*",
     "https://photobooth-api-local.sogni.ai/*",
-    "https://photobooth-local.sogni.ai/*"
+    "https://photobooth-local.sogni.ai/*",
+    "https://storage.googleapis.com/*",
+    "https://*.googleapis.com/*",
+    "https://*/*"
   ],
   
   "background": {
     "service_worker": "background.js"
   },
   
-  "content_scripts": [
-    {
-      "matches": ["http://*/*", "https://*/*"],
-      "js": ["api-service.js", "progress-overlay.js", "content.js"],
-      "css": ["content.css"],
-      "run_at": "document_end"
-    }
-  ],
 
   "action": {
     "default_popup": "popup.html",

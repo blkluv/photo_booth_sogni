@@ -103,9 +103,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       toggleStyleExplorer();
       const isOpen = document.getElementById('sogni-style-explorer-overlay') !== null;
       console.log('Style Explorer toggle completed, isOpen:', isOpen);
-      sendResponse({ success: true, message: isOpen ? 'Style Explorer opened' : 'Style Explorer closed' });
+      
+      // Send immediate response, but the popup will get the final confirmation via runtime message
+      sendResponse({ success: true, message: isOpen ? 'Style Explorer opening...' : 'Style Explorer closed' });
     } catch (error) {
       console.error('Error toggling Style Explorer:', error);
+      
+      // Notify popup about the error
+      try {
+        chrome.runtime.sendMessage({ action: 'styleExplorerFailed', error: error.message });
+      } catch (notifyError) {
+        console.error('Failed to notify popup about error:', notifyError);
+      }
+      
       sendResponse({ success: false, error: error.message });
     }
     return false;
@@ -1032,12 +1042,28 @@ async function openStyleExplorer() {
     
     console.log('Style Explorer loaded');
     
+    // Notify popup that Style Explorer opened successfully
+    try {
+      chrome.runtime.sendMessage({ action: 'styleExplorerOpened' });
+      console.log('Notified popup that Style Explorer opened');
+    } catch (error) {
+      console.error('Failed to notify popup:', error);
+    }
+    
     // No message needed - React app should navigate to prompts page automatically
     // The extension URL already includes page=prompts parameter
   };
   
   iframe.onerror = function(error) {
     console.error('❌ Iframe failed to load:', error);
+    
+    // Notify popup that Style Explorer failed to open
+    try {
+      chrome.runtime.sendMessage({ action: 'styleExplorerFailed', error: error.toString() });
+      console.log('Notified popup that Style Explorer failed');
+    } catch (notifyError) {
+      console.error('Failed to notify popup about error:', notifyError);
+    }
   };
   
   // Prevent body scrolling

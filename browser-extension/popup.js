@@ -10,10 +10,7 @@ let sessionStats = {
 
 // Initialize popup when DOM is ready
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('🚀 Extension popup opened - directly opening Style Explorer');
-  
-  // Initialize API
-  api = new PhotoboothAPI();
+  console.log('🚀 Extension popup opened - requesting permission and injecting scripts');
   
   // Load dev mode setting
   await loadDevModeSettings();
@@ -21,25 +18,70 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Setup event listeners
   setupEventListeners();
   
-  // Activate extension and directly open Style Explorer
+  // Inject content scripts and activate extension
   try {
-    await activateExtensionAndOpenStyleExplorer();
-    console.log('Style Explorer activation completed');
+    await injectContentScriptsAndActivate();
+    console.log('Extension activation completed');
   } catch (error) {
-    console.error('Error activating Style Explorer:', error);
+    console.error('Error activating extension:', error);
   }
   
-  // Close the popup since we're opening Style Explorer (with delay for debugging)
-  // Only close if Style Explorer opened successfully
-  setTimeout(() => {
-    const styleExplorerOpened = document.getElementById('sogni-style-explorer-overlay') !== null;
-    if (styleExplorerOpened) {
-      window.close();
-    } else {
-      console.log('Style Explorer did not open, keeping popup open for debugging');
-    }
-  }, 5000); // 5 second delay to see any errors and allow content script to load
+  // Listen for messages from content script about Style Explorer status
+  // The popup will close automatically when Style Explorer opens successfully
 });
+
+// Inject content scripts and activate extension (only when user clicks extension icon)
+async function injectContentScriptsAndActivate() {
+  console.log('Injecting content scripts with user permission...');
+  
+  try {
+    // Get current active tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    if (!tab) {
+      throw new Error('No active tab found');
+    }
+    
+    console.log('Active tab found:', tab.url);
+    
+    // Inject content scripts using scripting API (requires user permission via activeTab)
+    console.log('Injecting content scripts...');
+    
+    // Inject CSS first
+    await chrome.scripting.insertCSS({
+      target: { tabId: tab.id },
+      files: ['content.css']
+    });
+    
+    // Inject JavaScript files in order
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['api-service.js']
+    });
+    
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['progress-overlay.js']
+    });
+    
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['content.js']
+    });
+    
+    console.log('Content scripts injected successfully');
+    
+    // Wait a moment for scripts to initialize
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Now try to open Style Explorer
+    await activateExtensionAndOpenStyleExplorer();
+    
+  } catch (error) {
+    console.error('Failed to inject content scripts:', error);
+    throw error;
+  }
+}
 
 // Load dev mode settings
 async function loadDevModeSettings() {
@@ -560,6 +602,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     updateUIState('success');
   } else if (message.action === 'conversionError') {
     updateUIState('error');
+  } else if (message.action === 'styleExplorerOpened') {
+    console.log('Style Explorer opened successfully, keeping popup open for debugging');
+    // Don't auto-close popup for debugging purposes
+  } else if (message.action === 'styleExplorerFailed') {
+    console.log('Style Explorer failed to open, keeping popup open');
+    // Could add error UI here if needed
   }
 });
 
