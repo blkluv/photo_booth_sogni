@@ -615,10 +615,17 @@ router.post('/generate', ensureSessionId, async (req, res) => {
       hardcodedWorkerPreferences.push(`--preferred-workers=${preferredWorkers.join(',')}`);
     }
     
-    // Hardcoded skip workers
+    // Hardcoded skip workers (maximum 2 values allowed)
     const skipWorkers = ['freeman123'];
-    if (skipWorkers.length > 0) {
-      hardcodedWorkerPreferences.push(`--skip-workers=${skipWorkers.join(',')}`);
+    // Enforce maximum of 2 skip workers
+    const limitedSkipWorkers = skipWorkers.slice(0, 2);
+    if (limitedSkipWorkers.length > 0) {
+      hardcodedWorkerPreferences.push(`--skip-workers=${limitedSkipWorkers.join(',')}`);
+    }
+    
+    // Log if skip workers were truncated
+    if (skipWorkers.length > 2) {
+      console.log(`[${localProjectId}] WARNING: Skip workers truncated from ${skipWorkers.length} to 2 values. Original: [${skipWorkers.join(', ')}], Limited: [${limitedSkipWorkers.join(', ')}]`);
     }
     
     // Apply hardcoded worker preferences to the prompt
