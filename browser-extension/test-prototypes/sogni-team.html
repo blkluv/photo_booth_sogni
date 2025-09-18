@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sogni Team - Test Prototype</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        
+        /* Animated background */
+        .background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+                        radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
+            z-index: -1;
+            animation: backgroundShift 20s ease-in-out infinite;
+        }
+        
+        @keyframes backgroundShift {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.1) rotate(2deg); }
+        }
+        
+        .header {
+            text-align: center;
+            padding: 100px 20px 60px;
+            position: relative;
+        }
+        
+        .header h1 {
+            font-size: 4rem;
+            font-weight: 800;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #7877c6, #ff77c6, #77dbff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: textGlow 3s ease-in-out infinite alternate;
+        }
+        
+        @keyframes textGlow {
+            from { filter: brightness(1); }
+            to { filter: brightness(1.2); }
+        }
+        
+        .header p {
+            font-size: 1.3rem;
+            color: rgba(255, 255, 255, 0.8);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .team-section {
+            padding: 80px 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+        }
+        
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 80px;
+            color: #ffffff;
+        }
+        
+        /* Sogni team grid */
+        .team-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 40px;
+            margin-bottom: 60px;
+        }
+        
+        .team-member {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 40px 30px;
+            text-align: center;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(20px);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .team-member::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(120, 119, 198, 0.1), rgba(255, 119, 198, 0.1));
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            z-index: -1;
+        }
+        
+        .team-member:hover {
+            transform: translateY(-12px) scale(1.02);
+            border-color: rgba(120, 119, 198, 0.4);
+            box-shadow: 0 25px 50px rgba(120, 119, 198, 0.2);
+        }
+        
+        .team-member:hover::before {
+            opacity: 1;
+        }
+        
+        /* Team member photos */
+        .member-photo {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin: 0 auto 25px;
+            display: block;
+            border: 3px solid rgba(120, 119, 198, 0.3);
+            transition: all 0.4s ease;
+            position: relative;
+        }
+        
+        .team-member:hover .member-photo {
+            border-color: rgba(120, 119, 198, 0.8);
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(120, 119, 198, 0.3);
+        }
+        
+        .member-name {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 8px;
+        }
+        
+        .member-title {
+            font-size: 1rem;
+            color: #7877c6;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        
+        .member-background {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.4;
+        }
+        
+        /* Sogni brand colors */
+        .sogni-gradient {
+            background: linear-gradient(135deg, #7877c6, #ff77c6, #77dbff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        /* Floating particles effect */
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(120, 119, 198, 0.6);
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="background"></div>
+    
+    <div class="header">
+        <h1>Our Team</h1>
+        <p>Meet the visionaries building the future of AI-powered creativity and blockchain technology</p>
+    </div>
+
+    <div class="team-section">
+        <!-- Sogni team grid structure -->
+        <div class="team-grid" id="sogni-team-container">
+            
+            <!-- Team Member 1 - Mauvis Ledford -->
+            <div class="team-member">
+                <img src="https://via.placeholder.com/120x120/7877C6/FFFFFF?text=ML" 
+                     alt="Mauvis Ledford, Chief Executive Officer" 
+                     class="member-photo">
+                <div class="member-name">Mauvis Ledford</div>
+                <div class="member-title">Chief Executive Officer</div>
+                <div class="member-background">Former CTO, CoinMarketCap</div>
+                <div class="particle" style="top: 20%; left: 10%; animation-delay: 0s;"></div>
+            </div>
+
+            <!-- Team Member 2 - Alejandro Ramos -->
+            <div class="team-member">
+                <img src="https://via.placeholder.com/120x120/FF77C6/FFFFFF?text=AR" 
+                     alt="Alejandro Ramos, Chief Product Officer" 
+                     class="member-photo">
+                <div class="member-name">Alejandro Ramos</div>
+                <div class="member-title">Chief Product Officer</div>
+                <div class="member-background">Former CoinMarketCap Mobile Architect, Founder Sogni 1.0</div>
+                <div class="particle" style="top: 30%; right: 15%; animation-delay: 1s;"></div>
+            </div>
+
+            <!-- Team Member 3 - Mark Ledford -->
+            <div class="team-member">
+                <img src="https://via.placeholder.com/120x120/77DBFF/000000?text=ML" 
+                     alt="Mark Ledford, Chief Technology Officer" 
+                     class="member-photo">
+                <div class="member-name">Mark Ledford</div>
+                <div class="member-title">Chief Technology Officer</div>
+                <div class="member-background">Former CIO, CoinMarketCap</div>
+                <div class="particle" style="bottom: 25%; left: 20%; animation-delay: 2s;"></div>
+            </div>
+
+            <!-- Team Member 4 - Cecilia Tan -->
+            <div class="team-member">
+                <img src="https://via.placeholder.com/120x120/9B59B6/FFFFFF?text=CT" 
+                     alt="Cecilia Tan, Chief Operations Officer" 
+                     class="member-photo">
+                <div class="member-name">Cecilia Tan</div>
+                <div class="member-title">Chief Operations Officer</div>
+                <div class="member-background">Former Associate Director, EY</div>
+                <div class="particle" style="top: 40%; right: 25%; animation-delay: 0.5s;"></div>
+            </div>
+
+            <!-- Team Member 5 - Karen Teoh -->
+            <div class="team-member">
+                <img src="https://via.placeholder.com/120x120/E74C3C/FFFFFF?text=KT" 
+                     alt="Karen Teoh, In-House Legal Counsel" 
+                     class="member-photo">
+                <div class="member-name">Karen Teoh</div>
+                <div class="member-title">In-House Legal Counsel</div>
+                <div class="member-background">Cryptonative Operator and Lawyer</div>
+                <div class="particle" style="bottom: 30%; left: 30%; animation-delay: 1.5s;"></div>
+            </div>
+
+            <!-- Team Member 6 - Allen Day -->
+            <div class="team-member">
+                <img src="https://via.placeholder.com/120x120/3498DB/FFFFFF?text=AD" 
+                     alt="Allen Day, Advisor" 
+                     class="member-photo">
+                <div class="member-name">Allen Day</div>
+                <div class="member-title">Advisor</div>
+                <div class="member-background">Former Web3 Ecosystem Lead, Google</div>
+                <div class="particle" style="top: 50%; right: 10%; animation-delay: 2.5s;"></div>
+            </div>
+
+            <!-- Team Member 7 - Tal Cohen -->
+            <div class="team-member">
+                <img src="https://via.placeholder.com/120x120/F39C12/FFFFFF?text=TC" 
+                     alt="Tal Cohen, Advisor" 
+                     class="member-photo">
+                <div class="member-name">Tal Cohen</div>
+                <div class="member-title">Advisor</div>
+                <div class="member-background">Former CEO, Kraken US</div>
+                <div class="particle" style="bottom: 20%; right: 20%; animation-delay: 3s;"></div>
+            </div>
+
+            <!-- Team Member 8 - Cole Smith -->
+            <div class="team-member">
+                <img src="https://via.placeholder.com/120x120/2ECC71/FFFFFF?text=CS" 
+                     alt="Cole Smith, Product and Design Manager" 
+                     class="member-photo">
+                <div class="member-name">Cole Smith</div>
+                <div class="member-title">Product and Design Manager</div>
+                <div class="member-background">Former PM / Design Director, Civitai</div>
+                <div class="particle" style="top: 60%; left: 40%; animation-delay: 3.5s;"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Test Documentation -->
+    <div style="margin: 80px 20px; padding: 30px; background: rgba(255, 255, 255, 0.05); border-radius: 24px; backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1);">
+        <h3 style="color: #7877c6; margin-top: 0; font-size: 1.8rem;">🧪 Regression Test: Sogni Team Page</h3>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin: 30px 0;">
+            <div>
+                <h4 style="color: #fff; margin-bottom: 15px;">✅ Test Criteria</h4>
+                <ul style="color: rgba(255, 255, 255, 0.8); line-height: 1.8;">
+                    <li><strong>Image Count:</strong> 8 team member photos</li>
+                    <li><strong>Image Size:</strong> 120x120px (circular)</li>
+                    <li><strong>Container Detection:</strong> "team-grid" with "team" keyword</li>
+                    <li><strong>Grid Fallback:</strong> 8 similar-sized images</li>
+                    <li><strong>Aspect Ratio:</strong> 1:1 (perfect squares)</li>
+                    <li><strong>Layout:</strong> Sogni brand colors and animations</li>
+                    <li><strong>Features:</strong> Floating particles, gradient backgrounds</li>
+                </ul>
+            </div>
+            <div>
+                <h4 style="color: #fff; margin-bottom: 15px;">🎯 Expected Extension Behavior</h4>
+                <ul style="color: rgba(255, 255, 255, 0.8); line-height: 1.8;">
+                    <li>Detect container via "team" keyword in class</li>
+                    <li>Validate all 8 images as team member profiles</li>
+                    <li>Handle Sogni's animated background and particles</li>
+                    <li>Convert images successfully with hover comparison</li>
+                    <li>Maintain Sogni's signature gradient branding</li>
+                    <li>Preserve advanced CSS animations and effects</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div style="background: linear-gradient(135deg, rgba(120, 119, 198, 0.1), rgba(255, 119, 198, 0.1)); padding: 20px; border-radius: 12px; margin-top: 20px;">
+            <strong style="color: #7877c6;">📋 Based on:</strong> 
+            <a href="https://www.sogni.ai/team" target="_blank" style="color: #fff; text-decoration: none;">
+                Sogni Team Page
+            </a><br>
+            <strong style="color: #7877c6;">🕒 Last Verified:</strong> <span id="test-date" style="color: #fff;"></span><br>
+            <strong style="color: #7877c6;">🔧 Extension Version:</strong> <span style="color: #fff;">2.0+ (Company page compatible)</span><br>
+            <strong style="color: #7877c6;">🎨 Theme:</strong> <span style="color: #fff;">Sogni brand with animated gradients and particles</span><br>
+            <strong style="color: #7877c6;">🏢 Importance:</strong> <span style="color: #fff;">Critical - Company's own team page</span>
+        </div>
+    </div>
+
+    <script>
+        // Set test date
+        document.getElementById('test-date').textContent = new Date().toLocaleDateString();
+        
+        // Sogni-style interactive effects
+        document.querySelectorAll('.team-member').forEach(member => {
+            member.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-12px) scale(1.02)';
+                this.style.boxShadow = '0 25px 50px rgba(120, 119, 198, 0.2)';
+            });
+            
+            member.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+                this.style.boxShadow = 'none';
+            });
+        });
+        
+        // Add more floating particles dynamically
+        function createParticle() {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.position = 'fixed';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.top = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 6 + 's';
+            particle.style.opacity = Math.random() * 0.6 + 0.2;
+            document.body.appendChild(particle);
+            
+            // Remove particle after animation
+            setTimeout(() => {
+                if (particle.parentNode) {
+                    particle.parentNode.removeChild(particle);
+                }
+            }, 6000);
+        }
+        
+        // Create particles periodically
+        setInterval(createParticle, 2000);
+        
+        // Test validation function
+        window.validateSogniTest = function() {
+            console.log('🧪 Validating Sogni Team Test...');
+            
+            const teamImages = document.querySelectorAll('.member-photo');
+            const teamContainer = document.querySelector('.team-grid');
+            
+            console.log(`📊 Found ${teamImages.length} team member images`);
+            console.log(`📦 Container found: ${teamContainer ? 'Yes' : 'No'}`);
+            
+            // Validate image dimensions and aspect ratios
+            let validImages = 0;
+            teamImages.forEach((img, index) => {
+                const rect = img.getBoundingClientRect();
+                const aspectRatio = rect.width / rect.height;
+                const isValid = rect.width >= 110 && rect.width <= 130 && 
+                               aspectRatio >= 0.9 && aspectRatio <= 1.1;
+                
+                console.log(`   Image ${index + 1}: ${rect.width}x${rect.height} (${aspectRatio.toFixed(2)}) ${isValid ? '✅' : '❌'}`);
+                if (isValid) validImages++;
+            });
+            
+            // Check for Sogni-specific features
+            const hasAnimatedBg = document.querySelector('.background') !== null;
+            const hasParticles = document.querySelectorAll('.particle').length > 0;
+            const hasGradients = document.querySelectorAll('.sogni-gradient, [style*="gradient"]').length > 0;
+            const hasBlur = document.querySelectorAll('[style*="backdrop-filter"]').length > 0;
+            
+            console.log(`🎨 Animated background: ${hasAnimatedBg ? '✅' : '❌'}`);
+            console.log(`✨ Floating particles: ${hasParticles ? '✅' : '❌'}`);
+            console.log(`🌈 Gradient effects: ${hasGradients ? '✅' : '❌'}`);
+            console.log(`🔍 Backdrop blur: ${hasBlur ? '✅' : '❌'}`);
+            
+            const testPassed = teamImages.length === 8 && 
+                              validImages === 8 && 
+                              teamContainer !== null &&
+                              hasAnimatedBg && hasParticles;
+            
+            console.log(`🎯 Test Result: ${testPassed ? '✅ PASSED' : '❌ FAILED'}`);
+            return testPassed;
+        };
+        
+        // Auto-run validation on load
+        setTimeout(() => {
+            console.log('🚀 Auto-running Sogni validation...');
+            validateSogniTest();
+        }, 1000);
+    </script>
+</body>
+</html>

@@ -35,7 +35,13 @@ import CameraStartMenu from './components/camera/CameraStartMenu';
 import AdvancedSettings from './components/shared/AdvancedSettings';
 import PWAInstallPrompt from './components/shared/PWAInstallPrompt';
 import './services/pwaInstaller'; // Initialize PWA installer service
-import promptsData from './prompts.json';
+import promptsDataRaw from './prompts.json';
+
+// Extract prompts from the new nested structure
+const promptsData = {};
+Object.values(promptsDataRaw).forEach(themeGroup => {
+  Object.assign(promptsData, themeGroup.prompts);
+});
 import PhotoGallery from './components/shared/PhotoGallery';
 import { useApp } from './context/AppContext.tsx';
 import TwitterShareModal from './components/shared/TwitterShareModal';
@@ -81,6 +87,25 @@ const getHashtagForStyle = (styleKey) => {
 
 
 const App = () => {
+  // --- Immediate URL Check (runs before any useEffect) ---
+  const immediateUrl = new URL(window.location.href);
+  const immediatePageParam = immediateUrl.searchParams.get('page');
+  const immediateExtensionParam = immediateUrl.searchParams.get('extension');
+  
+  // Set up extension mode immediately if detected
+  if (immediateExtensionParam === 'true') {
+    window.extensionMode = true;
+    document.body.classList.add('extension-mode'); // Add CSS class for styling
+    
+    // Add message listener immediately for extension communication
+    const handleExtensionMessage = (event) => {
+      // Only log important extension messages, not all the noise
+      if (event.data.type === 'styleSelected' || event.data.type === 'useThisStyle') {
+        console.log('Extension message:', event.data.type);
+      }
+    };
+    window.addEventListener('message', handleExtensionMessage);
+  }
 
   
   const videoReference = useRef(null);
@@ -191,14 +216,18 @@ const App = () => {
 
   // Info modal state - adding back the missing state
   const [showInfoModal, setShowInfoModal] = useState(false);
-  const [showPhotoGrid, setShowPhotoGrid] = useState(false);
+  const [showPhotoGrid, setShowPhotoGrid] = useState(
+    immediatePageParam === 'prompts' && immediateExtensionParam === 'true'
+  );
   
   // State for tracking gallery prompt application
   const [pendingGalleryPrompt, setPendingGalleryPrompt] = useState(null);
   
   
   // State for current page routing
-  const [currentPage, setCurrentPage] = useState('camera');
+  const [currentPage, setCurrentPage] = useState(
+    immediatePageParam === 'prompts' ? 'prompts' : 'camera'
+  );
   
   // PWA install prompt state - for manual testing only
   const [showPWAPromptManually, setShowPWAPromptManually] = useState(false);
@@ -344,6 +373,7 @@ const App = () => {
   
   // Track if confetti has been shown this session (using useRef to persist across renders)
   const confettiShownThisSession = useRef(false);
+  const galleryImagesLoadedThisSession = useRef(false);
   
   // Hide confetti immediately when background animations are disabled
   useEffect(() => {
@@ -549,6 +579,36 @@ const App = () => {
     // Check for prompt parameter in URL
     const url = new URL(window.location.href);
     const promptParam = url.searchParams.get('prompt');
+    const pageParam = url.searchParams.get('page');
+    const extensionParam = url.searchParams.get('extension');
+    const skipWelcomeParam = url.searchParams.get('skipWelcome');
+    
+    // Skip welcome screen if requested (e.g., from browser extension)
+    if (skipWelcomeParam === 'true') {
+      setShowSplashScreen(false);
+    }
+    
+    // Handle page parameter for direct navigation
+    if (pageParam === 'prompts') {
+      setCurrentPage('prompts');
+      setShowPhotoGrid(true);
+      
+      // If this is from the extension, set up extension mode
+      if (extensionParam === 'true') {
+        window.extensionMode = true;
+        document.body.classList.add('extension-mode'); // Add CSS class for styling
+        
+        // Set up message listener for extension communication
+        const handleExtensionMessage = (event) => {
+          // Only log important extension messages
+          if (event.data.type === 'styleSelected' || event.data.type === 'useThisStyle') {
+            console.log('Extension message:', event.data.type);
+          }
+        };
+        
+        window.addEventListener('message', handleExtensionMessage);
+      }
+    }
     
     if (promptParam && stylePrompts && promptParam !== selectedStyle) {
       // If the prompt exists in our style prompts, select it
@@ -563,16 +623,23 @@ const App = () => {
         setCurrentHashtag(promptParam);
       }
     }
-  }, [stylePrompts, updateSetting, selectedStyle, promptsData]);
+  }, [stylePrompts, updateSetting, selectedStyle, promptsData, currentPage]);
 
 
   // Load gallery images when entering prompt selector mode
   useEffect(() => {
     const loadGalleryForPromptSelector = async () => {
       if (currentPage === 'prompts' && stylePrompts && Object.keys(stylePrompts).length > 0) {
-        // Check if we already have gallery images loaded to prevent infinite loop
+        // Prevent loading more than once per session
+        if (galleryImagesLoadedThisSession.current) {
+          console.log('Gallery images already loaded this session, skipping reload');
+          return;
+        }
+        
+        // Also check if we already have gallery images loaded
         if (galleryPhotos.length > 0 && galleryPhotos[0]?.isGalleryImage) {
-          console.log('Gallery images already loaded, skipping reload');
+          console.log('Gallery images already loaded in state, skipping reload');
+          galleryImagesLoadedThisSession.current = true;
           return;
         }
         
@@ -581,11 +648,12 @@ const App = () => {
           
           // Import the loadGalleryImages function
           const { loadGalleryImages } = await import('./utils/galleryLoader');
-          const galleryPhotos = await loadGalleryImages(stylePrompts);
+          const loadedGalleryPhotos = await loadGalleryImages(stylePrompts);
           
-          if (galleryPhotos.length > 0) {
-            console.log(`Loaded ${galleryPhotos.length} gallery images for prompt selector`);
-            setGalleryPhotos(galleryPhotos);
+          if (loadedGalleryPhotos.length > 0) {
+            console.log(`Loaded ${loadedGalleryPhotos.length} gallery images for prompt selector`);
+            setGalleryPhotos(loadedGalleryPhotos);
+            galleryImagesLoadedThisSession.current = true; // Mark as loaded
           } else {
             console.warn('No gallery images found for prompt selector');
           }
@@ -596,7 +664,7 @@ const App = () => {
     };
 
     loadGalleryForPromptSelector();
-  }, [currentPage, stylePrompts, galleryPhotos]);
+  }, [currentPage, stylePrompts]);
 
   // Manage polaroid border CSS variables for sample gallery mode
   useEffect(() => {
@@ -811,6 +879,40 @@ const App = () => {
     try {
       console.log(`Using gallery prompt: ${promptKey}`);
       
+      // Check if we're in extension mode
+      console.log('🔍 Extension mode check:');
+      console.log('  - window.extensionMode:', window.extensionMode);
+      console.log('  - window.parent !== window:', window.parent !== window);
+      console.log('  - Both conditions:', window.extensionMode && window.parent !== window);
+      
+      if (window.extensionMode && window.parent !== window) {
+        console.log('🚀 Extension mode: posting useThisStyle message to parent window');
+        console.log('🎯 PromptKey:', promptKey);
+        // Get the style prompt for this key
+        const stylePrompt = stylePrompts[promptKey] || promptsData[promptKey] || `Transform into ${promptKey} style`;
+        console.log('📝 Style prompt:', stylePrompt);
+        console.log('📚 Available stylePrompts keys:', Object.keys(stylePrompts).slice(0, 10));
+        console.log('📚 Available promptsData keys:', Object.keys(promptsData).slice(0, 10));
+        
+        const message = {
+          type: 'useThisStyle',
+          promptKey: promptKey,
+          stylePrompt: stylePrompt
+        };
+        console.log('📤 Sending message:', JSON.stringify(message, null, 2));
+        
+        try {
+          // Post message to parent window (the extension)
+          window.parent.postMessage(message, '*');
+          console.log('✅ Message sent to parent window successfully');
+        } catch (error) {
+          console.error('❌ Error sending message to parent:', error);
+        }
+        return;
+      } else {
+        console.log('❌ Extension mode conditions not met - proceeding with normal flow');
+      }
+      
       // First, close the photo detail view and return to grid
       setSelectedPhotoIndex(null);
       
@@ -930,6 +1032,27 @@ const App = () => {
 
   // Prompt selection handlers for the new page
   const handlePromptSelectFromPage = (promptKey) => {
+    // Check if we're in extension mode
+    if (window.extensionMode && window.parent !== window) {
+      console.log('🚀 Extension mode: posting styleSelected message to parent window');
+      console.log('🎯 PromptKey:', promptKey);
+      // Get the style prompt for this key
+      const stylePrompt = stylePrompts[promptKey] || promptsData[promptKey] || `Transform into ${promptKey} style`;
+      console.log('📝 Style prompt:', stylePrompt);
+      
+      const message = {
+        type: 'styleSelected',
+        styleKey: promptKey,
+        stylePrompt: stylePrompt
+      };
+      console.log('📤 Sending message:', message);
+      
+      // Post message to parent window (the extension)
+      window.parent.postMessage(message, '*');
+      console.log('✅ Message sent to parent window');
+      return;
+    }
+    
     // Update style without URL changes to avoid navigation issues
     updateSetting('selectedStyle', promptKey);
     if (promptKey === 'custom') {
@@ -4243,6 +4366,7 @@ const App = () => {
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
+      background: window.extensionMode ? 'transparent' : undefined, // Make transparent in extension mode
     }}>
       {/* Style selector in top left - shown on photo grid page when not in Style Explorer */}
       {showPhotoGrid && currentPage !== 'prompts' && (
@@ -4270,7 +4394,7 @@ const App = () => {
             padding: '8px 16px',
             paddingRight: '24px',
             borderRadius: '20px',
-            background: 'rgba(255, 255, 255, 0.9)',
+            background: window.extensionMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(255, 255, 255, 0.9)',
             boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
             transition: 'all 0.2s',
             whiteSpace: 'nowrap',
@@ -4324,7 +4448,9 @@ const App = () => {
         <>
           {/* Conditionally render photo grid in prompt selector mode */}
           {isSogniReady && sogniClient && (
-            <div className={`film-strip-container visible prompt-selector-mode`}>
+            <div className={`film-strip-container visible prompt-selector-mode ${window.extensionMode ? 'extension-mode' : ''}`} style={{
+              background: window.extensionMode ? 'transparent' : undefined
+            }}>
               <PhotoGallery
                 photos={photos}
                 selectedPhotoIndex={selectedPhotoIndex}
@@ -5565,7 +5691,9 @@ const App = () => {
 
         {/* Conditionally render photo grid only if Sogni client is ready and NOT in Sample Gallery mode */}
         {showPhotoGrid && isSogniReady && sogniClient && currentPage !== 'prompts' && (
-          <div className={`film-strip-container ${showPhotoGrid ? 'visible' : ''}`}>
+          <div className={`film-strip-container ${showPhotoGrid ? 'visible' : ''} ${window.extensionMode ? 'extension-mode' : ''}`} style={{
+            background: window.extensionMode ? 'transparent' : undefined
+          }}>
         <PhotoGallery
           photos={photos}
           selectedPhotoIndex={selectedPhotoIndex}

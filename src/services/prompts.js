@@ -1,4 +1,10 @@
-import promptsData from '../prompts.json';
+import promptsDataRaw from '../prompts.json';
+
+// Extract prompts from the new nested structure
+const promptsData = {};
+Object.values(promptsDataRaw).forEach(themeGroup => {
+  Object.assign(promptsData, themeGroup.prompts);
+});
 import { FLUX_KONTEXT_PROMPTS } from '../constants/fluxPrompts';
 import { isFluxKontextModel } from '../constants/settings';
 
@@ -7,12 +13,13 @@ import { isFluxKontextModel } from '../constants/settings';
  * First tries the imported JSON, then fallbacks to fetching from different paths.
  */
 export const loadPrompts = () => {
-  if (typeof promptsData !== 'undefined' && Object.keys(promptsData).length > 0) {
-    console.log('Prompts loaded from import');
+  // Always try import first, but with better error handling
+  if (typeof promptsData !== 'undefined' && promptsData && Object.keys(promptsData).length > 0) {
+    console.log('Prompts loaded from import:', Object.keys(promptsData).length);
     return Promise.resolve(promptsData);
   }
   
-  console.warn('Prompts data not immediately available, attempting to fetch...');
+  console.warn('Prompts data not available from import, attempting to fetch...');
   
   // Try multiple locations in order
   const tryFetchFromPath = (path) => {
@@ -24,13 +31,17 @@ export const loadPrompts = () => {
         return response.json();
       })
       .then(data => {
-        console.log(`Successfully loaded prompts from ${path}`);
+        console.log(`Successfully loaded prompts from ${path}:`, Object.keys(data).length);
         return data;
       });
   };
   
-  // Try multiple paths in sequence
-  return tryFetchFromPath('/photobooth/prompts.json')
+  // Try the src path first (for dev), then fallback paths
+  return tryFetchFromPath('/src/prompts.json')
+    .catch(error => {
+      console.warn(error.message);
+      return tryFetchFromPath('/photobooth/prompts.json');
+    })
     .catch(error => {
       console.warn(error.message);
       return tryFetchFromPath('/prompts.json');
@@ -80,6 +91,13 @@ export const initializeStylePrompts = async (modelId = null) => {
     stylePrompts.random = 'RANDOM_SINGLE_STYLE';
     
     console.log('Prompts loaded successfully:', Object.keys(stylePrompts).length);
+    
+    // Expose to window for debugging
+    if (typeof window !== 'undefined') {
+      window.stylePrompts = stylePrompts;
+      window.initializeStylePrompts = initializeStylePrompts;
+    }
+    
     return stylePrompts;
   } catch (error) {
     console.error('Error initializing prompts:', error);

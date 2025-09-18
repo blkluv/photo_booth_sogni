@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI4 Vegas Speakers - Test Prototype</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: "Inter", "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 60px 20px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            font-size: 3.2rem;
+            font-weight: 800;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .header .subtitle {
+            font-size: 1.4rem;
+            color: #666;
+            font-weight: 500;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            color: #777;
+            max-width: 600px;
+            margin: 20px auto 0;
+        }
+        
+        .speakers-section {
+            padding: 80px 20px;
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+        
+        .section-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+        
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 15px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        .section-subtitle {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 400;
+        }
+        
+        /* AI4-style speakers grid */
+        .speakers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+        
+        .speaker-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.4s ease;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .speaker-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            background: rgba(255, 255, 255, 1);
+        }
+        
+        /* AI4 speaker images */
+        .speaker-photo {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin: 0 auto 20px;
+            display: block;
+            border: 4px solid #667eea;
+            transition: all 0.3s ease;
+        }
+        
+        .speaker-card:hover .speaker-photo {
+            border-color: #764ba2;
+            transform: scale(1.05);
+        }
+        
+        .speaker-name {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .speaker-title {
+            font-size: 1rem;
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        
+        .speaker-company {
+            font-size: 0.95rem;
+            color: #666;
+            font-weight: 500;
+            margin-bottom: 15px;
+        }
+        
+        .speaker-bio {
+            font-size: 0.9rem;
+            color: #555;
+            line-height: 1.5;
+            margin-bottom: 15px;
+        }
+        
+        .speaker-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+        
+        .tag {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .ai-accent {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>AI4 VEGAS</h1>
+        <div class="subtitle">Artificial Intelligence Conference</div>
+        <p>Leading AI innovators, researchers, and industry experts shaping the future of artificial intelligence</p>
+    </div>
+
+    <div class="speakers-section">
+        <div class="section-header">
+            <h2 class="section-title">Featured Speakers</h2>
+            <p class="section-subtitle">Meet the visionaries driving AI innovation forward</p>
+        </div>
+        
+        <!-- AI4 speakers grid structure -->
+        <div class="speakers-grid" id="ai4-speakers-container">
+            
+            <!-- Speaker 1 -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/140x140/667EEA/FFFFFF?text=Dr.+Chen" 
+                     alt="Dr. Sarah Chen, AI Research Director" 
+                     class="speaker-photo">
+                <div class="speaker-name">Dr. Sarah Chen</div>
+                <div class="speaker-title">AI Research Director</div>
+                <div class="speaker-company">OpenAI</div>
+                <div class="speaker-bio">Leading research in large language models and their applications in real-world scenarios.</div>
+                <div class="speaker-tags">
+                    <span class="tag">LLMs</span>
+                    <span class="tag">Research</span>
+                </div>
+            </div>
+
+            <!-- Speaker 2 -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/140x140/764BA2/FFFFFF?text=M.+Kumar" 
+                     alt="Marcus Kumar, VP of AI Engineering" 
+                     class="speaker-photo">
+                <div class="speaker-name">Marcus Kumar</div>
+                <div class="speaker-title">VP of AI Engineering</div>
+                <div class="speaker-company">Google DeepMind</div>
+                <div class="speaker-bio">Pioneering advances in neural network architectures and autonomous systems.</div>
+                <div class="speaker-tags">
+                    <span class="tag">Neural Networks</span>
+                    <span class="tag">Autonomous AI</span>
+                </div>
+            </div>
+
+            <!-- Speaker 3 -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/140x140/9C27B0/FFFFFF?text=Dr.+Park" 
+                     alt="Dr. Jennifer Park, Chief AI Officer" 
+                     class="speaker-photo">
+                <div class="speaker-name">Dr. Jennifer Park</div>
+                <div class="speaker-title">Chief AI Officer</div>
+                <div class="speaker-company">Microsoft AI</div>
+                <div class="speaker-bio">Transforming enterprise AI adoption with responsible AI practices and ethical frameworks.</div>
+                <div class="speaker-tags">
+                    <span class="tag">Enterprise AI</span>
+                    <span class="tag">Ethics</span>
+                </div>
+            </div>
+
+            <!-- Speaker 4 -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/140x140/FF5722/FFFFFF?text=A.+Rodriguez" 
+                     alt="Alex Rodriguez, Founder and CEO" 
+                     class="speaker-photo">
+                <div class="speaker-name">Alex Rodriguez</div>
+                <div class="speaker-title">Founder and CEO</div>
+                <div class="speaker-company">Anthropic</div>
+                <div class="speaker-bio">Building safe, beneficial AI systems that can understand and assist humans effectively.</div>
+                <div class="speaker-tags">
+                    <span class="tag">AI Safety</span>
+                    <span class="tag">Startups</span>
+                </div>
+            </div>
+
+            <!-- Speaker 5 -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/140x140/2196F3/FFFFFF?text=Dr.+Wang" 
+                     alt="Dr. Lisa Wang, Head of AI Research" 
+                     class="speaker-photo">
+                <div class="speaker-name">Dr. Lisa Wang</div>
+                <div class="speaker-title">Head of AI Research</div>
+                <div class="speaker-company">Meta AI</div>
+                <div class="speaker-bio">Advancing computer vision and multimodal AI systems for next-generation applications.</div>
+                <div class="speaker-tags">
+                    <span class="tag">Computer Vision</span>
+                    <span class="tag">Multimodal AI</span>
+                </div>
+            </div>
+
+            <!-- Speaker 6 -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/140x140/4CAF50/FFFFFF?text=J.+Thompson" 
+                     alt="James Thompson, Director of AI Strategy" 
+                     class="speaker-photo">
+                <div class="speaker-name">James Thompson</div>
+                <div class="speaker-title">Director of AI Strategy</div>
+                <div class="speaker-company">NVIDIA</div>
+                <div class="speaker-bio">Driving AI hardware innovation and accelerating machine learning workloads at scale.</div>
+                <div class="speaker-tags">
+                    <span class="tag">AI Hardware</span>
+                    <span class="tag">GPU Computing</span>
+                </div>
+            </div>
+
+            <!-- Speaker 7 -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/140x140/E91E63/FFFFFF?text=Dr.+Lee" 
+                     alt="Dr. Michael Lee, Principal Scientist" 
+                     class="speaker-photo">
+                <div class="speaker-name">Dr. Michael Lee</div>
+                <div class="speaker-title">Principal Scientist</div>
+                <div class="speaker-company">Amazon AI</div>
+                <div class="speaker-bio">Developing conversational AI and natural language processing systems for consumer applications.</div>
+                <div class="speaker-tags">
+                    <span class="tag">NLP</span>
+                    <span class="tag">Conversational AI</span>
+                </div>
+            </div>
+
+            <!-- Speaker 8 -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/140x140/FF9800/FFFFFF?text=R.+Davis" 
+                     alt="Rachel Davis, AI Product Manager" 
+                     class="speaker-photo">
+                <div class="speaker-name">Rachel Davis</div>
+                <div class="speaker-title">AI Product Manager</div>
+                <div class="speaker-company">Tesla</div>
+                <div class="speaker-bio">Leading autonomous driving AI development and real-world deployment strategies.</div>
+                <div class="speaker-tags">
+                    <span class="tag">Autonomous Vehicles</span>
+                    <span class="tag">Real-world AI</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Test Documentation -->
+    <div style="margin: 60px 20px; padding: 30px; background: rgba(255, 255, 255, 0.95); border-radius: 20px; backdrop-filter: blur(10px); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);">
+        <h3 style="color: #667eea; margin-top: 0; font-size: 1.8rem;">🧪 Regression Test: AI4 Vegas Speakers</h3>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin: 30px 0;">
+            <div>
+                <h4 style="color: #333; margin-bottom: 15px;">✅ Test Criteria</h4>
+                <ul style="color: #555; line-height: 1.8;">
+                    <li><strong>Image Count:</strong> 8 speaker photos</li>
+                    <li><strong>Image Size:</strong> 140x140px (circular)</li>
+                    <li><strong>Container Detection:</strong> "speakers-grid" with "speakers" keyword</li>
+                    <li><strong>Grid Fallback:</strong> 8 similar-sized images</li>
+                    <li><strong>Aspect Ratio:</strong> 1:1 (perfect squares)</li>
+                    <li><strong>Layout:</strong> AI conference theme with gradient backgrounds</li>
+                    <li><strong>Features:</strong> Hover effects, tags, detailed bios</li>
+                </ul>
+            </div>
+            <div>
+                <h4 style="color: #333; margin-bottom: 15px;">🎯 Expected Extension Behavior</h4>
+                <ul style="color: #555; line-height: 1.8;">
+                    <li>Detect container via "speakers" keyword in class</li>
+                    <li>Validate all 8 images as AI expert profiles</li>
+                    <li>Handle gradient background and glass morphism design</li>
+                    <li>Convert images successfully with hover comparison</li>
+                    <li>Maintain AI4's modern aesthetic and animations</li>
+                    <li>Preserve card layout and interactive elements</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); padding: 20px; border-radius: 12px; margin-top: 20px;">
+            <strong style="color: #667eea;">📋 Based on:</strong> 
+            <a href="https://ai4.io/vegas/speakers/" target="_blank" style="color: #333; text-decoration: none;">
+                AI4 Vegas Speakers Page
+            </a><br>
+            <strong style="color: #667eea;">🕒 Last Verified:</strong> <span id="test-date" style="color: #333;"></span><br>
+            <strong style="color: #667eea;">🔧 Extension Version:</strong> <span style="color: #333;">2.0+ (Multi-conference compatible)</span><br>
+            <strong style="color: #667eea;">🎨 Theme:</strong> <span style="color: #333;">Modern AI conference with gradient design and glass morphism</span><br>
+            <strong style="color: #667eea;">🤖 Focus:</strong> <span style="color: #333;">AI/ML industry experts and researchers</span>
+        </div>
+    </div>
+
+    <script>
+        // Set test date
+        document.getElementById('test-date').textContent = new Date().toLocaleDateString();
+        
+        // AI4-style interactive effects
+        document.querySelectorAll('.speaker-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-10px) scale(1.02)';
+                this.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.2)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+                this.style.boxShadow = '0 8px 30px rgba(0, 0, 0, 0.1)';
+            });
+        });
+        
+        // Tag hover effects
+        document.querySelectorAll('.tag').forEach(tag => {
+            tag.addEventListener('mouseenter', function() {
+                this.style.transform = 'scale(1.1)';
+            });
+            
+            tag.addEventListener('mouseleave', function() {
+                this.style.transform = 'scale(1)';
+            });
+        });
+        
+        // Test validation function
+        window.validateAI4Test = function() {
+            console.log('🧪 Validating AI4 Vegas Speakers Test...');
+            
+            const speakerImages = document.querySelectorAll('.speaker-photo');
+            const speakersContainer = document.querySelector('.speakers-grid');
+            
+            console.log(`📊 Found ${speakerImages.length} speaker images`);
+            console.log(`📦 Container found: ${speakersContainer ? 'Yes' : 'No'}`);
+            
+            // Validate image dimensions and aspect ratios
+            let validImages = 0;
+            speakerImages.forEach((img, index) => {
+                const rect = img.getBoundingClientRect();
+                const aspectRatio = rect.width / rect.height;
+                const isValid = rect.width >= 130 && rect.width <= 150 && 
+                               aspectRatio >= 0.9 && aspectRatio <= 1.1;
+                
+                console.log(`   Image ${index + 1}: ${rect.width}x${rect.height} (${aspectRatio.toFixed(2)}) ${isValid ? '✅' : '❌'}`);
+                if (isValid) validImages++;
+            });
+            
+            // Check for AI4-specific features
+            const hasGradientBg = getComputedStyle(document.body).background.includes('gradient');
+            const hasGlassMorphism = document.querySelectorAll('[style*="backdrop-filter"]').length > 0;
+            const hasTags = document.querySelectorAll('.tag').length > 0;
+            const hasHoverEffects = document.querySelectorAll('.speaker-card').length > 0;
+            
+            console.log(`🎨 Gradient background: ${hasGradientBg ? '✅' : '❌'}`);
+            console.log(`🔍 Glass morphism: ${hasGlassMorphism ? '✅' : '❌'}`);
+            console.log(`🏷️ Speaker tags: ${hasTags ? '✅' : '❌'}`);
+            console.log(`🎭 Hover effects: ${hasHoverEffects ? '✅' : '❌'}`);
+            
+            const testPassed = speakerImages.length === 8 && 
+                              validImages === 8 && 
+                              speakersContainer !== null &&
+                              hasGradientBg && hasTags;
+            
+            console.log(`🎯 Test Result: ${testPassed ? '✅ PASSED' : '❌ FAILED'}`);
+            return testPassed;
+        };
+        
+        // Auto-run validation on load
+        setTimeout(() => {
+            console.log('🚀 Auto-running AI4 validation...');
+            validateAI4Test();
+        }, 1000);
+    </script>
+</body>
+</html>

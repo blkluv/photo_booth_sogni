@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "Sogni Style Explorer",
+  "version": "1.1.5",
+  "description": "Transform profile photos with hundreds of AI styles using Sogni Photobooth",
+  
+  "permissions": [
+    "activeTab",
+    "contextMenus",
+    "storage",
+    "notifications",
+    "scripting"
+  ],
+  
+  "host_permissions": [
+    "https://photobooth-api.sogni.ai/*",
+    "https://photobooth.sogni.ai/*",
+    "https://photobooth-api-local.sogni.ai/*",
+    "https://photobooth-local.sogni.ai/*",
+    "https://storage.googleapis.com/*",
+    "https://*.googleapis.com/*",
+    "https://*/*"
+  ],
+  
+  "background": {
+    "service_worker": "background.js"
+  },
+  
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Sogni Style Explorer",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  
+  "web_accessible_resources": [
+    {
+      "resources": ["progress-overlay.html", "icons/*"],
+      "matches": ["http://*/*", "https://*/*"]
+    }
+  ]
+}

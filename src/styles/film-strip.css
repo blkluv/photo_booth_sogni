@@ -28,6 +28,69 @@
   transition: opacity 0.4s ease-out;
 }
 
+/* Extension mode - transparent background with blur effect on underlying page */
+.film-strip-container.extension-mode {
+  background: transparent !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+/* Make body background darker for visibility on white pages in extension mode */
+body.extension-mode {
+  background: rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Make photobooth-app background transparent in extension mode */
+body.extension-mode .photobooth-app {
+  background: transparent !important;
+}
+
+/* Make main-content-area transparent in extension mode */
+body.extension-mode .main-content-area {
+  background: transparent !important;
+}
+
+/* Make top-left-style-selector transparent in extension mode */
+body.extension-mode .top-left-style-selector {
+  background: transparent !important;
+}
+
+/* Hide studio lights in extension mode */
+body.extension-mode .studio-lights-container {
+  display: none !important;
+}
+
+/* Hide corner buttons in extension mode */
+body.extension-mode .corner-btn {
+  display: none !important;
+}
+
+/* Hide all action buttons except use-prompt-btn in extension mode */
+body.extension-mode .action-button:not(.use-prompt-btn) {
+  display: none !important;
+}
+
+/* Specific rule for Style Explorer in extension mode - higher specificity */
+.film-strip-container.visible.extension-mode.prompt-selector-mode {
+  background: transparent !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+/* Keep selected photo frames (polaroids) white in extension mode but enhance shadows */
+.film-strip-container.extension-mode .film-frame.selected {
+  background: white !important; /* Keep polaroid frames white */
+  box-shadow: 0 8px 30px rgba(0,0,0,0.5) !important; /* Darker shadow for visibility on web pages */
+}
+
+/* Keep selected photo frames (polaroids) white in extension mode on mobile too */
+@media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
+  .film-strip-container.extension-mode .film-frame.selected {
+    background: white !important; /* Keep polaroid frames white */
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5) !important; /* Darker shadow for visibility on web pages */
+  }
+}
+
 .film-strip-holes {
   display: none !important;
 }
@@ -88,9 +151,17 @@
 /* Clean crossfade animation for photo grid transitions */
 
 /* Enhanced grid layout for better high-resolution display support */
-.film-strip-content {
-  /* Ensure minimum 4 columns on desktop landscape - optimized for modern screens */
+.film-strip-content:not(.prompt-selector-mode) {
+  /* Regular photo grid - 4 columns on desktop */
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+  /* Better responsive behavior for different screen sizes */
+  container-type: inline-size;
+}
+
+/* Style Explorer grid layout - 5 columns on desktop */
+.film-strip-content.prompt-selector-mode {
+  /* Style Explorer - 5 columns with smaller images for better density */
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
   /* Better responsive behavior for different screen sizes */
   container-type: inline-size;
 }
@@ -271,31 +342,39 @@
   pointer-events: auto !important;
 }
 
-/* Ensure minimum 4 images per row on desktop landscape */
+/* Ensure minimum 4 images per row on desktop landscape for regular photo grid */
 @media (orientation: landscape) and (min-width: 1200px) {
-  .film-strip-container .film-strip-content {
-    /* Force minimum 4 columns on standard desktop landscape - reduced from 22vw to ensure 4 columns */
-    grid-template-columns: repeat(auto-fill, minmax(min(20vw, 563px), 1fr)) !important;
+  .film-strip-container .film-strip-content:not(.prompt-selector-mode) {
+    /* Force minimum 4 columns on standard desktop landscape for regular photo grid */
+    grid-template-columns: repeat(auto-fill, minmax(min(20vw, 320px), 1fr)) !important;
   }
 }
 
-/* Allow 5 columns on large resolutions - FORCE 5 COLUMNS */
+/* Ensure minimum 5 images per row on desktop landscape for Style Explorer */
+@media (orientation: landscape) and (min-width: 1200px) {
+  .film-strip-container .film-strip-content.prompt-selector-mode {
+    /* Force minimum 5 columns on standard desktop landscape for Style Explorer - smaller images for better density */
+    grid-template-columns: repeat(auto-fill, minmax(min(16vw, 280px), 1fr)) !important;
+  }
+}
+
+/* Allow 6 columns on large resolutions - FORCE 6 COLUMNS */
 @media screen and (orientation: landscape) and (min-width: 2700px) and (max-width: 2879px) {
-  .film-strip-container .film-strip-content,
-  body .film-strip-container .film-strip-content,
-  html body .film-strip-container .film-strip-content {
-    /* FORCE 5 columns - maximum specificity */
-    grid-template-columns: repeat(5, 1fr) !important;
-  }
-}
-
-/* Allow up to 6 columns on very large resolutions - FORCE 6 COLUMNS */
-@media (orientation: landscape) and (min-width: 2880px) {
   .film-strip-container .film-strip-content,
   body .film-strip-container .film-strip-content,
   html body .film-strip-container .film-strip-content {
     /* FORCE 6 columns - maximum specificity */
     grid-template-columns: repeat(6, 1fr) !important;
+  }
+}
+
+/* Allow up to 7 columns on very large resolutions - FORCE 7 COLUMNS */
+@media (orientation: landscape) and (min-width: 2880px) {
+  .film-strip-container .film-strip-content,
+  body .film-strip-container .film-strip-content,
+  html body .film-strip-container .film-strip-content {
+    /* FORCE 7 columns - maximum specificity */
+    grid-template-columns: repeat(7, 1fr) !important;
   }
 }
 

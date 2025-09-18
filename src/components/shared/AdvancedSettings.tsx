@@ -808,28 +808,32 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
           <label htmlFor="background-animations-toggle" className="control-label">Background Animations</label>
         </div>
         
-        {/* Worker Preferences */}
-        <div className="control-option worker-preference-section">
+        {/* Worker Preferences - DISABLED (hardcoded on server) */}
+        <div className="control-option worker-preference-section disabled">
           <label className="control-label">Required<br/>Workers</label>
           <TagInput
             tags={settings.requiredWorkers || []}
-            onTagsChange={(tags) => updateSetting('requiredWorkers', tags)}
-            placeholder="Type worker name and press Enter..."
+            onTagsChange={() => {}} // Disabled - no-op function
+            placeholder="Managed by server configuration"
+            className="disabled"
+            disabled={true}
           />
           <div className="control-description">
-            Required workers must be available for processing your images
+            Required workers are managed by server configuration and cannot be changed
           </div>
         </div>
 
-        <div className="control-option worker-preference-section">
+        <div className="control-option worker-preference-section disabled">
           <label className="control-label">Preferred<br/>Workers</label>
           <TagInput
             tags={settings.preferWorkers}
-            onTagsChange={(tags) => updateSetting('preferWorkers', tags)}
-            placeholder="Type worker name and press Enter..."
+            onTagsChange={() => {}} // Disabled - no-op function
+            placeholder="Managed by server configuration"
+            className="disabled"
+            disabled={true}
           />
           <div className="control-description">
-            Preferred workers will be prioritized for processing your images
+            Preferred workers are managed by server configuration and cannot be changed
           </div>
         </div>
 

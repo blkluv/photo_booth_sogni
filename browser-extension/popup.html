@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sogni Style Explorer</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Main Action Button -->
+    <div class="main-action-section">
+      <button id="open-style-explorer-btn" class="main-action-button">
+        <span class="btn-icon">🎨</span>
+        <span class="btn-text">Open Style Explorer</span>
+      </button>
+    </div>
+
+    <!-- Last Used Style Section (hidden by default) -->
+    <div id="last-style-section" class="last-style-section" style="display: none;">
+      <h3>Last Used Style</h3>
+      <div class="last-style-info">
+        <span class="last-style-label">Style:</span>
+        <span id="last-style-name" class="last-style-name">-</span>
+      </div>
+      <button id="use-last-style-btn" class="use-last-style-button">
+        <span class="btn-icon">🔄</span>
+        <span class="btn-text">Use This Style Again</span>
+      </button>
+    </div>
+
+    <!-- Restore Cached Images Section (hidden by default) -->
+    <div id="restore-cache-section" class="restore-cache-section" style="display: none;">
+      <h3>Cached Images Available</h3>
+      <div class="restore-cache-info">
+        <span id="restore-cache-count" class="restore-cache-count">0 cached images found</span>
+      </div>
+      <button id="restore-cached-images-btn" class="restore-cached-images-button">
+        <span class="btn-icon">🔄</span>
+        <span class="btn-text">Restore Cached Images</span>
+      </button>
+    </div>
+
+    <!-- Cached Styles Section (hidden by default) -->
+    <div id="cached-styles-section" class="cached-styles-section" style="display: none;">
+      <h3>Saved Styles for This Site</h3>
+      <div class="cached-styles-info">
+        <span id="cached-styles-count" class="cached-styles-count">0 styles saved</span>
+      </div>
+      <div class="cached-styles-dropdown">
+        <select id="cached-styles-select" class="cached-styles-select">
+          <option value="">Select a saved style...</option>
+        </select>
+      </div>
+      <div class="cached-styles-actions">
+        <button id="apply-cached-style-btn" class="apply-cached-style-button" disabled>
+          <span class="btn-icon">🎨</span>
+          <span class="btn-text">Apply Style</span>
+        </button>
+        <button id="clear-cache-btn" class="clear-cache-button">
+          <span class="btn-icon">🗑️</span>
+          <span class="btn-text">Clear All</span>
+        </button>
+      </div>
+    </div>
+    
+    <!-- Loading Message (hidden by default) -->
+    <div class="loading-section" style="display: none;">
+      <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <h2>Opening Style Explorer...</h2>
+        <p>Launching Sogni Style Explorer directly in the current tab.</p>
+      </div>
+    </div>
+    
+    <!-- Debug Settings -->
+    <div class="debug-section">
+      <h3>Debug Settings</h3>
+      
+      <div class="debug-setting">
+        <label for="max-images">Max Images Per Page:</label>
+        <input type="number" id="max-images" min="1" max="100" value="32">
+      </div>
+      
+      <div class="debug-setting">
+        <label for="max-concurrent">Max Concurrent Workers:</label>
+        <input type="number" id="max-concurrent" min="1" max="16" value="8">
+      </div>
+      
+      <div class="debug-setting">
+        <button id="save-debug-settings" class="debug-button">Save Settings</button>
+      </div>
+    </div>
+
+    <!-- Dev mode toggle for local development -->
+    <div class="dev-mode-section">
+      <label class="dev-mode-label">
+        <input type="checkbox" id="dev-mode-toggle">
+        <span class="dev-mode-text">Local Development Mode</span>
+      </label>
+      <div class="dev-mode-info">
+        <small>Uses photobooth-local.sogni.ai (frontend) and photobooth-api-local.sogni.ai (API) when enabled</small>
+      </div>
+    </div>
+  </div>
+
+  <script src="api-service.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

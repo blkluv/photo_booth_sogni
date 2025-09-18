@@ -1,0 +1,14 @@
+# Chrome Extension Signing Keys are stored in ../keys/ directory
+
+# Node modules (if any)
+node_modules/
+
+# Build artifacts
+*.crx
+*.zip
+
+# macOS
+.DS_Store
+
+# Logs
+*.log

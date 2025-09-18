@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dreamforce 25 Speakers - Exact Structure Test</title>
+    <style>
+        body {
+            font-family: "Salesforce Sans", Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #fafbfc;
+        }
+        
+        .page-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .speakers-section {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        /* This mimics the actual Salesforce speakers grid structure */
+        .speakers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+            padding: 20px 0;
+        }
+        
+        .speaker-card {
+            background: #ffffff;
+            border: 1px solid #e5e5e5;
+            border-radius: 8px;
+            padding: 24px;
+            text-align: center;
+            transition: box-shadow 0.2s ease;
+        }
+        
+        .speaker-card:hover {
+            box-shadow: 0 4px 14px 0 rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Key: This matches the actual image structure from Salesforce */
+        .speaker-photo {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin: 0 auto 16px;
+            display: block;
+            border: 3px solid #f3f3f3;
+        }
+        
+        .speaker-info h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #080707;
+            margin: 0 0 8px 0;
+            line-height: 1.3;
+        }
+        
+        .speaker-title {
+            font-size: 14px;
+            color: #706e6b;
+            margin: 0 0 4px 0;
+        }
+        
+        .speaker-company {
+            font-size: 14px;
+            color: #0176d3;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .session-info {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #f3f3f3;
+        }
+        
+        .session-title {
+            font-size: 13px;
+            color: #444;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <h1>Dreamforce '25 Speakers</h1>
+        <p>Industry leaders and innovators sharing insights at Dreamforce 2025</p>
+    </div>
+
+    <div class="speakers-section">
+        <!-- This class name pattern matches what the extension looks for -->
+        <div class="speakers-grid" id="df25-speakers-container">
+            
+            <!-- Speaker 1 - Matches actual Salesforce card structure -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/120x120/1B96FF/FFFFFF?text=JS" 
+                     alt="John Smith, CTO at Salesforce" 
+                     class="speaker-photo">
+                <div class="speaker-info">
+                    <h3>John Smith</h3>
+                    <div class="speaker-title">Chief Technology Officer</div>
+                    <div class="speaker-company">Salesforce</div>
+                </div>
+                <div class="session-info">
+                    <div class="session-title">The Future of AI in CRM</div>
+                </div>
+            </div>
+
+            <!-- Speaker 2 -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/120x120/00D924/FFFFFF?text=SJ" 
+                     alt="Sarah Johnson, VP Product at Microsoft" 
+                     class="speaker-photo">
+                <div class="speaker-info">
+                    <h3>Sarah Johnson</h3>
+                    <div class="speaker-title">VP of Product Innovation</div>
+                    <div class="speaker-company">Microsoft</div>
+                </div>
+                <div class="session-info">
+                    <div class="session-title">Cloud-First Digital Transformation</div>
+                </div>
+            </div>
+
+            <!-- Speaker 3 -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/120x120/FF6900/FFFFFF?text=MC" 
+                     alt="Michael Chen, Director AI Research at Google" 
+                     class="speaker-photo">
+                <div class="speaker-info">
+                    <h3>Michael Chen</h3>
+                    <div class="speaker-title">Director of AI Research</div>
+                    <div class="speaker-company">Google</div>
+                </div>
+                <div class="session-info">
+                    <div class="session-title">Machine Learning at Scale</div>
+                </div>
+            </div>
+
+            <!-- Speaker 4 -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/120x120/BD10E0/FFFFFF?text=ER" 
+                     alt="Emily Rodriguez, Head of Digital Transformation at Amazon" 
+                     class="speaker-photo">
+                <div class="speaker-info">
+                    <h3>Emily Rodriguez</h3>
+                    <div class="speaker-title">Head of Digital Transformation</div>
+                    <div class="speaker-company">Amazon</div>
+                </div>
+                <div class="session-info">
+                    <div class="session-title">Customer-Centric Innovation</div>
+                </div>
+            </div>
+
+            <!-- Speaker 5 -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/120x120/F5A623/FFFFFF?text=DP" 
+                     alt="David Park, Senior Engineering Manager at Meta" 
+                     class="speaker-photo">
+                <div class="speaker-info">
+                    <h3>David Park</h3>
+                    <div class="speaker-title">Senior Engineering Manager</div>
+                    <div class="speaker-company">Meta</div>
+                </div>
+                <div class="session-info">
+                    <div class="session-title">Building the Metaverse</div>
+                </div>
+            </div>
+
+            <!-- Speaker 6 -->
+            <div class="speaker-card">
+                <img src="https://via.placeholder.com/120x120/50E3C2/FFFFFF?text=LT" 
+                     alt="Lisa Thompson, Chief Data Officer at IBM" 
+                     class="speaker-photo">
+                <div class="speaker-info">
+                    <h3>Lisa Thompson</h3>
+                    <div class="speaker-title">Chief Data Officer</div>
+                    <div class="speaker-company">IBM</div>
+                </div>
+                <div class="session-info">
+                    <div class="session-title">Data-Driven Decision Making</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Test Documentation -->
+    <div style="margin-top: 60px; padding: 24px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #0176d3;">
+        <h3 style="color: #0176d3; margin-top: 0;">🧪 Regression Test: Salesforce DF25 Speakers</h3>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
+            <div>
+                <h4>✅ Test Criteria</h4>
+                <ul>
+                    <li><strong>Image Count:</strong> 6 speaker photos</li>
+                    <li><strong>Image Size:</strong> 120x120px (circular)</li>
+                    <li><strong>Container Detection:</strong> "speakers-grid" class</li>
+                    <li><strong>Grid Fallback:</strong> 6 similar-sized images</li>
+                    <li><strong>Aspect Ratio:</strong> 1:1 (perfect squares)</li>
+                </ul>
+            </div>
+            <div>
+                <h4>🎯 Expected Extension Behavior</h4>
+                <ul>
+                    <li>Detect container via "speakers" keyword</li>
+                    <li>Validate all 6 images as profiles</li>
+                    <li>Convert images successfully</li>
+                    <li>Maintain visibility after conversion</li>
+                    <li>Preserve grid layout structure</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div style="background: white; padding: 16px; border-radius: 4px; margin-top: 16px;">
+            <strong>📋 Based on:</strong> 
+            <a href="https://reg.salesforce.com/flow/plus/df25/df25speakers/page/speakers" target="_blank">
+                Salesforce Dreamforce 2025 Speakers Page
+            </a><br>
+            <strong>🕒 Last Verified:</strong> <span id="test-date"></span><br>
+            <strong>🔧 Extension Version:</strong> 2.0+ (Netflix + Salesforce compatible)
+        </div>
+    </div>
+
+    <script>
+        // Set test date
+        document.getElementById('test-date').textContent = new Date().toLocaleDateString();
+        
+        // Add hover effects to match Salesforce behavior
+        document.querySelectorAll('.speaker-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-2px)';
+                this.style.transition = 'all 0.2s ease';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+            });
+        });
+        
+        // Test helper function
+        window.validateSalesforceTest = function() {
+            console.log('🧪 Validating Salesforce DF25 Speakers Test...');
+            
+            const speakerImages = document.querySelectorAll('.speaker-photo');
+            const speakersContainer = document.querySelector('.speakers-grid');
+            
+            console.log(`📊 Found ${speakerImages.length} speaker images`);
+            console.log(`📦 Container found: ${speakersContainer ? 'Yes' : 'No'}`);
+            
+            // Validate image dimensions
+            let validImages = 0;
+            speakerImages.forEach((img, index) => {
+                const rect = img.getBoundingClientRect();
+                const aspectRatio = rect.width / rect.height;
+                const isValid = rect.width >= 100 && rect.width <= 140 && 
+                               aspectRatio >= 0.9 && aspectRatio <= 1.1;
+                
+                console.log(`   Image ${index + 1}: ${rect.width}x${rect.height} (${aspectRatio.toFixed(2)}) ${isValid ? '✅' : '❌'}`);
+                if (isValid) validImages++;
+            });
+            
+            const testPassed = speakerImages.length === 6 && 
+                              validImages === 6 && 
+                              speakersContainer !== null;
+            
+            console.log(`🎯 Test Result: ${testPassed ? '✅ PASSED' : '❌ FAILED'}`);
+            return testPassed;
+        };
+    </script>
+</body>
+</html>

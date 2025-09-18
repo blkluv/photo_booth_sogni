@@ -49,6 +49,11 @@ export default defineConfig(({ mode }) => {
         credentials: true,
         allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "X-Client-App-ID"]
       },
+      // Allow iframe embedding for browser extension
+      headers: {
+        'X-Frame-Options': 'ALLOWALL',
+        'Content-Security-Policy': "frame-ancestors *;"
+      },
       proxy: {
         // Proxy API requests to the backend server
         '/api': {

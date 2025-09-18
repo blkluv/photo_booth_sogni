@@ -1,0 +1,37 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="60" fill="#ff6b35" stroke="#f7931e" stroke-width="4"/>
+  
+  <!-- Pirate flag background -->
+  <rect x="20" y="30" width="88" height="60" rx="8" fill="#1a1a1a"/>
+  
+  <!-- Skull -->
+  <circle cx="64" cy="50" r="12" fill="white"/>
+  <circle cx="60" cy="47" r="2" fill="black"/>
+  <circle cx="68" cy="47" r="2" fill="black"/>
+  <path d="M58 54 L64 58 L70 54" stroke="black" stroke-width="2" fill="none"/>
+  
+  <!-- Crossbones -->
+  <g transform="translate(64,65)">
+    <!-- Horizontal bone -->
+    <rect x="-15" y="-2" width="30" height="4" rx="2" fill="white"/>
+    <circle cx="-15" cy="0" r="3" fill="white"/>
+    <circle cx="15" cy="0" r="3" fill="white"/>
+    
+    <!-- Vertical bone -->
+    <rect x="-2" y="-15" width="4" height="30" rx="2" fill="white"/>
+    <circle cx="0" cy="-15" r="3" fill="white"/>
+    <circle cx="0" cy="15" r="3" fill="white"/>
+  </g>
+  
+  <!-- Camera lens overlay -->
+  <circle cx="64" cy="64" r="25" fill="none" stroke="white" stroke-width="3" opacity="0.7"/>
+  <circle cx="64" cy="64" r="15" fill="none" stroke="white" stroke-width="2" opacity="0.5"/>
+  
+  <!-- Sparkle effects -->
+  <g fill="white" opacity="0.8">
+    <path d="M25 25 L27 30 L32 28 L27 33 L25 38 L23 33 L18 28 L23 30 Z"/>
+    <path d="M100 35 L101 38 L104 37 L101 40 L100 43 L99 40 L96 37 L99 38 Z"/>
+    <path d="M105 85 L106 87 L108 86 L106 88 L105 90 L104 88 L102 86 L104 87 Z"/>
+  </g>
+</svg>

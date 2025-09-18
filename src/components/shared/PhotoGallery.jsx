@@ -815,6 +815,28 @@ const PhotoGallery = ({
     // In prompt selector mode, just show selected state - don't immediately set style
     // The "Use this Style" button will handle the actual style selection
     
+    console.log('🚨 PHOTO CLICKED - DEBUGGING START');
+    console.log('🔍 isExtensionMode:', isExtensionMode);
+    console.log('🔍 window.extensionMode:', window.extensionMode);
+    console.log('🔍 isPromptSelectorMode:', isPromptSelectorMode);
+    
+    // Reset scroll position to top in extension mode to prevent CSS layout issues
+    if (isExtensionMode) {
+      console.log('✅ EXTENSION MODE DETECTED - EXECUTING SCROLL RESET');
+      
+      // Direct approach - just scroll the film strip container to top
+      const filmStripContainer = document.querySelector('.film-strip-container');
+      if (filmStripContainer) {
+        console.log('📍 Found .film-strip-container, scrollTop before:', filmStripContainer.scrollTop);
+        filmStripContainer.scrollTop = 0;
+        console.log('📍 Set scrollTop to 0, scrollTop after:', filmStripContainer.scrollTop);
+        filmStripContainer.scrollTo({ top: 0, behavior: 'instant' });
+        console.log('📍 Called scrollTo({top: 0, behavior: instant})');
+      } else {
+        console.log('❌ .film-strip-container NOT FOUND');
+      }
+    }
+    
     if (selectedPhotoIndex === index) {
       // Capture current position before removing selected state
       const first = element.getBoundingClientRect();
@@ -1011,16 +1033,19 @@ const PhotoGallery = ({
   // This MUST come after all hooks to maintain hook order
   if ((photos.length === 0 && !isPromptSelectorMode) || !showPhotoGrid) return null;
   
+  // Check if we're in extension mode for transparent overlay
+  const isExtensionMode = window.extensionMode;
+  
   // Calculate proper aspect ratio style based on the selected aspect ratio
   const getAspectRatioStyle = () => {
     // In prompt selector mode, always use hard-coded 2:3 aspect ratio for sample gallery
     if (isPromptSelectorMode) {
-      return {
-        width: '100%',
-        aspectRatio: SAMPLE_GALLERY_CONFIG.CSS_ASPECT_RATIO,
-        margin: '0 auto',
-        backgroundColor: 'white',
-      };
+    return {
+      width: '100%',
+      aspectRatio: SAMPLE_GALLERY_CONFIG.CSS_ASPECT_RATIO,
+      margin: '0 auto',
+      backgroundColor: isExtensionMode ? 'transparent' : 'white',
+    };
     }
     
     // For regular mode, use user's selected aspect ratio
@@ -1057,7 +1082,7 @@ const PhotoGallery = ({
       width: '100%',
       aspectRatio: aspectRatioValue,
       margin: '0 auto',
-      backgroundColor: 'white',
+      backgroundColor: isExtensionMode ? 'transparent' : 'white',
     };
   };
   
@@ -1306,16 +1331,16 @@ const PhotoGallery = ({
 
 
   return (
-    <div className={`film-strip-container ${showPhotoGrid ? 'visible' : 'hiding'} ${selectedPhotoIndex === null ? '' : 'has-selected'} ${isPWA ? 'pwa-mode' : ''}`}
+    <div className={`film-strip-container ${showPhotoGrid ? 'visible' : 'hiding'} ${selectedPhotoIndex === null ? '' : 'has-selected'} ${isPWA ? 'pwa-mode' : ''} ${isExtensionMode ? 'extension-mode' : ''} ${isPromptSelectorMode ? 'prompt-selector-mode' : ''}`}
       style={{
-        background: 'rgba(248, 248, 248, 0.85)',
-        backgroundImage: `
+        background: isExtensionMode ? 'transparent' : 'rgba(248, 248, 248, 0.85)',
+        backgroundImage: isExtensionMode ? 'none' : `
           linear-gradient(125deg, rgba(255,138,0,0.8), rgba(229,46,113,0.8), rgba(185,54,238,0.8), rgba(58,134,255,0.8)),
           repeating-linear-gradient(45deg, rgba(255,255,255,0.15) 0px, rgba(255,255,255,0.15) 2px, transparent 2px, transparent 4px),
           repeating-linear-gradient(-45deg, rgba(255,255,255,0.15) 0px, rgba(255,255,255,0.15) 2px, transparent 2px, transparent 4px)
         `,
-        backgroundSize: '400% 400%, 20px 20px, 20px 20px',
-        animation: backgroundAnimationsEnabled && !isPWA ? 'psychedelic-shift 15s ease infinite' : 'none',
+        backgroundSize: isExtensionMode ? 'auto' : '400% 400%, 20px 20px, 20px 20px',
+        animation: (backgroundAnimationsEnabled && !isPWA && !isExtensionMode) ? 'psychedelic-shift 15s ease infinite' : 'none',
       }}
     >
       <button
@@ -1521,6 +1546,28 @@ const PhotoGallery = ({
               <button
                 className="action-button use-prompt-btn"
                 onClick={(e) => {
+                  console.log('🚨 USE THIS STYLE CLICKED - DEBUGGING START');
+                  console.log('🔍 isExtensionMode:', isExtensionMode);
+                  console.log('🔍 window.extensionMode:', window.extensionMode);
+                  console.log('🔍 isPromptSelectorMode:', isPromptSelectorMode);
+                  
+                  // Reset scroll position to top in extension mode before style selection
+                  if (isExtensionMode) {
+                    console.log('✅ EXTENSION MODE DETECTED - EXECUTING SCROLL RESET (Use This Style)');
+                    
+                    // Direct approach - just scroll the film strip container to top
+                    const filmStripContainer = document.querySelector('.film-strip-container');
+                    if (filmStripContainer) {
+                      console.log('📍 Found .film-strip-container, scrollTop before:', filmStripContainer.scrollTop);
+                      filmStripContainer.scrollTop = 0;
+                      console.log('📍 Set scrollTop to 0, scrollTop after:', filmStripContainer.scrollTop);
+                      filmStripContainer.scrollTo({ top: 0, behavior: 'instant' });
+                      console.log('📍 Called scrollTo({top: 0, behavior: instant})');
+                    } else {
+                      console.log('❌ .film-strip-container NOT FOUND');
+                    }
+                  }
+                  
                   if (isPromptSelectorMode && onPromptSelect && selectedPhoto.promptKey) {
                     onPromptSelect(selectedPhoto.promptKey);
                   } else if (onUseGalleryPrompt && selectedPhoto.promptKey) {
@@ -2035,7 +2082,7 @@ const PhotoGallery = ({
               <button 
                 onClick={onRandomMixSelect}
                 style={{
-                  background: selectedStyle === 'randomMix' ? 'rgba(114, 227, 242, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+                  background: selectedStyle === 'randomMix' ? 'rgba(114, 227, 242, 0.9)' : (isExtensionMode ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.9)'),
                   border: selectedStyle === 'randomMix' ? '3px solid #72e3f2' : '3px solid transparent',
                   borderRadius: '20px',
                   padding: '10px 16px',
@@ -2066,7 +2113,7 @@ const PhotoGallery = ({
                 <button 
                   onClick={onRandomSingleSelect}
                   style={{
-                    background: selectedStyle === 'random' ? 'rgba(114, 227, 242, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+                    background: selectedStyle === 'random' ? 'rgba(114, 227, 242, 0.9)' : (isExtensionMode ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.9)'),
                     border: selectedStyle === 'random' ? '3px solid #72e3f2' : '3px solid transparent',
                     borderRadius: '20px',
                     padding: '10px 16px',
@@ -2097,7 +2144,7 @@ const PhotoGallery = ({
               <button 
                 onClick={onOneOfEachSelect}
                 style={{
-                  background: selectedStyle === 'oneOfEach' ? 'rgba(114, 227, 242, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+                  background: selectedStyle === 'oneOfEach' ? 'rgba(114, 227, 242, 0.9)' : (isExtensionMode ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.9)'),
                   border: selectedStyle === 'oneOfEach' ? '3px solid #72e3f2' : '3px solid transparent',
                   borderRadius: '20px',
                   padding: '10px 16px',
@@ -2241,7 +2288,7 @@ const PhotoGallery = ({
                         alignItems: 'center',
                         gap: '8px',
                         padding: '8px 12px',
-                        background: 'rgba(255, 255, 255, 0.2)',
+                        background: isExtensionMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.2)',
                         borderRadius: '8px',
                         cursor: 'pointer',
                         transition: 'all 0.2s ease',
@@ -2323,7 +2370,7 @@ const PhotoGallery = ({
                     padding: '6px 10px',
                     fontSize: '13px',
                     fontFamily: 'inherit',
-                    background: 'rgba(255, 255, 255, 0.1)',
+                    background: isExtensionMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.1)',
                     border: '1px solid rgba(255, 255, 255, 0.3)',
                     borderRadius: '6px',
                     color: 'white',
@@ -2346,7 +2393,7 @@ const PhotoGallery = ({
                     style={{
                       padding: '4px 6px',
                       fontSize: '11px',
-                      background: 'rgba(255, 255, 255, 0.2)',
+                      background: isExtensionMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.2)',
                       border: '1px solid rgba(255, 255, 255, 0.3)',
                       borderRadius: '3px',
                       color: 'white',
@@ -2449,10 +2496,10 @@ const PhotoGallery = ({
                 style={{
                   width: '100%',
                   margin: '0 auto',
-                  backgroundColor: 'white',
+                  backgroundColor: 'white', // Keep polaroid frames white even in extension mode
                   position: 'relative',
                   borderRadius: '2px',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                  boxShadow: isExtensionMode ? '0 4px 12px rgba(0, 0, 0, 0.5)' : '0 4px 12px rgba(0, 0, 0, 0.3)',
                   display: 'flex',
                   flexDirection: 'column',
                   '--stagger-delay': `${index * 1}s` // Add staggered delay based on index
@@ -2527,10 +2574,10 @@ const PhotoGallery = ({
               style={{
                 width: '100%',
                 margin: '0 auto',
-                backgroundColor: 'white',
+                backgroundColor: 'white', // Keep polaroid frames white even in extension mode
                 position: 'relative',
                 borderRadius: '2px',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                boxShadow: isExtensionMode ? '0 4px 12px rgba(0, 0, 0, 0.5)' : '0 4px 12px rgba(0, 0, 0, 0.3)',
                 display: 'flex',
                 flexDirection: 'column'
               }}
@@ -2621,6 +2668,17 @@ const PhotoGallery = ({
                     }
                   }}
                   onError={e => {
+                    // Prevent infinite reload loops for gallery images
+                    if (photo.isGalleryImage) {
+                      // For gallery images, use placeholder instead of retrying
+                      e.target.src = '/placeholder-no-preview.svg';
+                      e.target.style.opacity = '0.7';
+                      e.target.classList.add('fallback', 'gallery-fallback');
+                      console.log(`Gallery image failed to load: ${photo.expectedFilename || 'unknown'}`);
+                      return;
+                    }
+                    
+                    // For regular photos, try fallback to originalDataUrl if different
                     if (photo.originalDataUrl && e.target.src !== photo.originalDataUrl) {
                       e.target.src = photo.originalDataUrl;
                       e.target.style.opacity = '0.7';
@@ -2831,7 +2889,7 @@ const PhotoGallery = ({
                   >
                     <div 
                       style={{
-                        backgroundColor: 'white',
+                        backgroundColor: isExtensionMode ? 'rgba(255, 255, 255, 0.95)' : 'white',
                         padding: '20px',
                         borderRadius: '12px',
                         textAlign: 'center',
@@ -2949,7 +3007,7 @@ const PhotoGallery = ({
           <div 
             className="prompt-modal"
             style={{
-              background: 'white',
+              background: isExtensionMode ? 'rgba(255, 255, 255, 0.95)' : 'white',
               borderRadius: '12px',
               padding: '24px',
               maxWidth: '500px',
@@ -3065,7 +3123,7 @@ const PhotoGallery = ({
                 style={{
                   padding: '10px 20px',
                   border: '2px solid #ddd',
-                  background: 'white',
+                  background: isExtensionMode ? 'rgba(255, 255, 255, 0.9)' : 'white',
                   color: '#666',
                   borderRadius: '8px',
                   fontSize: '14px',
@@ -3078,7 +3136,7 @@ const PhotoGallery = ({
                   e.target.style.borderColor = '#ccc';
                 }}
                 onMouseOut={e => {
-                  e.target.style.backgroundColor = 'white';
+                  e.target.style.backgroundColor = isExtensionMode ? 'rgba(255, 255, 255, 0.9)' : 'white';
                   e.target.style.borderColor = '#ddd';
                 }}
               >
