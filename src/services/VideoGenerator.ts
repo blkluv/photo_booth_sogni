@@ -99,7 +99,7 @@ interface GenerateVideoOptions {
   audioStart?: number; // For S2V - start offset in seconds
   audioDuration?: number; // For S2V - duration to use from audio
   videoStart?: number; // For animate-move and animate-replace - start offset in seconds
-  sam2Coordinates?: string; // For animate-replace - JSON string of [{x, y}]
+  sam2Coordinates?: Array<{ x: number; y: number }>; // For animate-replace - click coordinates for subject detection
   modelVariant?: 'speed' | 'quality'; // Model variant for new workflows (lightx2v vs full)
   // Frame trimming for seamless video stitching (removes duplicate frame at segment boundary)
   trimEndFrame?: boolean; // Trim last frame from video (removes duplicate end frame)

@@ -1179,7 +1179,7 @@ const AnimateReplacePopup = ({
     }
 
     // Default SAM2 coordinates to center of frame
-    const sam2Coordinates = JSON.stringify([{ x: 0.5, y: 0.5 }]);
+    const sam2Coordinates = [{ x: 0.5, y: 0.5 }];
 
     onConfirm({
       positivePrompt: positivePrompt.trim(),

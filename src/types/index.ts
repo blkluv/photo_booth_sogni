@@ -81,7 +81,7 @@ export interface Photo {
     // Animate Move/Replace specific
     referenceVideoUrl?: string; // URL to reference video file
     videoStart?: number; // Video start offset in seconds
-    sam2Coordinates?: string; // JSON string of [{x, y}] for animate-replace
+    sam2Coordinates?: Array<{ x: number; y: number }>; // Click coordinates for animate-replace
 
     // Montage mode info
     isMontageSegment?: boolean; // Whether this is part of a montage batch
