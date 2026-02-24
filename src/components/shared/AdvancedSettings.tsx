@@ -308,7 +308,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
     onAspectRatioChange,
     tezdevTheme,
     onTezDevThemeChange,
-    outputFormat = 'jpg',
+    outputFormat,
     onOutputFormatChange,
     // sensitiveContentFilter now read from settings context directly
     showSplashOnInactivity = false,
