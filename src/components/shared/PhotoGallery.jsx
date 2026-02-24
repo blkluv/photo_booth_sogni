@@ -908,7 +908,7 @@ const PhotoGallery = ({
   desiredWidth,
   desiredHeight,
   selectedSubIndex = 0,
-  outputFormat = 'png',
+  outputFormat = 'jpg',
   handleShareToX,
   handleShareViaWebShare,
   handleShareQRCode,
@@ -11012,21 +11012,8 @@ const PhotoGallery = ({
         } else {
           // RAW DOWNLOAD - USE EXACT SAME LOGIC AS handleDownloadRawPhoto
           try {
-            // Detect actual format from image - SAME AS INDIVIDUAL
-            if (imageUrl.startsWith('blob:') || imageUrl.startsWith('http')) {
-              // Use S3 fetch with CORS fallback for HTTP URLs (blob URLs don't need it)
-              const response = imageUrl.startsWith('blob:')
-                ? await fetch(imageUrl)
-                : await fetchS3WithFallback(imageUrl);
-              const contentType = response.headers.get('content-type');
-              if (contentType) {
-                if (contentType.includes('image/png')) {
-                  actualExtension = '.png';
-                } else if (contentType.includes('image/jpeg') || contentType.includes('image/jpg')) {
-                  actualExtension = '.jpg';
-                }
-              }
-            }
+            // Trust the outputFormat setting for the file extension.
+            // Some legacy workers always return PNG regardless of the requested format.
 
             // Process raw image with QR watermark if enabled - SAME AS INDIVIDUAL
             if (settings.sogniWatermark) {
@@ -12165,32 +12152,10 @@ const PhotoGallery = ({
       const styleDisplayText = getStyleDisplayText(targetPhoto);
       const cleanStyleName = styleDisplayText ? styleDisplayText.toLowerCase().replace(/\s+/g, '-') : 'sogni';
       
-      // For raw downloads, ensure we preserve the original format from the server
-      // First, try to detect the actual format from the image URL or by fetching it
-      let actualExtension = outputFormat === 'jpg' ? '.jpg' : '.png';
-      
-      try {
-        // If this is a blob URL, we can fetch it to check the MIME type
-        if (imageUrl.startsWith('blob:') || imageUrl.startsWith('http')) {
-          // Use S3 fetch with CORS fallback for HTTP URLs (blob URLs don't need it)
-          const response = imageUrl.startsWith('blob:')
-            ? await fetch(imageUrl)
-            : await fetchS3WithFallback(imageUrl);
-          const contentType = response.headers.get('content-type');
-          if (contentType) {
-            if (contentType.includes('image/png')) {
-              actualExtension = '.png';
-            } else if (contentType.includes('image/jpeg') || contentType.includes('image/jpg')) {
-              actualExtension = '.jpg';
-            }
-            console.log(`[RAW DOWNLOAD] Detected image format: ${contentType}, using extension: ${actualExtension}`);
-          }
-          // Don't consume the response body, just use the headers
-        }
-      } catch (formatDetectionError) {
-        console.warn('Could not detect image format, using outputFormat setting:', formatDetectionError);
-        // Fall back to outputFormat setting
-      }
+      // Use the outputFormat setting for the file extension.
+      // Some legacy workers always return PNG regardless of the requested format,
+      // so we trust the user's setting rather than detecting content-type from the blob.
+      const actualExtension = outputFormat === 'jpg' ? '.jpg' : '.png';
       
       const filename = `sogni-photobooth-${cleanStyleName}-raw${actualExtension}`;
       
