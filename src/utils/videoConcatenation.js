@@ -554,7 +554,36 @@ async function concatenateMP4s_Base(buffers, options = {}) {
     const newVideoMdia = wrapBox('mdia', concatArrays([newVideoMdhd, videoHdlrBytes, newVideoMinf]));
     const videoTkhd = findBox(file1MoovBuffer, videoTrak.contentStart, videoTrak.end, 'tkhd');
     const newVideoTkhd = updateTkhdDuration(new Uint8Array(file1MoovBuffer, videoTkhd.start, videoTkhd.size), videoMovieDuration);
-    const newVideoTrak = wrapBox('trak', concatArrays([newVideoTkhd, newVideoMdia]));
+
+    // Build edit list to prevent black first frame caused by B-frame composition offsets.
+    // H.264 B-frames use ctts to reorder frames, creating a gap at time 0 where no frame
+    // has a composition time of 0. Without an edit list, players show black during this gap.
+    let newVideoEdts = null;
+    const sourceVideoEdts = findBox(file1MoovBuffer, videoTrak.contentStart, videoTrak.end, 'edts');
+    if (sourceVideoEdts) {
+      // Source video has an edit list — preserve its media_time with updated duration
+      const sourceElst = findBox(file1MoovBuffer, sourceVideoEdts.contentStart, sourceVideoEdts.end, 'elst');
+      if (sourceElst) {
+        const elstView = new DataView(file1MoovBuffer, sourceElst.start, sourceElst.size);
+        const elstVersion = elstView.getUint8(8);
+        const entryCount = elstView.getUint32(12);
+        if (entryCount > 0) {
+          const mediaTime = elstVersion === 0 ? elstView.getInt32(20) : Number(elstView.getBigInt64(24));
+          newVideoEdts = buildEdts(videoMovieDuration, mediaTime);
+          console.log(`[Strategy CO] Preserved source video edit list: mediaTime=${mediaTime}`);
+        }
+      }
+    } else if (allCttsEntries.length > 0 && allCttsEntries[0].sampleOffset > 0) {
+      // No source edit list, but ctts exists with a non-zero first composition offset.
+      // Create an edit list using the first sample's composition offset to skip the B-frame gap.
+      newVideoEdts = buildEdts(videoMovieDuration, allCttsEntries[0].sampleOffset);
+      console.log(`[Strategy CO] Created video edit list from ctts: mediaTime=${allCttsEntries[0].sampleOffset}`);
+    }
+
+    const videoTrakParts = [newVideoTkhd];
+    if (newVideoEdts) videoTrakParts.push(newVideoEdts);
+    videoTrakParts.push(newVideoMdia);
+    const newVideoTrak = wrapBox('trak', concatArrays(videoTrakParts));
     
     // Build audio track
     let newAudioTrak = null;
