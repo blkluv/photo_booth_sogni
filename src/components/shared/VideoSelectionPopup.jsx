@@ -331,10 +331,11 @@ const VideoSelectionPopup = ({
   const isDesktop = windowWidth >= 1024;
   // Kiosk-like tall portrait displays get larger tiles (~1.67 visible instead of ~2.5)
   const isKioskPortrait = isTablet && windowHeight / windowWidth > 1.4;
-  // Calculate tile width: available = viewport - outer padding (40) - carousel padding (48) - one gap (16)
+  // Calculate tile width: available = viewport - outer padding - carousel padding - one gap
   // Divide by 1.67 to show ~1 and 2/3 tiles
+  // Kiosk portrait: outer padding (16) + carousel padding (28) + one gap (16) = 60
   const tabletTileWidth = isKioskPortrait
-    ? `${Math.round((windowWidth - 104) / 1.67)}px`
+    ? `${Math.round((windowWidth - 60) / 1.67)}px`
     : '280px';
 
   if (!visible) return null;
@@ -352,7 +353,7 @@ const VideoSelectionPopup = ({
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 10000,
-        padding: isMobile ? '10px' : '20px',
+        padding: isMobile ? '10px' : isKioskPortrait ? '8px' : '20px',
         backdropFilter: 'blur(8px)',
         animation: 'fadeIn 0.2s ease',
         overflow: 'hidden',
@@ -362,12 +363,12 @@ const VideoSelectionPopup = ({
       <div
         style={{
           background: isMobile ? 'rgba(255, 255, 255, 0.98)' : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(250, 250, 255, 0.98) 100%)',
-          borderRadius: isMobile ? '16px' : '32px',
+          borderRadius: isMobile ? '16px' : isKioskPortrait ? '16px' : '32px',
           padding: isMobile ? '16px 0 24px 0' : isTablet ? '24px 0' : '32px 0',
           maxWidth: '100%',
           width: isMobile ? '100%' : 'auto',
           height: 'auto',
-          maxHeight: isMobile ? `${windowHeight - 20}px` : 'calc(100vh - 40px)',
+          maxHeight: isMobile ? `${windowHeight - 20}px` : isKioskPortrait ? 'calc(100vh - 16px)' : 'calc(100vh - 40px)',
           boxShadow: '0 24px 80px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.05)',
           animation: 'slideUp 0.3s ease',
           position: 'relative',
@@ -460,7 +461,7 @@ const VideoSelectionPopup = ({
             overflowX: 'auto',
             overflowY: 'hidden',
             flex: 'none',
-            padding: '8px 24px 24px 24px',
+            padding: isKioskPortrait ? '8px 14px 24px 14px' : '8px 24px 24px 24px',
             margin: 0,
             minHeight: 0,
             width: '100%',
@@ -930,7 +931,7 @@ const VideoSelectionPopup = ({
                     marginBottom: 0
                   }}>
                     <span style={{
-                      fontSize: isMobile ? '22px' : isTablet ? '26px' : '28px',
+                      fontSize: isMobile ? '22px' : isKioskPortrait ? '20px' : isTablet ? '26px' : '28px',
                       filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1))',
                       flexShrink: 0
                     }}>
@@ -939,7 +940,7 @@ const VideoSelectionPopup = ({
                     <h3 style={{
                       margin: 0,
                       color: (isDisabled || isComingSoon) ? '#9CA3AF' : '#1a1a1a',
-                      fontSize: isMobile ? '16px' : isTablet ? '18px' : '20px',
+                      fontSize: isMobile ? '16px' : isKioskPortrait ? '14px' : isTablet ? '18px' : '20px',
                       fontWeight: '700',
                       fontFamily: '"Permanent Marker", cursive',
                       letterSpacing: '-0.01em',
