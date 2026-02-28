@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 import AudioRecorderPopup from './AudioRecorderPopup';
 import { saveRecording } from '../../utils/recordingsDB';
 import VideoSettingsFooter from './VideoSettingsFooter';
+import { getS2VQualityPresets } from '../../constants/videoSettings';
 import MusicGeneratorModal from './MusicGeneratorModal';
 
 // Sample audio tracks for S2V (sorted alphabetically by title)
@@ -86,6 +87,8 @@ const SoundToVideoPopup = ({
   itemCount = 1,
   modelVariant: externalModelVariant,
   onModelVariantChange,
+  modelFamily: externalModelFamily,
+  onModelFamilyChange,
   videoDuration: externalVideoDuration,
   onDurationChange,
   sogniClient = null,
@@ -144,6 +147,10 @@ const SoundToVideoPopup = ({
   // Use external model variant state if provided (for cost estimation), otherwise use internal
   const modelVariant = externalModelVariant !== undefined ? externalModelVariant : 'speed';
   const setModelVariant = onModelVariantChange || (() => {});
+
+  // Use external model family state if provided, otherwise use internal
+  const modelFamily = externalModelFamily !== undefined ? externalModelFamily : 'wan';
+  const setModelFamily = onModelFamilyChange || (() => {});
 
   // Duration and waveform state - use external if provided for cost estimation
   const [internalVideoDuration, setInternalVideoDuration] = useState(5);
@@ -777,6 +784,7 @@ const SoundToVideoPopup = ({
       videoDuration,
       workflowType: 's2v',
       modelVariant, // Pass the selected model variant
+      modelFamily, // Pass the selected model family (wan or ltx2)
       splitMode: isMontageMode, // Whether to split the audio across batch images
       perImageDuration: isMontageMode ? videoDuration / effectiveItemCount : videoDuration
     });
@@ -926,8 +934,53 @@ const SoundToVideoPopup = ({
             color: 'rgba(255, 255, 255, 0.7)',
             fontSize: isMobile ? '11px' : '12px'
           }}>
-            Generate lip-synced video from audio
+            {modelFamily === 'ltx2' ? 'Audio-reactive video generation' : 'Generate lip-synced video from audio'}
           </p>
+        </div>
+
+        {/* Model Family Toggle */}
+        <div style={{
+          display: 'flex',
+          gap: '4px',
+          marginBottom: '12px',
+          background: 'rgba(0, 0, 0, 0.2)',
+          borderRadius: '8px',
+          padding: '4px'
+        }}>
+          {[
+            { id: 'wan', label: 'WAN 2.2', description: 'Lip-sync' },
+            { id: 'ltx2', label: 'LTX-2', description: 'Audio-reactive' }
+          ].map((family) => (
+            <button
+              key={family.id}
+              onClick={() => setModelFamily(family.id)}
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                borderRadius: '6px',
+                border: 'none',
+                background: modelFamily === family.id
+                  ? 'rgba(255, 255, 255, 0.95)'
+                  : 'transparent',
+                color: modelFamily === family.id ? '#db2777' : 'white',
+                fontSize: '12px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              {family.label}
+              <span style={{
+                display: 'block',
+                fontSize: '10px',
+                fontWeight: '400',
+                opacity: modelFamily === family.id ? 0.7 : 0.5,
+                marginTop: '2px'
+              }}>
+                {family.description}
+              </span>
+            </button>
+          ))}
         </div>
 
         {/* Source Audio Tabs */}
@@ -1945,6 +1998,7 @@ const SoundToVideoPopup = ({
             tokenType={tokenType}
             showDuration={false}
             colorScheme="dark"
+            qualityPresets={getS2VQualityPresets(modelFamily)}
           />
         </div>
       </div>
@@ -2026,6 +2080,12 @@ SoundToVideoPopup.propTypes = {
   tokenType: PropTypes.oneOf(['spark', 'sogni']),
   isBatch: PropTypes.bool,
   itemCount: PropTypes.number,
+  modelVariant: PropTypes.oneOf(['speed', 'quality']),
+  onModelVariantChange: PropTypes.func,
+  modelFamily: PropTypes.oneOf(['wan', 'ltx2']),
+  onModelFamilyChange: PropTypes.func,
+  videoDuration: PropTypes.number,
+  onDurationChange: PropTypes.func,
   sogniClient: PropTypes.object,
   isAuthenticated: PropTypes.bool
 };

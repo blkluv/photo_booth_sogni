@@ -33,14 +33,18 @@ import {
   formatVideoDuration,
   markVideoGenerated,
   calculateVideoFrames,
+  calculateIA2VFrames,
   VideoQualityPreset,
   VideoResolution,
   S2V_QUALITY_PRESETS,
+  IA2V_QUALITY_PRESETS,
+  IA2V_CONFIG,
   ANIMATE_MOVE_QUALITY_PRESETS,
   ANIMATE_REPLACE_QUALITY_PRESETS,
   S2V_MODELS,
   ANIMATE_MOVE_MODELS,
-  ANIMATE_REPLACE_MODELS
+  ANIMATE_REPLACE_MODELS,
+  isLtx2Model
 } from '../constants/videoSettings';
 import {
   getCancellationState,
@@ -101,6 +105,7 @@ interface GenerateVideoOptions {
   videoStart?: number; // For animate-move and animate-replace - start offset in seconds
   sam2Coordinates?: Array<{ x: number; y: number }>; // For animate-replace - click coordinates for subject detection
   modelVariant?: 'speed' | 'quality'; // Model variant for new workflows (lightx2v vs full)
+  s2vModelFamily?: 'wan' | 'ltx2'; // S2V model family selection (WAN 2.2 vs LTX-2 IA2V)
   // Frame trimming for seamless video stitching (removes duplicate frame at segment boundary)
   trimEndFrame?: boolean; // Trim last frame from video (removes duplicate end frame)
   onComplete?: (videoUrl: string) => void;
@@ -147,25 +152,32 @@ const activeVideoProjects = new Map<string, ActiveVideoProject>();
 function scaleToResolution(
   width: number,
   height: number,
-  resolution: VideoResolution
+  resolution: VideoResolution,
+  minDimension?: number,
+  dimensionDivisor: number = 16
 ): { width: number; height: number } {
-  const targetShortSide = VIDEO_RESOLUTIONS[resolution].maxDimension;
-  
-  // Round target to nearest 16 to ensure valid dimensions
-  const roundedTarget = Math.round(targetShortSide / 16) * 16;
-  
+  let targetShortSide: number = VIDEO_RESOLUTIONS[resolution].maxDimension;
+
+  // Enforce minimum dimension if specified (e.g. LTX-2 requires both dims >= 640)
+  if (minDimension !== undefined && targetShortSide < minDimension) {
+    targetShortSide = minDimension;
+  }
+
+  // Round target to nearest divisor to ensure valid dimensions
+  const roundedTarget = Math.round(targetShortSide / dimensionDivisor) * dimensionDivisor;
+
   // Determine which dimension is shortest
   const isWidthShorter = width <= height;
-  
+
   if (isWidthShorter) {
     // Width is shorter - set it to target, scale height proportionally
     const scaledWidth = roundedTarget;
-    const scaledHeight = Math.round((height * roundedTarget / width) / 16) * 16;
+    const scaledHeight = Math.round((height * roundedTarget / width) / dimensionDivisor) * dimensionDivisor;
     return { width: scaledWidth, height: scaledHeight };
   } else {
     // Height is shorter - set it to target, scale width proportionally
     const scaledHeight = roundedTarget;
-    const scaledWidth = Math.round((width * roundedTarget / height) / 16) * 16;
+    const scaledWidth = Math.round((width * roundedTarget / height) / dimensionDivisor) * dimensionDivisor;
     return { width: scaledWidth, height: scaledHeight };
   }
 }
@@ -202,6 +214,7 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<void
     videoStart,
     sam2Coordinates,
     modelVariant, // Model variant for new workflows (speed/quality)
+    s2vModelFamily = 'wan', // Default to WAN 2.2 for backward compatibility
     trimEndFrame,
     onComplete,
     onError,
@@ -277,8 +290,11 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<void
     HEIGHT = 512;
   }
 
-  // Scale to resolution
-  const scaled = scaleToResolution(WIDTH, HEIGHT, resolution);
+  // Scale to resolution (LTX-2 requires minimum 640 on both dimensions, divisible by 64)
+  const isLtx2S2V = workflowType === 's2v' && s2vModelFamily === 'ltx2';
+  const ltx2MinDimension = isLtx2S2V ? IA2V_CONFIG.minDimension : undefined;
+  const ltx2DimDivisor = isLtx2S2V ? IA2V_CONFIG.dimensionStep : 16;
+  const scaled = scaleToResolution(WIDTH, HEIGHT, resolution, ltx2MinDimension, ltx2DimDivisor);
 
   try {
     // Use custom reference image if provided, otherwise fetch from photo
@@ -312,10 +328,14 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<void
 
     switch (workflowType) {
       case 's2v':
-        // Use modelVariant if provided, otherwise fall back to quality preset
-        if (modelVariant) {
-          const baseConfig = modelVariant === 'speed' 
-            ? S2V_QUALITY_PRESETS.fast 
+        if (s2vModelFamily === 'ltx2') {
+          // LTX-2 IA2V - use IA2V presets (only fast/balanced available)
+          const ltx2Quality = (quality === 'fast' || quality === 'balanced') ? quality : 'fast';
+          qualityConfig = IA2V_QUALITY_PRESETS[ltx2Quality];
+        } else if (modelVariant) {
+          // WAN 2.2 - use modelVariant if provided
+          const baseConfig = modelVariant === 'speed'
+            ? S2V_QUALITY_PRESETS.fast
             : S2V_QUALITY_PRESETS.quality;
           qualityConfig = {
             ...baseConfig,
@@ -384,28 +404,46 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<void
     // Create project - pass SCALED dimensions with sizePreset: 'custom' like image generation
     const seed = Math.floor(Math.random() * 2147483647);
     
-    // Use explicit frames if provided, otherwise calculate from duration
-    // Explicit frames take precedence for workflows like Infinite Loop that need exact frame matching
-    const frames = explicitFrames !== undefined ? explicitFrames : calculateVideoFrames(duration);
-    
+    // Determine if this is an LTX-2 model (different frame/fps handling)
+    const isLtx2 = isLtx2Model(qualityConfig.model);
+
+    // Calculate frames and fps based on model family
+    let frames: number;
+    let effectiveFps: number;
+
+    if (isLtx2) {
+      // LTX-2: fps is actual generation rate, frames follow 1 + n*8 pattern
+      effectiveFps = IA2V_CONFIG.defaultFps; // 24fps
+      frames = explicitFrames !== undefined ? explicitFrames : calculateIA2VFrames(duration, effectiveFps);
+    } else {
+      // WAN 2.2: always generates at 16fps, fps param controls interpolation
+      effectiveFps = fps;
+      frames = explicitFrames !== undefined ? explicitFrames : calculateVideoFrames(duration);
+    }
+
     console.log('🎬 VIDEO SETTINGS RECEIVED:');
-    if (explicitFrames !== undefined) {
+    if (isLtx2) {
+      console.log(`   Model family: LTX-2 (IA2V)`);
+      console.log(`   Duration: ${duration}s → ${frames} frames at ${effectiveFps}fps (actual generation rate)`);
+    } else if (explicitFrames !== undefined) {
       console.log(`   Explicit frames: ${frames}`);
       console.log(`   Calculated duration: ${((frames - 1) / 16).toFixed(2)}s (WAN 2.2: base 16fps)`);
     } else {
       console.log(`   Duration setting: ${duration}s`);
       console.log(`   Calculated frames: ${frames} (WAN 2.2: 16 * ${duration}s + 1)`);
     }
-    console.log(`   FPS setting: ${fps} (type: ${typeof fps})`);
+    console.log(`   FPS setting: ${effectiveFps} (type: ${typeof effectiveFps})`);
     console.log(`   Resolution: ${resolution}`);
     console.log(`   Quality: ${quality}`);
-    // WAN 2.2 specific: fps controls post-render interpolation (16→32), not generation rate
-    if (fps !== 32) {
-      console.log(`   WAN 2.2: fps=16 - no interpolation, output at 16fps`);
-    } else {
-      console.log(`   WAN 2.2: fps=32 - frames will be interpolated for 32fps playback`);
+    if (!isLtx2) {
+      // WAN 2.2 specific: fps controls post-render interpolation (16→32), not generation rate
+      if (fps !== 32) {
+        console.log(`   WAN 2.2: fps=16 - no interpolation, output at 16fps`);
+      } else {
+        console.log(`   WAN 2.2: fps=32 - frames will be interpolated for 32fps playback`);
+      }
     }
-    
+
     // Build base createParams
     const createParams: Record<string, unknown> = {
       type: 'video',
@@ -421,7 +459,7 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<void
       height: scaled.height,
       referenceImage: imageBuffer,
       frames: frames,
-      fps: fps,
+      fps: effectiveFps,
       tokenType: tokenType
     };
 

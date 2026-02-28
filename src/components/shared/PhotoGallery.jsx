@@ -47,8 +47,9 @@ import {
   hasSeenVideoTip, 
   markVideoTipShown, 
   BASE_HERO_PROMPT,
-  S2V_MODELS,
-  S2V_QUALITY_PRESETS,
+  getS2VQualityPresets,
+  IA2V_CONFIG,
+  calculateIA2VFrames,
   ANIMATE_MOVE_MODELS,
   ANIMATE_MOVE_QUALITY_PRESETS,
   ANIMATE_REPLACE_MODELS,
@@ -1072,6 +1073,7 @@ const PhotoGallery = ({
   const [animateMoveModelVariant, setAnimateMoveModelVariant] = useState('speed');
   const [animateReplaceModelVariant, setAnimateReplaceModelVariant] = useState('speed');
   const [s2vModelVariant, setS2vModelVariant] = useState('speed');
+  const [s2vModelFamily, setS2vModelFamily] = useState('wan'); // 'wan' or 'ltx2'
   
   // Duration states for cost estimation in new workflow popups
   const [animateMoveDuration, setAnimateMoveDuration] = useState(5);
@@ -1369,20 +1371,33 @@ const PhotoGallery = ({
   });
 
   // Sound to Video cost estimation (single) - enabled when popup is shown
-  const s2vConfig = s2vModelVariant === 'speed'
-    ? S2V_QUALITY_PRESETS.fast
-    : S2V_QUALITY_PRESETS.quality;
+  // Derive model/steps from the quality preset selected in the footer
+  const s2vIsLtx2 = s2vModelFamily === 'ltx2';
+  const s2vPresets = getS2VQualityPresets(s2vModelFamily);
+  const s2vQualitySetting = settings.videoQuality || 'fast';
+  // Map quality to available presets (LTX-2 only has fast/balanced)
+  const s2vEffectiveQuality = s2vIsLtx2
+    ? (s2vQualitySetting === 'fast' ? 'fast' : 'balanced')
+    : s2vQualitySetting;
+  const s2vConfig = s2vPresets[s2vEffectiveQuality] || s2vPresets.fast;
+  const s2vFps = s2vIsLtx2 ? IA2V_CONFIG.defaultFps : (settings.videoFramerate || 16);
+  const s2vFrames = s2vIsLtx2 ? calculateIA2VFrames(s2vDuration, s2vFps) : undefined;
+  const s2vMinDim = s2vIsLtx2 ? IA2V_CONFIG.minDimension : undefined;
+  const s2vDimDivisor = s2vIsLtx2 ? IA2V_CONFIG.dimensionStep : undefined;
   const { loading: s2vLoading, cost: s2vCostRaw, costInUSD: s2vUSD } = useVideoCostEstimation({
     imageWidth: desiredWidth || 768,
     imageHeight: desiredHeight || 1024,
     resolution: settings.videoResolution || '480p',
-    quality: settings.videoQuality || 'fast',
-    fps: settings.videoFramerate || 16,
+    quality: s2vQualitySetting,
+    fps: s2vFps,
+    frames: s2vFrames,
     duration: s2vDuration, // Use popup duration state
     enabled: isAuthenticated && selectedPhoto !== null && showS2VPopup,
     photoId: selectedPhotoIndex,
-    modelId: S2V_MODELS[s2vModelVariant],
-    steps: s2vConfig.steps
+    modelId: s2vConfig.model,
+    steps: s2vConfig.steps,
+    minDimension: s2vMinDim,
+    dimensionDivisor: s2vDimDivisor
   });
 
   // Sound to Video cost estimation (batch) - enabled when popup is shown
@@ -1390,13 +1405,16 @@ const PhotoGallery = ({
     imageWidth: desiredWidth || 768,
     imageHeight: desiredHeight || 1024,
     resolution: settings.videoResolution || '480p',
-    quality: settings.videoQuality || 'fast',
-    fps: settings.videoFramerate || 16,
+    quality: s2vQualitySetting,
+    fps: s2vFps,
+    frames: s2vFrames,
     duration: s2vDuration, // Use popup duration state
     enabled: isAuthenticated && loadedPhotosCount > 0 && showBatchS2VPopup,
     jobCount: loadedPhotosCount,
-    modelId: S2V_MODELS[s2vModelVariant],
-    steps: s2vConfig.steps
+    modelId: s2vConfig.model,
+    steps: s2vConfig.steps,
+    minDimension: s2vMinDim,
+    dimensionDivisor: s2vDimDivisor
   });
 
   // Infinite Loop cost estimation - enabled when stitch popup is shown
@@ -4642,7 +4660,7 @@ const PhotoGallery = ({
   // ==================== SOUND TO VIDEO (S2V) HANDLERS ====================
 
   // Handle Sound to Video generation (single)
-  const handleS2VExecute = useCallback(async ({ positivePrompt, negativePrompt, audioData, audioUrl, audioStartOffset, videoDuration: customDuration, workflowType, modelVariant }) => {
+  const handleS2VExecute = useCallback(async ({ positivePrompt, negativePrompt, audioData, audioUrl, audioStartOffset, videoDuration: customDuration, workflowType, modelVariant, modelFamily }) => {
     setShowS2VPopup(false);
     warmUpAudio();
 
@@ -4700,6 +4718,7 @@ const PhotoGallery = ({
         audioStart: audioStartOffset || 0,
         audioDuration: duration,
         modelVariant, // Pass model variant from popup
+        s2vModelFamily: modelFamily || 'wan', // Pass model family from popup
         // Regeneration metadata
         referenceAudioUrl: audioUrl,
         onComplete: () => {
@@ -4717,7 +4736,7 @@ const PhotoGallery = ({
   }, [videoTargetPhotoIndex, selectedPhotoIndex, selectedSubIndex, photos, sogniClient, setPhotos, settings, tokenType, showToast, onOutOfCredits]);
 
   // Handle Sound to Video batch execution
-  const handleBatchS2VExecute = useCallback(async ({ positivePrompt, negativePrompt, audioData, audioUrl, audioStartOffset, videoDuration: customDuration, workflowType, modelVariant, splitMode, perImageDuration }) => {
+  const handleBatchS2VExecute = useCallback(async ({ positivePrompt, negativePrompt, audioData, audioUrl, audioStartOffset, videoDuration: customDuration, workflowType, modelVariant, modelFamily, splitMode, perImageDuration }) => {
     setShowBatchS2VPopup(false);
     warmUpAudio();
 
@@ -4896,6 +4915,7 @@ const PhotoGallery = ({
             audioStart: imageAudioStartOffset || 0,
             audioDuration: imageDuration,
             modelVariant, // Pass model variant from popup
+            s2vModelFamily: modelFamily || 'wan', // Pass model family from popup
             // Regeneration metadata
             referenceAudioUrl: audioUrl,
             isMontageSegment: splitMode,
@@ -19758,6 +19778,8 @@ const PhotoGallery = ({
         itemCount={1}
         modelVariant={s2vModelVariant}
         onModelVariantChange={setS2vModelVariant}
+        modelFamily={s2vModelFamily}
+        onModelFamilyChange={setS2vModelFamily}
         videoDuration={s2vDuration}
         onDurationChange={setS2vDuration}
         sogniClient={sogniClient}
@@ -19783,6 +19805,8 @@ const PhotoGallery = ({
         itemCount={loadedPhotosCount}
         modelVariant={s2vModelVariant}
         onModelVariantChange={setS2vModelVariant}
+        modelFamily={s2vModelFamily}
+        onModelFamilyChange={setS2vModelFamily}
         videoDuration={s2vDuration}
         onDurationChange={setS2vDuration}
         sogniClient={sogniClient}

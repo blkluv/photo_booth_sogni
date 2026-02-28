@@ -36,7 +36,8 @@ const VideoSettingsFooter = ({
   quality: overrideQuality,
   onQualityChange: overrideOnQualityChange,
   duration: overrideDuration,
-  onDurationChange: overrideOnDurationChange
+  onDurationChange: overrideOnDurationChange,
+  qualityPresets: overrideQualityPresets
 }) => {
   const { settings, updateSetting } = useApp();
 
@@ -268,8 +269,9 @@ const VideoSettingsFooter = ({
     label: `${d}s`
   }));
 
-  // Quality options
-  const qualityOptions = Object.entries(VIDEO_QUALITY_PRESETS).map(([key, preset]) => ({
+  // Quality options - use override presets if provided (e.g. LTX-2 has fewer options)
+  const activePresets = overrideQualityPresets || VIDEO_QUALITY_PRESETS;
+  const qualityOptions = Object.entries(activePresets).map(([key, preset]) => ({
     value: key,
     label: preset.label
   }));
@@ -385,7 +387,8 @@ VideoSettingsFooter.propTypes = {
   quality: PropTypes.string,
   onQualityChange: PropTypes.func,
   duration: PropTypes.number,
-  onDurationChange: PropTypes.func
+  onDurationChange: PropTypes.func,
+  qualityPresets: PropTypes.object
 };
 
 export default VideoSettingsFooter;

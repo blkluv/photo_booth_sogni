@@ -13,11 +13,19 @@ export const VIDEO_MODELS = {
   quality: 'wan_v2.2-14b-fp8_i2v'
 } as const;
 
-// Sound to Video (S2V) model variants
+// Sound to Video (S2V) model variants - WAN 2.2
 export const S2V_MODELS = {
   speed: 'wan_v2.2-14b-fp8_s2v_lightx2v',
   quality: 'wan_v2.2-14b-fp8_s2v'
 } as const;
+
+// Image+Audio to Video (IA2V) model variants - LTX-2
+export const IA2V_MODELS = {
+  speed: 'ltx2-19b-fp8_ia2v_distilled'
+} as const;
+
+// S2V model family type for toggling between WAN 2.2 and LTX-2
+export type S2VModelFamily = 'wan' | 'ltx2';
 
 // Animate Move model variants (only lightx2v available - no official full quality version exists)
 export const ANIMATE_MOVE_MODELS = {
@@ -104,6 +112,55 @@ export const S2V_QUALITY_PRESETS = {
     scheduler: 'simple'
   }
 } as const;
+
+// LTX-2 IA2V Quality presets (distilled model, 4-12 steps)
+export const IA2V_QUALITY_PRESETS = {
+  fast: {
+    model: IA2V_MODELS.speed,
+    steps: 4,
+    label: 'Fast',
+    description: 'Quick generation (~20-30s)',
+    guidance: 1.0,
+    shift: 8.0,
+    sampler: 'euler_ancestral',
+    scheduler: 'simple'
+  },
+  balanced: {
+    model: IA2V_MODELS.speed,
+    steps: 8,
+    label: 'Balanced',
+    description: 'Good balance (~40-60s)',
+    guidance: 1.0,
+    shift: 8.0,
+    sampler: 'euler_ancestral',
+    scheduler: 'simple'
+  }
+} as const;
+
+// LTX-2 IA2V video config (different from WAN 2.2)
+export const IA2V_CONFIG = {
+  defaultFps: 24, // LTX-2 generates at actual fps (no interpolation)
+  frameStep: 8, // Frames must follow pattern 1 + n*8
+  minFrames: 25,
+  maxFrames: 505,
+  minDuration: 1,
+  maxDuration: 20,
+  minDimension: 640, // LTX-2 requires both width and height >= 640
+  dimensionStep: 64 // LTX-2 dimensions must be divisible by 64
+};
+
+/**
+ * Calculate frames for LTX-2 models.
+ * LTX-2: fps is actual generation rate, frames must follow 1 + n*8 pattern.
+ */
+export function calculateIA2VFrames(duration: number, fps: number = IA2V_CONFIG.defaultFps): number {
+  const rawFrames = duration * fps + 1;
+  // Snap to nearest valid frame count (1 + n*8)
+  const n = Math.round((rawFrames - 1) / IA2V_CONFIG.frameStep);
+  const snapped = 1 + n * IA2V_CONFIG.frameStep;
+  // Clamp to min/max
+  return Math.max(IA2V_CONFIG.minFrames, Math.min(IA2V_CONFIG.maxFrames, snapped));
+}
 
 // Animate Move Quality presets (only lightx2v available - no official full quality version exists)
 export const ANIMATE_MOVE_QUALITY_PRESETS = {
@@ -216,22 +273,31 @@ export const VIDEO_CONFIG = {
  * @param imageWidth - Original image width
  * @param imageHeight - Original image height
  * @param resolution - Target resolution preset ('480p', '580p', or '720p')
- * @returns Object with width and height divisible by 16
+ * @param minDimension - Optional minimum for both dimensions (e.g. 640 for LTX-2)
+ * @param dimensionDivisor - Override the divisor for rounding (default 16; LTX-2 uses 64)
+ * @returns Object with width and height divisible by the divisor
  */
 export function calculateVideoDimensions(
   imageWidth: number,
   imageHeight: number,
-  resolution: VideoResolution = '480p'
+  resolution: VideoResolution = '480p',
+  minDimension?: number,
+  dimensionDivisor?: number
 ): { width: number; height: number } {
-  const targetShortSide = VIDEO_RESOLUTIONS[resolution].maxDimension;
-  const divisor = VIDEO_CONFIG.dimensionDivisor;
+  let targetShortSide: number = VIDEO_RESOLUTIONS[resolution].maxDimension;
+  const divisor = dimensionDivisor || VIDEO_CONFIG.dimensionDivisor;
 
-  // Round target to nearest 16 to ensure valid dimensions
+  // Enforce minimum dimension if specified (e.g. LTX-2 requires both dims >= 640)
+  if (minDimension !== undefined && targetShortSide < minDimension) {
+    targetShortSide = minDimension;
+  }
+
+  // Round target to nearest divisor to ensure valid dimensions
   const roundedTarget = Math.round(targetShortSide / divisor) * divisor;
 
   // Determine which dimension is shortest
   const isWidthShorter = imageWidth <= imageHeight;
-  
+
   if (isWidthShorter) {
     // Width is shorter - set it to target, scale height proportionally
     const width = roundedTarget;
@@ -250,6 +316,33 @@ export function calculateVideoDimensions(
  */
 export function getVideoQualityConfig(quality: VideoQualityPreset) {
   return VIDEO_QUALITY_PRESETS[quality];
+}
+
+/**
+ * Get the S2V model ID for a given model family and variant.
+ */
+export function getS2VModelId(family: S2VModelFamily, variant: 'speed' | 'quality' = 'speed'): string {
+  if (family === 'ltx2') {
+    return IA2V_MODELS.speed; // Only distilled variant available
+  }
+  return S2V_MODELS[variant];
+}
+
+/**
+ * Get the S2V quality presets for a given model family.
+ */
+export function getS2VQualityPresets(family: S2VModelFamily) {
+  if (family === 'ltx2') {
+    return IA2V_QUALITY_PRESETS;
+  }
+  return S2V_QUALITY_PRESETS;
+}
+
+/**
+ * Check if a model ID is an LTX-2 model.
+ */
+export function isLtx2Model(modelId: string): boolean {
+  return modelId.startsWith('ltx2-');
 }
 
 /**

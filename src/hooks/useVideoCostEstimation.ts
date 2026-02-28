@@ -41,6 +41,10 @@ interface VideoCostEstimationParams {
   modelId?: string;
   /** Optional: Direct steps override (takes precedence over quality) */
   steps?: number;
+  /** Optional: Minimum dimension for both width and height (e.g. 640 for LTX-2) */
+  minDimension?: number;
+  /** Optional: Override dimension divisor (default 16; LTX-2 uses 64) */
+  dimensionDivisor?: number;
 }
 
 interface VideoCostEstimationResult {
@@ -111,7 +115,9 @@ export function useVideoCostEstimation(params: VideoCostEstimationParams): Video
     photoId,
     jobCount = 1,
     modelId: directModelId,
-    steps: directSteps
+    steps: directSteps,
+    minDimension,
+    dimensionDivisor
   } = params;
 
   // Calculate frames from duration and fps if not explicitly provided
@@ -148,8 +154,8 @@ export function useVideoCostEstimation(params: VideoCostEstimationParams): Video
       steps = qualityConfig.steps;
     }
 
-    // Calculate video dimensions
-    const dimensions = calculateVideoDimensions(imageWidth, imageHeight, resolution);
+    // Calculate video dimensions (minDimension enforces floor, dimensionDivisor for rounding)
+    const dimensions = calculateVideoDimensions(imageWidth, imageHeight, resolution, minDimension, dimensionDivisor);
 
     // Create a stable params hash to avoid re-fetching with same params
     // Include photoId to bust cache when switching photos
@@ -229,7 +235,7 @@ export function useVideoCostEstimation(params: VideoCostEstimationParams): Video
       setCostInUSD(null);
       setLoading(false);
     }
-  }, [enabled, imageWidth, imageHeight, resolution, quality, frames, fps, tokenType, photoId, jobCount, directModelId, directSteps]);
+  }, [enabled, imageWidth, imageHeight, resolution, quality, frames, fps, tokenType, photoId, jobCount, directModelId, directSteps, minDimension, dimensionDivisor]);
 
   // Fetch on mount and when params change
   useEffect(() => {
