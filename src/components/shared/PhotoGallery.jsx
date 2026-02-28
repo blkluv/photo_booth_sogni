@@ -48,8 +48,12 @@ import {
   markVideoTipShown, 
   BASE_HERO_PROMPT,
   getS2VQualityPresets,
+  getAnimateMoveQualityPresets,
   IA2V_CONFIG,
+  V2V_CONFIG,
+  V2V_QUALITY_PRESETS,
   calculateIA2VFrames,
+  calculateV2VFrames,
   ANIMATE_MOVE_MODELS,
   ANIMATE_MOVE_QUALITY_PRESETS,
   ANIMATE_REPLACE_MODELS,
@@ -1074,6 +1078,7 @@ const PhotoGallery = ({
   const [animateReplaceModelVariant, setAnimateReplaceModelVariant] = useState('speed');
   const [s2vModelVariant, setS2vModelVariant] = useState('speed');
   const [s2vModelFamily, setS2vModelFamily] = useState('wan'); // 'wan' or 'ltx2'
+  const [animateMoveModelFamily, setAnimateMoveModelFamily] = useState('wan'); // 'wan' or 'ltx2'
   
   // Duration states for cost estimation in new workflow popups
   const [animateMoveDuration, setAnimateMoveDuration] = useState(5);
@@ -1309,20 +1314,33 @@ const PhotoGallery = ({
   });
 
   // Animate Move cost estimation (single) - enabled when popup is shown
-  const animateMoveConfig = animateMoveModelVariant === 'speed' 
-    ? ANIMATE_MOVE_QUALITY_PRESETS.fast 
-    : ANIMATE_MOVE_QUALITY_PRESETS.quality;
+  // Derive model/steps from the quality preset selected in the footer, accounting for model family
+  const amIsLtx2 = animateMoveModelFamily === 'ltx2';
+  const amPresets = getAnimateMoveQualityPresets(animateMoveModelFamily);
+  const amQualitySetting = settings.videoQuality || 'fast';
+  // Map quality to available presets (WAN 2.2 only has fast/balanced; LTX-2 has all 4)
+  const amEffectiveQuality = amIsLtx2
+    ? (amQualitySetting in V2V_QUALITY_PRESETS ? amQualitySetting : 'fast')
+    : (amQualitySetting === 'fast' ? 'fast' : 'balanced');
+  const animateMoveConfig = amPresets[amEffectiveQuality] || amPresets.fast;
+  const amFps = amIsLtx2 ? V2V_CONFIG.defaultFps : (settings.videoFramerate || 16);
+  const amFrames = amIsLtx2 ? calculateV2VFrames(animateMoveDuration, amFps, animateMoveConfig.model === V2V_QUALITY_PRESETS.quality?.model) : undefined;
+  const amMinDim = amIsLtx2 ? V2V_CONFIG.minDimension : undefined;
+  const amDimDivisor = amIsLtx2 ? V2V_CONFIG.dimensionStep : undefined;
   const { loading: animateMoveLoading, cost: animateMoveCostRaw, costInUSD: animateMoveUSD } = useVideoCostEstimation({
     imageWidth: desiredWidth || 768,
     imageHeight: desiredHeight || 1024,
     resolution: settings.videoResolution || '480p',
-    quality: settings.videoQuality || 'fast',
-    fps: settings.videoFramerate || 16,
+    quality: amQualitySetting,
+    fps: amFps,
+    frames: amFrames,
     duration: animateMoveDuration, // Use popup duration state
     enabled: isAuthenticated && selectedPhoto !== null && showAnimateMovePopup,
     photoId: selectedPhotoIndex,
-    modelId: ANIMATE_MOVE_MODELS[animateMoveModelVariant],
-    steps: animateMoveConfig.steps
+    modelId: animateMoveConfig.model,
+    steps: animateMoveConfig.steps,
+    minDimension: amMinDim,
+    dimensionDivisor: amDimDivisor
   });
 
   // Animate Move cost estimation (batch) - enabled when popup is shown
@@ -1330,13 +1348,16 @@ const PhotoGallery = ({
     imageWidth: desiredWidth || 768,
     imageHeight: desiredHeight || 1024,
     resolution: settings.videoResolution || '480p',
-    quality: settings.videoQuality || 'fast',
-    fps: settings.videoFramerate || 16,
+    quality: amQualitySetting,
+    fps: amFps,
+    frames: amFrames,
     duration: animateMoveDuration, // Use popup duration state
     enabled: isAuthenticated && loadedPhotosCount > 0 && showBatchAnimateMovePopup,
     jobCount: loadedPhotosCount,
-    modelId: ANIMATE_MOVE_MODELS[animateMoveModelVariant],
-    steps: animateMoveConfig.steps
+    modelId: animateMoveConfig.model,
+    steps: animateMoveConfig.steps,
+    minDimension: amMinDim,
+    dimensionDivisor: amDimDivisor
   });
 
   // Animate Replace cost estimation (single) - enabled when popup is shown
@@ -3962,7 +3983,7 @@ const PhotoGallery = ({
   // ==================== ANIMATE MOVE HANDLERS ====================
 
   // Handle Animate Move video generation (single)
-  const handleAnimateMoveExecute = useCallback(async ({ positivePrompt, negativePrompt, videoData, videoUrl, videoDuration: customDuration, videoStartOffset, workflowType, modelVariant }) => {
+  const handleAnimateMoveExecute = useCallback(async ({ positivePrompt, negativePrompt, videoData, videoUrl, videoDuration: customDuration, videoStartOffset, workflowType, modelVariant, modelFamily }) => {
     setShowAnimateMovePopup(false);
 
     // Pre-warm audio for iOS
@@ -4022,6 +4043,7 @@ const PhotoGallery = ({
         referenceVideo: videoBuffer,
         videoStart: videoStartOffset, // Pass video trim start offset
         modelVariant, // Pass model variant from popup
+        animateMoveModelFamily: modelFamily || 'wan', // Pass model family from popup
         // Regeneration metadata
         referenceVideoUrl: videoUrl,
         onComplete: (resultVideoUrl) => {
@@ -4039,7 +4061,7 @@ const PhotoGallery = ({
   }, [videoTargetPhotoIndex, selectedPhotoIndex, selectedSubIndex, photos, sogniClient, setPhotos, settings, tokenType, showToast, onOutOfCredits]);
 
   // Handle Animate Move batch execution
-  const handleBatchAnimateMoveExecute = useCallback(async ({ positivePrompt, negativePrompt, videoData, videoUrl, videoDuration: customDuration, videoStartOffset, workflowType, modelVariant, splitMode, perImageDuration }) => {
+  const handleBatchAnimateMoveExecute = useCallback(async ({ positivePrompt, negativePrompt, videoData, videoUrl, videoDuration: customDuration, videoStartOffset, workflowType, modelVariant, modelFamily, splitMode, perImageDuration }) => {
     setShowBatchAnimateMovePopup(false);
     warmUpAudio();
 
@@ -4210,6 +4232,7 @@ const PhotoGallery = ({
             referenceVideo: videoBuffer,
             videoStart: imageStartOffset, // Per-image start offset in split mode
             modelVariant, // Pass model variant from popup
+            animateMoveModelFamily: modelFamily || 'wan', // Pass model family from popup
             // Regeneration metadata
             referenceVideoUrl: videoUrl,
             isMontageSegment: splitMode,
@@ -19686,6 +19709,8 @@ const PhotoGallery = ({
         itemCount={1}
         modelVariant={animateMoveModelVariant}
         onModelVariantChange={setAnimateMoveModelVariant}
+        modelFamily={animateMoveModelFamily}
+        onModelFamilyChange={setAnimateMoveModelFamily}
         videoDuration={animateMoveDuration}
         onDurationChange={setAnimateMoveDuration}
       />
@@ -19709,6 +19734,8 @@ const PhotoGallery = ({
         itemCount={loadedPhotosCount}
         modelVariant={animateMoveModelVariant}
         onModelVariantChange={setAnimateMoveModelVariant}
+        modelFamily={animateMoveModelFamily}
+        onModelFamilyChange={setAnimateMoveModelFamily}
         videoDuration={animateMoveDuration}
         onDurationChange={setAnimateMoveDuration}
       />

@@ -6,6 +6,7 @@ import { useApp } from '../../context/AppContext';
 import VideoRecorderPopup from './VideoRecorderPopup';
 import { saveRecording } from '../../utils/recordingsDB';
 import VideoSettingsFooter from './VideoSettingsFooter';
+import { getAnimateMoveQualityPresets } from '../../constants/videoSettings';
 import { fetchS3WithFallback } from '../../utils/s3FetchWithFallback';
 
 // Sample motion videos for Animate Move
@@ -134,6 +135,8 @@ const AnimateMovePopup = ({
   itemCount = 1,
   modelVariant: externalModelVariant,
   onModelVariantChange,
+  modelFamily: externalModelFamily,
+  onModelFamilyChange,
   videoDuration: externalVideoDuration,
   onDurationChange
 }) => {
@@ -169,6 +172,10 @@ const AnimateMovePopup = ({
   // Use external model variant state if provided (for cost estimation), otherwise use internal
   const modelVariant = externalModelVariant !== undefined ? externalModelVariant : 'speed';
   const setModelVariant = onModelVariantChange || (() => {});
+
+  // Use external model family state if provided, otherwise use internal
+  const modelFamily = externalModelFamily !== undefined ? externalModelFamily : 'wan';
+  const setModelFamily = onModelFamilyChange || (() => {});
 
   // Duration state - use external if provided for cost estimation
   const [internalVideoDuration, setInternalVideoDuration] = useState(5);
@@ -1239,6 +1246,7 @@ const AnimateMovePopup = ({
       videoStartOffset,
       workflowType: 'animate-move',
       modelVariant, // Pass the selected model variant
+      modelFamily, // Pass the selected model family (wan or ltx2)
       splitMode: isSplitMode, // Whether to split the selection across batch images
       perImageDuration: isSplitMode ? videoDuration / effectiveItemCount : videoDuration
     });
@@ -1370,8 +1378,53 @@ const AnimateMovePopup = ({
             color: 'rgba(255, 255, 255, 0.85)',
             fontSize: isMobile ? '12px' : '14px'
           }}>
-            Transfer character movement from a video to your image
+            {modelFamily === 'ltx2' ? 'Pose-controlled video generation' : 'Transfer character movement from a video to your image'}
           </p>
+        </div>
+
+        {/* Model Family Toggle */}
+        <div style={{
+          display: 'flex',
+          gap: '4px',
+          marginBottom: '12px',
+          background: 'rgba(0, 0, 0, 0.2)',
+          borderRadius: '8px',
+          padding: '4px'
+        }}>
+          {[
+            { id: 'wan', label: 'WAN 2.2', description: 'Motion Transfer' },
+            { id: 'ltx2', label: 'LTX-2', description: 'Pose Control' }
+          ].map((family) => (
+            <button
+              key={family.id}
+              onClick={() => setModelFamily(family.id)}
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                borderRadius: '6px',
+                border: 'none',
+                background: modelFamily === family.id
+                  ? 'rgba(255, 255, 255, 0.95)'
+                  : 'transparent',
+                color: modelFamily === family.id ? '#0891b2' : 'white',
+                fontSize: '12px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              {family.label}
+              <span style={{
+                display: 'block',
+                fontSize: '10px',
+                fontWeight: '400',
+                opacity: modelFamily === family.id ? 0.7 : 0.5,
+                marginTop: '2px'
+              }}>
+                {family.description}
+              </span>
+            </button>
+          ))}
         </div>
 
         {/* Source Video Section */}
@@ -2219,6 +2272,7 @@ const AnimateMovePopup = ({
             tokenType={tokenType}
             showDuration={false}
             colorScheme="dark"
+            qualityPresets={getAnimateMoveQualityPresets(modelFamily)}
           />
         </div>
       </div>
@@ -2301,7 +2355,13 @@ AnimateMovePopup.propTypes = {
   videoResolution: PropTypes.string,
   tokenType: PropTypes.oneOf(['spark', 'sogni']),
   isBatch: PropTypes.bool,
-  itemCount: PropTypes.number
+  itemCount: PropTypes.number,
+  modelVariant: PropTypes.oneOf(['speed', 'quality']),
+  onModelVariantChange: PropTypes.func,
+  modelFamily: PropTypes.oneOf(['wan', 'ltx2']),
+  onModelFamilyChange: PropTypes.func,
+  videoDuration: PropTypes.number,
+  onDurationChange: PropTypes.func
 };
 
 export default AnimateMovePopup;

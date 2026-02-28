@@ -34,11 +34,14 @@ import {
   markVideoGenerated,
   calculateVideoFrames,
   calculateIA2VFrames,
+  calculateV2VFrames,
   VideoQualityPreset,
   VideoResolution,
   S2V_QUALITY_PRESETS,
   IA2V_QUALITY_PRESETS,
   IA2V_CONFIG,
+  V2V_QUALITY_PRESETS,
+  V2V_CONFIG,
   ANIMATE_MOVE_QUALITY_PRESETS,
   ANIMATE_REPLACE_QUALITY_PRESETS,
   S2V_MODELS,
@@ -106,6 +109,7 @@ interface GenerateVideoOptions {
   sam2Coordinates?: Array<{ x: number; y: number }>; // For animate-replace - click coordinates for subject detection
   modelVariant?: 'speed' | 'quality'; // Model variant for new workflows (lightx2v vs full)
   s2vModelFamily?: 'wan' | 'ltx2'; // S2V model family selection (WAN 2.2 vs LTX-2 IA2V)
+  animateMoveModelFamily?: 'wan' | 'ltx2'; // Animate-move model family (WAN 2.2 vs LTX-2 V2V Pose)
   // Frame trimming for seamless video stitching (removes duplicate frame at segment boundary)
   trimEndFrame?: boolean; // Trim last frame from video (removes duplicate end frame)
   onComplete?: (videoUrl: string) => void;
@@ -215,6 +219,7 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<void
     sam2Coordinates,
     modelVariant, // Model variant for new workflows (speed/quality)
     s2vModelFamily = 'wan', // Default to WAN 2.2 for backward compatibility
+    animateMoveModelFamily = 'wan', // Default to WAN 2.2 for backward compatibility
     trimEndFrame,
     onComplete,
     onError,
@@ -292,8 +297,10 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<void
 
   // Scale to resolution (LTX-2 requires minimum 640 on both dimensions, divisible by 64)
   const isLtx2S2V = workflowType === 's2v' && s2vModelFamily === 'ltx2';
-  const ltx2MinDimension = isLtx2S2V ? IA2V_CONFIG.minDimension : undefined;
-  const ltx2DimDivisor = isLtx2S2V ? IA2V_CONFIG.dimensionStep : 16;
+  const isLtx2V2V = workflowType === 'animate-move' && animateMoveModelFamily === 'ltx2';
+  const isLtx2Workflow = isLtx2S2V || isLtx2V2V;
+  const ltx2MinDimension = isLtx2Workflow ? (isLtx2V2V ? V2V_CONFIG.minDimension : IA2V_CONFIG.minDimension) : undefined;
+  const ltx2DimDivisor = isLtx2Workflow ? (isLtx2V2V ? V2V_CONFIG.dimensionStep : IA2V_CONFIG.dimensionStep) : 16;
   const scaled = scaleToResolution(WIDTH, HEIGHT, resolution, ltx2MinDimension, ltx2DimDivisor);
 
   try {
@@ -346,15 +353,19 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<void
         }
         break;
       case 'animate-move':
-        // Use modelVariant if provided, otherwise fall back to quality preset
-        if (modelVariant) {
+        if (animateMoveModelFamily === 'ltx2') {
+          // LTX-2 V2V Pose ControlNet - 4 quality tiers
+          const v2vQuality = (quality in V2V_QUALITY_PRESETS) ? quality as keyof typeof V2V_QUALITY_PRESETS : 'fast';
+          qualityConfig = V2V_QUALITY_PRESETS[v2vQuality];
+        } else if (modelVariant) {
+          // WAN 2.2 - use modelVariant if provided
           const baseConfig = ANIMATE_MOVE_QUALITY_PRESETS.fast;
           qualityConfig = {
             ...baseConfig,
             model: ANIMATE_MOVE_MODELS.speed // Only 'speed' model available
           };
         } else {
-          // Map quality to available presets (only fast and balanced available)
+          // WAN 2.2 - Map quality to available presets (only fast and balanced available)
           const mappedQuality = quality === 'fast' ? 'fast' : 'balanced';
           qualityConfig = ANIMATE_MOVE_QUALITY_PRESETS[mappedQuality];
         }
@@ -411,8 +422,13 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<void
     let frames: number;
     let effectiveFps: number;
 
-    if (isLtx2) {
-      // LTX-2: fps is actual generation rate, frames follow 1 + n*8 pattern
+    if (isLtx2 && isLtx2V2V) {
+      // LTX-2 V2V: fps is actual generation rate, frames follow 1 + n*8 pattern
+      effectiveFps = V2V_CONFIG.defaultFps; // 24fps
+      const isQualityModel = qualityConfig.model === V2V_QUALITY_PRESETS.quality?.model;
+      frames = explicitFrames !== undefined ? explicitFrames : calculateV2VFrames(duration, effectiveFps, isQualityModel);
+    } else if (isLtx2) {
+      // LTX-2 IA2V: fps is actual generation rate, frames follow 1 + n*8 pattern
       effectiveFps = IA2V_CONFIG.defaultFps; // 24fps
       frames = explicitFrames !== undefined ? explicitFrames : calculateIA2VFrames(duration, effectiveFps);
     } else {
@@ -422,7 +438,10 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<void
     }
 
     console.log('🎬 VIDEO SETTINGS RECEIVED:');
-    if (isLtx2) {
+    if (isLtx2 && isLtx2V2V) {
+      console.log(`   Model family: LTX-2 (V2V Pose ControlNet)`);
+      console.log(`   Duration: ${duration}s → ${frames} frames at ${effectiveFps}fps (actual generation rate)`);
+    } else if (isLtx2) {
       console.log(`   Model family: LTX-2 (IA2V)`);
       console.log(`   Duration: ${duration}s → ${frames} frames at ${effectiveFps}fps (actual generation rate)`);
     } else if (explicitFrames !== undefined) {
@@ -525,6 +544,14 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<void
       // Animate-Replace specific: SAM2 coordinates for subject selection
       if (workflowType === 'animate-replace' && sam2Coordinates) {
         createParams.sam2Coordinates = sam2Coordinates;
+      }
+      // LTX-2 V2V Pose ControlNet specific params
+      if (isLtx2V2V) {
+        createParams.controlNet = {
+          name: V2V_CONFIG.controlNetType,
+          strength: V2V_CONFIG.defaultStrength
+        };
+        createParams.detailerStrength = V2V_CONFIG.defaultDetailerStrength;
       }
     }
 

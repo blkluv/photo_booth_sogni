@@ -27,6 +27,15 @@ export const IA2V_MODELS = {
 // S2V model family type for toggling between WAN 2.2 and LTX-2
 export type S2VModelFamily = 'wan' | 'ltx2';
 
+// Animate Move model family type for toggling between WAN 2.2 and LTX-2 V2V Pose
+export type AnimateMoveModelFamily = 'wan' | 'ltx2';
+
+// LTX-2 V2V ControlNet (Pose) model variants
+export const V2V_MODELS = {
+  speed: 'ltx2-19b-fp8_v2v_distilled',
+  quality: 'ltx2-19b-fp8_v2v'
+} as const;
+
 // Animate Move model variants (only lightx2v available - no official full quality version exists)
 export const ANIMATE_MOVE_MODELS = {
   speed: 'wan_v2.2-14b-fp8_animate-move_lightx2v'
@@ -137,6 +146,63 @@ export const IA2V_QUALITY_PRESETS = {
   }
 } as const;
 
+// LTX-2 V2V ControlNet Quality presets (distilled + quality models, 4 tiers)
+export const V2V_QUALITY_PRESETS = {
+  fast: {
+    model: V2V_MODELS.speed,
+    steps: 4,
+    label: 'Fast',
+    description: 'Quick generation (~20-30s)',
+    guidance: 1.0,
+    sampler: 'euler',
+    scheduler: 'simple'
+  },
+  balanced: {
+    model: V2V_MODELS.speed,
+    steps: 8,
+    label: 'Balanced',
+    description: 'Good balance (~40-60s)',
+    guidance: 1.0,
+    sampler: 'euler',
+    scheduler: 'simple'
+  },
+  quality: {
+    model: V2V_MODELS.quality,
+    steps: 20,
+    label: 'High Quality',
+    description: 'Higher quality (~3-5 min)',
+    guidance: 3.0,
+    sampler: 'euler',
+    scheduler: 'simple'
+  },
+  pro: {
+    model: V2V_MODELS.quality,
+    steps: 30,
+    label: 'Pro',
+    description: 'Maximum quality (~6-10 min)',
+    guidance: 3.0,
+    sampler: 'euler',
+    scheduler: 'simple'
+  }
+} as const;
+
+// LTX-2 V2V video config (same frame/dimension constraints as IA2V)
+export const V2V_CONFIG = {
+  defaultFps: 24,
+  frameStep: 8,
+  minFrames: 25,
+  maxFrames: 513, // distilled allows up to 513
+  maxFramesQuality: 257, // quality model limited to 257
+  minDuration: 1,
+  maxDuration: 20,
+  minDimension: 640,
+  dimensionStep: 64,
+  // Pose control defaults
+  defaultStrength: 0.85,
+  defaultDetailerStrength: 0.6,
+  controlNetType: 'pose' as const
+};
+
 // LTX-2 IA2V video config (different from WAN 2.2)
 export const IA2V_CONFIG = {
   defaultFps: 24, // LTX-2 generates at actual fps (no interpolation)
@@ -160,6 +226,18 @@ export function calculateIA2VFrames(duration: number, fps: number = IA2V_CONFIG.
   const snapped = 1 + n * IA2V_CONFIG.frameStep;
   // Clamp to min/max
   return Math.max(IA2V_CONFIG.minFrames, Math.min(IA2V_CONFIG.maxFrames, snapped));
+}
+
+/**
+ * Calculate frames for LTX-2 V2V models.
+ * Same 1 + n*8 pattern as IA2V, but uses V2V_CONFIG limits.
+ */
+export function calculateV2VFrames(duration: number, fps: number = V2V_CONFIG.defaultFps, isQualityModel: boolean = false): number {
+  const rawFrames = duration * fps + 1;
+  const n = Math.round((rawFrames - 1) / V2V_CONFIG.frameStep);
+  const snapped = 1 + n * V2V_CONFIG.frameStep;
+  const maxFrames = isQualityModel ? V2V_CONFIG.maxFramesQuality : V2V_CONFIG.maxFrames;
+  return Math.max(V2V_CONFIG.minFrames, Math.min(maxFrames, snapped));
 }
 
 // Animate Move Quality presets (only lightx2v available - no official full quality version exists)
@@ -336,6 +414,16 @@ export function getS2VQualityPresets(family: S2VModelFamily) {
     return IA2V_QUALITY_PRESETS;
   }
   return S2V_QUALITY_PRESETS;
+}
+
+/**
+ * Get the Animate Move quality presets for a given model family.
+ */
+export function getAnimateMoveQualityPresets(family: AnimateMoveModelFamily) {
+  if (family === 'ltx2') {
+    return V2V_QUALITY_PRESETS;
+  }
+  return ANIMATE_MOVE_QUALITY_PRESETS;
 }
 
 /**
