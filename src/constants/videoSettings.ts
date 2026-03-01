@@ -191,7 +191,7 @@ export const V2V_CONFIG = {
   defaultFps: 24,
   frameStep: 8,
   minFrames: 25,
-  maxFrames: 513, // distilled allows up to 513
+  maxFrames: 505, // distilled max per modelTiers.json (1 + 63*8)
   maxFramesQuality: 257, // quality model limited to 257
   minDuration: 1,
   maxDuration: 20,
