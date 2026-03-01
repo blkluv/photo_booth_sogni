@@ -3983,7 +3983,7 @@ const PhotoGallery = ({
   // ==================== ANIMATE MOVE HANDLERS ====================
 
   // Handle Animate Move video generation (single)
-  const handleAnimateMoveExecute = useCallback(async ({ positivePrompt, negativePrompt, videoData, videoUrl, videoDuration: customDuration, videoStartOffset, workflowType, modelVariant, modelFamily }) => {
+  const handleAnimateMoveExecute = useCallback(async ({ positivePrompt, negativePrompt, videoData, videoUrl, videoDuration: customDuration, videoStartOffset, workflowType, modelVariant, modelFamily, sourceVideoFps, sourceVideoWidth, sourceVideoHeight }) => {
     setShowAnimateMovePopup(false);
 
     // Pre-warm audio for iOS
@@ -4044,6 +4044,9 @@ const PhotoGallery = ({
         videoStart: videoStartOffset, // Pass video trim start offset
         modelVariant, // Pass model variant from popup
         animateMoveModelFamily: modelFamily || 'wan', // Pass model family from popup
+        sourceVideoFps, // Source video fps for V2V frame calculation
+        sourceVideoWidth, // Source video dimensions for V2V
+        sourceVideoHeight,
         // Regeneration metadata
         referenceVideoUrl: videoUrl,
         onComplete: (resultVideoUrl) => {
@@ -4061,7 +4064,7 @@ const PhotoGallery = ({
   }, [videoTargetPhotoIndex, selectedPhotoIndex, selectedSubIndex, photos, sogniClient, setPhotos, settings, tokenType, showToast, onOutOfCredits]);
 
   // Handle Animate Move batch execution
-  const handleBatchAnimateMoveExecute = useCallback(async ({ positivePrompt, negativePrompt, videoData, videoUrl, videoDuration: customDuration, videoStartOffset, workflowType, modelVariant, modelFamily, splitMode, perImageDuration }) => {
+  const handleBatchAnimateMoveExecute = useCallback(async ({ positivePrompt, negativePrompt, videoData, videoUrl, videoDuration: customDuration, videoStartOffset, workflowType, modelVariant, modelFamily, splitMode, perImageDuration, sourceVideoFps, sourceVideoWidth, sourceVideoHeight }) => {
     setShowBatchAnimateMovePopup(false);
     warmUpAudio();
 
@@ -4233,6 +4236,9 @@ const PhotoGallery = ({
             videoStart: imageStartOffset, // Per-image start offset in split mode
             modelVariant, // Pass model variant from popup
             animateMoveModelFamily: modelFamily || 'wan', // Pass model family from popup
+            sourceVideoFps, // Source video fps for V2V frame calculation
+            sourceVideoWidth, // Source video dimensions for V2V
+            sourceVideoHeight,
             // Regeneration metadata
             referenceVideoUrl: videoUrl,
             isMontageSegment: splitMode,

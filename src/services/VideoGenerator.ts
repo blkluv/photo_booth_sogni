@@ -110,6 +110,10 @@ interface GenerateVideoOptions {
   modelVariant?: 'speed' | 'quality'; // Model variant for new workflows (lightx2v vs full)
   s2vModelFamily?: 'wan' | 'ltx2'; // S2V model family selection (WAN 2.2 vs LTX-2 IA2V)
   animateMoveModelFamily?: 'wan' | 'ltx2'; // Animate-move model family (WAN 2.2 vs LTX-2 V2V Pose)
+  // Source video metadata for V2V pose control (ensures correct speed and dimensions)
+  sourceVideoFps?: number; // Detected source video fps (for V2V frame/fps calculation)
+  sourceVideoWidth?: number; // Source video width (for V2V dimension calculation)
+  sourceVideoHeight?: number; // Source video height (for V2V dimension calculation)
   // Frame trimming for seamless video stitching (removes duplicate frame at segment boundary)
   trimEndFrame?: boolean; // Trim last frame from video (removes duplicate end frame)
   onComplete?: (videoUrl: string) => void;
@@ -220,6 +224,9 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<void
     modelVariant, // Model variant for new workflows (speed/quality)
     s2vModelFamily = 'wan', // Default to WAN 2.2 for backward compatibility
     animateMoveModelFamily = 'wan', // Default to WAN 2.2 for backward compatibility
+    sourceVideoFps,
+    sourceVideoWidth,
+    sourceVideoHeight,
     trimEndFrame,
     onComplete,
     onError,
@@ -301,7 +308,19 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<void
   const isLtx2Workflow = isLtx2S2V || isLtx2V2V;
   const ltx2MinDimension = isLtx2Workflow ? (isLtx2V2V ? V2V_CONFIG.minDimension : IA2V_CONFIG.minDimension) : undefined;
   const ltx2DimDivisor = isLtx2Workflow ? (isLtx2V2V ? V2V_CONFIG.dimensionStep : IA2V_CONFIG.dimensionStep) : 16;
-  const scaled = scaleToResolution(WIDTH, HEIGHT, resolution, ltx2MinDimension, ltx2DimDivisor);
+
+  // For V2V pose control: use source VIDEO dimensions (not source IMAGE) to preserve the
+  // video's aspect ratio. The ComfyUI workflow scales video frames to generation dimensions
+  // with center crop (node 14s) BEFORE DWPose extraction. Using the wrong aspect ratio
+  // causes body parts to be cropped, degrading pose detection and appearance resemblance.
+  let scaleDimWidth = WIDTH;
+  let scaleDimHeight = HEIGHT;
+  if (isLtx2V2V && sourceVideoWidth && sourceVideoHeight && sourceVideoWidth > 0 && sourceVideoHeight > 0) {
+    scaleDimWidth = sourceVideoWidth;
+    scaleDimHeight = sourceVideoHeight;
+    console.log(`[VIDEO] V2V: Using source video dimensions ${sourceVideoWidth}x${sourceVideoHeight} instead of image ${WIDTH}x${HEIGHT}`);
+  }
+  const scaled = scaleToResolution(scaleDimWidth, scaleDimHeight, resolution, ltx2MinDimension, ltx2DimDivisor);
 
   try {
     // Use custom reference image if provided, otherwise fetch from photo
@@ -424,7 +443,14 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<void
 
     if (isLtx2 && isLtx2V2V) {
       // LTX-2 V2V: fps is actual generation rate, frames follow 1 + n*8 pattern
-      effectiveFps = V2V_CONFIG.defaultFps; // 24fps
+      // CRITICAL: Use the source video's fps for both generation fps AND frame calculation.
+      // The ComfyUI workflow's LoadVideo node extracts raw frames at the source's native fps.
+      // ImageFromBatch (node 14b) then takes the first `frames` raw frames.
+      // If we calculate frames at a different fps than the source, the extracted frames cover
+      // a different duration than expected, causing speed mismatch (e.g., half speed).
+      effectiveFps = sourceVideoFps || 30; // Use detected fps, fallback to 30 (most common web video fps)
+      // Clamp fps to LTX-2's supported range (1-60)
+      effectiveFps = Math.max(1, Math.min(60, effectiveFps));
       const isQualityModel = qualityConfig.model === V2V_QUALITY_PRESETS.quality?.model;
       frames = explicitFrames !== undefined ? explicitFrames : calculateV2VFrames(duration, effectiveFps, isQualityModel);
     } else if (isLtx2) {
@@ -570,7 +596,7 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<void
     console.log(`   Original Image Dimensions: ${WIDTH}x${HEIGHT}px`);
     console.log(`   Duration: ${duration}s`);
     console.log(`   Frames: ${frames}`);
-    console.log(`   FPS: ${fps}`);
+    console.log(`   FPS: ${effectiveFps}${sourceVideoFps ? ` (detected source: ${sourceVideoFps}fps)` : ''}`);
     console.log(`   Seed: ${seed}`);
     console.log('');
     console.log('📝 Prompts:');

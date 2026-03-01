@@ -230,11 +230,14 @@ export function calculateIA2VFrames(duration: number, fps: number = IA2V_CONFIG.
 
 /**
  * Calculate frames for LTX-2 V2V models.
- * Same 1 + n*8 pattern as IA2V, but uses V2V_CONFIG limits.
+ * Uses 1 + n*8 pattern like IA2V but rounds DOWN to ensure we never request more
+ * frames than the source video contains. The ComfyUI worker also clamps using Math.floor,
+ * so this keeps the photobooth's frame count consistent with what actually generates.
+ * Matches the SDK example logic: sourceFrames = duration*fps (no +1), Math.floor.
  */
 export function calculateV2VFrames(duration: number, fps: number = V2V_CONFIG.defaultFps, isQualityModel: boolean = false): number {
-  const rawFrames = duration * fps + 1;
-  const n = Math.round((rawFrames - 1) / V2V_CONFIG.frameStep);
+  const sourceFrames = Math.round(duration * fps);
+  const n = Math.floor((sourceFrames - 1) / V2V_CONFIG.frameStep);
   const snapped = 1 + n * V2V_CONFIG.frameStep;
   const maxFrames = isQualityModel ? V2V_CONFIG.maxFramesQuality : V2V_CONFIG.maxFrames;
   return Math.max(V2V_CONFIG.minFrames, Math.min(maxFrames, snapped));

@@ -202,6 +202,9 @@ const AnimateMovePopup = ({
   
   const [sourceVideoDuration, setSourceVideoDuration] = useState(0);
   const [videoAspectRatio, setVideoAspectRatio] = useState(9/16); // Default to portrait
+  const [sourceVideoFps, setSourceVideoFps] = useState(30); // Detected source video fps (default 30 for web video)
+  const [sourceVideoWidth, setSourceVideoWidth] = useState(0);
+  const [sourceVideoHeight, setSourceVideoHeight] = useState(0);
 
   // Split selection mode for batch - splits the timeline segment across all images
   const [splitSelectionEnabled, setSplitSelectionEnabled] = useState(isBatch && itemCount > 1);
@@ -473,6 +476,72 @@ const AnimateMovePopup = ({
         throw new Error('Invalid video aspect ratio');
       }
       setVideoAspectRatio(aspectRatio);
+      setSourceVideoWidth(videoWidth);
+      setSourceVideoHeight(videoHeight);
+
+      // Detect source video fps using requestVideoFrameCallback
+      // This is critical for V2V pose control: the ComfyUI workflow extracts raw frames
+      // from the source video, so frame count must match the source's native fps to avoid
+      // speed mismatches (e.g., 30fps source with 24fps frame calc = slow-motion output)
+      let detectedFps = 30; // Fallback: most web videos are 30fps
+      if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+        try {
+          detectedFps = await new Promise((resolveFps) => {
+            const fpsVideo = document.createElement('video');
+            fpsVideo.muted = true;
+            fpsVideo.playsInline = true;
+            fpsVideo.src = workingUrl;
+            let resolved = false;
+
+            const cleanup = (fps) => {
+              if (resolved) return;
+              resolved = true;
+              fpsVideo.pause();
+              fpsVideo.removeAttribute('src');
+              fpsVideo.load(); // Release media resource
+              fpsVideo.remove();
+              resolveFps(fps);
+            };
+
+            let frameCount = 0;
+            let firstTime = null;
+            let lastTime = null;
+
+            const onFrame = (now, metadata) => {
+              frameCount++;
+              if (firstTime === null) firstTime = metadata.mediaTime;
+              lastTime = metadata.mediaTime;
+
+              if (frameCount >= 12) {
+                const elapsed = lastTime - firstTime;
+                if (elapsed > 0) {
+                  const rawFps = (frameCount - 1) / elapsed;
+                  // Snap to common fps values
+                  const common = [24, 25, 30, 48, 50, 60];
+                  const snapped = common.reduce((a, b) =>
+                    Math.abs(b - rawFps) < Math.abs(a - rawFps) ? b : a
+                  );
+                  cleanup(snapped);
+                } else {
+                  cleanup(30);
+                }
+              } else {
+                fpsVideo.requestVideoFrameCallback(onFrame);
+              }
+            };
+
+            fpsVideo.onloadeddata = () => {
+              fpsVideo.requestVideoFrameCallback(onFrame);
+              fpsVideo.play().catch(() => cleanup(30));
+            };
+            fpsVideo.onerror = () => cleanup(30);
+            setTimeout(() => cleanup(30), 3000); // Timeout fallback
+          });
+        } catch {
+          detectedFps = 30;
+        }
+      }
+      setSourceVideoFps(detectedFps);
 
       // Generate thumbnails at higher resolution for quality, then scale down when drawing
       // Use 120px height for better quality when stretched
@@ -1248,7 +1317,10 @@ const AnimateMovePopup = ({
       modelVariant, // Pass the selected model variant
       modelFamily, // Pass the selected model family (wan or ltx2)
       splitMode: isSplitMode, // Whether to split the selection across batch images
-      perImageDuration: isSplitMode ? videoDuration / effectiveItemCount : videoDuration
+      perImageDuration: isSplitMode ? videoDuration / effectiveItemCount : videoDuration,
+      sourceVideoFps, // Detected source video fps (for V2V frame calculation)
+      sourceVideoWidth, // Source video dimensions (for V2V dimension calculation)
+      sourceVideoHeight
     });
   };
 
