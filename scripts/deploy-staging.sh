@@ -155,7 +155,7 @@ ssh $REMOTE_HOST << EOF
   # Start or restart the backend using PM2
   echo "🔧 Starting backend service with PM2..."
   pm2 delete sogni-photobooth-staging 2>/dev/null || true
-  PORT=3002 pm2 start index.js --name sogni-photobooth-staging
+  PORT=3005 pm2 start index.js --name sogni-photobooth-staging
   pm2 save
   
   # Setup PM2 to start on system boot
