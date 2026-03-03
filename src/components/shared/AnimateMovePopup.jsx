@@ -113,6 +113,12 @@ const SAMPLE_MOTION_VIDEOS = [
     title: 'Bad Bunny Superbowl',
     description: '',
     url: 'https://cdn.sogni.ai/video-samples/bad-bunny-superbowl.mp4'
+  },
+  {
+    id: 'chinese-new-year-dance',
+    title: 'Chinese New Year Dance',
+    description: '',
+    url: 'https://cdn.sogni.ai/video-samples/chinese-new-year-dance.mp4'
   }
 ];
 
