@@ -208,7 +208,7 @@
   @media (orientation: landscape) {
     /* Ensure body has background to cover any gaps */
     body {
-      background: linear-gradient(135deg, #ff61d5 0%, #7132e8 100%) !important;
+      background: linear-gradient(135deg, var(--brand-gradient-start) 0%, var(--brand-gradient-end) 100%) !important;
       background-attachment: fixed !important;
     }
     
@@ -234,7 +234,7 @@
   @media (orientation: portrait) {
     /* Ensure body has background to cover any gaps */
     body {
-      background: linear-gradient(135deg, #ff61d5 0%, #7132e8 100%) !important;
+      background: linear-gradient(135deg, var(--brand-gradient-start) 0%, var(--brand-gradient-end) 100%) !important;
       background-attachment: fixed !important;
     }
     

@@ -1,6 +1,6 @@
 /* Photobooth Header & Title (centralised) */
 .photobooth-header {
-  background-color: #ff99cc;
+  background-color: var(--brand-header-bg);
   border-radius: 12px 12px 0 0;
   padding: 10px 15px !important;
   display: flex;
@@ -13,7 +13,7 @@
 }
 
 .photobooth-title {
-  color: #FF99CC !important;
+  color: var(--brand-header-bg) !important;
   font-size: 21px !important;
   font-weight: bold !important;
   text-transform: uppercase !important;
@@ -21,8 +21,8 @@
   margin-right: 10px !important;
   padding: 0 !important;
   letter-spacing: 2px !important;
-  text-shadow: 3px 3px 0 #ff3366, -1px -1px 0 #fff, 0 0 10px rgba(255, 255, 255, 0.6) !important;
-  -webkit-text-stroke: 1px #ff3366 !important;
+  text-shadow: 3px 3px 0 var(--brand-header-stroke), -1px -1px 0 #fff, 0 0 10px rgba(255, 255, 255, 0.6) !important;
+  -webkit-text-stroke: 1px var(--brand-header-stroke) !important;
   white-space: nowrap !important;
   flex-shrink: 1 !important;
   overflow: hidden !important;
@@ -39,7 +39,7 @@
 
 /* "Take Photo" button displayed inside header */
 .header-take-photo-btn {
-  background-color: #ff3366;
+  background-color: var(--brand-accent-primary);
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -50,13 +50,13 @@
 }
 
 .header-take-photo-btn:hover {
-  background-color: #ff5e8a;
+  background-color: var(--brand-accent-secondary);
   transform: scale(1.05);
 }
 
 /* Gear-icon / settings button */
 .header-config-btn {
-  background-color: #ff3366;
+  background-color: var(--brand-accent-primary);
   border: 2px solid #fff;
   border-radius: 50%;
   width: 36px;

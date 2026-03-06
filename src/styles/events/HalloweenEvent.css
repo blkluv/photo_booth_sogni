@@ -682,7 +682,7 @@
 
 .contest-description {
   font-size: 1rem;
-  color: #333;
+  color: var(--brand-text-secondary);
   margin-bottom: 1.5rem;
   text-align: center;
   line-height: 1.6;
@@ -726,7 +726,7 @@
 .how-to-win li {
   padding: 0.4rem 0 0.4rem 2rem;
   position: relative;
-  color: #333;
+  color: var(--brand-text-secondary);
   line-height: 1.5;
   font-size: 0.95rem;
   text-align: left;

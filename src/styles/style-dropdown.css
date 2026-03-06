@@ -190,7 +190,7 @@
 .section-header {
   font-family: "Permanent Marker", cursive;
   font-size: 16px;
-  color: #333;
+  color: var(--brand-text-secondary);
   padding: 4px 12px 8px 12px;
   font-weight: bold;
 }
@@ -342,7 +342,7 @@
   border: 2px solid rgba(114, 227, 242, 0.3);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.95);
-  color: #333;
+  color: var(--brand-text-secondary);
   cursor: pointer;
   transition: all 0.2s ease;
   font-weight: 500;
@@ -381,7 +381,7 @@
   margin: 2px 0;
   border-radius: 4px;
   cursor: pointer;
-  color: #333;
+  color: var(--brand-text-secondary);
   background: transparent;
   font-family: "Permanent Marker", cursive;
   font-size: 15px;
@@ -512,7 +512,7 @@
   background: transparent;
   font-family: "Permanent Marker", cursive;
   font-size: 13px;
-  color: #333;
+  color: var(--brand-text-secondary);
   padding: 0;
 }
 
@@ -533,7 +533,7 @@
 }
 
 .search-clear-btn:hover {
-  color: #333;
+  color: var(--brand-text-secondary);
 }
 
 /* Mobile Portrait Specific Styles */

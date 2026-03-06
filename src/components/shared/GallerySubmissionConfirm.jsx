@@ -68,7 +68,7 @@ const GallerySubmissionConfirm = ({
         <button className="gallery-confirm-close" onClick={onCancel}>×</button>
         
         <div className="gallery-confirm-header">
-          <svg className="gallery-icon" fill="#764ba2" viewBox="0 0 24 24" width="48" height="48">
+          <svg className="gallery-icon" fill="var(--brand-button-primary-end)" viewBox="0 0 24 24" width="48" height="48">
             <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
           </svg>
           <h2>Submit to Gallery?</h2>

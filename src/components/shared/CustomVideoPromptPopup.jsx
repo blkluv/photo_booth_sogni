@@ -40,7 +40,7 @@ const CustomVideoPromptPopup = ({ visible, onGenerate, onClose }) => {
     >
       <div
         style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: 'linear-gradient(135deg, var(--brand-button-primary) 0%, var(--brand-button-primary-end) 100%)',
           borderRadius: '20px',
           padding: '30px',
           maxWidth: '500px',

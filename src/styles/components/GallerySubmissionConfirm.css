@@ -50,7 +50,7 @@
   right: 16px;
   background: rgba(0, 0, 0, 0.1);
   border: none;
-  color: #333;
+  color: var(--brand-text-secondary);
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -87,7 +87,7 @@
   margin: 0;
   font-size: 22px;
   font-weight: 600;
-  color: #333;
+  color: var(--brand-text-secondary);
   line-height: 1.1;
 }
 
@@ -120,14 +120,14 @@
   align-items: center;
   gap: 12px;
   padding: 40px;
-  color: #666;
+  color: var(--brand-text-muted);
 }
 
 .preview-loading .loading-spinner {
   width: 32px;
   height: 32px;
   border: 3px solid #e0e0e0;
-  border-top-color: #764ba2;
+  border-top-color: var(--brand-button-primary-end);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -139,25 +139,25 @@
 .gallery-confirm-message {
   font-size: 15px;
   line-height: 1.4;
-  color: #333;
+  color: var(--brand-text-secondary);
   margin: 0 0 12px 0;
   text-align: center;
 }
 
 .gallery-confirm-message strong {
-  color: #764ba2;
+  color: var(--brand-button-primary-end);
   font-weight: 600;
 }
 
 .gallery-confirm-note {
   font-size: 13px;
   line-height: 1.4;
-  color: #666;
+  color: var(--brand-text-muted);
   margin: 0;
   padding: 12px;
   background: white;
   border-radius: 8px;
-  border-left: 3px solid #764ba2;
+  border-left: 3px solid var(--brand-button-primary-end);
 }
 
 .gallery-confirm-footer {
@@ -184,16 +184,16 @@
 
 .cancel-btn {
   background: #f0f0f0;
-  color: #666;
+  color: var(--brand-text-muted);
 }
 
 .cancel-btn:hover {
   background: #e0e0e0;
-  color: #333;
+  color: var(--brand-text-secondary);
 }
 
 .submit-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--brand-button-primary) 0%, var(--brand-button-primary-end) 100%);
   color: white;
 }
 

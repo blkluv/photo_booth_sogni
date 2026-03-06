@@ -149,7 +149,7 @@ const VideoSelectionPopup = ({
         icon: '🎥',
         title: 'Emoji Video',
         description: 'Generate videos using one of 160 emoji-based motion styles. The example is 🤑',
-        gradient: 'linear-gradient(135deg, #ffeb3b 0%, #fbc02d 100%)',
+        gradient: 'linear-gradient(135deg, var(--brand-page-bg) 0%, #fbc02d 100%)',
         exampleVideo: emojiVideos[emojiVideoIndex],
         exampleVideos: emojiVideos,
         videoIndex: emojiVideoIndex,
@@ -427,12 +427,12 @@ const VideoSelectionPopup = ({
         }}>
           <h2 style={{
             margin: '0 0 6px 0',
-            color: '#1a1a1a',
+            color: 'var(--brand-dark-text)',
             fontSize: 'clamp(22px, 5vw, 36px)',
             fontWeight: '800',
             fontFamily: '"Permanent Marker", cursive',
             letterSpacing: '-0.02em',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+            background: 'linear-gradient(135deg, var(--brand-button-primary) 0%, var(--brand-button-primary-end) 50%, var(--brand-accent-secondary) 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
@@ -939,7 +939,7 @@ const VideoSelectionPopup = ({
                     </span>
                     <h3 style={{
                       margin: 0,
-                      color: (isDisabled || isComingSoon) ? '#9CA3AF' : '#1a1a1a',
+                      color: (isDisabled || isComingSoon) ? '#9CA3AF' : 'var(--brand-dark-text)',
                       fontSize: isMobile ? '16px' : isKioskPortrait ? '14px' : isTablet ? '18px' : '20px',
                       fontWeight: '700',
                       fontFamily: '"Permanent Marker", cursive',

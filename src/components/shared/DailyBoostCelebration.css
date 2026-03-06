@@ -50,10 +50,10 @@
 /* Modal container - Starface neo-brutalist style */
 .daily-boost-modal {
   position: relative;
-  background: linear-gradient(180deg, #FFED4E 0%, #FFE135 50%, #FFD700 100%);
-  border: 5px solid #1a1a1a;
+  background: linear-gradient(180deg, var(--brand-page-bg) 0%, var(--brand-page-bg) 50%, var(--brand-page-bg-mid) 100%);
+  border: 5px solid var(--brand-dark-border);
   border-radius: 32px;
-  box-shadow: 10px 10px 0 #1a1a1a;
+  box-shadow: 10px 10px 0 var(--brand-dark-border);
   padding: 48px 48px 40px;
   text-align: center;
   max-width: 400px;
@@ -104,14 +104,14 @@
   position: absolute;
   top: -12px;
   right: -12px;
-  background: linear-gradient(135deg, #FF6B9D 0%, #FF3366 100%);
+  background: linear-gradient(135deg, var(--brand-accent-secondary) 0%, var(--brand-accent-primary) 100%);
   color: white;
   font-size: 16px;
   font-weight: 900;
   padding: 8px 20px;
   border-radius: 20px;
-  border: 3px solid #1a1a1a;
-  box-shadow: 4px 4px 0 #1a1a1a;
+  border: 3px solid var(--brand-dark-border);
+  box-shadow: 4px 4px 0 var(--brand-dark-border);
   transform: rotate(12deg);
   animation: badgePopIn 0.4s 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both, badgeWiggle 2s 0.6s ease-in-out infinite;
   z-index: 10;
@@ -170,7 +170,7 @@
   position: absolute;
   font-size: 36px;
   animation: starPopIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both, starFloat 3s ease-in-out infinite;
-  filter: drop-shadow(2px 2px 0 #1a1a1a);
+  filter: drop-shadow(2px 2px 0 var(--brand-dark-border));
 }
 
 .daily-boost-modal::before {
@@ -315,7 +315,7 @@
 .header-text {
   font-size: 38px;
   font-weight: 900;
-  color: #1a1a1a;
+  color: var(--brand-dark-text);
   letter-spacing: 3px;
   text-transform: uppercase;
   text-shadow: 3px 3px 0 rgba(255, 255, 255, 0.6);
@@ -325,7 +325,7 @@
 .cute-subheader {
   font-size: 16px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--brand-dark-text);
   opacity: 0.8;
   margin-bottom: 16px;
   animation: fadeSlideIn 0.4s 0.15s ease-out both;
@@ -579,7 +579,7 @@
 .credit-counter {
   font-size: 88px;
   font-weight: 900;
-  color: #1a1a1a;
+  color: var(--brand-dark-text);
   line-height: 1;
   text-shadow: 4px 4px 0 rgba(255, 255, 255, 0.6);
   transition: transform 0.1s ease;
@@ -606,7 +606,7 @@
 .credit-label {
   font-size: 24px;
   font-weight: 900;
-  color: #1a1a1a;
+  color: var(--brand-dark-text);
   letter-spacing: 2px;
   text-transform: uppercase;
 }
@@ -635,12 +635,12 @@
   font-weight: 900;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #1a1a1a;
+  color: var(--brand-dark-text);
   background: linear-gradient(180deg, #1dd1a1 0%, #10b981 100%);
-  border: 5px solid #1a1a1a;
+  border: 5px solid var(--brand-dark-border);
   border-radius: 60px;
   cursor: pointer;
-  box-shadow: 7px 7px 0 #1a1a1a;
+  box-shadow: 7px 7px 0 var(--brand-dark-border);
   transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
   position: relative;
   z-index: 1;
@@ -674,13 +674,13 @@
 
 .claim-button:hover {
   transform: translate(-4px, -4px) rotate(-1deg);
-  box-shadow: 11px 11px 0 #1a1a1a;
+  box-shadow: 11px 11px 0 var(--brand-dark-border);
   background: linear-gradient(180deg, #2eecb6 0%, #1dd1a1 100%);
 }
 
 .claim-button:active {
   transform: translate(3px, 3px);
-  box-shadow: 4px 4px 0 #1a1a1a;
+  box-shadow: 4px 4px 0 var(--brand-dark-border);
 }
 
 @keyframes buttonWiggle {
@@ -707,8 +707,8 @@
   padding: 20px;
   background: rgba(255, 255, 255, 0.6);
   border-radius: 20px;
-  border: 4px solid #1a1a1a;
-  box-shadow: 4px 4px 0 #1a1a1a;
+  border: 4px solid var(--brand-dark-border);
+  box-shadow: 4px 4px 0 var(--brand-dark-border);
   animation: turnstileSlideIn 0.3s ease-out both;
 }
 
@@ -726,7 +726,7 @@
 .turnstile-label {
   font-size: 14px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--brand-dark-text);
 }
 
 /* Claiming indicator */
@@ -737,7 +737,7 @@
   gap: 16px;
   font-size: 20px;
   font-weight: 800;
-  color: #1a1a1a;
+  color: var(--brand-dark-text);
   position: relative;
   z-index: 1;
   padding: 20px;
@@ -759,7 +759,7 @@
   width: 36px;
   height: 36px;
   border: 5px solid rgba(26, 26, 26, 0.2);
-  border-top-color: #1a1a1a;
+  border-top-color: var(--brand-dark-text);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -774,7 +774,7 @@
 .success-message {
   font-size: 36px;
   font-weight: 900;
-  color: #1a1a1a;
+  color: var(--brand-dark-text);
   text-transform: uppercase;
   letter-spacing: 3px;
   animation: successBounceIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
@@ -807,7 +807,7 @@
   padding: 10px 24px;
   font-size: 15px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--brand-dark-text);
   background: transparent;
   border: none;
   cursor: pointer;
@@ -846,7 +846,7 @@
   .daily-boost-modal {
     padding: 40px 24px 32px;
     border-radius: 28px;
-    box-shadow: 7px 7px 0 #1a1a1a;
+    box-shadow: 7px 7px 0 var(--brand-dark-border);
   }
 
   .daily-boost-modal::before,
@@ -904,7 +904,7 @@
   .claim-button {
     padding: 18px 28px;
     font-size: 18px;
-    box-shadow: 5px 5px 0 #1a1a1a;
+    box-shadow: 5px 5px 0 var(--brand-dark-border);
   }
 
   .btn-emoji {

@@ -1262,7 +1262,7 @@ html body .photo-action-buttons .action-button,
   right: 74px; /* Settings button (38px) + gap (12px) + settings position (24px) = 74px */
   height: 38px;
   z-index: 1001;
-  background: linear-gradient(135deg, #ff7eb3, #7868e6);
+  background: linear-gradient(135deg, var(--brand-adjuster-start), var(--brand-adjuster-end));
   border: none;
   border-radius: 8px;
   padding: 0 12px;
@@ -1463,7 +1463,7 @@ html body .photo-action-buttons .action-button,
   right: 74px; /* Settings button (38px) + gap (12px) + settings position (24px) = 74px */
   height: 38px;
   z-index: 1001;
-  background: linear-gradient(135deg, #ff7eb3, #7868e6);
+  background: linear-gradient(135deg, var(--brand-adjuster-start), var(--brand-adjuster-end));
   border: none;
   border-radius: 8px;
   padding: 0 12px;

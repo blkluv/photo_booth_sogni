@@ -104,7 +104,7 @@
   color: #fff;
   text-align: center;
   margin: 0;
-  background: linear-gradient(135deg, #fff 0%, #a78bfa 100%);
+  background: linear-gradient(135deg, #fff 0%, var(--brand-button-secondary) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -149,7 +149,7 @@
 }
 
 .login-modal-button.primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--brand-button-primary) 0%, var(--brand-button-primary-end) 100%);
   color: white;
 }
 
@@ -177,7 +177,7 @@
 .login-modal-link-button {
   background: none;
   border: none;
-  color: #a78bfa;
+  color: var(--brand-button-secondary);
   font-size: 14px;
   cursor: pointer;
   padding: 8px;
@@ -209,7 +209,7 @@
 /* Forgot Password Link */
 .login-modal-forgot-password {
   font-size: 13px;
-  color: #a78bfa;
+  color: var(--brand-button-secondary);
   text-decoration: none;
   align-self: flex-end;
 }
@@ -359,7 +359,7 @@
 }
 
 .login-modal-disclaimer a {
-  color: #a78bfa;
+  color: var(--brand-button-secondary);
   text-decoration: none;
 }
 
@@ -437,7 +437,7 @@
 
 /* Username Gradient */
 .username-gradient {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--brand-button-primary) 0%, var(--brand-button-primary-end) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

@@ -108,7 +108,7 @@
 .gimi-notification-prize {
   font-size: 1.2rem;
   font-weight: 900;
-  color: #ffdd00;
+  color: var(--brand-page-bg-mid);
   text-shadow: 
     0 0 15px rgba(255, 215, 0, 0.9),
     0 0 25px rgba(255, 215, 0, 0.6),
@@ -225,7 +225,7 @@
     bottom: -10px;
     left: 50%;
     transform: translateX(-50%);
-    background: linear-gradient(135deg, #8a2be2 0%, #6a1bb2 100%);
+    background: linear-gradient(135deg, var(--brand-gimi-purple) 0%, var(--brand-button-primary-end) 100%);
     border-radius: 30px;
     padding: 6px 12px;
     align-items: center;
@@ -270,7 +270,7 @@
   .gimi-notification-badge-amount {
     font-size: 1.1rem;
     font-weight: 900;
-    color: #ffdd00;
+    color: var(--brand-page-bg-mid);
     text-shadow: 0 0 10px rgba(255, 215, 0, 0.8), 0 2px 4px rgba(0, 0, 0, 0.5);
     letter-spacing: 0.5px;
     line-height: 1;

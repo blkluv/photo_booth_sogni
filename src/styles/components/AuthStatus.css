@@ -3,19 +3,19 @@
 /* Daily Boost Glow Animation - Enhanced for visibility */
 @keyframes dailyBoostGlow {
   0%, 100% {
-    box-shadow: 0 0 20px 4px rgba(16, 185, 129, 0.7), 0 0 40px 8px rgba(16, 185, 129, 0.4), 0 4px 0 #1a1a1a;
+    box-shadow: 0 0 20px 4px rgba(16, 185, 129, 0.7), 0 0 40px 8px rgba(16, 185, 129, 0.4), 0 4px 0 var(--brand-dark-border);
     transform: translate(0, 0) scale(1);
   }
   25% {
-    box-shadow: 0 0 30px 6px rgba(16, 185, 129, 0.9), 0 0 60px 12px rgba(16, 185, 129, 0.6), 0 6px 0 #1a1a1a;
+    box-shadow: 0 0 30px 6px rgba(16, 185, 129, 0.9), 0 0 60px 12px rgba(16, 185, 129, 0.6), 0 6px 0 var(--brand-dark-border);
     transform: translate(-2px, -2px) scale(1.05);
   }
   50% {
-    box-shadow: 0 0 35px 8px rgba(16, 185, 129, 1), 0 0 70px 16px rgba(16, 185, 129, 0.7), 0 8px 0 #1a1a1a;
+    box-shadow: 0 0 35px 8px rgba(16, 185, 129, 1), 0 0 70px 16px rgba(16, 185, 129, 0.7), 0 8px 0 var(--brand-dark-border);
     transform: translate(-3px, -3px) scale(1.08);
   }
   75% {
-    box-shadow: 0 0 30px 6px rgba(16, 185, 129, 0.9), 0 0 60px 12px rgba(16, 185, 129, 0.6), 0 6px 0 #1a1a1a;
+    box-shadow: 0 0 30px 6px rgba(16, 185, 129, 0.9), 0 0 60px 12px rgba(16, 185, 129, 0.6), 0 6px 0 var(--brand-dark-border);
     transform: translate(-2px, -2px) scale(1.05);
   }
 }
@@ -99,9 +99,9 @@
 .cosmic-wallet-container {
   position: relative;
   overflow: hidden;
-  background: #FFED4E;
-  border: 4px solid #1a1a1a;
-  box-shadow: 6px 6px 0 #1a1a1a;
+  background: var(--brand-page-bg);
+  border: 4px solid var(--brand-dark-border);
+  box-shadow: 6px 6px 0 var(--brand-dark-border);
 }
 
 /* Remove all the cosmic overlay effects */
@@ -199,7 +199,7 @@
   border-radius: 50%;
   pointer-events: none;
   z-index: -1;
-  background: radial-gradient(circle, #1a1a1a 0%, #1a1a1a 40%, rgba(26, 26, 26, 0.8) 60%, transparent 100%);
+  background: radial-gradient(circle, var(--brand-dark-text) 0%, var(--brand-dark-text) 40%, rgba(26, 26, 26, 0.8) 60%, transparent 100%);
   box-shadow: 
     0 0 3px rgba(26, 26, 26, 0.6),
     0 0 6px rgba(26, 26, 26, 0.4);
@@ -340,7 +340,7 @@
   border-radius: 50%;
   pointer-events: none;
   z-index: -1;
-  background: radial-gradient(circle, #1a1a1a 0%, #1a1a1a 40%, rgba(26, 26, 26, 0.8) 60%, transparent 100%);
+  background: radial-gradient(circle, var(--brand-dark-text) 0%, var(--brand-dark-text) 40%, rgba(26, 26, 26, 0.8) 60%, transparent 100%);
   box-shadow: 
     0 0 3px rgba(26, 26, 26, 0.6),
     0 0 6px rgba(26, 26, 26, 0.4);

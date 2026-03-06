@@ -94,7 +94,7 @@
   font-family: "Permanent Marker", cursive;
   font-size: 20px;
   font-weight: bold;
-  color: #ff5e8a;
+  color: var(--brand-accent-secondary);
   letter-spacing: 1px;
   white-space: nowrap;
   overflow: hidden;
@@ -102,6 +102,25 @@
   margin: 0;
   padding: 0;
   line-height: 1.2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brandLogo {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+}
+
+.brandX {
+  opacity: 0.7;
+  font-size: 16px;
+}
+
+.brandSogni {
+  font-size: 16px;
 }
 
 .cameraView {
@@ -247,7 +266,7 @@
   gap: 8px;
   font-family: "Permanent Marker", cursive;
   font-size: 16px;
-  color: #333;
+  color: var(--brand-text-secondary);
   cursor: pointer;
   padding: 8px 16px;
   border-radius: 20px;
@@ -478,7 +497,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(255, 51, 102, 0.95) 0%, rgba(113, 50, 232, 0.95) 100%);
+  background: linear-gradient(135deg, var(--brand-accent-primary) 0%, var(--brand-gradient-end) 100%);
   padding: 20px;
   transform: translateY(-100%);
   transition: transform 0.3s ease-in-out;
@@ -520,7 +539,7 @@
 }
 
 :global(.dismiss-overlay-btn:hover) {
-  background: rgba(255, 51, 102, 0.8);
+  background: var(--brand-accent-primary);
   transform: scale(1.1);
 }
 
@@ -568,7 +587,7 @@
 :global(.slider-input) {
   width: 100%;
   height: 12px;
-  background: linear-gradient(to right, #ff3366, #7132e8);
+  background: linear-gradient(to right, var(--brand-accent-primary), var(--brand-gradient-end));
   border-radius: 6px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   -webkit-appearance: none;
@@ -583,7 +602,7 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: #ffd301;
+  background: var(--brand-slider-thumb);
   cursor: pointer;
   border: 2px solid white;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
@@ -594,7 +613,7 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: #ffd301;
+  background: var(--brand-slider-thumb);
   cursor: pointer;
   border: 2px solid white;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
@@ -603,14 +622,14 @@
 :global(.slider-input::-webkit-slider-runnable-track) {
   height: 16px;
   border-radius: 8px;
-  background: linear-gradient(to right, #ff3366, #7132e8);
+  background: linear-gradient(to right, var(--brand-accent-primary), var(--brand-gradient-end));
   border: none;
 }
 
 :global(.slider-input::-moz-range-track) {
   height: 16px;
   border-radius: 8px;
-  background: linear-gradient(to right, #ff3366, #7132e8);
+  background: linear-gradient(to right, var(--brand-accent-primary), var(--brand-gradient-end));
   border: none;
 }
 
@@ -1113,7 +1132,7 @@
 }
 
 .cameraDeviceMenuCheck {
-  color: #ff5e8a;
+  color: var(--brand-accent-secondary);
   font-weight: 700;
 }
 

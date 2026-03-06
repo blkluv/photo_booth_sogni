@@ -11,7 +11,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #ffeb3b;
+  background: var(--brand-page-bg);
   z-index: 10;
   overflow: hidden;
   transition: opacity 0.5s ease-out;
@@ -61,11 +61,43 @@
   transition: opacity 0.3s ease-out;
 }
 
+.brand-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 28px;
+  margin-top: -15px;
+}
+
+.brand-logo {
+  height: 3.6rem;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.brand-title-x {
+  font-family: 'Permanent Marker', cursive;
+  font-size: 1.6rem;
+  color: var(--brand-dark-text);
+  opacity: 0.5;
+}
+
+.brand-title-sogni {
+  font-family: 'Permanent Marker', cursive;
+  font-size: 1.9rem;
+  color: var(--brand-dark-text);
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+  line-height: 1.15;
+  text-align: center;
+}
+
 .start-menu-title {
   font-size: 2.5rem;
   margin-bottom: 8px;
   margin-top: -15px;
-  color: #1a1a1a;
+  color: var(--brand-dark-text);
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
   font-weight: 700;
   font-family: 'Permanent Marker', cursive;
@@ -76,7 +108,7 @@
 .start-menu-tagline {
   font-size: 1.15rem;
   margin-bottom: 30px;
-  color: #333;
+  color: var(--brand-text-secondary);
   font-weight: 600;
   text-transform: lowercase;
   letter-spacing: 0.5px;
@@ -214,7 +246,7 @@
   position: relative;
   margin-bottom: 8px;
   background: rgba(26, 26, 26, 0.9);
-  color: #FFED4E;
+  color: var(--brand-page-bg);
   padding: 6px 12px;
   border-radius: 16px;
   font-family: 'Helvetica', sans-serif;
@@ -340,7 +372,7 @@
   position: relative;
   margin-bottom: 12px;
   background: rgba(26, 26, 26, 0.9);
-  color: #FFED4E;
+  color: var(--brand-page-bg);
   padding: 8px 16px;
   border-radius: 18px;
   font-family: 'Helvetica', sans-serif;
@@ -418,7 +450,7 @@
 .shoot-your-own-btn {
   font-family: "Permanent Marker", cursive;
   font-size: 2.2rem;
-  color: #1a1a1a;
+  color: var(--brand-dark-text);
   background: transparent;
   border: none;
   cursor: pointer;
@@ -665,7 +697,7 @@ body:has(.camera-start-menu.phase-options .options-section.no-animations) .auth-
 .step-separator {
   font-family: "Permanent Marker", cursive;
   font-size: 1.6rem;
-  color: #333;
+  color: var(--brand-text-secondary);
   text-transform: lowercase;
   margin: 0 14px;
   align-self: center;
@@ -735,7 +767,7 @@ body:has(.camera-start-menu.phase-options .options-section.no-animations) .auth-
 .section-title {
   font-size: 1rem;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--brand-dark-text);
   text-align: center;
   margin-bottom: 16px;
   letter-spacing: 0.5px;
@@ -799,7 +831,7 @@ body:has(.camera-start-menu.phase-options .options-section.no-animations) .auth-
 .polaroid-caption {
   font-family: "Permanent Marker", cursive;
   font-size: 1.4rem;
-  color: #333;
+  color: var(--brand-text-secondary);
   text-transform: lowercase;
   letter-spacing: 0.5px;
   position: relative;
@@ -815,7 +847,8 @@ body:has(.camera-start-menu.phase-options .options-section.no-animations) .auth-
   transform: translateX(-50%);
   font-family: "Permanent Marker", cursive;
   font-size: 0.75rem;
-  color: #72e3f2;
+  color: var(--brand-dark-text);
+  opacity: 0.6;
   background: none;
   border: none;
   cursor: pointer;
@@ -850,7 +883,7 @@ body:has(.camera-start-menu.phase-options .options-section.no-animations) .auth-
   font-family: "Permanent Marker", cursive;
   font-size: 20px;
   font-weight: 400;
-  color: #333;
+  color: var(--brand-text-secondary);
   text-overflow: ellipsis;
   white-space: nowrap;
   overflow: hidden;
@@ -934,14 +967,14 @@ body:has(.camera-start-menu.phase-options .options-section.no-animations) .auth-
 /* Style for non-clickable options */
 .option-button.info-only {
   cursor: default;
-  background-color: #333;
+  background-color: var(--brand-text-secondary);
   opacity: 0.85;
   position: relative;
 }
 
 .option-button.info-only:hover {
   transform: none;
-  background-color: #333;
+  background-color: var(--brand-text-secondary);
 }
 
 .polaroid-button.option-button.take-photo::after {
@@ -958,7 +991,7 @@ body:has(.camera-start-menu.phase-options .options-section.no-animations) .auth-
   font-family: "Permanent Marker", cursive;
   font-size: 22px;
   font-weight: 400;
-  color: #333;
+  color: var(--brand-text-secondary);
   text-transform: lowercase;
   letter-spacing: 0.5px;
   text-overflow: ellipsis;
@@ -981,7 +1014,7 @@ body:has(.camera-start-menu.phase-options .options-section.no-animations) .auth-
   font-family: "Permanent Marker", cursive;
   font-size: 22px;
   font-weight: 400;
-  color: #333;
+  color: var(--brand-text-secondary);
   text-transform: lowercase;
   letter-spacing: 0.5px;
   text-overflow: ellipsis;
@@ -2061,7 +2094,7 @@ body:has(.camera-start-menu.phase-options .options-section.no-animations) .auth-
   font-size: 1.2rem;
   font-weight: 500;
   margin-bottom: 15px;
-  color: #ff7eb3;
+  color: var(--brand-adjuster-start);
   text-transform: uppercase;
   letter-spacing: 1.5px;
   position: relative;

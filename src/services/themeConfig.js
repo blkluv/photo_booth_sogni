@@ -198,6 +198,26 @@ class ThemeConfigService {
   }
 
   /**
+   * Get brand colors for a theme
+   * @param {string} themeId - Theme identifier
+   * @returns {Promise<Object|null>} Brand colors object or null if theme has no brand colors
+   */
+  async getBrandColors(themeId) {
+    const theme = await this.getTheme(themeId);
+    return theme?.brand?.colors || null;
+  }
+
+  async getBrandTitle(themeId) {
+    const theme = await this.getTheme(themeId);
+    return theme?.brand?.title || null;
+  }
+
+  async getBrandLogo(themeId) {
+    const theme = await this.getTheme(themeId);
+    return theme?.brand?.logo || null;
+  }
+
+  /**
    * Check if themes are available
    * @returns {Promise<boolean>} True if themes loaded successfully
    */

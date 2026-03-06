@@ -75,6 +75,9 @@ interface CameraStartMenuProps {
   onResetUploadedPhoto?: () => void;
   // Theme state
   currentThemes?: Record<string, boolean>;
+  // Brand override
+  brandTitle?: string | null;
+  brandLogo?: string | null;
 }
 
 const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
@@ -104,7 +107,9 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
   hasExistingUpload = false,
   onResetCameraPhoto,
   onResetUploadedPhoto,
-  currentThemes = {}
+  currentThemes = {},
+  brandTitle = null,
+  brandLogo = null
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showStyleDropdown, setShowStyleDropdown] = useState(false);
@@ -376,8 +381,15 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
         {showIntro ? (
           /* Intro Section - Camera + Video */
           <div className={`intro-section ${isTransitioning ? 'exiting' : ''}`}>
-            <h1 className="start-menu-title">SOGNI PHOTOBOOTH</h1>
-            <p className="start-menu-tagline">{randomTagline}</p>
+            {brandLogo ? (
+              <div className="brand-title-row">
+                <img src={brandLogo} alt="" className="brand-logo" />
+                <span className="brand-title-x">x</span><span className="brand-title-sogni">Sogni<br />Photobooth</span>
+              </div>
+            ) : (
+              <h1 className="start-menu-title">{brandTitle || 'SOGNI PHOTOBOOTH'}</h1>
+            )}
+            {!brandLogo && <p className="start-menu-tagline">{randomTagline}</p>}
 
             <div className="intro-media-container">
               {/* Polaroid Camera Mascot */}
@@ -462,8 +474,15 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
           /* Options Section - 3 Polaroids */
           <div className={`options-section ${shouldPlayAnimations ? 'with-animations' : 'no-animations'}`}>
             <div className="top-content">
-              <h1 className="start-menu-title">SOGNI PHOTOBOOTH</h1>
-              <p className="start-menu-tagline">{randomTagline}</p>
+              {brandLogo ? (
+                <div className="brand-title-row">
+                  <img src={brandLogo} alt="" className="brand-logo" />
+                  <span className="brand-title-x">x</span><span className="brand-title-sogni">Sogni<br />Photobooth</span>
+                </div>
+              ) : (
+                <h1 className="start-menu-title">{brandTitle || 'SOGNI PHOTOBOOTH'}</h1>
+              )}
+              {!brandLogo && <p className="start-menu-tagline">{randomTagline}</p>}
 
               {/* All Polaroids in One Row */}
               <div className="polaroid-options-container">

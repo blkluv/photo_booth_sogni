@@ -2,9 +2,41 @@
    Overall Photobooth Theme
    ------------------------- */
 
+/* Brand color variables - defaults are Sogni pink-purple palette */
+:root {
+  --brand-gradient-start: #ff61d5;
+  --brand-gradient-end: #7132e8;
+  --brand-frame-color: #ff3366;
+  --brand-accent-primary: #ff3366;
+  --brand-accent-secondary: #ff5e8a;
+  --brand-accent-tertiary: #72e3f2;
+  --brand-accent-tertiary-hover: #4bbbd3;
+  --brand-header-bg: #ff99cc;
+  --brand-header-stroke: #ff3366;
+  --brand-page-bg: #FFED4E;
+  --brand-page-bg-mid: #FFD700;
+  --brand-page-bg-end: #FFC700;
+  --brand-slider-thumb: #ffd301;
+  --brand-glitch-primary: #ff0066;
+  --brand-glitch-secondary: #00ccff;
+  --brand-button-primary: #667eea;
+  --brand-button-primary-end: #764ba2;
+  --brand-button-secondary: #a78bfa;
+  --brand-adjuster-start: #ff7eb3;
+  --brand-adjuster-end: #7868e6;
+  --brand-dark-text: #1a1a1a;
+  --brand-dark-border: #1a1a1a;
+  --brand-text-secondary: #333333;
+  --brand-text-muted: #666666;
+  --brand-card-bg: #ffffff;
+  --brand-pwa-pink: #FF69B4;
+  --brand-gimi-purple: #8a2be2;
+}
+
 /* Main gradient background for entire photobooth app */
 .photobooth-app {
-  background: linear-gradient(135deg, #ff61d5 0%, #7132e8 100%);
+  background: linear-gradient(135deg, var(--brand-gradient-start) 0%, var(--brand-gradient-end) 100%);
+  transition: background 0.5s ease;
   font-family: 'Arial', sans-serif;
   overflow: hidden;
   /* Mobile Safari viewport height fixes - ensure full coverage */
@@ -23,7 +55,8 @@
 
 /* Outer frame surrounding video feed, thumbnails, header etc. */
 .photobooth-frame {
-  background-color: #ff3366;
+  background-color: var(--brand-frame-color);
+  transition: background-color 0.5s ease;
   border-radius: 3px !important;
   box-shadow: 0 10px 25px rgba(0,0,0,0.2) !important;
   max-width: 1000px !important;

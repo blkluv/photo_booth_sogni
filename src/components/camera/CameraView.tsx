@@ -105,6 +105,10 @@ interface CameraViewProps {
   onCameraSelect?: (deviceId: string) => void;
   /** TezDev theme setting */
   tezdevTheme?: unknown;
+  /** Brand title override */
+  brandTitle?: string | null;
+  /** Brand logo URL */
+  brandLogo?: string | null;
 }
 
 export const CameraView: React.FC<CameraViewProps> = (props) => {
@@ -487,7 +491,14 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
         {/* Title and settings in the polaroid top border */}
         <div className={styles.polaroidHeader}>
           <div className={styles.title}>
-            SOGNI PHOTOBOOTH
+            {props.brandLogo ? (
+              <>
+                <img src={props.brandLogo} alt="" className={styles.brandLogo} />
+                <span className={styles.brandX}>x</span><span className={styles.brandSogni}>Sogni Photobooth</span>
+              </>
+            ) : (
+              props.brandTitle || 'SOGNI PHOTOBOOTH'
+            )}
           </div>
         </div>
         

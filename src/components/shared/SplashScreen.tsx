@@ -9,9 +9,11 @@ const AUDIO_ENABLED_KEY = 'sogni_splash_audio_enabled';
 interface SplashScreenProps {
   onDismiss: () => void;
   bypassLocalStorage?: boolean; // When true, ignores localStorage dismissal preference
+  brandTitle?: string | null;
+  brandLogo?: string | null;
 }
 
-const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss, bypassLocalStorage = false }) => {
+const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss, bypassLocalStorage = false, brandLogo = null }) => {
   const [isVisible, setIsVisible] = useState(true);
   const [isHiding, setIsHiding] = useState(false);
   const [hasCheckedStorage, setHasCheckedStorage] = useState(false);
@@ -100,7 +102,13 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss, bypassLocalStora
       </button>
       
       <div className="splash-content">
-        
+        {brandLogo && (
+          <div className="splash-brand-logo-container">
+            <img src={brandLogo} alt="" className="splash-brand-logo" />
+            <span className="splash-brand-x">x</span><span className="splash-brand-sogni">Sogni<br />Photobooth</span>
+          </div>
+        )}
+
         <div className="splash-layout">
           <div className="polaroid-splash-container">
             <img 

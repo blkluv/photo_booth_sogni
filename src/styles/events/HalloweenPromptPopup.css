@@ -201,7 +201,7 @@
 
 .character-count {
   font-size: 0.9rem;
-  color: #666;
+  color: var(--brand-text-muted);
 }
 
 /* Footer */
@@ -227,7 +227,7 @@
 
 .halloween-prompt-btn-cancel {
   background: white;
-  color: #666;
+  color: var(--brand-text-muted);
   border: 2px solid #ddd;
 }
 

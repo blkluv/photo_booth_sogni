@@ -666,7 +666,7 @@ body:has(.photos-corner-btn) .options-section .corner-btn.continue-corner-btn {
 
 /* Current style indicator for Style Explorer mode */
 .film-frame.current-style:not(.selected) {
-  border: 4px solid #72e3f2 !important;
+  border: 4px solid var(--brand-accent-tertiary) !important;
   box-shadow: 0 4px 16px rgba(114, 227, 242, 0.4) !important;
   transform: scale(1.02) !important;
   transition: all 0.3s ease !important;
@@ -680,7 +680,7 @@ body:has(.photos-corner-btn) .options-section .corner-btn.continue-corner-btn {
   left: -4px;
   right: -4px;
   bottom: -4px;
-  background: linear-gradient(45deg, #72e3f2, #4bbbd3);
+  background: linear-gradient(45deg, var(--brand-accent-tertiary), var(--brand-accent-tertiary-hover));
   border-radius: 6px;
   z-index: -1;
   opacity: 0.3;
@@ -1153,7 +1153,7 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
   top: 50%;
   transform: translateY(-50%);
   background: none;
-  color: #FF69B4 !important;
+  color: var(--brand-pwa-pink) !important;
   border: none;
   width: 60px;
   height: 60px;
@@ -1401,7 +1401,7 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
 }
 
 .more-btn {
-  background: #72e3f2;
+  background: var(--brand-accent-tertiary);
   position: fixed;
   right: 20px;
   bottom: 20px;
@@ -1503,7 +1503,7 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
   
   /* More prominent selected state on mobile */
   .prompt-selector-header button[style*="rgba(114, 227, 242, 0.9)"] {
-    background: linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%) !important;
+    background: linear-gradient(135deg, var(--brand-accent-tertiary) 0%, var(--brand-accent-tertiary-hover) 100%) !important;
     border: 3px solid #ffffff !important;
     box-shadow: 0 4px 16px rgba(114, 227, 242, 0.6) !important;
     color: white !important;
@@ -1517,7 +1517,7 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
     color: #333 !important;
   }
-  
+
   /* Custom button special styling on mobile */
   .prompt-selector-header button[style*="linear-gradient(135deg, #3b82f6"] {
     border: 3px solid #ffffff !important;

@@ -103,7 +103,7 @@
 }
 
 .switch-input:checked + .switch-slider {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--brand-button-primary) 0%, var(--brand-button-primary-end) 100%);
 }
 
 .switch-input:checked + .switch-slider::before {
@@ -140,7 +140,7 @@
   height: 18px;
   margin-top: 2px;
   cursor: pointer;
-  accent-color: #667eea;
+  accent-color: var(--brand-button-primary);
 }
 
 .checkbox-text {

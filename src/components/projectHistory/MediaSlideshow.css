@@ -381,7 +381,7 @@
 }
 
 .slideshow-remix-btn {
-  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+  background: linear-gradient(135deg, var(--brand-button-secondary) 0%, var(--brand-button-primary) 100%);
   border: 2px solid #fff;
 }
 

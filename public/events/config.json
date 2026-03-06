@@ -11,6 +11,39 @@
         "narrow": [
           "/events/mandela/narrow_1.png?2"
         ]
+      },
+      "brand": {
+        "title": "MANDALA CLUB x SOGNI",
+        "logo": "/events/mandela/logo_white.png",
+        "colors": {
+          "gradientStart": "#008C8C",
+          "gradientEnd": "#006666",
+          "frameColor": "#008C8C",
+          "accentPrimary": "#008C8C",
+          "accentSecondary": "#F8F15B",
+          "accentTertiary": "#6185F2",
+          "accentTertiaryHover": "#4a6fd4",
+          "headerBg": "#004D4D",
+          "headerStroke": "#F8F15B",
+          "pageBg": "#008C8C",
+          "pageBgMid": "#007A7A",
+          "pageBgEnd": "#006666",
+          "sliderThumb": "#F8F15B",
+          "glitchPrimary": "#F8F15B",
+          "glitchSecondary": "#008C8C",
+          "buttonPrimary": "#006666",
+          "buttonPrimaryEnd": "#004D4D",
+          "buttonSecondary": "#6185F2",
+          "adjusterStart": "#006666",
+          "adjusterEnd": "#004D4D",
+          "darkText": "#FFFFFF",
+          "darkBorder": "#FFFFFF",
+          "textSecondary": "#F4F1ED",
+          "textMuted": "#C8C4BE",
+          "cardBg": "#007A7A",
+          "pwaPink": "#DE73BE",
+          "gimiPurple": "#6185F2"
+        }
       }
     },
     "function1": {

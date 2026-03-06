@@ -796,7 +796,7 @@ const renderMotionPicker = (selectedCategory, setSelectedCategory, handleGenerat
           gap: '4px',
           fontFamily: '"Permanent Marker", cursive',
           fontSize: isMobilePortrait ? '11px' : (isMobile ? '12px' : '14px'),
-          color: '#1a1a1a'
+          color: 'var(--brand-dark-text)'
         }}>
           <span style={{ fontSize: isMobilePortrait ? '12px' : (isMobile ? '14px' : '16px') }}>{category.emoji}</span>
           <span>{category.name}</span>
@@ -12327,7 +12327,7 @@ const PhotoGallery = ({
             position: 'fixed',
             top: 24,
             right: 24,
-            background: 'linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%)',
+            background: 'linear-gradient(135deg, var(--brand-accent-tertiary) 0%, var(--brand-accent-tertiary-hover) 100%)',
             border: 'none',
             color: '#fff',
             fontSize: 20,
@@ -14120,7 +14120,7 @@ const PhotoGallery = ({
                       ),
                       left: '50%',
                       transform: 'translateX(-50%)',
-                      background: selectedPhoto.generatingVideo ? 'rgba(30, 30, 30, 0.98)' : '#ffeb3b',
+                      background: selectedPhoto.generatingVideo ? 'rgba(30, 30, 30, 0.98)' : 'var(--brand-page-bg)',
                       borderRadius: '8px',
                       padding: '8px',
                       border: 'none',
@@ -14423,7 +14423,7 @@ const PhotoGallery = ({
             position: 'fixed',
             top: 24,
             right: 72,
-            background: 'linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%)',
+            background: 'linear-gradient(135deg, var(--brand-accent-tertiary) 0%, var(--brand-accent-tertiary-hover) 100%)',
             border: 'none',
             color: '#fff',
             fontSize: 20,
@@ -14511,7 +14511,7 @@ const PhotoGallery = ({
                 onClick={onRandomMixSelect}
                 style={{
                   background: selectedStyle === 'randomMix' ? 'rgba(114, 227, 242, 0.9)' : (isExtensionMode ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.9)'),
-                  border: selectedStyle === 'randomMix' ? '3px solid #72e3f2' : '3px solid transparent',
+                  border: selectedStyle === 'randomMix' ? '3px solid var(--brand-accent-tertiary)' : '3px solid transparent',
                   borderRadius: '20px',
                   padding: '10px 16px',
                   display: 'flex',
@@ -14542,7 +14542,7 @@ const PhotoGallery = ({
                   onClick={onRandomSingleSelect}
                   style={{
                     background: selectedStyle === 'random' ? 'rgba(114, 227, 242, 0.9)' : (isExtensionMode ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.9)'),
-                    border: selectedStyle === 'random' ? '3px solid #72e3f2' : '3px solid transparent',
+                    border: selectedStyle === 'random' ? '3px solid var(--brand-accent-tertiary)' : '3px solid transparent',
                     borderRadius: '20px',
                     padding: '10px 16px',
                     display: 'flex',
@@ -14573,7 +14573,7 @@ const PhotoGallery = ({
                 onClick={onOneOfEachSelect}
                 style={{
                   background: selectedStyle === 'oneOfEach' ? 'rgba(114, 227, 242, 0.9)' : (isExtensionMode ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.9)'),
-                  border: selectedStyle === 'oneOfEach' ? '3px solid #72e3f2' : '3px solid transparent',
+                  border: selectedStyle === 'oneOfEach' ? '3px solid var(--brand-accent-tertiary)' : '3px solid transparent',
                   borderRadius: '20px',
                   padding: '10px 16px',
                   display: 'flex',
@@ -14866,7 +14866,7 @@ const PhotoGallery = ({
                 transition: 'all 0.2s ease',
                 background: 'none',
                 border: 'none',
-                color: showSearchInput ? '#72e3f2' : 'white',
+                color: showSearchInput ? 'var(--brand-accent-tertiary)' : 'white',
                 opacity: showSearchInput ? 1 : 0.8
               }}
               title="Search styles"
@@ -14902,7 +14902,7 @@ const PhotoGallery = ({
                   }}
                   onFocus={(e) => {
                     e.target.style.background = 'rgba(255, 255, 255, 0.15)';
-                    e.target.style.borderColor = '#72e3f2';
+                    e.target.style.borderColor = 'var(--brand-accent-tertiary)';
                   }}
                   onBlur={(e) => {
                     e.target.style.background = 'rgba(255, 255, 255, 0.1)';
@@ -14974,7 +14974,7 @@ const PhotoGallery = ({
                 onClick={() => onPortraitTypeChange && onPortraitTypeChange('headshot')}
                 style={{
                   background: 'transparent',
-                  border: portraitType === 'headshot' ? '3px solid #72e3f2' : 'none',
+                  border: portraitType === 'headshot' ? '3px solid var(--brand-accent-tertiary)' : 'none',
                   borderRadius: '50%',
                   padding: '0',
                   cursor: 'pointer',
@@ -15025,7 +15025,7 @@ const PhotoGallery = ({
               onClick={() => onPortraitTypeChange && onPortraitTypeChange('medium')}
               style={{
                 background: 'transparent',
-                border: portraitType === 'medium' ? '3px solid #72e3f2' : 'none',
+                border: portraitType === 'medium' ? '3px solid var(--brand-accent-tertiary)' : 'none',
                 borderRadius: '50%',
                 padding: '0',
                 cursor: 'pointer',
@@ -15216,7 +15216,7 @@ const PhotoGallery = ({
                       style={{
                         width: '16px',
                         height: '16px',
-                        accentColor: '#72e3f2'
+                        accentColor: 'var(--brand-accent-tertiary)'
                       }}
                     />
                     <span style={{ flex: 1, fontWeight: 600, fontSize: '12px' }}>{group.name}</span>
@@ -17787,7 +17787,7 @@ const PhotoGallery = ({
                 color: '#222',
                 backgroundColor: '#fff'
               }}
-              onFocus={e => e.target.style.borderColor = '#4bbbd3'}
+              onFocus={e => e.target.style.borderColor = 'var(--brand-accent-tertiary-hover)'}
               onBlur={e => e.target.style.borderColor = '#e0e0e0'}
               onKeyDown={e => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -17817,8 +17817,8 @@ const PhotoGallery = ({
                 'Make into Time Magazine cover with "The Year of AI" and "with SOGNI AI"'
               ];
               const chipBackgrounds = [
-                'linear-gradient(135deg, #72e3f2, #4bbbd3)',
-                'linear-gradient(135deg, #ffb6e6, #ff5e8a)',
+                'linear-gradient(135deg, var(--brand-accent-tertiary), var(--brand-accent-tertiary-hover))',
+                'linear-gradient(135deg, var(--brand-header-bg), var(--brand-accent-secondary))',
                 'linear-gradient(135deg, #ffd86f, #fc6262)',
                 'linear-gradient(135deg, #a8e063, #56ab2f)',
                 'linear-gradient(135deg, #f093fb, #f5576c)',
@@ -18110,7 +18110,7 @@ const PhotoGallery = ({
         >
           <div
             style={{
-              backgroundColor: '#ffeb3b',
+              backgroundColor: 'var(--brand-page-bg)',
               borderRadius: '16px',
               maxWidth: '520px',
               width: '100%',
@@ -18354,7 +18354,7 @@ const PhotoGallery = ({
                 width: '48px',
                 height: '48px',
                 border: '3px solid rgba(255, 255, 255, 0.2)',
-                borderTopColor: '#667eea',
+                borderTopColor: 'var(--brand-button-primary)',
                 borderRadius: '50%',
                 animation: 'spin 1s linear infinite'
               }} />
@@ -18726,7 +18726,7 @@ const PhotoGallery = ({
         >
           <div
             style={{
-              backgroundColor: '#ffeb3b',
+              backgroundColor: 'var(--brand-page-bg)',
               borderRadius: '12px',
               maxWidth: '520px',
               width: '100%',
@@ -19379,7 +19379,7 @@ const PhotoGallery = ({
             ),
             left: '50%',
             transform: 'translateX(-50%)',
-            background: '#ffeb3b',
+            background: 'var(--brand-page-bg)',
             borderRadius: '8px',
             padding: '8px',
             border: 'none',
@@ -19445,7 +19445,7 @@ const PhotoGallery = ({
             ),
             left: '50%',
             transform: 'translateX(-50%)',
-            background: '#ffeb3b',
+            background: 'var(--brand-page-bg)',
             borderRadius: '8px',
             padding: '8px',
             border: 'none',

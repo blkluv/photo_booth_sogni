@@ -58,13 +58,13 @@
 .aspect-ratio-label {
   font-size: 14px;
   font-weight: 600;
-  color: #333;
+  color: var(--brand-text-secondary);
   line-height: 1.2;
 }
 
 .aspect-ratio-ratio {
   font-size: 12px;
-  color: #666;
+  color: var(--brand-text-muted);
   font-weight: 400;
   line-height: 1;
 }
@@ -116,7 +116,7 @@
 
 .aspect-ratio-option.active {
   background: rgba(255, 94, 138, 0.15);
-  color: #ff5e8a;
+  color: var(--brand-accent-secondary);
 }
 
 .aspect-ratio-dropdown .option-icon {
@@ -138,13 +138,13 @@
 .aspect-ratio-dropdown .option-label {
   font-size: 14px;
   font-weight: 500;
-  color: #333;
+  color: var(--brand-text-secondary);
   line-height: 1.2;
 }
 
 .aspect-ratio-dropdown .option-ratio {
   font-size: 12px;
-  color: #666;
+  color: var(--brand-text-muted);
   font-weight: 400;
   line-height: 1;
 }

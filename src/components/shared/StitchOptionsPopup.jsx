@@ -102,7 +102,7 @@ const StitchOptionsPopup = ({
     >
       <div
         style={{
-          backgroundColor: '#ffeb3b',
+          backgroundColor: 'var(--brand-page-bg)',
           borderRadius: '16px',
           maxWidth: '480px',
           width: '100%',
@@ -183,7 +183,7 @@ const StitchOptionsPopup = ({
                 height: '48px',
                 margin: '0 auto 16px',
                 border: '4px solid rgba(255, 235, 59, 0.3)',
-                borderTopColor: '#ffeb3b',
+                borderTopColor: 'var(--brand-page-bg)',
                 borderRadius: '50%',
                 animation: 'spin 1s linear infinite'
               }} />
@@ -415,7 +415,7 @@ const StitchOptionsPopup = ({
                   overflow: 'hidden'
                 }}>
                   <div style={{
-                    background: 'linear-gradient(90deg, #ffeb3b, #ffc107)',
+                    background: 'linear-gradient(90deg, var(--brand-page-bg), #ffc107)',
                     height: '100%',
                     width: `${weightedProgressPercent}%`,
                     transition: 'width 0.3s ease',

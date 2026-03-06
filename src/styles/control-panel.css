@@ -13,7 +13,7 @@
 .control-panel select,
 .control-panel input[type="text"],
 .control-panel button {
-  border: 3px solid #ff3366;
+  border: 3px solid var(--brand-accent-primary);
   border-radius: 8px;
   background-color: white;
   font-weight: bold;
@@ -21,12 +21,12 @@
 }
 
 .control-panel button {
-  background-color: #ff3366;
+  background-color: var(--brand-accent-primary);
   color: white;
   font-weight: bold;
 }
 
 .control-panel button:hover {
-  background-color: #ff5e8a;
+  background-color: var(--brand-accent-secondary);
   transform: scale(1.05);
 } 

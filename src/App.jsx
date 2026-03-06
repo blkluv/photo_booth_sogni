@@ -1712,27 +1712,93 @@ const App = () => {
 
   // Update CSS variables when theme changes
   useEffect(() => {
-    const updatePolaroidBorders = () => {
+    const updateThemeStyles = async () => {
       const root = document.documentElement;
-      
+
       // In Style Explorer (prompts mode), always show default polaroid borders regardless of theme
       if (currentPage === 'prompts') {
         // Don't modify borders here - let the prompts mode effect handle it
         return;
       }
-      
+
       if (tezdevTheme !== 'off') {
         // Theme frame is active - remove polaroid borders since theme provides its own
         root.style.setProperty('--polaroid-side-border', '0px');
         root.style.setProperty('--polaroid-bottom-border', '0px');
+
+        // Apply brand title, logo and colors if the theme defines them
+        const title = await themeConfigService.getBrandTitle(tezdevTheme);
+        setBrandTitle(title);
+        const logo = await themeConfigService.getBrandLogo(tezdevTheme);
+        setBrandLogo(logo);
+        const brandColors = await themeConfigService.getBrandColors(tezdevTheme);
+        if (brandColors) {
+          const colorMap = {
+            gradientStart: '--brand-gradient-start',
+            gradientEnd: '--brand-gradient-end',
+            frameColor: '--brand-frame-color',
+            accentPrimary: '--brand-accent-primary',
+            accentSecondary: '--brand-accent-secondary',
+            accentTertiary: '--brand-accent-tertiary',
+            accentTertiaryHover: '--brand-accent-tertiary-hover',
+            headerBg: '--brand-header-bg',
+            headerStroke: '--brand-header-stroke',
+            pageBg: '--brand-page-bg',
+            pageBgMid: '--brand-page-bg-mid',
+            pageBgEnd: '--brand-page-bg-end',
+            sliderThumb: '--brand-slider-thumb',
+            glitchPrimary: '--brand-glitch-primary',
+            glitchSecondary: '--brand-glitch-secondary',
+            buttonPrimary: '--brand-button-primary',
+            buttonPrimaryEnd: '--brand-button-primary-end',
+            buttonSecondary: '--brand-button-secondary',
+            adjusterStart: '--brand-adjuster-start',
+            adjusterEnd: '--brand-adjuster-end',
+            darkText: '--brand-dark-text',
+            darkBorder: '--brand-dark-border',
+            textSecondary: '--brand-text-secondary',
+            textMuted: '--brand-text-muted',
+            cardBg: '--brand-card-bg',
+            pwaPink: '--brand-pwa-pink',
+            gimiPurple: '--brand-gimi-purple',
+          };
+          for (const [key, cssVar] of Object.entries(colorMap)) {
+            if (brandColors[key]) {
+              root.style.setProperty(cssVar, brandColors[key]);
+            }
+          }
+        } else {
+          // Theme has no brand colors - remove any overrides
+          removeBrandColors(root);
+        }
       } else {
-        // No theme frame - remove any inline styles to let CSS media queries control the borders
+        // No theme frame - remove any inline styles to let CSS defaults apply
         root.style.removeProperty('--polaroid-side-border');
         root.style.removeProperty('--polaroid-bottom-border');
+        removeBrandColors(root);
+        setBrandTitle(null);
+        setBrandLogo(null);
       }
     };
 
-    updatePolaroidBorders();
+    const removeBrandColors = (root) => {
+      const brandVars = [
+        '--brand-gradient-start', '--brand-gradient-end', '--brand-frame-color',
+        '--brand-accent-primary', '--brand-accent-secondary', '--brand-accent-tertiary',
+        '--brand-accent-tertiary-hover', '--brand-header-bg', '--brand-header-stroke',
+        '--brand-page-bg', '--brand-page-bg-mid', '--brand-page-bg-end',
+        '--brand-slider-thumb', '--brand-glitch-primary', '--brand-glitch-secondary',
+        '--brand-button-primary', '--brand-button-primary-end', '--brand-button-secondary',
+        '--brand-adjuster-start', '--brand-adjuster-end',
+        '--brand-dark-text', '--brand-dark-border', '--brand-text-secondary', '--brand-text-muted',
+        '--brand-card-bg', '--brand-pwa-pink', '--brand-gimi-purple',
+      ];
+      for (const v of brandVars) {
+        root.style.removeProperty(v);
+      }
+    };
+
+    updateThemeStyles();
   }, [tezdevTheme, currentPage]);
 
   // At the top of App component, add a new ref for tracking project state
@@ -1752,6 +1818,8 @@ const App = () => {
 
   // Add new state for button cooldown
   const [isPhotoButtonCooldown, setIsPhotoButtonCooldown] = useState(false); // Keep this
+  const [brandTitle, setBrandTitle] = useState(null);
+  const [brandLogo, setBrandLogo] = useState(null);
   // Ref to track current project
   const activeProjectReference = useRef(null);
   const activeProjectObjectReference = useRef(null); // Keep this
@@ -7609,6 +7677,8 @@ const App = () => {
       ) : showStartMenu ? (
         <>
           <CameraStartMenu
+            brandTitle={brandTitle}
+            brandLogo={brandLogo}
             onTakePhoto={handleShowExistingCameraPhoto}
             onBrowsePhoto={handleBrowsePhotoOption}
             onDragPhoto={handleDragPhotoOption}
@@ -7695,6 +7765,8 @@ const App = () => {
         <>
           {/* Show camera view only when start menu is not shown */}
           <CameraView
+            brandTitle={brandTitle}
+            brandLogo={brandLogo}
             videoRef={videoReference}
             isReady={isSogniReady && !isPhotoButtonCooldown}
             countdown={countdown}
@@ -9258,7 +9330,7 @@ const App = () => {
         margin: 2px 0;
         border-radius: 4px;
         cursor: pointer;
-        color: #333;
+        color: var(--brand-text-secondary);
         transition: background-color 0.2s;
       }
       
@@ -10071,13 +10143,15 @@ const App = () => {
       {showSplashScreen ? (
         <>
           {console.log('🎬 RENDERING SplashScreen component')}
-          <SplashScreen 
+          <SplashScreen
             bypassLocalStorage={splashTriggeredByInactivity}
+            brandTitle={brandTitle}
+            brandLogo={brandLogo}
             onDismiss={() => {
               console.log('🎬 Splash screen dismissed - will restart inactivity timer if enabled');
               setShowSplashScreen(false);
               setSplashTriggeredByInactivity(false); // Reset the flag
-            }} 
+            }}
           />
         </>
       ) : null}
@@ -10286,7 +10360,7 @@ const App = () => {
                 position: 'fixed',
                 top: 24,
                 right: 72, // Position it to the left of the help button
-                background: 'linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%)',
+                background: 'linear-gradient(135deg, var(--brand-accent-tertiary) 0%, var(--brand-accent-tertiary-hover) 100%)',
                 border: 'none',
                 color: '#fff',
                 fontSize: 20,
@@ -10323,7 +10397,7 @@ const App = () => {
                 position: 'fixed',
                 top: 24,
                 right: 24,
-                background: 'linear-gradient(135deg, #ffb6e6 0%, #ff5e8a 100%)',
+                background: 'linear-gradient(135deg, var(--brand-header-bg) 0%, var(--brand-accent-secondary) 100%)',
                 border: 'none',
                 color: '#fff',
                 fontSize: 22,
@@ -10366,7 +10440,7 @@ const App = () => {
                 position: 'fixed',
                 top: 24,
                 right: 24,
-                background: 'linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%)',
+                background: 'linear-gradient(135deg, var(--brand-accent-tertiary) 0%, var(--brand-accent-tertiary-hover) 100%)',
                 border: 'none',
                 color: '#fff',
                 fontSize: 20,
@@ -10527,7 +10601,7 @@ const App = () => {
                         }}
                         className="signup-tip-button"
                         style={{
-                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          background: 'linear-gradient(135deg, var(--brand-button-primary) 0%, var(--brand-button-primary-end) 100%)',
                           border: 'none',
                           color: 'white',
                           padding: '6px 12px',

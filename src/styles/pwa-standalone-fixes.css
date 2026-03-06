@@ -39,7 +39,7 @@
   
   /* Ensure body and html background covers any potential gaps in PWA mode */
   html, body {
-    background: linear-gradient(135deg, #ff61d5 0%, #7132e8 100%) !important;
+    background: linear-gradient(135deg, var(--brand-gradient-start) 0%, var(--brand-gradient-end) 100%) !important;
     background-attachment: fixed !important;
     min-height: 100vh !important;
     min-height: calc(var(--vh, 1vh) * 100) !important;
@@ -47,7 +47,7 @@
   
   /* Ensure root container also has proper background */
   #root {
-    background: linear-gradient(135deg, #ff61d5 0%, #7132e8 100%) !important;
+    background: linear-gradient(135deg, var(--brand-gradient-start) 0%, var(--brand-gradient-end) 100%) !important;
     min-height: 100vh !important;
     min-height: calc(var(--vh, 1vh) * 100) !important;
   }
@@ -184,7 +184,7 @@
     min-height: 44px !important;
     /* Ensure buttons are visible and properly styled */
     background: rgba(255, 255, 255, 0.9) !important;
-    color: #FF69B4 !important;
+    color: var(--brand-pwa-pink) !important;
     width: 60px !important;
     height: 60px !important;
     border-radius: 50% !important;

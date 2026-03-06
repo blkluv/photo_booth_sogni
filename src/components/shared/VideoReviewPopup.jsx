@@ -70,7 +70,7 @@ const WORKFLOW_CONFIG = {
     itemLabel: 'Segment',
     creatingSubtitle: 'turning sound into video magic',
     reviewSubtitle: 'preview • regenerate • make it perfect',
-    accentColor: '#ff3366',
+    accentColor: 'var(--brand-accent-primary)',
     showFromTo: false
   },
   'animate-move': {
@@ -523,7 +523,7 @@ const VideoReviewPopup = ({
         left: 0,
         right: 0,
         bottom: 0,
-        background: '#FFED4E',
+        background: 'var(--brand-page-bg)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -534,26 +534,26 @@ const VideoReviewPopup = ({
     >
       <div
         style={{
-          background: '#ffffff',
+          background: 'var(--brand-card-bg)',
           borderRadius: '28px',
           maxWidth: '900px',
           width: '100%',
           maxHeight: '92vh',
           height: selectedIndex !== null ? '92vh' : 'auto',
           overflow: 'hidden',
-          boxShadow: '6px 6px 0 #1a1a1a',
+          boxShadow: '6px 6px 0 var(--brand-dark-border)',
           animation: 'videoReviewPopIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
           display: 'flex',
           flexDirection: 'column',
-          border: `4px solid #1a1a1a`
+          border: `4px solid var(--brand-dark-border)`
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div style={{
           padding: '24px 28px',
-          background: '#ffffff',
-          borderBottom: `3px solid #FFED4E`,
+          background: 'var(--brand-card-bg)',
+          borderBottom: `3px solid var(--brand-page-bg)`,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -563,7 +563,7 @@ const VideoReviewPopup = ({
           <div style={{ flex: 1, minWidth: 0 }}>
             <h3 style={{
               margin: 0,
-              color: '#1a1a1a',
+              color: 'var(--brand-dark-border)',
               fontSize: '1.75rem',
               fontWeight: '700',
               fontFamily: '"Permanent Marker", cursive',
@@ -589,14 +589,14 @@ const VideoReviewPopup = ({
           <button
             onClick={handleCloseRequest}
             style={{
-              background: '#ffffff',
-              border: '3px solid #1a1a1a',
+              background: 'var(--brand-card-bg)',
+              border: '3px solid var(--brand-dark-border)',
               borderRadius: '50%',
               width: '50px',
               height: '50px',
               minWidth: '50px',
               cursor: 'pointer',
-              color: '#1a1a1a',
+              color: 'var(--brand-dark-border)',
               fontSize: '1.5rem',
               fontWeight: '700',
               display: 'flex',
@@ -604,24 +604,24 @@ const VideoReviewPopup = ({
               justifyContent: 'center',
               transition: 'all 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
               flexShrink: 0,
-              boxShadow: '4px 4px 0 #1a1a1a',
+              boxShadow: '4px 4px 0 var(--brand-dark-border)',
               lineHeight: 1
             }}
             onMouseOver={(e) => {
               e.currentTarget.style.transform = 'translate(-2px, -2px) rotate(90deg)';
-              e.currentTarget.style.background = '#ff3366';
+              e.currentTarget.style.background = 'var(--brand-accent-primary)';
               e.currentTarget.style.color = '#ffffff';
-              e.currentTarget.style.boxShadow = '6px 6px 0 #1a1a1a';
+              e.currentTarget.style.boxShadow = '6px 6px 0 var(--brand-dark-border)';
             }}
             onMouseOut={(e) => {
               e.currentTarget.style.transform = 'translate(0, 0) rotate(0deg)';
-              e.currentTarget.style.background = '#ffffff';
-              e.currentTarget.style.color = '#1a1a1a';
-              e.currentTarget.style.boxShadow = '4px 4px 0 #1a1a1a';
+              e.currentTarget.style.background = 'var(--brand-card-bg)';
+              e.currentTarget.style.color = 'var(--brand-dark-border)';
+              e.currentTarget.style.boxShadow = '4px 4px 0 var(--brand-dark-border)';
             }}
             onMouseDown={(e) => {
               e.currentTarget.style.transform = 'translate(2px, 2px)';
-              e.currentTarget.style.boxShadow = '2px 2px 0 #1a1a1a';
+              e.currentTarget.style.boxShadow = '2px 2px 0 var(--brand-dark-border)';
             }}
             title={isInitialGeneration ? 'cancel' : 'close'}
           >
@@ -637,7 +637,7 @@ const VideoReviewPopup = ({
           display: 'flex',
           flexDirection: 'column',
           minHeight: 0,
-          background: '#fff'
+          background: 'var(--brand-card-bg)'
         }}>
           {selectedIndex !== null ? (
             /* Preview Mode */
@@ -662,11 +662,11 @@ const VideoReviewPopup = ({
                 <button
                   onClick={handleClosePreview}
                   style={{
-                    background: '#ffffff',
-                    border: `3px solid #1a1a1a`,
+                    background: 'var(--brand-card-bg)',
+                    border: `3px solid var(--brand-dark-border)`,
                     borderRadius: '50px',
                     padding: '12px 20px',
-                    color: '#1a1a1a',
+                    color: 'var(--brand-dark-border)',
                     cursor: 'pointer',
                     fontSize: '0.875rem',
                     fontWeight: '800',
@@ -675,22 +675,22 @@ const VideoReviewPopup = ({
                     gap: '8px',
                     minHeight: '48px',
                     transition: 'all 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
-                    boxShadow: '3px 3px 0 #1a1a1a',
+                    boxShadow: '3px 3px 0 var(--brand-dark-border)',
                     textTransform: 'lowercase'
                   }}
                   onMouseOver={(e) => {
-                    e.currentTarget.style.background = '#FFED4E';
+                    e.currentTarget.style.background = 'var(--brand-page-bg)';
                     e.currentTarget.style.transform = 'translate(-2px, -2px)';
-                    e.currentTarget.style.boxShadow = '5px 5px 0 #1a1a1a';
+                    e.currentTarget.style.boxShadow = '5px 5px 0 var(--brand-dark-border)';
                   }}
                   onMouseOut={(e) => {
-                    e.currentTarget.style.background = '#ffffff';
+                    e.currentTarget.style.background = 'var(--brand-card-bg)';
                     e.currentTarget.style.transform = 'translate(0, 0)';
-                    e.currentTarget.style.boxShadow = '3px 3px 0 #1a1a1a';
+                    e.currentTarget.style.boxShadow = '3px 3px 0 var(--brand-dark-border)';
                   }}
                   onMouseDown={(e) => {
                     e.currentTarget.style.transform = 'translate(1px, 1px)';
-                    e.currentTarget.style.boxShadow = '2px 2px 0 #1a1a1a';
+                    e.currentTarget.style.boxShadow = '2px 2px 0 var(--brand-dark-border)';
                   }}
                 >
                   ← back
@@ -704,7 +704,7 @@ const VideoReviewPopup = ({
                   minWidth: '120px'
                 }}>
                   <span style={{
-                    color: '#1a1a1a',
+                    color: 'var(--brand-dark-border)',
                     fontSize: '1rem',
                     fontWeight: '700',
                     fontFamily: '"Permanent Marker", cursive',
@@ -724,7 +724,7 @@ const VideoReviewPopup = ({
                         disabled={!canGoPrevVersion(selectedIndex)}
                         style={{
                           background: canGoPrevVersion(selectedIndex) ? config.accentColor : '#d4d4d4',
-                          border: '2px solid #1a1a1a',
+                          border: '2px solid var(--brand-dark-border)',
                           borderRadius: '50%',
                           width: '28px',
                           height: '28px',
@@ -736,7 +736,7 @@ const VideoReviewPopup = ({
                           fontWeight: '800',
                           color: canGoPrevVersion(selectedIndex) ? '#fff' : '#737373',
                           transition: 'all 0.2s ease',
-                          boxShadow: canGoPrevVersion(selectedIndex) ? '2px 2px 0 #1a1a1a' : 'none'
+                          boxShadow: canGoPrevVersion(selectedIndex) ? '2px 2px 0 var(--brand-dark-border)' : 'none'
                         }}
                         title="View previous version"
                       >
@@ -756,7 +756,7 @@ const VideoReviewPopup = ({
                         disabled={!canGoNextVersion(selectedIndex)}
                         style={{
                           background: canGoNextVersion(selectedIndex) ? config.accentColor : '#d4d4d4',
-                          border: '2px solid #1a1a1a',
+                          border: '2px solid var(--brand-dark-border)',
                           borderRadius: '50%',
                           width: '28px',
                           height: '28px',
@@ -768,7 +768,7 @@ const VideoReviewPopup = ({
                           fontWeight: '800',
                           color: canGoNextVersion(selectedIndex) ? '#fff' : '#737373',
                           transition: 'all 0.2s ease',
-                          boxShadow: canGoNextVersion(selectedIndex) ? '2px 2px 0 #1a1a1a' : 'none'
+                          boxShadow: canGoNextVersion(selectedIndex) ? '2px 2px 0 var(--brand-dark-border)' : 'none'
                         }}
                         title="View next version"
                       >
@@ -783,7 +783,7 @@ const VideoReviewPopup = ({
                     background: (items[selectedIndex]?.status === 'regenerating' || items[selectedIndex]?.status === 'generating')
                       ? '#f59e0b'
                       : config.accentColor,
-                    border: '3px solid #1a1a1a',
+                    border: '3px solid var(--brand-dark-border)',
                     borderRadius: '50px',
                     padding: '12px 24px',
                     color: '#fff',
@@ -794,21 +794,21 @@ const VideoReviewPopup = ({
                     alignItems: 'center',
                     gap: '8px',
                     minHeight: '48px',
-                    boxShadow: `3px 3px 0 #1a1a1a`,
+                    boxShadow: `3px 3px 0 var(--brand-dark-border)`,
                     transition: 'all 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
                     textTransform: 'lowercase'
                   }}
                   onMouseOver={(e) => {
                     e.currentTarget.style.transform = 'translate(-2px, -2px)';
-                    e.currentTarget.style.boxShadow = `5px 5px 0 #1a1a1a`;
+                    e.currentTarget.style.boxShadow = `5px 5px 0 var(--brand-dark-border)`;
                   }}
                   onMouseOut={(e) => {
                     e.currentTarget.style.transform = 'translate(0, 0)';
-                    e.currentTarget.style.boxShadow = `3px 3px 0 #1a1a1a`;
+                    e.currentTarget.style.boxShadow = `3px 3px 0 var(--brand-dark-border)`;
                   }}
                   onMouseDown={(e) => {
                     e.currentTarget.style.transform = 'translate(1px, 1px)';
-                    e.currentTarget.style.boxShadow = `2px 2px 0 #1a1a1a`;
+                    e.currentTarget.style.boxShadow = `2px 2px 0 var(--brand-dark-border)`;
                   }}
                   title={
                     (items[selectedIndex]?.status === 'regenerating' || items[selectedIndex]?.status === 'generating')
@@ -851,7 +851,7 @@ const VideoReviewPopup = ({
                   }}>
                     {/* Generation status card */}
                     <div style={{
-                      background: '#fff',
+                      background: 'var(--brand-card-bg)',
                       borderRadius: '20px',
                       padding: '28px 36px',
                       boxShadow: `0 8px 32px ${config.accentColor}40`,
@@ -875,7 +875,7 @@ const VideoReviewPopup = ({
                         <span style={{
                           fontSize: '16px',
                           fontWeight: '700',
-                          color: '#1a1a1a',
+                          color: 'var(--brand-dark-border)',
                           letterSpacing: '0.5px'
                         }}>regenerating...</span>
                       </div>
@@ -1102,9 +1102,9 @@ const VideoReviewPopup = ({
                       cursor: (isInProgress && !item.url) ? 'wait' : 'pointer',
                       border: '3px solid',
                       borderColor: isInProgress
-                        ? '#FFED4E'
+                        ? 'var(--brand-page-bg)'
                         : item.status === 'failed'
-                        ? '#ff3366'
+                        ? 'var(--brand-accent-primary)'
                         : item.status === 'ready'
                         ? '#22c55e'
                         : 'rgba(26, 26, 26, 0.15)',
@@ -1116,7 +1116,7 @@ const VideoReviewPopup = ({
                       boxShadow: isInProgress
                         ? '0 0 0 rgba(0,0,0,0)'
                         : item.status === 'ready'
-                        ? '4px 4px 0 #1a1a1a'
+                        ? '4px 4px 0 var(--brand-dark-border)'
                         : '3px 3px 0 rgba(26, 26, 26, 0.2)',
                       overflow: 'hidden',
                       // Portrait cards need minimum height for the side-by-side layout
@@ -1127,16 +1127,16 @@ const VideoReviewPopup = ({
                       if (!isInProgress || (isInProgress && item.url)) {
                         e.currentTarget.style.borderColor = config.accentColor;
                         e.currentTarget.style.transform = 'translate(-3px, -3px)';
-                        e.currentTarget.style.boxShadow = `6px 6px 0 #1a1a1a`;
+                        e.currentTarget.style.boxShadow = `6px 6px 0 var(--brand-dark-border)`;
                       }
                     }}
                     onMouseOut={(e) => {
                       // Allow hover effects if not in progress, OR if regenerating with a URL (previous version)
                       if (!isInProgress || (isInProgress && item.url)) {
-                        e.currentTarget.style.borderColor = item.status === 'failed' ? '#ff3366' : item.status === 'ready' ? '#22c55e' : isInProgress ? '#FFED4E' : 'rgba(26, 26, 26, 0.15)';
+                        e.currentTarget.style.borderColor = item.status === 'failed' ? 'var(--brand-accent-primary)' : item.status === 'ready' ? '#22c55e' : isInProgress ? 'var(--brand-page-bg)' : 'rgba(26, 26, 26, 0.15)';
                         e.currentTarget.style.transform = 'translate(0, 0)';
                         e.currentTarget.style.boxShadow = item.status === 'ready'
-                          ? '4px 4px 0 #1a1a1a'
+                          ? '4px 4px 0 var(--brand-dark-border)'
                           : isInProgress ? '0 0 0 rgba(0,0,0,0)' : '3px 3px 0 rgba(26, 26, 26, 0.2)';
                       }
                     }}
@@ -1150,7 +1150,7 @@ const VideoReviewPopup = ({
                         right: isPortraitLayout ? 'auto' : '10px',
                         left: isPortraitLayout ? '10px' : 'auto',
                         background: '#22c55e',
-                        border: '2px solid #1a1a1a',
+                        border: '2px solid var(--brand-dark-border)',
                         borderRadius: '50%',
                         width: isPortraitLayout ? '28px' : '36px',
                         height: isPortraitLayout ? '28px' : '36px',
@@ -1159,7 +1159,7 @@ const VideoReviewPopup = ({
                         justifyContent: 'center',
                         fontSize: isPortraitLayout ? '14px' : '18px',
                         zIndex: 2,
-                        boxShadow: '2px 2px 0 #1a1a1a',
+                        boxShadow: '2px 2px 0 var(--brand-dark-border)',
                         animation: 'videoReviewPop 0.3s ease-out',
                         color: '#fff',
                         fontWeight: 'bold'
@@ -1174,8 +1174,8 @@ const VideoReviewPopup = ({
                         top: '10px',
                         right: isPortraitLayout ? 'auto' : '10px',
                         left: isPortraitLayout ? '10px' : 'auto',
-                        background: '#ff3366',
-                        border: '2px solid #1a1a1a',
+                        background: 'var(--brand-accent-primary)',
+                        border: '2px solid var(--brand-dark-border)',
                         borderRadius: '50%',
                         width: isPortraitLayout ? '28px' : '36px',
                         height: isPortraitLayout ? '28px' : '36px',
@@ -1184,7 +1184,7 @@ const VideoReviewPopup = ({
                         justifyContent: 'center',
                         fontSize: isPortraitLayout ? '14px' : '18px',
                         zIndex: 2,
-                        boxShadow: '2px 2px 0 #1a1a1a',
+                        boxShadow: '2px 2px 0 var(--brand-dark-border)',
                         animation: 'videoReviewPop 0.3s ease-out',
                         color: '#fff',
                         fontWeight: 'bold'
@@ -1201,8 +1201,8 @@ const VideoReviewPopup = ({
                           top: isPortraitLayout ? 'auto' : '10px',
                           bottom: isPortraitLayout ? '10px' : 'auto',
                           left: '10px',
-                          background: '#ff3366',
-                          border: '2px solid #1a1a1a',
+                          background: 'var(--brand-accent-primary)',
+                          border: '2px solid var(--brand-dark-border)',
                           borderRadius: '50%',
                           width: isPortraitLayout ? '28px' : '32px',
                           height: isPortraitLayout ? '28px' : '32px',
@@ -1211,7 +1211,7 @@ const VideoReviewPopup = ({
                           justifyContent: 'center',
                           fontSize: isPortraitLayout ? '12px' : '14px',
                           zIndex: 3,
-                          boxShadow: '2px 2px 0 #1a1a1a',
+                          boxShadow: '2px 2px 0 var(--brand-dark-border)',
                           color: '#fff',
                           fontWeight: 'bold',
                           cursor: 'pointer',
@@ -1223,7 +1223,7 @@ const VideoReviewPopup = ({
                         }}
                         onMouseOut={(e) => {
                           e.currentTarget.style.transform = 'scale(1)';
-                          e.currentTarget.style.background = '#ff3366';
+                          e.currentTarget.style.background = 'var(--brand-accent-primary)';
                         }}
                         title={`Cancel this ${config.itemLabel.toLowerCase()}`}
                       >
@@ -1277,7 +1277,7 @@ const VideoReviewPopup = ({
                             top: '8px',
                             right: '8px',
                             background: 'rgba(245, 158, 11, 0.9)',
-                            border: '2px solid #1a1a1a',
+                            border: '2px solid var(--brand-dark-border)',
                             borderRadius: '50px',
                             padding: '4px 10px',
                             display: 'flex',
@@ -1377,12 +1377,12 @@ const VideoReviewPopup = ({
                           ) : (
                                             /* Fallback: Compact generation card when no thumbnails available */
                                             <div style={{
-                                              background: '#ffffff',
+                                              background: 'var(--brand-card-bg)',
                                               border: `3px solid ${config.accentColor}`,
                                               borderRadius: '12px',
                                               padding: '10px 14px',
                                               textAlign: 'center',
-                                              boxShadow: `3px 3px 0 #1a1a1a`,
+                                              boxShadow: `3px 3px 0 var(--brand-dark-border)`,
                                               minWidth: '110px'
                                             }}>
                                               <div style={{
@@ -1396,7 +1396,7 @@ const VideoReviewPopup = ({
                                                 <span style={{
                                                   fontSize: '0.7rem',
                                                   fontWeight: '800',
-                                                  color: '#1a1a1a'
+                                                  color: 'var(--brand-dark-border)'
                                                 }}>{item.status === 'generating' ? 'creating' : 'regenerating'}</span>
                                               </div>
 
@@ -1554,7 +1554,7 @@ const VideoReviewPopup = ({
                             <div style={{
                               fontSize: isPortraitLayout ? '1rem' : '0.8rem',
                               fontWeight: '700',
-                              color: '#1a1a1a',
+                              color: 'var(--brand-dark-border)',
                               fontFamily: isPortraitLayout ? '"Permanent Marker", cursive' : 'inherit'
                             }}>
                               {config.itemLabel} {index + 1}
@@ -1578,7 +1578,7 @@ const VideoReviewPopup = ({
                             background: (item.status === 'regenerating' || item.status === 'generating')
                               ? '#f59e0b'
                               : config.accentColor,
-                            border: '2px solid #1a1a1a',
+                            border: '2px solid var(--brand-dark-border)',
                             borderRadius: '50px',
                             padding: '8px 14px',
                             color: '#fff',
@@ -1586,7 +1586,7 @@ const VideoReviewPopup = ({
                             fontSize: '0.75rem',
                             fontWeight: '800',
                             transition: 'all 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
-                            boxShadow: `2px 2px 0 #1a1a1a`,
+                            boxShadow: `2px 2px 0 var(--brand-dark-border)`,
                             textTransform: 'lowercase',
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -1594,15 +1594,15 @@ const VideoReviewPopup = ({
                           }}
                           onMouseOver={(e) => {
                             e.currentTarget.style.transform = 'translate(-1px, -1px)';
-                            e.currentTarget.style.boxShadow = `3px 3px 0 #1a1a1a`;
+                            e.currentTarget.style.boxShadow = `3px 3px 0 var(--brand-dark-border)`;
                           }}
                           onMouseOut={(e) => {
                             e.currentTarget.style.transform = 'translate(0, 0)';
-                            e.currentTarget.style.boxShadow = `2px 2px 0 #1a1a1a`;
+                            e.currentTarget.style.boxShadow = `2px 2px 0 var(--brand-dark-border)`;
                           }}
                           onMouseDown={(e) => {
                             e.currentTarget.style.transform = 'translate(1px, 1px)';
-                            e.currentTarget.style.boxShadow = `1px 1px 0 #1a1a1a`;
+                            e.currentTarget.style.boxShadow = `1px 1px 0 var(--brand-dark-border)`;
                           }}
                           title={
                             (item.status === 'regenerating' || item.status === 'generating')
@@ -1623,7 +1623,7 @@ const VideoReviewPopup = ({
                         {item.status === 'failed' && (
                           <span style={{
                             fontSize: '14px',
-                            color: '#ff3366'
+                            color: 'var(--brand-accent-primary)'
                           }}>
                             ✕
                           </span>
@@ -1646,7 +1646,7 @@ const VideoReviewPopup = ({
                             disabled={!canGoPrevVersion(index)}
                             style={{
                               background: canGoPrevVersion(index) ? config.accentColor : '#d4d4d4',
-                              border: '2px solid #1a1a1a',
+                              border: '2px solid var(--brand-dark-border)',
                               borderRadius: '50%',
                               width: '28px',
                               height: '28px',
@@ -1658,18 +1658,18 @@ const VideoReviewPopup = ({
                               fontWeight: '800',
                               color: canGoPrevVersion(index) ? '#fff' : '#737373',
                               transition: 'all 0.2s ease',
-                              boxShadow: canGoPrevVersion(index) ? '2px 2px 0 #1a1a1a' : 'none'
+                              boxShadow: canGoPrevVersion(index) ? '2px 2px 0 var(--brand-dark-border)' : 'none'
                             }}
                             onMouseOver={(e) => {
                               if (canGoPrevVersion(index)) {
                                 e.currentTarget.style.transform = 'translate(-1px, -1px)';
-                                e.currentTarget.style.boxShadow = '3px 3px 0 #1a1a1a';
+                                e.currentTarget.style.boxShadow = '3px 3px 0 var(--brand-dark-border)';
                               }
                             }}
                             onMouseOut={(e) => {
                               if (canGoPrevVersion(index)) {
                                 e.currentTarget.style.transform = 'translate(0, 0)';
-                                e.currentTarget.style.boxShadow = '2px 2px 0 #1a1a1a';
+                                e.currentTarget.style.boxShadow = '2px 2px 0 var(--brand-dark-border)';
                               }
                             }}
                             title="View previous version"
@@ -1690,7 +1690,7 @@ const VideoReviewPopup = ({
                             disabled={!canGoNextVersion(index)}
                             style={{
                               background: canGoNextVersion(index) ? config.accentColor : '#d4d4d4',
-                              border: '2px solid #1a1a1a',
+                              border: '2px solid var(--brand-dark-border)',
                               borderRadius: '50%',
                               width: '28px',
                               height: '28px',
@@ -1702,18 +1702,18 @@ const VideoReviewPopup = ({
                               fontWeight: '800',
                               color: canGoNextVersion(index) ? '#fff' : '#737373',
                               transition: 'all 0.2s ease',
-                              boxShadow: canGoNextVersion(index) ? '2px 2px 0 #1a1a1a' : 'none'
+                              boxShadow: canGoNextVersion(index) ? '2px 2px 0 var(--brand-dark-border)' : 'none'
                             }}
                             onMouseOver={(e) => {
                               if (canGoNextVersion(index)) {
                                 e.currentTarget.style.transform = 'translate(-1px, -1px)';
-                                e.currentTarget.style.boxShadow = '3px 3px 0 #1a1a1a';
+                                e.currentTarget.style.boxShadow = '3px 3px 0 var(--brand-dark-border)';
                               }
                             }}
                             onMouseOut={(e) => {
                               if (canGoNextVersion(index)) {
                                 e.currentTarget.style.transform = 'translate(0, 0)';
-                                e.currentTarget.style.boxShadow = '2px 2px 0 #1a1a1a';
+                                e.currentTarget.style.boxShadow = '2px 2px 0 var(--brand-dark-border)';
                               }
                             }}
                             title="View next version"
@@ -1727,7 +1727,7 @@ const VideoReviewPopup = ({
                       {item.status === 'failed' && item.error && (
                         <div style={{
                           fontSize: '0.65rem',
-                          color: '#ff3366',
+                          color: 'var(--brand-accent-primary)',
                           padding: '6px 0 0 0',
                           borderTop: '2px solid rgba(255, 51, 102, 0.2)',
                           fontWeight: '600',
@@ -1941,8 +1941,8 @@ const VideoReviewPopup = ({
         {/* Footer with Stitch Button */}
         <div style={{
           padding: '20px 28px',
-          background: '#ffffff',
-          borderTop: `3px solid #FFED4E`,
+          background: 'var(--brand-card-bg)',
+          borderTop: `3px solid var(--brand-page-bg)`,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -1966,7 +1966,7 @@ const VideoReviewPopup = ({
             ) : allItemsDone && readyCount > 0 ? (
               <span style={{ color: '#4ade80' }}>✓ {readyCount} ready, {failedCount} failed - can stitch</span>
             ) : anyFailed ? (
-              <span style={{ color: '#ff3366' }}>⚠️ {failedCount} failed - click 🔄 redo to retry</span>
+              <span style={{ color: 'var(--brand-accent-primary)' }}>⚠️ {failedCount} failed - click 🔄 redo to retry</span>
             ) : (
               <span style={{ color: '#f59e0b' }}>⚠️ Needs attention</span>
             )}
@@ -1977,7 +1977,7 @@ const VideoReviewPopup = ({
               onClick={handleCloseRequest}
               style={{
                 padding: '16px 24px',
-                background: '#ffffff',
+                background: 'var(--brand-card-bg)',
                 border: `3px solid #666`,
                 borderRadius: '50px',
                 color: '#666',
@@ -1986,26 +1986,26 @@ const VideoReviewPopup = ({
                 cursor: 'pointer',
                 transition: 'all 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
                 minHeight: '52px',
-                boxShadow: '3px 3px 0 #1a1a1a',
+                boxShadow: '3px 3px 0 var(--brand-dark-border)',
                 textTransform: 'lowercase'
               }}
               onMouseOver={(e) => {
-                e.currentTarget.style.background = '#FFED4E';
-                e.currentTarget.style.color = '#1a1a1a';
-                e.currentTarget.style.borderColor = '#1a1a1a';
+                e.currentTarget.style.background = 'var(--brand-page-bg)';
+                e.currentTarget.style.color = 'var(--brand-dark-border)';
+                e.currentTarget.style.borderColor = 'var(--brand-dark-border)';
                 e.currentTarget.style.transform = 'translate(-2px, -2px)';
-                e.currentTarget.style.boxShadow = '5px 5px 0 #1a1a1a';
+                e.currentTarget.style.boxShadow = '5px 5px 0 var(--brand-dark-border)';
               }}
               onMouseOut={(e) => {
-                e.currentTarget.style.background = '#ffffff';
+                e.currentTarget.style.background = 'var(--brand-card-bg)';
                 e.currentTarget.style.color = '#666';
                 e.currentTarget.style.borderColor = '#666';
                 e.currentTarget.style.transform = 'translate(0, 0)';
-                e.currentTarget.style.boxShadow = '3px 3px 0 #1a1a1a';
+                e.currentTarget.style.boxShadow = '3px 3px 0 var(--brand-dark-border)';
               }}
               onMouseDown={(e) => {
                 e.currentTarget.style.transform = 'translate(1px, 1px)';
-                e.currentTarget.style.boxShadow = '2px 2px 0 #1a1a1a';
+                e.currentTarget.style.boxShadow = '2px 2px 0 var(--brand-dark-border)';
               }}
             >
               cancel
@@ -2017,9 +2017,9 @@ const VideoReviewPopup = ({
               style={{
                 padding: '16px 36px',
                 background: canStitch
-                  ? '#ff3366'
+                  ? 'var(--brand-accent-primary)'
                   : '#d4d4d4',
-                border: canStitch ? '3px solid #1a1a1a' : '3px solid #a3a3a3',
+                border: canStitch ? '3px solid var(--brand-dark-border)' : '3px solid #a3a3a3',
                 borderRadius: '50px',
                 color: canStitch ? '#fff' : '#737373',
                 fontSize: '1rem',
@@ -2029,7 +2029,7 @@ const VideoReviewPopup = ({
                 transition: 'all 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
                 minHeight: '52px',
                 boxShadow: canStitch
-                  ? `4px 4px 0 #1a1a1a`
+                  ? `4px 4px 0 var(--brand-dark-border)`
                   : 'none',
                 opacity: canStitch ? 1 : 0.5,
                 textTransform: 'lowercase',
@@ -2038,19 +2038,19 @@ const VideoReviewPopup = ({
               onMouseOver={(e) => {
                 if (canStitch) {
                   e.currentTarget.style.transform = 'translate(-2px, -2px)';
-                  e.currentTarget.style.boxShadow = `6px 6px 0 #1a1a1a`;
+                  e.currentTarget.style.boxShadow = `6px 6px 0 var(--brand-dark-border)`;
                 }
               }}
               onMouseOut={(e) => {
                 if (canStitch) {
                   e.currentTarget.style.transform = 'translate(0, 0)';
-                  e.currentTarget.style.boxShadow = `4px 4px 0 #1a1a1a`;
+                  e.currentTarget.style.boxShadow = `4px 4px 0 var(--brand-dark-border)`;
                 }
               }}
               onMouseDown={(e) => {
                 if (canStitch) {
                   e.currentTarget.style.transform = 'translate(2px, 2px)';
-                  e.currentTarget.style.boxShadow = `2px 2px 0 #1a1a1a`;
+                  e.currentTarget.style.boxShadow = `2px 2px 0 var(--brand-dark-border)`;
                 }
               }}
             >
@@ -2214,13 +2214,13 @@ const VideoReviewPopup = ({
         >
           <div
             style={{
-              backgroundColor: '#ffffff',
+              backgroundColor: 'var(--brand-card-bg)',
               borderRadius: '24px',
               padding: '32px',
               maxWidth: '450px',
               width: '90%',
-              boxShadow: '6px 6px 0 #1a1a1a',
-              border: '4px solid #1a1a1a',
+              boxShadow: '6px 6px 0 var(--brand-dark-border)',
+              border: '4px solid var(--brand-dark-border)',
               animation: 'videoReviewPopupFadeIn 0.2s ease-out'
             }}
             onClick={(e) => e.stopPropagation()}
@@ -2231,7 +2231,7 @@ const VideoReviewPopup = ({
 
             <h3 style={{
               margin: '0 0 16px 0',
-              color: '#1a1a1a',
+              color: 'var(--brand-dark-border)',
               fontSize: '24px',
               fontWeight: '700',
               fontFamily: '"Permanent Marker", cursive',
@@ -2254,7 +2254,7 @@ const VideoReviewPopup = ({
 
             <div style={{
               backgroundColor: 'rgba(255, 237, 78, 0.2)',
-              border: '2px solid #FFED4E',
+              border: '2px solid var(--brand-page-bg)',
               borderRadius: '16px',
               padding: '16px',
               marginBottom: '24px',
@@ -2264,7 +2264,7 @@ const VideoReviewPopup = ({
             }}>
               <span style={{ fontSize: '24px', flexShrink: 0 }}>💰</span>
               <span style={{
-                color: '#1a1a1a',
+                color: 'var(--brand-dark-border)',
                 fontSize: '14px',
                 fontWeight: '600',
                 lineHeight: '1.5'
@@ -2285,7 +2285,7 @@ const VideoReviewPopup = ({
             }}>
               <span style={{ fontSize: '24px', flexShrink: 0 }}>✓</span>
               <span style={{
-                color: '#1a1a1a',
+                color: 'var(--brand-dark-border)',
                 fontSize: '14px',
                 fontWeight: '600',
                 lineHeight: '1.5'
@@ -2304,30 +2304,30 @@ const VideoReviewPopup = ({
                 style={{
                   flex: 1,
                   padding: '14px 24px',
-                  background: '#ffffff',
-                  border: '3px solid #1a1a1a',
+                  background: 'var(--brand-card-bg)',
+                  border: '3px solid var(--brand-dark-border)',
                   borderRadius: '50px',
-                  color: '#1a1a1a',
+                  color: 'var(--brand-dark-border)',
                   fontSize: '14px',
                   fontWeight: '700',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
-                  boxShadow: '3px 3px 0 #1a1a1a',
+                  boxShadow: '3px 3px 0 var(--brand-dark-border)',
                   textTransform: 'lowercase'
                 }}
                 onMouseOver={(e) => {
-                  e.currentTarget.style.background = '#FFED4E';
+                  e.currentTarget.style.background = 'var(--brand-page-bg)';
                   e.currentTarget.style.transform = 'translate(-2px, -2px)';
-                  e.currentTarget.style.boxShadow = '5px 5px 0 #1a1a1a';
+                  e.currentTarget.style.boxShadow = '5px 5px 0 var(--brand-dark-border)';
                 }}
                 onMouseOut={(e) => {
-                  e.currentTarget.style.background = '#ffffff';
+                  e.currentTarget.style.background = 'var(--brand-card-bg)';
                   e.currentTarget.style.transform = 'translate(0, 0)';
-                  e.currentTarget.style.boxShadow = '3px 3px 0 #1a1a1a';
+                  e.currentTarget.style.boxShadow = '3px 3px 0 var(--brand-dark-border)';
                 }}
                 onMouseDown={(e) => {
                   e.currentTarget.style.transform = 'translate(1px, 1px)';
-                  e.currentTarget.style.boxShadow = '2px 2px 0 #1a1a1a';
+                  e.currentTarget.style.boxShadow = '2px 2px 0 var(--brand-dark-border)';
                 }}
               >
                 wait for them
@@ -2337,28 +2337,28 @@ const VideoReviewPopup = ({
                 style={{
                   flex: 1,
                   padding: '14px 24px',
-                  background: '#ff3366',
-                  border: '3px solid #1a1a1a',
+                  background: 'var(--brand-accent-primary)',
+                  border: '3px solid var(--brand-dark-border)',
                   borderRadius: '50px',
                   color: '#fff',
                   fontSize: '14px',
                   fontWeight: '700',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
-                  boxShadow: '4px 4px 0 #1a1a1a',
+                  boxShadow: '4px 4px 0 var(--brand-dark-border)',
                   textTransform: 'lowercase'
                 }}
                 onMouseOver={(e) => {
                   e.currentTarget.style.transform = 'translate(-2px, -2px)';
-                  e.currentTarget.style.boxShadow = '6px 6px 0 #1a1a1a';
+                  e.currentTarget.style.boxShadow = '6px 6px 0 var(--brand-dark-border)';
                 }}
                 onMouseOut={(e) => {
                   e.currentTarget.style.transform = 'translate(0, 0)';
-                  e.currentTarget.style.boxShadow = '4px 4px 0 #1a1a1a';
+                  e.currentTarget.style.boxShadow = '4px 4px 0 var(--brand-dark-border)';
                 }}
                 onMouseDown={(e) => {
                   e.currentTarget.style.transform = 'translate(2px, 2px)';
-                  e.currentTarget.style.boxShadow = '2px 2px 0 #1a1a1a';
+                  e.currentTarget.style.boxShadow = '2px 2px 0 var(--brand-dark-border)';
                 }}
               >
                 🎬 stitch now
@@ -2387,13 +2387,13 @@ const VideoReviewPopup = ({
         >
           <div
             style={{
-              backgroundColor: '#ffffff',
+              backgroundColor: 'var(--brand-card-bg)',
               borderRadius: '24px',
               padding: '32px',
               maxWidth: '420px',
               width: '90%',
-              boxShadow: '6px 6px 0 #1a1a1a',
-              border: '4px solid #1a1a1a',
+              boxShadow: '6px 6px 0 var(--brand-dark-border)',
+              border: '4px solid var(--brand-dark-border)',
               animation: 'videoReviewPopupFadeIn 0.2s ease-out'
             }}
             onClick={(e) => e.stopPropagation()}
@@ -2404,7 +2404,7 @@ const VideoReviewPopup = ({
 
             <h3 style={{
               margin: '0 0 16px 0',
-              color: '#1a1a1a',
+              color: 'var(--brand-dark-border)',
               fontSize: '24px',
               fontWeight: '700',
               fontFamily: '"Permanent Marker", cursive',
@@ -2427,7 +2427,7 @@ const VideoReviewPopup = ({
 
             <div style={{
               backgroundColor: 'rgba(255, 237, 78, 0.2)',
-              border: '2px solid #FFED4E',
+              border: '2px solid var(--brand-page-bg)',
               borderRadius: '16px',
               padding: '16px',
               marginBottom: '24px',
@@ -2437,7 +2437,7 @@ const VideoReviewPopup = ({
             }}>
               <span style={{ fontSize: '24px', flexShrink: 0 }}>💰</span>
               <span style={{
-                color: '#1a1a1a',
+                color: 'var(--brand-dark-border)',
                 fontSize: '14px',
                 fontWeight: '600',
                 lineHeight: '1.5'
@@ -2459,30 +2459,30 @@ const VideoReviewPopup = ({
                 style={{
                   flex: 1,
                   padding: '14px 24px',
-                  background: '#ffffff',
-                  border: '3px solid #1a1a1a',
+                  background: 'var(--brand-card-bg)',
+                  border: '3px solid var(--brand-dark-border)',
                   borderRadius: '50px',
-                  color: '#1a1a1a',
+                  color: 'var(--brand-dark-border)',
                   fontSize: '14px',
                   fontWeight: '700',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
-                  boxShadow: '3px 3px 0 #1a1a1a',
+                  boxShadow: '3px 3px 0 var(--brand-dark-border)',
                   textTransform: 'lowercase'
                 }}
                 onMouseOver={(e) => {
-                  e.currentTarget.style.background = '#FFED4E';
+                  e.currentTarget.style.background = 'var(--brand-page-bg)';
                   e.currentTarget.style.transform = 'translate(-2px, -2px)';
-                  e.currentTarget.style.boxShadow = '5px 5px 0 #1a1a1a';
+                  e.currentTarget.style.boxShadow = '5px 5px 0 var(--brand-dark-border)';
                 }}
                 onMouseOut={(e) => {
-                  e.currentTarget.style.background = '#ffffff';
+                  e.currentTarget.style.background = 'var(--brand-card-bg)';
                   e.currentTarget.style.transform = 'translate(0, 0)';
-                  e.currentTarget.style.boxShadow = '3px 3px 0 #1a1a1a';
+                  e.currentTarget.style.boxShadow = '3px 3px 0 var(--brand-dark-border)';
                 }}
                 onMouseDown={(e) => {
                   e.currentTarget.style.transform = 'translate(1px, 1px)';
-                  e.currentTarget.style.boxShadow = '2px 2px 0 #1a1a1a';
+                  e.currentTarget.style.boxShadow = '2px 2px 0 var(--brand-dark-border)';
                 }}
               >
                 keep generating
@@ -2493,27 +2493,27 @@ const VideoReviewPopup = ({
                   flex: 1,
                   padding: '14px 24px',
                   background: '#f59e0b',
-                  border: '3px solid #1a1a1a',
+                  border: '3px solid var(--brand-dark-border)',
                   borderRadius: '50px',
                   color: '#fff',
                   fontSize: '14px',
                   fontWeight: '700',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
-                  boxShadow: '4px 4px 0 #1a1a1a',
+                  boxShadow: '4px 4px 0 var(--brand-dark-border)',
                   textTransform: 'lowercase'
                 }}
                 onMouseOver={(e) => {
                   e.currentTarget.style.transform = 'translate(-2px, -2px)';
-                  e.currentTarget.style.boxShadow = '6px 6px 0 #1a1a1a';
+                  e.currentTarget.style.boxShadow = '6px 6px 0 var(--brand-dark-border)';
                 }}
                 onMouseOut={(e) => {
                   e.currentTarget.style.transform = 'translate(0, 0)';
-                  e.currentTarget.style.boxShadow = '4px 4px 0 #1a1a1a';
+                  e.currentTarget.style.boxShadow = '4px 4px 0 var(--brand-dark-border)';
                 }}
                 onMouseDown={(e) => {
                   e.currentTarget.style.transform = 'translate(2px, 2px)';
-                  e.currentTarget.style.boxShadow = '2px 2px 0 #1a1a1a';
+                  e.currentTarget.style.boxShadow = '2px 2px 0 var(--brand-dark-border)';
                 }}
               >
                 🔄 retry now
@@ -2542,13 +2542,13 @@ const VideoReviewPopup = ({
         >
           <div
             style={{
-              backgroundColor: '#ffffff',
+              backgroundColor: 'var(--brand-card-bg)',
               borderRadius: '24px',
               padding: '32px',
               maxWidth: '520px',
               width: '90%',
-              boxShadow: '6px 6px 0 #1a1a1a',
-              border: '4px solid #1a1a1a',
+              boxShadow: '6px 6px 0 var(--brand-dark-border)',
+              border: '4px solid var(--brand-dark-border)',
               animation: 'videoReviewPopupFadeIn 0.2s ease-out'
             }}
             onClick={(e) => e.stopPropagation()}
@@ -2559,7 +2559,7 @@ const VideoReviewPopup = ({
 
             <h3 style={{
               margin: '0 0 16px 0',
-              color: '#1a1a1a',
+              color: 'var(--brand-dark-border)',
               fontSize: '24px',
               fontWeight: '700',
               fontFamily: '"Permanent Marker", cursive',
@@ -2584,7 +2584,7 @@ const VideoReviewPopup = ({
               <label style={{
                 display: 'block',
                 marginBottom: '6px',
-                color: '#1a1a1a',
+                color: 'var(--brand-dark-border)',
                 fontSize: '13px',
                 fontWeight: '700',
                 textTransform: 'lowercase'
@@ -2600,18 +2600,18 @@ const VideoReviewPopup = ({
                   minHeight: '80px',
                   padding: '12px',
                   borderRadius: '12px',
-                  border: '3px solid #1a1a1a',
+                  border: '3px solid var(--brand-dark-border)',
                   fontSize: '14px',
                   fontFamily: 'inherit',
                   resize: 'vertical',
                   boxSizing: 'border-box',
                   outline: 'none',
                   transition: 'border-color 0.2s ease',
-                  color: '#1a1a1a',
+                  color: 'var(--brand-dark-border)',
                   backgroundColor: '#ffffff'
                 }}
                 onFocus={(e) => { e.currentTarget.style.borderColor = config.accentColor || '#a855f7'; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = '#1a1a1a'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--brand-dark-border)'; }}
               />
             </div>
 
@@ -2620,7 +2620,7 @@ const VideoReviewPopup = ({
               <label style={{
                 display: 'block',
                 marginBottom: '6px',
-                color: '#1a1a1a',
+                color: 'var(--brand-dark-border)',
                 fontSize: '13px',
                 fontWeight: '700',
                 textTransform: 'lowercase'
@@ -2636,18 +2636,18 @@ const VideoReviewPopup = ({
                   minHeight: '60px',
                   padding: '12px',
                   borderRadius: '12px',
-                  border: '3px solid #1a1a1a',
+                  border: '3px solid var(--brand-dark-border)',
                   fontSize: '14px',
                   fontFamily: 'inherit',
                   resize: 'vertical',
                   boxSizing: 'border-box',
                   outline: 'none',
                   transition: 'border-color 0.2s ease',
-                  color: '#1a1a1a',
+                  color: 'var(--brand-dark-border)',
                   backgroundColor: '#ffffff'
                 }}
                 onFocus={(e) => { e.currentTarget.style.borderColor = config.accentColor || '#a855f7'; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = '#1a1a1a'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--brand-dark-border)'; }}
               />
             </div>
 
@@ -2661,30 +2661,30 @@ const VideoReviewPopup = ({
                 style={{
                   flex: 1,
                   padding: '14px 24px',
-                  background: '#ffffff',
-                  border: '3px solid #1a1a1a',
+                  background: 'var(--brand-card-bg)',
+                  border: '3px solid var(--brand-dark-border)',
                   borderRadius: '50px',
-                  color: '#1a1a1a',
+                  color: 'var(--brand-dark-border)',
                   fontSize: '14px',
                   fontWeight: '700',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
-                  boxShadow: '3px 3px 0 #1a1a1a',
+                  boxShadow: '3px 3px 0 var(--brand-dark-border)',
                   textTransform: 'lowercase'
                 }}
                 onMouseOver={(e) => {
-                  e.currentTarget.style.background = '#FFED4E';
+                  e.currentTarget.style.background = 'var(--brand-page-bg)';
                   e.currentTarget.style.transform = 'translate(-2px, -2px)';
-                  e.currentTarget.style.boxShadow = '5px 5px 0 #1a1a1a';
+                  e.currentTarget.style.boxShadow = '5px 5px 0 var(--brand-dark-border)';
                 }}
                 onMouseOut={(e) => {
-                  e.currentTarget.style.background = '#ffffff';
+                  e.currentTarget.style.background = 'var(--brand-card-bg)';
                   e.currentTarget.style.transform = 'translate(0, 0)';
-                  e.currentTarget.style.boxShadow = '3px 3px 0 #1a1a1a';
+                  e.currentTarget.style.boxShadow = '3px 3px 0 var(--brand-dark-border)';
                 }}
                 onMouseDown={(e) => {
                   e.currentTarget.style.transform = 'translate(1px, 1px)';
-                  e.currentTarget.style.boxShadow = '2px 2px 0 #1a1a1a';
+                  e.currentTarget.style.boxShadow = '2px 2px 0 var(--brand-dark-border)';
                 }}
               >
                 cancel
@@ -2695,27 +2695,27 @@ const VideoReviewPopup = ({
                   flex: 1,
                   padding: '14px 24px',
                   background: config.accentColor || '#a855f7',
-                  border: '3px solid #1a1a1a',
+                  border: '3px solid var(--brand-dark-border)',
                   borderRadius: '50px',
                   color: '#fff',
                   fontSize: '14px',
                   fontWeight: '700',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
-                  boxShadow: '4px 4px 0 #1a1a1a',
+                  boxShadow: '4px 4px 0 var(--brand-dark-border)',
                   textTransform: 'lowercase'
                 }}
                 onMouseOver={(e) => {
                   e.currentTarget.style.transform = 'translate(-2px, -2px)';
-                  e.currentTarget.style.boxShadow = '6px 6px 0 #1a1a1a';
+                  e.currentTarget.style.boxShadow = '6px 6px 0 var(--brand-dark-border)';
                 }}
                 onMouseOut={(e) => {
                   e.currentTarget.style.transform = 'translate(0, 0)';
-                  e.currentTarget.style.boxShadow = '4px 4px 0 #1a1a1a';
+                  e.currentTarget.style.boxShadow = '4px 4px 0 var(--brand-dark-border)';
                 }}
                 onMouseDown={(e) => {
                   e.currentTarget.style.transform = 'translate(2px, 2px)';
-                  e.currentTarget.style.boxShadow = '2px 2px 0 #1a1a1a';
+                  e.currentTarget.style.boxShadow = '2px 2px 0 var(--brand-dark-border)';
                 }}
               >
                 🔄 regenerate

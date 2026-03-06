@@ -149,7 +149,7 @@
 }
 
 .gimi-hero-title .highlight {
-  background: linear-gradient(135deg, #8a2be2 0%, #ff00ff 50%, #00ffff 100%);
+  background: linear-gradient(135deg, var(--brand-gimi-purple) 0%, var(--brand-accent-primary) 50%, var(--brand-accent-tertiary) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -184,7 +184,7 @@
 }
 
 .gimi-hero-description strong {
-  color: #ffdd00;
+  color: var(--brand-page-bg-mid);
   font-weight: 700;
   font-size: 1.2em;
 }
@@ -219,7 +219,7 @@
 }
 
 .gimi-cta-primary {
-  background: linear-gradient(135deg, #8a2be2 0%, #ff00ff 100%);
+  background: linear-gradient(135deg, var(--brand-gimi-purple) 0%, var(--brand-accent-primary) 100%);
   color: #ffffff;
   box-shadow: 0 8px 32px rgba(138, 43, 226, 0.4);
 }
@@ -236,7 +236,7 @@
 .gimi-cta-secondary {
   background: rgba(138, 43, 226, 0.2);
   color: #ffffff;
-  border: 2px solid #8a2be2;
+  border: 2px solid var(--brand-gimi-purple);
   box-shadow: 0 4px 24px rgba(138, 43, 226, 0.3);
 }
 
@@ -274,7 +274,7 @@
   font-size: clamp(1.5rem, 4vw, 2.5rem);
   font-weight: 700;
   margin: 0 0 12px 0;
-  background: linear-gradient(135deg, #8a2be2 0%, #ff00ff 100%);
+  background: linear-gradient(135deg, var(--brand-gimi-purple) 0%, var(--brand-accent-primary) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -309,13 +309,13 @@
 }
 
 .gimi-referral-url-input:focus {
-  border-color: #8a2be2;
+  border-color: var(--brand-gimi-purple);
   box-shadow: 0 0 0 3px rgba(138, 43, 226, 0.2);
 }
 
 .gimi-referral-copy-btn {
   padding: 16px 28px;
-  background: linear-gradient(135deg, #8a2be2 0%, #6a1bb2 100%);
+  background: linear-gradient(135deg, var(--brand-gimi-purple) 0%, var(--brand-button-primary-end) 100%);
   color: #fff;
   border: none;
   border-radius: 12px;
@@ -408,7 +408,7 @@
 .gimi-step-number {
   width: 60px;
   height: 60px;
-  background: linear-gradient(135deg, #8a2be2 0%, #ff00ff 100%);
+  background: linear-gradient(135deg, var(--brand-gimi-purple) 0%, var(--brand-accent-primary) 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -433,7 +433,7 @@
 }
 
 .gimi-step-description a {
-  color: #8a2be2;
+  color: var(--brand-gimi-purple);
   text-decoration: none;
   font-weight: 600;
   transition: color 0.2s ease;
@@ -533,7 +533,7 @@
 .gimi-currency {
   font-size: clamp(4rem, 10vw, 7rem);
   font-weight: 900;
-  background: linear-gradient(135deg, #ffdd00 0%, #ffa500 100%);
+  background: linear-gradient(135deg, var(--brand-page-bg-mid) 0%, var(--brand-accent-secondary) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -585,7 +585,7 @@
 .gimi-prize-urgency {
   font-size: 1.3rem;
   line-height: 1.8;
-  color: #ffdd00;
+  color: var(--brand-page-bg-mid);
   font-weight: 700;
   margin: 30px auto 0;
   max-width: 700px;
@@ -651,7 +651,7 @@
   display: block;
   margin-top: 15px;
   font-size: 1.2rem;
-  color: #8a2be2;
+  color: var(--brand-gimi-purple);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -659,7 +659,7 @@
 
 .gimi-arrow {
   font-size: 3rem;
-  color: #8a2be2;
+  color: var(--brand-gimi-purple);
   font-weight: bold;
   animation: pulse 2s ease-in-out infinite;
 }
@@ -838,7 +838,7 @@
 }
 
 .gimi-video-title a {
-  color: #8a2be2;
+  color: var(--brand-gimi-purple);
   text-decoration: none;
   font-weight: 800;
   transition: color 0.2s ease;
@@ -922,14 +922,14 @@
 .gimi-video-note {
   text-align: center;
   font-size: 1.1rem;
-  color: #ffdd00;
+  color: var(--brand-page-bg-mid);
   font-weight: 600;
   margin: 20px 0 0;
   font-style: italic;
 }
 
 .gimi-video-note a {
-  color: #ffdd00;
+  color: var(--brand-page-bg-mid);
   text-decoration: underline;
   font-weight: 700;
   transition: color 0.2s ease;
@@ -968,7 +968,7 @@
 
 .gimi-example-card {
   background: rgba(255, 255, 255, 0.03);
-  border-left: 4px solid #8a2be2;
+  border-left: 4px solid var(--brand-gimi-purple);
   border-radius: 10px;
   padding: 30px 25px;
   transition: all 0.3s ease;
@@ -1058,13 +1058,13 @@
   content: '→';
   position: absolute;
   left: 0;
-  color: #8a2be2;
+  color: var(--brand-gimi-purple);
   font-weight: bold;
   font-size: 1.2rem;
 }
 
 .gimi-about-list a {
-  color: #8a2be2;
+  color: var(--brand-gimi-purple);
   text-decoration: none;
   font-weight: 600;
   transition: color 0.2s ease;
@@ -1107,12 +1107,12 @@
   content: '•';
   position: absolute;
   left: 8px;
-  color: #8a2be2;
+  color: var(--brand-gimi-purple);
   font-weight: bold;
 }
 
 .gimi-fine-print-list a {
-  color: #8a2be2;
+  color: var(--brand-gimi-purple);
   text-decoration: none;
   font-weight: 600;
 }
@@ -1168,7 +1168,7 @@
 }
 
 .gimi-social-handle {
-  color: #8a2be2;
+  color: var(--brand-gimi-purple);
   font-weight: 700;
   font-size: 1rem;
 }
@@ -1191,7 +1191,7 @@
 }
 
 .gimi-powered-by a {
-  color: #8a2be2;
+  color: var(--brand-gimi-purple);
   text-decoration: none;
   font-weight: 600;
   transition: color 0.2s ease;

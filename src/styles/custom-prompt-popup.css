@@ -131,7 +131,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%);
+  background: linear-gradient(135deg, var(--brand-button-secondary) 0%, var(--brand-accent-tertiary) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -215,7 +215,7 @@
 
 .custom-prompt-textarea:focus {
   outline: none;
-  border-color: #a78bfa;
+  border-color: var(--brand-button-secondary);
   background: rgba(0, 0, 0, 0.5);
   box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.2),
               0 8px 24px rgba(139, 92, 246, 0.15);
@@ -369,9 +369,9 @@
 }
 
 .custom-prompt-btn-apply {
-  background: linear-gradient(135deg, 
-    #8b5cf6 0%, 
-    #3b82f6 50%, 
+  background: linear-gradient(135deg,
+    var(--brand-button-secondary) 0%,
+    #3b82f6 50%,
     #06b6d4 100%);
   background-size: 200% 200%;
   color: #fff;
@@ -480,7 +480,7 @@
 
 .scene-name-input:focus {
   outline: none;
-  border-color: #a78bfa;
+  border-color: var(--brand-button-secondary);
   background: rgba(0, 0, 0, 0.5);
   box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.2),
               0 4px 16px rgba(139, 92, 246, 0.15);

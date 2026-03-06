@@ -119,7 +119,7 @@ export interface ModelOption {
 
 export type AspectRatioOption = 'portrait' | 'landscape' | 'square' | 'narrow' | 'wide' | 'ultrawide' | 'ultranarrow';
 
-export type TezDevTheme = 'supercasual' | 'tezoswebx' | 'taipeiblockchain' | 'showup' | 'nodesamongus' | 'off';
+export type TezDevTheme = 'supercasual' | 'tezoswebx' | 'taipeiblockchain' | 'showup' | 'nodesamongus' | 'mandala' | 'off' | (string & {});
 
 export type OutputFormat = 'png' | 'jpg';
 
