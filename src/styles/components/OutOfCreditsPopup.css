@@ -161,7 +161,7 @@
 }
 
 .message-main {
-  color: var(--brand-text-secondary);
+  color: #333;
   font-size: 16px;
   line-height: 1.5;
   margin: 0 0 24px 0;

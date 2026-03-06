@@ -9330,10 +9330,10 @@ const App = () => {
         margin: 2px 0;
         border-radius: 4px;
         cursor: pointer;
-        color: var(--brand-text-secondary);
+        color: #333;
         transition: background-color 0.2s;
       }
-      
+
       .style-option:hover {
         background-color: #f5f5f5;
       }

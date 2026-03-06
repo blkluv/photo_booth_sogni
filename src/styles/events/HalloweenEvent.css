@@ -726,7 +726,7 @@
 .how-to-win li {
   padding: 0.4rem 0 0.4rem 2rem;
   position: relative;
-  color: var(--brand-text-secondary);
+  color: #333;
   line-height: 1.5;
   font-size: 0.95rem;
   text-align: left;

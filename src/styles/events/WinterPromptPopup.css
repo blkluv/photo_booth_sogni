@@ -203,7 +203,7 @@
 
 .character-count {
   font-size: 0.9rem;
-  color: var(--brand-text-muted);
+  color: #666;
 }
 
 /* Footer */
@@ -229,7 +229,7 @@
 
 .winter-prompt-btn-cancel {
   background: white;
-  color: var(--brand-text-muted);
+  color: #666;
   border: 2px solid #ddd;
 }
 
