@@ -138,13 +138,13 @@
 .aspect-ratio-dropdown .option-label {
   font-size: 14px;
   font-weight: 500;
-  color: var(--brand-text-secondary);
+  color: #333;
   line-height: 1.2;
 }
 
 .aspect-ratio-dropdown .option-ratio {
   font-size: 12px;
-  color: var(--brand-text-muted);
+  color: #666;
   font-weight: 400;
   line-height: 1;
 }

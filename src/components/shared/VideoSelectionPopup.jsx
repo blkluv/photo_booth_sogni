@@ -427,7 +427,7 @@ const VideoSelectionPopup = ({
         }}>
           <h2 style={{
             margin: '0 0 6px 0',
-            color: 'var(--brand-dark-text)',
+            color: '#333',
             fontSize: 'clamp(22px, 5vw, 36px)',
             fontWeight: '800',
             fontFamily: '"Permanent Marker", cursive',

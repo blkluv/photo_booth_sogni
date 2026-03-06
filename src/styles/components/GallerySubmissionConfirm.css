@@ -50,7 +50,7 @@
   right: 16px;
   background: rgba(0, 0, 0, 0.1);
   border: none;
-  color: var(--brand-text-secondary);
+  color: #666;
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -87,7 +87,7 @@
   margin: 0;
   font-size: 22px;
   font-weight: 600;
-  color: var(--brand-text-secondary);
+  color: #1a1a1a;
   line-height: 1.1;
 }
 
@@ -120,7 +120,7 @@
   align-items: center;
   gap: 12px;
   padding: 40px;
-  color: var(--brand-text-muted);
+  color: #999;
 }
 
 .preview-loading .loading-spinner {
@@ -139,7 +139,7 @@
 .gallery-confirm-message {
   font-size: 15px;
   line-height: 1.4;
-  color: var(--brand-text-secondary);
+  color: #333;
   margin: 0 0 12px 0;
   text-align: center;
 }
@@ -152,7 +152,7 @@
 .gallery-confirm-note {
   font-size: 13px;
   line-height: 1.4;
-  color: var(--brand-text-muted);
+  color: #666;
   margin: 0;
   padding: 12px;
   background: white;
@@ -184,12 +184,12 @@
 
 .cancel-btn {
   background: #f0f0f0;
-  color: var(--brand-text-muted);
+  color: #666;
 }
 
 .cancel-btn:hover {
   background: #e0e0e0;
-  color: var(--brand-text-secondary);
+  color: #333;
 }
 
 .submit-btn {

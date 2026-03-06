@@ -1107,7 +1107,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
                       padding: '8px 12px',
                       border: qrUrlError ? '2px solid #ff4444' : '2px solid #333',
                       borderRadius: '6px',
-                      backgroundColor: 'var(--brand-dark-border)',
+                      backgroundColor: '#1a1a1a',
                       color: '#fff',
                       fontSize: '14px',
                       fontFamily: 'monospace'

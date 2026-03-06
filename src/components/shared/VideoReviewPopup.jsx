@@ -2600,18 +2600,18 @@ const VideoReviewPopup = ({
                   minHeight: '80px',
                   padding: '12px',
                   borderRadius: '12px',
-                  border: '3px solid var(--brand-dark-border)',
+                  border: '3px solid #ccc',
                   fontSize: '14px',
                   fontFamily: 'inherit',
                   resize: 'vertical',
                   boxSizing: 'border-box',
                   outline: 'none',
                   transition: 'border-color 0.2s ease',
-                  color: 'var(--brand-dark-border)',
+                  color: '#1a1a1a',
                   backgroundColor: '#ffffff'
                 }}
                 onFocus={(e) => { e.currentTarget.style.borderColor = config.accentColor || '#a855f7'; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--brand-dark-border)'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = '#ccc'; }}
               />
             </div>
 
@@ -2636,18 +2636,18 @@ const VideoReviewPopup = ({
                   minHeight: '60px',
                   padding: '12px',
                   borderRadius: '12px',
-                  border: '3px solid var(--brand-dark-border)',
+                  border: '3px solid #ccc',
                   fontSize: '14px',
                   fontFamily: 'inherit',
                   resize: 'vertical',
                   boxSizing: 'border-box',
                   outline: 'none',
                   transition: 'border-color 0.2s ease',
-                  color: 'var(--brand-dark-border)',
+                  color: '#1a1a1a',
                   backgroundColor: '#ffffff'
                 }}
                 onFocus={(e) => { e.currentTarget.style.borderColor = config.accentColor || '#a855f7'; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--brand-dark-border)'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = '#ccc'; }}
               />
             </div>
 
