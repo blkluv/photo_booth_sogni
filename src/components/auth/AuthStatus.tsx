@@ -438,7 +438,7 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
               <div style={{
                 padding: '4px 0 12px 0',
                 fontSize: '15px',
-                color: 'var(--brand-dark-border)',
+                color: '#1a1a1a',
                 fontWeight: '800',
                 letterSpacing: '-0.02em',
                 display: 'flex',
@@ -460,8 +460,8 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
                     height: '24px',
                     borderRadius: '50%',
                     background: '#ffffff',
-                    border: '3px solid var(--brand-dark-border)',
-                    color: 'var(--brand-dark-border)',
+                    border: '3px solid #1a1a1a',
+                    color: '#1a1a1a',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -471,19 +471,19 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
                     cursor: 'pointer',
                     transition: 'all 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
                     zIndex: 10,
-                    boxShadow: '3px 3px 0 var(--brand-dark-border)'
+                    boxShadow: '3px 3px 0 #1a1a1a'
                   }}
                   onMouseOver={(e) => {
                     e.currentTarget.style.background = 'var(--brand-accent-primary)';
                     e.currentTarget.style.color = '#ffffff';
                     e.currentTarget.style.transform = 'translate(-1px, -1px)';
-                    e.currentTarget.style.boxShadow = '4px 4px 0 var(--brand-dark-border)';
+                    e.currentTarget.style.boxShadow = '4px 4px 0 #1a1a1a';
                   }}
                   onMouseOut={(e) => {
                     e.currentTarget.style.background = '#ffffff';
-                    e.currentTarget.style.color = 'var(--brand-dark-border)';
+                    e.currentTarget.style.color = '#1a1a1a';
                     e.currentTarget.style.transform = 'translate(0, 0)';
-                    e.currentTarget.style.boxShadow = '3px 3px 0 var(--brand-dark-border)';
+                    e.currentTarget.style.boxShadow = '3px 3px 0 #1a1a1a';
                   }}
                   title="Learn about SOGNI Token vs Spark Points"
                 >
@@ -498,8 +498,8 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
                   borderRadius: '60px',
                   gap: '8px',
                   background: '#ffffff',
-                  border: '4px solid var(--brand-dark-border)',
-                  boxShadow: '5px 5px 0 var(--brand-dark-border)'
+                  border: '4px solid #1a1a1a',
+                  boxShadow: '5px 5px 0 #1a1a1a'
                 }}
               >
                 <button
@@ -511,11 +511,11 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
                   }}
                   style={{
                     flex: 1,
-                    border: tokenType === 'sogni' ? '3px solid var(--brand-dark-border)' : '3px solid transparent',
-                    background: tokenType === 'sogni' 
-                      ? 'linear-gradient(135deg, var(--brand-accent-primary) 0%, var(--brand-accent-secondary) 50%, var(--brand-header-bg) 100%)' 
+                    border: tokenType === 'sogni' ? '3px solid #1a1a1a' : '3px solid transparent',
+                    background: tokenType === 'sogni'
+                      ? 'linear-gradient(135deg, var(--brand-accent-primary) 0%, var(--brand-accent-secondary) 50%, var(--brand-header-bg) 100%)'
                       : '#ffffff',
-                    color: tokenType === 'sogni' ? '#ffffff' : 'var(--brand-dark-border)',
+                    color: tokenType === 'sogni' ? '#ffffff' : '#1a1a1a',
                     cursor: 'pointer',
                     borderRadius: '60px',
                     padding: '16px 20px',
@@ -525,8 +525,8 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
                     outline: 'none',
                     transition: 'all 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
                     whiteSpace: 'nowrap',
-                    boxShadow: tokenType === 'sogni' 
-                      ? '0 3px 0 var(--brand-dark-border), inset 0 1px 0 rgba(255,255,255,0.4)' 
+                    boxShadow: tokenType === 'sogni'
+                      ? '0 3px 0 #1a1a1a, inset 0 1px 0 rgba(255,255,255,0.4)'
                       : 'none',
                     transform: tokenType === 'sogni' ? 'translateY(0)' : 'translateY(0)',
                     display: 'flex',
@@ -550,7 +550,7 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
                       }
                     } else {
                       e.currentTarget.style.transform = 'translateY(-1px)';
-                      e.currentTarget.style.boxShadow = '0 4px 0 var(--brand-dark-border), inset 0 1px 0 rgba(255,255,255,0.4)';
+                      e.currentTarget.style.boxShadow = '0 4px 0 #1a1a1a, inset 0 1px 0 rgba(255,255,255,0.4)';
                       const svg = e.currentTarget.querySelector('svg');
                       if (svg) {
                         svg.style.transform = 'scale(1.25)';
@@ -568,7 +568,7 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
                       }
                     } else {
                       e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 3px 0 var(--brand-dark-border), inset 0 1px 0 rgba(255,255,255,0.4)';
+                      e.currentTarget.style.boxShadow = '0 3px 0 #1a1a1a, inset 0 1px 0 rgba(255,255,255,0.4)';
                       const svg = e.currentTarget.querySelector('svg');
                       if (svg) {
                         svg.style.transform = 'scale(1.2)';
@@ -653,11 +653,11 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
                   }}
                   style={{
                     flex: 1,
-                    border: tokenType === 'spark' ? '3px solid var(--brand-dark-border)' : '3px solid transparent',
-                    background: tokenType === 'spark' 
-                      ? 'linear-gradient(135deg, #14b8a6 0%, #2dd4bf 50%, #5eead4 100%)' 
+                    border: tokenType === 'spark' ? '3px solid #1a1a1a' : '3px solid transparent',
+                    background: tokenType === 'spark'
+                      ? 'linear-gradient(135deg, #14b8a6 0%, #2dd4bf 50%, #5eead4 100%)'
                       : '#ffffff',
-                    color: tokenType === 'spark' ? '#ffffff' : 'var(--brand-dark-border)',
+                    color: tokenType === 'spark' ? '#ffffff' : '#1a1a1a',
                     cursor: 'pointer',
                     borderRadius: '60px',
                     padding: '16px 20px',
@@ -667,8 +667,8 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
                     outline: 'none',
                     transition: 'all 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
                     whiteSpace: 'nowrap',
-                    boxShadow: tokenType === 'spark' 
-                      ? '0 3px 0 var(--brand-dark-border), inset 0 1px 0 rgba(255,255,255,0.4)' 
+                    boxShadow: tokenType === 'spark'
+                      ? '0 3px 0 #1a1a1a, inset 0 1px 0 rgba(255,255,255,0.4)'
                       : 'none',
                     transform: tokenType === 'spark' ? 'translateY(0)' : 'translateY(0)',
                     display: 'flex',
@@ -692,7 +692,7 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
                       }
                     } else {
                       e.currentTarget.style.transform = 'translateY(-1px)';
-                      e.currentTarget.style.boxShadow = '0 4px 0 var(--brand-dark-border), inset 0 1px 0 rgba(255,255,255,0.4)';
+                      e.currentTarget.style.boxShadow = '0 4px 0 #1a1a1a, inset 0 1px 0 rgba(255,255,255,0.4)';
                       const svg = e.currentTarget.querySelector('svg');
                       if (svg) {
                         svg.style.transform = 'scale(1.25) rotate(8deg)';
@@ -710,7 +710,7 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
                       }
                     } else {
                       e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 3px 0 var(--brand-dark-border), inset 0 1px 0 rgba(255,255,255,0.4)';
+                      e.currentTarget.style.boxShadow = '0 3px 0 #1a1a1a, inset 0 1px 0 rgba(255,255,255,0.4)';
                       const svg = e.currentTarget.querySelector('svg');
                       if (svg) {
                         svg.style.transform = 'scale(1.2) rotate(5deg)';
@@ -785,7 +785,7 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
                 {tokenType === 'spark' && hasPremiumSpark && (
                   <div style={{
                     fontSize: '12px',
-                    color: 'var(--brand-dark-border)',
+                    color: '#1a1a1a',
                     fontWeight: '700',
                     textAlign: 'left',
                     display: 'flex',
@@ -815,7 +815,7 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
                       </span>
                       Premium Boosted!
                     </div>
-                    <div style={{ fontSize: '11px', color: 'var(--brand-dark-border)', opacity: 0.7 }}>
+                    <div style={{ fontSize: '11px', color: '#1a1a1a', opacity: 0.7 }}>
                       {formatTokenAmount(balances?.spark.premiumCredit || '0')} premium credits left
                     </div>
                   </div>
@@ -857,10 +857,10 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
                           opacity: rewardsLoading ? 0.6 : 1,
                           whiteSpace: 'nowrap',
                           textTransform: 'lowercase',
-                          boxShadow: canClaimDailyBoost 
-                            ? (highlightDailyBoost 
-                              ? '0 0 20px 4px rgba(16, 185, 129, 0.7), 0 0 40px 8px rgba(16, 185, 129, 0.4), 4px 4px 0 var(--brand-dark-border)' 
-                              : '3px 3px 0 var(--brand-dark-border)')
+                          boxShadow: canClaimDailyBoost
+                            ? (highlightDailyBoost
+                              ? '0 0 20px 4px rgba(16, 185, 129, 0.7), 0 0 40px 8px rgba(16, 185, 129, 0.4), 4px 4px 0 #1a1a1a'
+                              : '3px 3px 0 #1a1a1a')
                             : 'none',
                           animation: highlightDailyBoost ? 'dailyBoostGlow 2s ease-in-out infinite, dailyBoostPulse 1.5s ease-in-out infinite' : 'none'
                         }}
@@ -868,14 +868,14 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
                           if (canClaimDailyBoost && !rewardsLoading) {
                             e.currentTarget.style.background = '#0ea472';
                             e.currentTarget.style.transform = 'translate(-1px, -1px)';
-                            e.currentTarget.style.boxShadow = '4px 4px 0 var(--brand-dark-border)';
+                            e.currentTarget.style.boxShadow = '4px 4px 0 #1a1a1a';
                           }
                         }}
                         onMouseOut={(e) => {
                           if (canClaimDailyBoost && !rewardsLoading) {
                             e.currentTarget.style.background = '#10b981';
                             e.currentTarget.style.transform = 'translate(0, 0)';
-                            e.currentTarget.style.boxShadow = '3px 3px 0 var(--brand-dark-border)';
+                            e.currentTarget.style.boxShadow = '3px 3px 0 #1a1a1a';
                           }
                         }}
                       >
@@ -904,7 +904,7 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
                       {hasClaimedToday && dailyBoostReward.nextClaim && (
                         <div style={{
                           fontSize: '11px',
-                          color: 'var(--brand-dark-border)',
+                          color: '#1a1a1a',
                           opacity: 0.6,
                           textAlign: 'left',
                           paddingLeft: '4px',
@@ -935,19 +935,19 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
                         transition: 'all 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
                         whiteSpace: 'nowrap',
                         textTransform: 'lowercase',
-                        boxShadow: '3px 3px 0 var(--brand-dark-border)'
+                        boxShadow: '3px 3px 0 #1a1a1a'
                       }}
                       onMouseOver={(e) => {
                         e.currentTarget.style.background = '#14b8a6';
                         e.currentTarget.style.color = '#ffffff';
                         e.currentTarget.style.transform = 'translate(-1px, -1px)';
-                        e.currentTarget.style.boxShadow = '4px 4px 0 var(--brand-dark-border)';
+                        e.currentTarget.style.boxShadow = '4px 4px 0 #1a1a1a';
                       }}
                       onMouseOut={(e) => {
                         e.currentTarget.style.background = '#ffffff';
                         e.currentTarget.style.color = '#14b8a6';
                         e.currentTarget.style.transform = 'translate(0, 0)';
-                        e.currentTarget.style.boxShadow = '3px 3px 0 var(--brand-dark-border)';
+                        e.currentTarget.style.boxShadow = '3px 3px 0 #1a1a1a';
                       }}
                     >
                       buy spark
@@ -980,9 +980,9 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  border: '3px solid var(--brand-dark-border)',
+                  border: '3px solid #1a1a1a',
                   background: '#ffffff',
-                  color: 'var(--brand-dark-border)',
+                  color: '#1a1a1a',
                   cursor: 'pointer',
                   borderRadius: '50px',
                   padding: '12px 16px',
@@ -991,19 +991,19 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
                   outline: 'none',
                   transition: 'all 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
                   textTransform: 'lowercase',
-                  boxShadow: '3px 3px 0 var(--brand-dark-border)'
+                  boxShadow: '3px 3px 0 #1a1a1a'
                 }}
                 onMouseOver={(e) => {
                   e.currentTarget.style.background = '#00d5ff';
-                  e.currentTarget.style.color = 'var(--brand-dark-border)';
+                  e.currentTarget.style.color = '#1a1a1a';
                   e.currentTarget.style.transform = 'translate(-1px, -1px)';
-                  e.currentTarget.style.boxShadow = '4px 4px 0 var(--brand-dark-border)';
+                  e.currentTarget.style.boxShadow = '4px 4px 0 #1a1a1a';
                 }}
                 onMouseOut={(e) => {
                   e.currentTarget.style.background = '#ffffff';
-                  e.currentTarget.style.color = 'var(--brand-dark-border)';
+                  e.currentTarget.style.color = '#1a1a1a';
                   e.currentTarget.style.transform = 'translate(0, 0)';
-                  e.currentTarget.style.boxShadow = '3px 3px 0 var(--brand-dark-border)';
+                  e.currentTarget.style.boxShadow = '3px 3px 0 #1a1a1a';
                 }}
               >
                 {/* History Icon */}
@@ -1039,7 +1039,7 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
               style={{
                 border: 'none',
                 background: 'transparent',
-                color: 'var(--brand-dark-border)',
+                color: '#1a1a1a',
                 cursor: isLoading ? 'not-allowed' : 'pointer',
                 borderRadius: '4px',
                 padding: '4px 8px',
