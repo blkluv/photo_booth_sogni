@@ -939,7 +939,7 @@ const VideoSelectionPopup = ({
                     </span>
                     <h3 style={{
                       margin: 0,
-                      color: (isDisabled || isComingSoon) ? '#9CA3AF' : 'var(--brand-dark-text)',
+                      color: (isDisabled || isComingSoon) ? '#9CA3AF' : '#1a1a1a',
                       fontSize: isMobile ? '16px' : isKioskPortrait ? '14px' : isTablet ? '18px' : '20px',
                       fontWeight: '700',
                       fontFamily: '"Permanent Marker", cursive',
