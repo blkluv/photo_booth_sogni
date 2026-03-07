@@ -327,6 +327,7 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
 
   // Keyboard/remote shutter trigger
   // Bluetooth camera remotes typically send VolumeUp/VolumeDown key events.
+  // Presentation clickers send ArrowRight/PageDown. Some remotes send Camera or media keys.
   // Also support Enter and Space for accessibility and generic remotes.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -334,7 +335,14 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON' || tag === 'A') return;
 
-      const triggerKeys = ['Enter', ' ', 'AudioVolumeUp', 'AudioVolumeDown', 'VolumeUp', 'VolumeDown'];
+      const triggerKeys = [
+        'Enter', ' ',
+        'AudioVolumeUp', 'AudioVolumeDown', 'VolumeUp', 'VolumeDown',
+        'ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown',
+        'PageDown', 'PageUp',
+        'Camera',
+        'MediaPlayPause', 'MediaTrackNext',
+      ];
       if (!triggerKeys.includes(e.key)) return;
 
       // Don't fire if shutter is not ready or camera view is not active
