@@ -1511,6 +1511,7 @@ const PhotoGallery = ({
   });
   const [showSearchInput, setShowSearchInput] = useState(false);
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
+  const [hiddenThemeGroups, setHiddenThemeGroups] = useState([]);
 
   // State for favorites
   const [favoriteImageIds, setFavoriteImageIds] = useState(() => getFavoriteImages());
@@ -1805,6 +1806,16 @@ const PhotoGallery = ({
     }
   }, [isPromptSelectorMode, initialSearchTerm]);
 
+  // Load hidden theme groups from event config
+  useEffect(() => {
+    if (tezdevTheme && tezdevTheme !== 'off') {
+      themeConfigService.getHiddenThemeGroups(tezdevTheme).then(groups => {
+        setHiddenThemeGroups(groups);
+      });
+    } else {
+      setHiddenThemeGroups([]);
+    }
+  }, [tezdevTheme]);
 
   // Keep track of the previous photos array length to detect new batches (for legacy compatibility)
   const [, setPreviousPhotosLength] = useState(0);
@@ -6831,6 +6842,15 @@ const PhotoGallery = ({
 
     // Build a list of all photos that should be shown based on enabled filters (OR logic)
     const shouldShowPhoto = (photo) => {
+      // Filter out prompts from hidden theme groups (e.g., halloween/horror in Mandala Club)
+      if (hiddenThemeGroups.length > 0 && photo.promptKey) {
+        for (const groupId of hiddenThemeGroups) {
+          if (THEME_GROUPS[groupId] && THEME_GROUPS[groupId].prompts.includes(photo.promptKey)) {
+            return false;
+          }
+        }
+      }
+
       // First, filter out blocked prompts
       if (photo.promptKey && blockedPromptIds.includes(photo.promptKey)) {
         return false;
@@ -6892,7 +6912,7 @@ const PhotoGallery = ({
     }
 
     return filtered;
-  }, [isPromptSelectorMode, photos, themeGroupState, stylePrompts, selectedModel, searchTerm, favoriteImageIds, blockedPromptIds]);
+  }, [isPromptSelectorMode, photos, themeGroupState, stylePrompts, selectedModel, searchTerm, favoriteImageIds, blockedPromptIds, hiddenThemeGroups]);
 
   // Handle deep link gallery parameter on load - must come after filteredPhotos is defined
   useEffect(() => {
@@ -14618,8 +14638,8 @@ const PhotoGallery = ({
               margin: '16px 0'
             }} />
 
-            {/* Label for custom options */}
-            <div style={{
+            {/* Label for custom options - hidden in kiosk mode */}
+            {!settings.showSplashOnInactivity && <div style={{
               textAlign: 'center',
               marginBottom: '12px'
             }}>
@@ -14630,10 +14650,10 @@ const PhotoGallery = ({
               }}>
                 Or use your own prompt or style image
               </span>
-            </div>
+            </div>}
 
-            {/* Custom prompt and style reference options */}
-            <div style={{
+            {/* Custom prompt and style reference options - hidden in kiosk mode */}
+            {!settings.showSplashOnInactivity && <div style={{
               display: 'flex',
               gap: '8px',
               marginBottom: '16px',
@@ -14812,7 +14832,7 @@ const PhotoGallery = ({
                   <span style={{ fontSize: '10px', opacity: 0.8 }}></span>
                 )}
               </button>
-            </div>
+            </div>}
 
             {/* Visual divider before style library */}
             <div style={{
@@ -15136,7 +15156,9 @@ const PhotoGallery = ({
                   <button
                     onClick={() => {
                       const allSelected = Object.fromEntries(
-                        Object.keys(THEME_GROUPS).map(groupId => [groupId, true])
+                        Object.keys(THEME_GROUPS)
+                          .filter(groupId => !hiddenThemeGroups.includes(groupId))
+                          .map(groupId => [groupId, true])
                       );
                       setThemeGroupState(allSelected);
                       saveThemeGroupPreferences(allSelected);
@@ -15169,7 +15191,9 @@ const PhotoGallery = ({
                   <button
                     onClick={() => {
                       const allDeselected = Object.fromEntries(
-                        Object.keys(THEME_GROUPS).map(groupId => [groupId, false])
+                        Object.keys(THEME_GROUPS)
+                          .filter(groupId => !hiddenThemeGroups.includes(groupId))
+                          .map(groupId => [groupId, false])
                       );
                       setThemeGroupState(allDeselected);
                       saveThemeGroupPreferences(allDeselected);
@@ -15207,7 +15231,7 @@ const PhotoGallery = ({
                 gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
                 gap: '8px'
               }}>
-                {Object.entries(THEME_GROUPS).map(([groupId, group]) => (
+                {Object.entries(THEME_GROUPS).filter(([groupId]) => !hiddenThemeGroups.includes(groupId)).map(([groupId, group]) => (
                   <label key={groupId} style={{
                     display: 'flex',
                     alignItems: 'center',
