@@ -10748,30 +10748,6 @@ const App = () => {
 
         <canvas ref={canvasReference} className="hidden" />
 
-        {/* Slothicorn mascot with direct DOM manipulation */}
-        {!showStartMenu && slothicornAnimationEnabled && (
-          <div 
-            ref={slothicornReference}
-            className="slothicorn-container"
-            style={{
-              position: 'fixed',
-              bottom: '-340px',
-              left: '50%',
-              transform: 'translateX(-50%) scale(1.5)',
-              width: '200px',
-              height: 'auto',
-              zIndex: 5000,
-              pointerEvents: 'none'
-            }}
-          >
-            <img 
-              src="/slothicorn-camera.png" 
-              alt="Slothicorn mascot" 
-              className="slothicorn-image" 
-            />
-          </div>
-        )}
-
         {/* Camera shutter sound */}
         <audio ref={shutterSoundReference} preload="auto">
           <source src={clickSound} type="audio/mpeg" />
@@ -10870,6 +10846,31 @@ const App = () => {
         itemCount={photos.filter(p => !p.hidden && !p.loading && !p.generating && !p.error && p.images && p.images.length > 0 && !p.isOriginal).length || 1}
       />
       
+      {/* Slothicorn mascot - rendered outside photobooth-app div so its z-index
+           is not trapped in the parent's stacking context (zIndex: 1) */}
+      {!showStartMenu && slothicornAnimationEnabled && (
+        <div
+          ref={slothicornReference}
+          className="slothicorn-container"
+          style={{
+            position: 'fixed',
+            bottom: '-340px',
+            left: '50%',
+            transform: 'translateX(-50%) scale(1.5)',
+            width: '200px',
+            height: 'auto',
+            zIndex: 5000,
+            pointerEvents: 'none'
+          }}
+        >
+          <img
+            src="/slothicorn-camera.png"
+            alt="Slothicorn mascot"
+            className="slothicorn-image"
+          />
+        </div>
+      )}
+
       {/* Add this section at the end, right before the closing tag */}
       {showImageAdjuster && currentUploadedImageUrl && (
         <ErrorBoundary key={`error-boundary-${currentUploadedImageUrl.substring(0, 20)}`}>
