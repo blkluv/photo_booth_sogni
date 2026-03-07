@@ -1572,7 +1572,23 @@ const PhotoGallery = ({
   
   // Track which s2v videos have played audio once (so we can auto-mute after first play)
   const [s2vVideosPlayedOnce, setS2vVideosPlayedOnce] = useState(new Set());
-  
+
+  // Auto-unmute video when entering slideshow or navigating to a photo with audio video
+  useEffect(() => {
+    if (selectedPhotoIndex === null) return;
+    const photo = photos[selectedPhotoIndex];
+    if (!photo?.videoUrl || !photo?.videoWorkflowType) return;
+    if (!['s2v', 'animate-move', 'animate-replace'].includes(photo.videoWorkflowType)) return;
+
+    setUnmutedVideoId(photo.id);
+    setS2vVideosPlayedOnce(prev => {
+      if (!prev.has(photo.id)) return prev;
+      const newSet = new Set(prev);
+      newSet.delete(photo.id);
+      return newSet;
+    });
+  }, [selectedPhotoIndex]);
+
   // State for transition video mode - tracks if we're in transition batch mode and the photo order
   const [transitionVideoQueue, setTransitionVideoQueue] = useState([]);
   const [isTransitionMode, setIsTransitionMode] = useState(false);
@@ -11669,7 +11685,7 @@ const PhotoGallery = ({
       // Capture current position before selecting
       const first = element.getBoundingClientRect();
       setSelectedPhotoIndex(index);
-      
+
       // Pre-generate frames for adjacent photos to improve navigation smoothness
       await preGenerateAdjacentFrames(index);
       
