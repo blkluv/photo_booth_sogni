@@ -3,6 +3,7 @@ import { useSogniAuth } from '../../services/sogniAuth';
 import { useWallet } from '../../hooks/useWallet';
 import { formatTokenAmount, getTokenLabel } from '../../services/walletService';
 import { useRewards } from '../../context/RewardsContext';
+import { useApp } from '../../context/AppContext';
 import LoginModal, { LoginModalMode } from './LoginModal';
 import DailyBoostCelebration from '../shared/DailyBoostCelebration';
 import { getAuthButtonText, getDefaultModalMode, markAsVisited, incrementLoggedInVisitCount, hasShownProjectsTooltip, markProjectsTooltipShown } from '../../utils/visitorTracking';
@@ -57,6 +58,8 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
   const { isAuthenticated, authMode, user, logout, isLoading } = useSogniAuth();
   const { balances, tokenType, switchPaymentMethod } = useWallet();
   const { rewards, claimRewardWithToken, claimInProgress, lastClaimSuccess, resetClaimState, error: claimError, loading: rewardsLoading } = useRewards();
+  const { settings } = useApp();
+  const isKioskMode = settings.showSplashOnInactivity;
 
   // Debug: Log when showProjectsTooltip changes
   useEffect(() => {
@@ -76,6 +79,11 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
 
   // Auto-open wallet view on login/session resume if Daily Boost is available
   useEffect(() => {
+    // Skip in kiosk mode
+    if (isKioskMode) {
+      return;
+    }
+
     // Skip if already shown
     if (hasShownLoginBoostRef.current) {
       return;

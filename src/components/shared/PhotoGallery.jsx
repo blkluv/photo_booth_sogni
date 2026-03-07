@@ -2973,8 +2973,8 @@ const PhotoGallery = ({
     if (onRegisterVideoIntroTrigger) {
       // Function that can be called from parent to trigger video intro popup
       const triggerVideoIntro = () => {
-        // Only show if user hasn't seen it before
-        if (!hasSeenVideoIntro()) {
+        // Only show if user hasn't seen it before and not in kiosk mode
+        if (!hasSeenVideoIntro() && !settings.showSplashOnInactivity) {
           setShowVideoIntroPopup(true);
         }
       };
