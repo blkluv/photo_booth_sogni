@@ -325,6 +325,30 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
     return showPhotoGrid ? styles.slideOut : styles.slideIn;
   }, [isVideoLoaded, showPhotoGrid]);
 
+  // Keyboard/remote shutter trigger
+  // Bluetooth camera remotes typically send VolumeUp/VolumeDown key events.
+  // Also support Enter and Space for accessibility and generic remotes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- onTakePhoto is a callback prop, excluded per useEffect rules
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if focused on an interactive element
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      const triggerKeys = ['Enter', ' ', 'AudioVolumeUp', 'AudioVolumeDown', 'VolumeUp', 'VolumeDown'];
+      if (!triggerKeys.includes(e.key)) return;
+
+      // Don't fire if shutter is not ready
+      if (!isReady || isDisabled) return;
+
+      e.preventDefault();
+      onTakePhoto();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isReady, isDisabled]);
+
   // Camera device menu state
   const [isDeviceMenuOpen, setIsDeviceMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ bottom: '64px', left: '50%', transform: 'translateX(-50%)' });
