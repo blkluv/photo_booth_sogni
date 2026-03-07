@@ -2,19 +2,19 @@
   "version": "1.0",
   "defaultTheme": null,
   "themes": {
-    "mandela": {
-      "label": "Mandela",
+    "mandala": {
+      "label": "Mandala Club",
       "defaultAspectRatio": "narrow",
       "framePadding": { "top": 0, "left": 0, "right": 0, "bottom": 34 },
-      "tweetTemplate": "Just took my photo at the @sogni_protocol AI Photobooth at Mandela Club! https://photobooth.sogni.ai",
+      "tweetTemplate": "Just took my photo at the @sogni_protocol AI Photobooth at Mandala Club! https://photobooth.sogni.ai",
       "frames": {
         "narrow": [
-          "/events/mandela/narrow_1.png?2"
+          "/events/mandala/narrow_1.png?2"
         ]
       },
       "brand": {
         "title": "MANDALA CLUB x SOGNI",
-        "logo": "/events/mandela/logo_white.png",
+        "logo": "/events/mandala/logo_white.png",
         "colors": {
           "gradientStart": "#008C8C",
           "gradientEnd": "#006666",
