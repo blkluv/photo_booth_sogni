@@ -12514,8 +12514,8 @@ const PhotoGallery = ({
           alignItems: 'center',
           zIndex: 10000000 
         }}>
-          {/* Download Button - Only show when there are completed images */}
-          {photos && photos.filter(p => !p.hidden && !p.error && p.images && p.images.length > 0).length > 0 && (
+          {/* Download Button - Only show when there are completed images, hide in kiosk mode */}
+          {!settings.showSplashOnInactivity && photos && photos.filter(p => !p.hidden && !p.error && p.images && p.images.length > 0).length > 0 && (
             <div 
               className="batch-download-button-container" 
               style={{ 
@@ -12990,8 +12990,8 @@ const PhotoGallery = ({
             </div>
           )}
 
-          {/* Share Button - Shows when there are 2+ videos to stitch and share */}
-          {(() => {
+          {/* Share Button - Shows when there are 2+ videos to stitch and share, hide in kiosk mode */}
+          {!settings.showSplashOnInactivity && (() => {
             const currentPhotosArray = isPromptSelectorMode ? filteredPhotos : photos;
             const photosWithVideos = currentPhotosArray.filter(
               photo => !photo.hidden && !photo.loading && !photo.generating && !photo.error && photo.videoUrl && !photo.isOriginal
@@ -13456,6 +13456,8 @@ const PhotoGallery = ({
                 </button>
               </>
             ) : (
+              /* Hide ShareMenu in kiosk mode - users share via QR from Download button */
+              !settings.showSplashOnInactivity && (
               <ShareMenu
                 onShareToTwitter={() => {
                   // Pass both index and actual photo object to handle filtered scenarios
@@ -13484,7 +13486,7 @@ const PhotoGallery = ({
                 showWebShare={isWebShareSupported()}
                 isMobileDevice={isMobile()}
                 disabled={
-                  selectedPhoto.loading || 
+                  selectedPhoto.loading ||
                   selectedPhoto.enhancing ||
                   // Only disable for generation errors, not enhancement errors (original photo is still shareable)
                   (selectedPhoto.error && !selectedPhoto.enhancementError) ||
@@ -13495,13 +13497,15 @@ const PhotoGallery = ({
                 isCustomPromptWithWinterContext={!!settings.winterContext && (selectedStyle === 'custom' || selectedPhoto.selectedStyle === 'custom' || selectedPhoto.promptKey === 'custom')}
                 tezdevTheme={tezdevTheme}
               />
+              )
             )}
 
           {/* Download Button with Dropdown - Always show in slideshow (not Vibe Explorer) */}
+          {/* In kiosk mode, Download triggers QR share directly */}
           {!isPromptSelectorMode && (
-            <div 
-              className="slideshow-download-button-container" 
-              style={{ 
+            <div
+              className="slideshow-download-button-container"
+              style={{
                 position: 'relative',
                 display: 'inline-flex'
               }}
@@ -13510,24 +13514,38 @@ const PhotoGallery = ({
                 className="action-button download-btn"
                 onClick={(e) => {
                   e.stopPropagation();
-                  // Close main download dropdown if open
-                  if (showMoreDropdown) {
-                    setShowMoreDropdown(false);
+                  if (settings.showSplashOnInactivity && handleShareQRCode) {
+                    // Kiosk mode: trigger QR code share directly
+                    handleShareQRCode(selectedPhotoIndex);
+                  } else {
+                    // Normal mode: show download dropdown
+                    if (showMoreDropdown) {
+                      setShowMoreDropdown(false);
+                    }
+                    setShowSlideshowDownloadDropdown(prev => !prev);
                   }
-                  setShowSlideshowDownloadDropdown(prev => !prev);
                 }}
                 disabled={
-                  selectedPhoto.loading || 
+                  selectedPhoto.loading ||
                   selectedPhoto.enhancing ||
                   (!selectedPhoto.images || selectedPhoto.images.length === 0) && !selectedPhoto.videoUrl
                 }
               >
-                <span>⬇️</span>
-                <span>Download</span>
+                {settings.showSplashOnInactivity ? (
+                  <>
+                    <span>📱</span>
+                    <span>Share</span>
+                  </>
+                ) : (
+                  <>
+                    <span>⬇️</span>
+                    <span>Download</span>
+                  </>
+                )}
               </button>
 
-              {/* Download options dropdown - portaled to escape stacking context */}
-              {showSlideshowDownloadDropdown && createPortal(
+              {/* Download options dropdown - portaled to escape stacking context (hidden in kiosk mode) */}
+              {!settings.showSplashOnInactivity && showSlideshowDownloadDropdown && createPortal(
                 (
                   <div
                     className="slideshow-download-dropdown"
