@@ -1510,7 +1510,6 @@ const PhotoGallery = ({
     return false;
   });
   const [showSearchInput, setShowSearchInput] = useState(false);
-  const [showPortraitTypeDropdown, setShowPortraitTypeDropdown] = useState(false);
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
   const [hiddenThemeGroups, setHiddenThemeGroups] = useState([]);
 
@@ -11403,19 +11402,6 @@ const PhotoGallery = ({
     };
   }, [showSearchInput]);
 
-  // Close portrait type dropdown when clicking outside
-  useEffect(() => {
-    if (!showPortraitTypeDropdown) return;
-    const handleClickOutside = (event) => {
-      const inDropdown = !!event.target.closest('.style-selector-text-container');
-      if (!inDropdown) {
-        setShowPortraitTypeDropdown(false);
-      }
-    };
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, [showPortraitTypeDropdown]);
-
   // Ensure all photos have a Taipei frame number and frame padding assigned (migration for existing photos)
   // Use a ref to track if migration has been done to avoid repeated migrations
   // MUST be called before any early returns to maintain hook order
@@ -14896,130 +14882,60 @@ const PhotoGallery = ({
           marginBottom: '0px',
           gap: '12px'
         }} className="style-selector-text-container">
-          {/* Portrait Type Selector - Single circle with dropdown */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            position: 'relative'
-          }}>
-            <span className="portrait-type-preview-label" style={{
-              fontSize: '14px',
-              fontFamily: '"Permanent Marker", cursive',
-              color: 'rgba(255, 255, 255, 0.7)'
-            }}>
-              Preview:
-            </span>
-            <button
-              onClick={() => setShowPortraitTypeDropdown(prev => !prev)}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                borderRadius: '50%',
-                padding: '0',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                width: '48px',
-                height: '48px',
-                overflow: 'hidden',
-                outline: '2px solid rgba(255, 255, 255, 0.5)',
-                outlineOffset: '2px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
-              }}
-              title={portraitType === 'headshot' ? 'Near (Up Close) — Click to change' : 'Waist-Up — Click to change'}
-            >
-              <img
-                src={portraitType === 'headshot' ? '/gallery/sample-gallery-headshot-einstein.jpg' : '/gallery/sample-gallery-medium-body-jen.jpg'}
-                alt={portraitType === 'headshot' ? 'Near' : 'Waist-Up'}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  display: 'block'
-                }}
-              />
-            </button>
-            <span style={{
-              fontSize: '12px',
-              fontFamily: '"Permanent Marker", cursive',
-              color: 'white'
-            }}>
-              {portraitType === 'headshot' ? 'Near' : 'Waist-Up'}
-            </span>
-            <span style={{
-              fontSize: '10px',
-              color: 'rgba(255, 255, 255, 0.6)',
-              transition: 'transform 0.2s ease',
-              transform: showPortraitTypeDropdown ? 'rotate(180deg)' : 'rotate(0deg)'
-            }}>
-              ▼
-            </span>
-
-            {/* Dropdown */}
-            {showPortraitTypeDropdown && (
-              <div style={{
-                position: 'absolute',
-                top: '100%',
-                left: '0',
-                marginTop: '8px',
-                background: 'rgba(30, 30, 30, 0.95)',
-                backdropFilter: 'blur(12px)',
-                borderRadius: '12px',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-                padding: '6px',
-                zIndex: 100,
-                minWidth: '180px'
-              }}>
-                {[
-                  { value: 'headshot', label: 'Near', sublabel: 'Up Close', img: '/gallery/sample-gallery-headshot-einstein.jpg' },
-                  { value: 'medium', label: 'Waist-Up', sublabel: 'Half Body', img: '/gallery/sample-gallery-medium-body-jen.jpg' }
-                ].map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => {
-                      if (onPortraitTypeChange) onPortraitTypeChange(opt.value);
-                      setShowPortraitTypeDropdown(false);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      width: '100%',
-                      padding: '8px 10px',
-                      background: portraitType === opt.value ? 'rgba(255, 255, 255, 0.12)' : 'transparent',
-                      border: 'none',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      transition: 'background 0.15s ease',
-                      color: 'white'
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = portraitType === opt.value ? 'rgba(255, 255, 255, 0.12)' : 'transparent'; }}
-                  >
-                    <div style={{
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '50%',
-                      overflow: 'hidden',
-                      flexShrink: 0,
-                      outline: portraitType === opt.value ? '2px solid var(--brand-accent-tertiary)' : '1px solid rgba(255, 255, 255, 0.2)',
-                      outlineOffset: '1px'
-                    }}>
-                      <img src={opt.img} alt={opt.label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                    </div>
-                    <div style={{ textAlign: 'left' }}>
-                      <div style={{ fontSize: '14px', fontFamily: '"Permanent Marker", cursive' }}>{opt.label}</div>
-                      <div style={{ fontSize: '11px', opacity: 0.6 }}>{opt.sublabel}</div>
-                    </div>
-                    {portraitType === opt.value && (
-                      <span style={{ marginLeft: 'auto', fontSize: '14px', color: 'var(--brand-accent-tertiary)' }}>✓</span>
-                    )}
-                  </button>
-                ))}
+          {/* Portrait Type Selector - Selected entry with dropdown */}
+          {/* Portrait Type Toggle */}
+          {(() => {
+            const portraitOptions = {
+              headshot: { label: 'Near', img: '/gallery/sample-gallery-headshot-einstein.jpg' },
+              medium: { label: 'Waist-Up', img: '/gallery/sample-gallery-medium-body-jen.jpg' }
+            };
+            const current = portraitOptions[portraitType] || portraitOptions.medium;
+            const nextValue = portraitType === 'headshot' ? 'medium' : 'headshot';
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span className="portrait-type-preview-label" style={{
+                  fontSize: '14px',
+                  fontFamily: '"Permanent Marker", cursive',
+                  color: 'rgba(255, 255, 255, 0.7)',
+                  marginRight: '2px'
+                }}>
+                  Preview:
+                </span>
+                <button
+                  onClick={() => onPortraitTypeChange && onPortraitTypeChange(nextValue)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '4px 12px 4px 4px',
+                    background: 'rgba(255, 255, 255, 0.15)',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    borderRadius: '24px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    color: 'white'
+                  }}
+                  title={`Switch to ${portraitOptions[nextValue].label}`}
+                >
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    overflow: 'hidden',
+                    flexShrink: 0
+                  }}>
+                    <img src={current.img} alt={current.label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  </div>
+                  <span style={{
+                    fontSize: '13px',
+                    fontFamily: '"Permanent Marker", cursive'
+                  }}>
+                    {current.label}
+                  </span>
+                </button>
               </div>
-            )}
-          </div>
+            );
+          })()}
 
           {/* Search + Filter on the right */}
           <div style={{
