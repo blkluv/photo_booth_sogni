@@ -87,6 +87,14 @@ function SlideshowContent({ job, sogniClient, active, modelName }: SlideshowCont
     };
   }, [url, job.type, modelName]);
 
+  // Sync muted DOM property with isMuted state via ref (React doesn't reliably update the muted property)
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video) {
+      video.muted = isMuted;
+    }
+  }, [isMuted]);
+
   // Autoplay video when active and URL is ready
   useEffect(() => {
     const video = videoRef.current;
@@ -182,7 +190,7 @@ function SlideshowContent({ job, sogniClient, active, modelName }: SlideshowCont
           src={url}
           loop
           playsInline
-          muted={!hasAudio}
+          muted={isMuted}
           preload="auto"
         />
         <button

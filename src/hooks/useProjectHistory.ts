@@ -171,10 +171,18 @@ export function useProjectHistory({ sogniClient }: UseProjectHistoryOptions) {
           {}
         );
 
+        // Supported job types (skip LLM/text and other unsupported types)
+        const SUPPORTED_JOB_TYPES = new Set(['image', 'video', 'audio']);
+
         // Process new jobs
         for (const job of recentJobs) {
           // Skip jobs that triggered NSFW filter (failure state)
           if (job.triggeredNSFWFilter) {
+            continue;
+          }
+
+          // Skip unsupported job types (e.g., LLM/text)
+          if (!SUPPORTED_JOB_TYPES.has(job.parentRequest.jobType)) {
             continue;
           }
 

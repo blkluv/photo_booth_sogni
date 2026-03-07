@@ -73,6 +73,14 @@ function JobItem({ job, aspect, sogniClient, onView, onHideJob, modelName }: Job
     };
   }, [url, job.type, modelName]);
 
+  // Sync muted DOM property with isMuted state via ref (React doesn't reliably update the muted property)
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video) {
+      video.muted = isMuted;
+    }
+  }, [isMuted]);
+
   // Toggle video play/pause
   const handleVideoToggle = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
