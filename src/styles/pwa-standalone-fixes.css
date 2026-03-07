@@ -127,7 +127,7 @@
 
   /* Fix Advanced Settings content container */
   html body .control-overlay .control-overlay-content {
-    margin: 0 !important;
+    margin: 0 auto !important;
   }
 
   html body .main-content-area {
