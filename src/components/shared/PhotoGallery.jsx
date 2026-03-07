@@ -973,6 +973,8 @@ const PhotoGallery = ({
 
   // Helper function to format cost - shows token cost with USD in parentheses
   const formatCost = (tokenCost, usdCost) => {
+    // Hide pricing in kiosk mode
+    if (settings.showSplashOnInactivity) return null;
     // Handle null, undefined, or dash placeholder
     if (tokenCost === null || tokenCost === undefined || tokenCost === '—' || tokenCost === '') return null;
     

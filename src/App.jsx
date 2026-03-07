@@ -10324,8 +10324,8 @@ const App = () => {
           modelOptions={getModelOptions()} 
         />
 
-        {/* Authentication Status - top-left corner */}
-        {!showSplashScreen && currentPage !== 'prompts' && (
+        {/* Authentication Status - top-left corner (hidden in kiosk mode) */}
+        {!showSplashScreen && currentPage !== 'prompts' && !showSplashOnInactivity && (
           <div 
             className="auth-status-wrapper"
             style={{

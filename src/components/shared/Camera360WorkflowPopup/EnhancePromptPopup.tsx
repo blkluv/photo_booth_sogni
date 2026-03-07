@@ -12,6 +12,7 @@ import React, { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { COLORS } from '../../../constants/camera360Settings';
 import { useCostEstimation } from '../../../hooks/useCostEstimation';
+import { useApp } from '../../../context/AppContext';
 import { useWallet } from '../../../hooks/useWallet';
 import { getTokenLabel } from '../../../services/walletService';
 
@@ -42,6 +43,7 @@ const EnhancePromptPopup: React.FC<EnhancePromptPopupProps> = ({
 }) => {
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
   const [qualityKey, setQualityKey] = useState<QualityKey>('balanced');
+  const { settings } = useApp();
   const { tokenType } = useWallet();
 
   const selectedPreset = ENHANCE_QUALITY_PRESETS.find(p => p.key === qualityKey) || ENHANCE_QUALITY_PRESETS[1];
@@ -75,6 +77,9 @@ const EnhancePromptPopup: React.FC<EnhancePromptPopupProps> = ({
   const tokenLabel = getTokenLabel(tokenType);
 
   const renderCost = () => {
+    // Hide pricing in kiosk mode
+    if (settings.showSplashOnInactivity) return null;
+
     if (costLoading) {
       return (
         <span style={{ fontSize: '11px', color: COLORS.textMuted }}>Estimating...</span>

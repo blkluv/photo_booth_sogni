@@ -1,6 +1,7 @@
 import React, { useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
+import { useApp } from '../../context/AppContext';
 import { getTokenLabel } from '../../services/walletService';
 
 /**
@@ -26,6 +27,7 @@ const StitchOptionsPopup = ({
   videoDuration = 5,
   tokenType = 'spark'
 }) => {
+  const { settings } = useApp();
   // Keep track of last known ETAs to avoid flickering back to spinner
   const lastKnownETAsRef = useRef({});
   
@@ -718,8 +720,8 @@ const StitchOptionsPopup = ({
                   </div>
                 </div>
 
-                {/* Cost Footer for Infinite Loop */}
-                {!costLoading && costRaw && costUSD ? (
+                {/* Cost Footer for Infinite Loop (hidden in kiosk mode) */}
+                {!settings.showSplashOnInactivity && !costLoading && costRaw && costUSD ? (
                   <div style={{
                     marginTop: '16px',
                     padding: '12px 16px',
@@ -759,7 +761,7 @@ const StitchOptionsPopup = ({
                       Cost is for generating AI transitions between videos
                     </div>
                   </div>
-                ) : costLoading ? (
+                ) : !settings.showSplashOnInactivity && costLoading ? (
                   <div style={{
                     marginTop: '16px',
                     padding: '12px 16px',

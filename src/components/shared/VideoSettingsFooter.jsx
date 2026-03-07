@@ -231,6 +231,9 @@ const VideoSettingsFooter = ({
 
   // Format cost display
   const renderCost = () => {
+    // Hide pricing in kiosk mode
+    if (settings.showSplashOnInactivity) return null;
+
     if (loading) {
       return <span style={{ fontSize: '10px', color: colors.textMuted }}>...</span>;
     }

@@ -327,7 +327,12 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
 
   // Style selector handlers
   const handleStyleClick = () => {
-    // Always show the dropdown for quick selection
+    // In kiosk mode, go directly to full-screen Vibe Explorer
+    if (isKioskMode && onNavigateToGallery) {
+      onNavigateToGallery();
+      return;
+    }
+    // Otherwise show the dropdown for quick selection
     // Users can choose "Browse Vibe Explorer" from the dropdown if they want the full gallery
     setShowStyleDropdown(true);
   };

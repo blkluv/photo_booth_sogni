@@ -964,7 +964,7 @@ const ImageAdjuster = ({
                       {isProcessing ? '⏳ Processing...' : !imageLoaded ? '⏳ Loading image...' : useOriginalImage ? `Use Original ${selectedBatchCount}x` : `Imagine ${selectedBatchCount}x`}
                     </div>
                     <div className="confirm-button-details">
-                      {!isProcessing && !useOriginalImage && isAuthenticated && !costLoading && cost !== null && (
+                      {!settings.showSplashOnInactivity && !isProcessing && !useOriginalImage && isAuthenticated && !costLoading && cost !== null && (
                         <>
                           <span className="price-token">{cost.toFixed(2)} {tokenLabel.split(' ')[0]}</span>
                           {costInUSD !== null && (
@@ -972,7 +972,7 @@ const ImageAdjuster = ({
                           )}
                         </>
                       )}
-                      {useOriginalImage && !isProcessing && (
+                      {!settings.showSplashOnInactivity && useOriginalImage && !isProcessing && (
                         <span className="price-free">Free</span>
                       )}
                     </div>
@@ -1014,7 +1014,7 @@ const ImageAdjuster = ({
               )}
             </div>
             {/* Use Original checkbox - right under the Imagine button */}
-            {onUseRawImage && headerText !== 'Adjust Your Style Reference' && (
+            {onUseRawImage && headerText !== 'Adjust Your Style Reference' && !settings.showSplashOnInactivity && (
               <label
                 className="use-raw-image-checkbox"
                 title="Skip AI generation and use your cropped/adjusted image as-is"
