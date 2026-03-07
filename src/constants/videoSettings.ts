@@ -433,7 +433,7 @@ export function getAnimateMoveQualityPresets(family: AnimateMoveModelFamily) {
  * Check if a model ID is an LTX-2 model.
  */
 export function isLtx2Model(modelId: string): boolean {
-  return modelId.startsWith('ltx2-');
+  return modelId.startsWith('ltx2-') || modelId.startsWith('ltx23-');
 }
 
 /**
