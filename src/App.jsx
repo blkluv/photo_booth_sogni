@@ -7739,7 +7739,6 @@ const App = () => {
             // Reset handlers for camera and upload photos
             onResetCameraPhoto={handleResetCameraPhoto}
             onResetUploadedPhoto={handleResetUploadedPhoto}
-            isKioskMode={showSplashOnInactivity}
           />
           
 

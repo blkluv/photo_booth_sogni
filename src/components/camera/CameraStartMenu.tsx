@@ -4,6 +4,7 @@ import { styleIdToDisplay } from '../../utils';
 import { generateGalleryFilename, getPortraitFolderWithFallback } from '../../utils/galleryLoader';
 import { CUSTOM_PROMPT_IMAGE_KEY } from '../shared/CustomPromptPopup';
 import { getEnabledPrompts } from '../../constants/themeGroups';
+import { useApp } from '../../context/AppContext';
 import urls from '../../config/urls';
 import promptsDataRaw from '../../prompts.json';
 import './CameraStartMenu.css';
@@ -78,8 +79,6 @@ interface CameraStartMenuProps {
   // Brand override
   brandTitle?: string | null;
   brandLogo?: string | null;
-  // Kiosk mode - hides upload option
-  isKioskMode?: boolean;
 }
 
 const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
@@ -111,9 +110,10 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
   onResetUploadedPhoto,
   currentThemes = {},
   brandTitle = null,
-  brandLogo = null,
-  isKioskMode = false
+  brandLogo = null
 }) => {
+  const { settings } = useApp();
+  const isKioskMode = settings.showSplashOnInactivity;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showStyleDropdown, setShowStyleDropdown] = useState(false);
   const [isAudioEnabled, setIsAudioEnabled] = useState(() => {
