@@ -43,7 +43,9 @@
           "textMuted": "#C8C4BE",
           "cardBg": "#007A7A",
           "pwaPink": "#DE73BE",
-          "gimiPurple": "#6185F2"
+          "gimiPurple": "#6185F2",
+          "ctaStart": "#6185F2",
+          "ctaEnd": "#4a6fd4"
         }
       }
     },

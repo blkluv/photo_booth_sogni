@@ -31,6 +31,8 @@
   --brand-card-bg: #ffffff;
   --brand-pwa-pink: #FF69B4;
   --brand-gimi-purple: #8a2be2;
+  --brand-cta-start: #ff5252;
+  --brand-cta-end: #e53935;
 }
 
 /* Main gradient background for entire photobooth app */

@@ -485,7 +485,7 @@
   position: fixed;
   bottom: 32px;
   left: 32px;
-  background: linear-gradient(135deg, #ff5252, #e53935);
+  background: linear-gradient(135deg, var(--brand-cta-start), var(--brand-cta-end));
   color: white;
   padding: 8px 16px;
   padding-bottom: 10px;

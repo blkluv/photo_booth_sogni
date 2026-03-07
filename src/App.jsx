@@ -1761,6 +1761,8 @@ const App = () => {
             cardBg: '--brand-card-bg',
             pwaPink: '--brand-pwa-pink',
             gimiPurple: '--brand-gimi-purple',
+            ctaStart: '--brand-cta-start',
+            ctaEnd: '--brand-cta-end',
           };
           for (const [key, cssVar] of Object.entries(colorMap)) {
             if (brandColors[key]) {
@@ -1792,6 +1794,7 @@ const App = () => {
         '--brand-adjuster-start', '--brand-adjuster-end',
         '--brand-dark-text', '--brand-dark-border', '--brand-text-secondary', '--brand-text-muted',
         '--brand-card-bg', '--brand-pwa-pink', '--brand-gimi-purple',
+        '--brand-cta-start', '--brand-cta-end',
       ];
       for (const v of brandVars) {
         root.style.removeProperty(v);
@@ -10484,7 +10487,13 @@ const App = () => {
             {/* Camera View Style Selector Button */}
             <button
               className="camera-view-style-selector-button"
-              onClick={() => setShowCameraStyleDropdown(prev => !prev)}
+              onClick={() => {
+                if (showSplashOnInactivity) {
+                  handleNavigateToPromptSelector();
+                } else {
+                  setShowCameraStyleDropdown(prev => !prev);
+                }
+              }}
               title="Your selected vibe - Click to change"
             >
               <div className="camera-view-style-selector-content">

@@ -772,6 +772,20 @@
   }
 }
 
+/* Hide empty pricing details (kiosk mode) */
+.confirm-button-details:empty {
+  display: none;
+}
+
+/* Kiosk mode: match New and Imagine button heights */
+.image-adjustment-buttons.kiosk-mode {
+  align-items: stretch;
+}
+
+.image-adjustment-buttons.kiosk-mode .batch-dropdown-container {
+  flex: 1;
+}
+
 /* Wrapper to stack Imagine button and checkbox */
 .imagine-button-wrapper {
   display: flex;

@@ -12393,7 +12393,13 @@ const PhotoGallery = ({
       {!isPromptSelectorMode && selectedPhotoIndex === null && updateStyle && (
         <button
           className="photo-gallery-style-selector-button"
-          onClick={() => setShowStyleDropdown(prev => !prev)}
+          onClick={() => {
+            if (settings.showSplashOnInactivity && onNavigateToVibeExplorer) {
+              onNavigateToVibeExplorer();
+            } else {
+              setShowStyleDropdown(prev => !prev);
+            }
+          }}
           title="Your selected vibe - Click to change"
         >
           <div className="photo-gallery-style-selector-content">
@@ -12514,7 +12520,7 @@ const PhotoGallery = ({
               className="batch-download-button-container" 
               style={{ 
               position: 'relative',
-              background: 'linear-gradient(135deg, #ff5252, #e53935)',
+              background: 'linear-gradient(135deg, var(--brand-cta-start), var(--brand-cta-end))',
               borderRadius: '8px',
               boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
               transition: 'all 0.2s ease',
@@ -12854,7 +12860,7 @@ const PhotoGallery = ({
             className="batch-video-button-container" 
             style={{ 
               position: 'relative',
-              background: 'linear-gradient(135deg, #ff5252, #e53935)',
+              background: 'linear-gradient(135deg, var(--brand-cta-start), var(--brand-cta-end))',
               borderRadius: '8px',
               boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
               transition: 'all 0.2s ease',
@@ -12934,7 +12940,7 @@ const PhotoGallery = ({
               className="batch-camera-angle-button-container"
               style={{
                 position: 'relative',
-                background: 'linear-gradient(135deg, #ff5252, #e53935)',
+                background: 'linear-gradient(135deg, var(--brand-cta-start), var(--brand-cta-end))',
                 borderRadius: '8px',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
                 transition: 'all 0.2s ease',
@@ -12997,7 +13003,7 @@ const PhotoGallery = ({
                   className="batch-share-button-container"
                   style={{
                     position: 'relative',
-                    background: 'linear-gradient(135deg, #ff5252, #e53935)',
+                    background: 'linear-gradient(135deg, var(--brand-cta-start), var(--brand-cta-end))',
                     borderRadius: '8px',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
                     transition: 'all 0.2s ease',
@@ -13200,7 +13206,7 @@ const PhotoGallery = ({
               }}
               disabled={!isSogniReady || (!lastPhotoData.blob && photos.filter(p => !p.hidden && !p.error && p.images && p.images.length > 0).length === 0)}
               style={{
-                background: 'linear-gradient(135deg, #ff5252, #e53935)',
+                background: 'linear-gradient(135deg, var(--brand-cta-start), var(--brand-cta-end))',
                 color: 'white',
                 border: 'none',
                 padding: '6px 14px',
@@ -20616,7 +20622,7 @@ const PhotoGallery = ({
             <button
               onClick={onCloseQR}
               style={{
-                background: 'linear-gradient(135deg, #ff5252, #e53935)',
+                background: 'linear-gradient(135deg, var(--brand-cta-start), var(--brand-cta-end))',
                 color: 'white',
                 border: 'none',
                 padding: '12px 32px',

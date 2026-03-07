@@ -765,7 +765,13 @@ const ImageAdjuster = ({
           {/* Pinned Style Widget - Top Left */}
           <button 
           className="image-adjuster-style-selector-button"
-          onClick={() => setShowStyleDropdown(prev => !prev)}
+          onClick={() => {
+            if (settings.showSplashOnInactivity && onNavigateToVibeExplorer) {
+              onNavigateToVibeExplorer();
+            } else {
+              setShowStyleDropdown(prev => !prev);
+            }
+          }}
           title="Your selected vibe - Click to change"
         >
           <div className="image-adjuster-style-selector-content">
@@ -929,7 +935,7 @@ const ImageAdjuster = ({
           </div>
         </div>
         
-        <div className="image-adjustment-buttons">
+        <div className={`image-adjustment-buttons ${settings.showSplashOnInactivity ? 'kiosk-mode' : ''}`}>
           {/* Replace/Swap image button - now in button bar */}
           {(onUploadNew || onTakeNewPhoto) && (
             <button
