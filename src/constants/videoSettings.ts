@@ -21,7 +21,7 @@ export const S2V_MODELS = {
 
 // Image+Audio to Video (IA2V) model variants - LTX-2
 export const IA2V_MODELS = {
-  speed: 'ltx2-19b-fp8_ia2v_distilled'
+  speed: 'ltx23-22b-fp8_ia2v_distilled'
 } as const;
 
 // S2V model family type for toggling between WAN 2.2 and LTX-2
