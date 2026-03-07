@@ -136,9 +136,9 @@ export const IA2V_QUALITY_PRESETS = {
   },
   balanced: {
     model: IA2V_MODELS.speed,
-    steps: 12,
+    steps: 8,
     label: 'Balanced',
-    description: 'Good balance (~60-90s)',
+    description: 'Good balance (~40-60s)',
     guidance: 1.0,
     shift: 8.0,
     sampler: 'euler_ancestral',
