@@ -3,26 +3,11 @@ import { analyzeImageFaces } from '../services/sogni.js';
 
 const router = express.Router();
 
-// Only allow requests from our own domains (browser Origin header)
+// Only allow requests from *.sogni.ai subdomains
 // CORS alone isn't enough — it allows no-origin requests (curl, Postman, server-to-server)
-const ALLOWED_ORIGINS = [
-  'https://photobooth.sogni.ai',
-  'https://photobooth-staging.sogni.ai',
-  'https://photobooth-local.sogni.ai',
-  'http://localhost:5175',
-  'http://localhost:3000',
-  'http://127.0.0.1:5175',
-  'http://127.0.0.1:3000',
-];
-
 function requireOrigin(req, res, next) {
   const origin = req.headers.origin || req.headers.referer;
-  const isAllowed = origin && (
-    ALLOWED_ORIGINS.some(allowed => origin.startsWith(allowed)) ||
-    /^https?:\/\/[^/]*\.sogni\.ai(\/|$)/.test(origin)
-  );
-
-  if (!isAllowed) {
+  if (!origin || !/^https:\/\/[^/]*\.sogni\.ai(\/|$)/.test(origin)) {
     return res.status(403).json({ error: 'Forbidden' });
   }
   next();
