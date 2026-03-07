@@ -1243,6 +1243,61 @@ export async function getClientInfo(sessionId) {
   }
 }
 
+// Analyze image for main-subject face count using Sogni LLM vision
+const FACE_ANALYSIS_MODEL = 'qwen3.5-35b-a3b-gguf-q4km';
+const FACE_ANALYSIS_SYSTEM_PROMPT = `You are a face counter for a photo booth application. Count ONLY the main subjects who are intentionally posing or being captured in the photo. Ignore:
+- People in the background or far distance
+- Bystanders or passersby partially visible at frame edges
+- Faces on screens, posters, or artwork
+- Blurry or indistinct faces that are clearly not the focus
+Respond with ONLY a single number representing the count of main subject faces. Nothing else.`;
+
+export async function analyzeImageFaces(imageBase64DataUri) {
+  console.log('[FACE_ANALYSIS] Starting analysis, image data length:', imageBase64DataUri?.length);
+  const client = await getOrCreateGlobalSogniClient();
+
+  const messages = [
+    { role: 'system', content: FACE_ANALYSIS_SYSTEM_PROMPT },
+    {
+      role: 'user',
+      content: [
+        { type: 'image_url', image_url: { url: imageBase64DataUri } },
+        { type: 'text', text: 'How many people are the main subjects of this photo booth portrait?' },
+      ],
+    },
+  ];
+
+  const stream = await client.chat.completions.create({
+    model: FACE_ANALYSIS_MODEL,
+    messages,
+    stream: true,
+    tokenType: 'spark',
+    temperature: 0.1,
+    top_p: 0.9,
+    max_tokens: 16,
+    think: false, // CRITICAL: Disable Qwen3's <think> blocks which corrupt number parsing
+  });
+
+  let fullContent = '';
+  for await (const chunk of stream) {
+    if (chunk.content) {
+      fullContent += chunk.content;
+    }
+  }
+
+  console.log('[FACE_ANALYSIS] Raw LLM response:', JSON.stringify(fullContent));
+
+  // Strip any residual <think>...</think> blocks just in case
+  const stripped = fullContent.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+
+  // Parse the number from the response (strip any non-digit chars)
+  const cleaned = stripped.replace(/[^0-9]/g, '');
+  const faceCount = parseInt(cleaned, 10);
+  const result = isNaN(faceCount) ? 1 : Math.max(faceCount, 0);
+  console.log('[FACE_ANALYSIS] Parsed faceCount:', result);
+  return result;
+}
+
 // Backwards compatibility
 export async function initializeSogniClient() {
   return getOrCreateGlobalSogniClient();

@@ -13,6 +13,9 @@ import { styleIdToDisplay } from '../../utils';
 import { generateGalleryFilename, getPortraitFolderWithFallback } from '../../utils/galleryLoader';
 import promptsDataRaw from '../../prompts.json';
 import StyleDropdown from './StyleDropdown';
+import MultiFaceDetectedModal from './MultiFaceDetectedModal.tsx';
+import { analyzeImageFaces } from '../../services/faceAnalysisService';
+import { isContextImageModel, QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID } from '../../constants/settings';
 import '../../styles/components/ImageAdjuster.css';
 
 /**
@@ -105,6 +108,12 @@ const ImageAdjuster = ({
   // Track processing state to prevent unmounting during async operations
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Face analysis state
+  const [faceCount, setFaceCount] = useState(null);
+  const [showMultiFaceModal, setShowMultiFaceModal] = useState(false);
+  const pendingConfirmRef = useRef(null); // Stores blob when waiting for modal response
+  const pendingModelSwitchRef = useRef(false); // True when waiting for model switch to propagate
+
   // Update position and scale when props change (for restoration)
   useEffect(() => {
 
@@ -169,6 +178,32 @@ const ImageAdjuster = ({
       }
     };
   }, [imageUrl]);
+
+  // Background face analysis when imageUrl changes
+  useEffect(() => {
+    // Skip if already on a context image model (handles multiple faces natively)
+    if (isContextImageModel(selectedModel)) {
+      setFaceCount(null);
+      return;
+    }
+
+    if (!imageUrl) return;
+
+    // Use a cancelled flag - more reliable than abort signal for the .then() check
+    // (React StrictMode double-mount can fire cleanup between fetch completion and .then())
+    let cancelled = false;
+    setFaceCount(null);
+
+    console.log('[FACE_ANALYSIS] Starting background analysis...');
+    analyzeImageFaces(imageUrl).then((result) => {
+      if (!cancelled) {
+        console.log('[FACE_ANALYSIS] Result:', result.faceCount, 'face(s)');
+        setFaceCount(result.faceCount);
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, [imageUrl, selectedModel]);
 
   // Load theme frame URLs and padding when theme or aspect ratio changes
   useEffect(() => {
@@ -726,6 +761,46 @@ const ImageAdjuster = ({
     });
   }, [dimensions, scale, position]);
   
+  // Proceed with generation (called directly or after model switch propagates)
+  const proceedWithGeneration = useCallback((finalBlob) => {
+    if (useOriginalImage && onUseRawImage) {
+      onUseRawImage(finalBlob);
+    } else {
+      onConfirm(finalBlob, { position, scale, batchCount: selectedBatchCount });
+    }
+  }, [position, scale, selectedBatchCount, onConfirm, useOriginalImage, onUseRawImage]);
+
+  // After model switch: wait for selectedModel to update, then proceed with generation.
+  // This ensures onConfirm (generateFromBlob) has the new model in its closure.
+  useEffect(() => {
+    if (pendingModelSwitchRef.current && isContextImageModel(selectedModel) && pendingConfirmRef.current) {
+      pendingModelSwitchRef.current = false;
+      const blob = pendingConfirmRef.current;
+      pendingConfirmRef.current = null;
+      proceedWithGeneration(blob);
+    }
+  }, [selectedModel]);
+
+  // Handle multi-face modal: user accepts model switch
+  const handleMultiFaceSwitch = useCallback(() => {
+    setShowMultiFaceModal(false);
+    if (switchToModel) {
+      pendingModelSwitchRef.current = true;
+      switchToModel(QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID);
+    }
+  }, [switchToModel]);
+
+  // Handle multi-face modal: user dismisses
+  const handleMultiFaceDismiss = useCallback(() => {
+    setShowMultiFaceModal(false);
+    // Proceed with current model
+    if (pendingConfirmRef.current) {
+      const blob = pendingConfirmRef.current;
+      pendingConfirmRef.current = null;
+      proceedWithGeneration(blob);
+    }
+  }, [proceedWithGeneration]);
+
   // Handle confirm button click
   const handleConfirm = useCallback(async () => {
     // Prevent multiple clicks while processing
@@ -743,19 +818,27 @@ const ImageAdjuster = ({
       const finalSizeMB = (finalBlob.size / 1024 / 1024).toFixed(2);
       console.log(`📤 ImageAdjuster transmission size: ${finalSizeMB}MB`);
 
-      // If "use original image" is checked, skip AI generation
-      if (useOriginalImage && onUseRawImage) {
-        onUseRawImage(finalBlob);
-      } else {
-        // Call onConfirm with the processed blob for AI generation
-        onConfirm(finalBlob, { position, scale, batchCount: selectedBatchCount });
+      // Check if multi-face modal should be shown
+      const shouldShowModal = faceCount !== null
+        && faceCount > 1
+        && !isContextImageModel(selectedModel)
+        && !useOriginalImage;
+
+      if (shouldShowModal) {
+        console.log('[FACE_ANALYSIS] Multiple faces detected (' + faceCount + '), showing modal');
+        pendingConfirmRef.current = finalBlob;
+        setIsProcessing(false);
+        setShowMultiFaceModal(true);
+        return;
       }
+
+      proceedWithGeneration(finalBlob);
     } catch (error) {
       console.error('[IMAGE_ADJUSTER] handleConfirm error:', error);
       setIsProcessing(false);
       alert(error.message || 'Failed to process image. Please try again.');
     }
-  }, [isProcessing, processImageWithAdjustments, position, scale, selectedBatchCount, onConfirm, useOriginalImage, onUseRawImage]);
+  }, [isProcessing, processImageWithAdjustments, faceCount, selectedModel, useOriginalImage, proceedWithGeneration]);
   
   
   return (
@@ -1066,6 +1149,15 @@ const ImageAdjuster = ({
           />
         )}
         
+        {/* Multi-Face Detection Modal */}
+        {showMultiFaceModal && faceCount > 1 && (
+          <MultiFaceDetectedModal
+            faceCount={faceCount}
+            onSwitchModel={handleMultiFaceSwitch}
+            onDismiss={handleMultiFaceDismiss}
+          />
+        )}
+
         </div>
       </div>
     </div>
