@@ -332,13 +332,13 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger if focused on an interactive element
       const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON' || tag === 'A') return;
 
       const triggerKeys = ['Enter', ' ', 'AudioVolumeUp', 'AudioVolumeDown', 'VolumeUp', 'VolumeDown'];
       if (!triggerKeys.includes(e.key)) return;
 
-      // Don't fire if shutter is not ready
-      if (!isReady || isDisabled) return;
+      // Don't fire if shutter is not ready or camera view is not active
+      if (!isReady || isDisabled || showPhotoGrid) return;
 
       e.preventDefault();
       onTakePhoto();
@@ -347,7 +347,7 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- onTakePhoto is a callback prop, excluded per useEffect rules
-  }, [isReady, isDisabled]);
+  }, [isReady, isDisabled, showPhotoGrid]);
 
   // Camera device menu state
   const [isDeviceMenuOpen, setIsDeviceMenuOpen] = useState(false);
