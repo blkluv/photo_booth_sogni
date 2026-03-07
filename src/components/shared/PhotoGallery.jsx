@@ -515,7 +515,7 @@ const renderCustomButton = (setShowVideoDropdown, setShowCustomVideoPromptPopup)
     style={{
       width: window.innerWidth < 768 ? '100%' : 'auto',
       padding: '10px 20px',
-      background: '#ff5252',
+      background: 'var(--brand-cta-start)',
       border: 'none',
       color: '#ffffff',
       fontFamily: '"Permanent Marker", cursive',
@@ -529,17 +529,17 @@ const renderCustomButton = (setShowVideoDropdown, setShowCustomVideoPromptPopup)
       alignItems: 'center',
       justifyContent: 'center',
       gap: '8px',
-      boxShadow: '0 2px 8px rgba(255, 82, 82, 0.4)'
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)'
     }}
     onMouseOver={e => {
       e.currentTarget.style.transform = 'translateY(-2px)';
-      e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 82, 82, 0.5)';
-      e.currentTarget.style.background = '#ff6b6b';
+      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.25)';
+      e.currentTarget.style.background = 'var(--brand-cta-end)';
     }}
     onMouseOut={e => {
       e.currentTarget.style.transform = 'translateY(0)';
-      e.currentTarget.style.boxShadow = '0 2px 8px rgba(255, 82, 82, 0.4)';
-      e.currentTarget.style.background = '#ff5252';
+      e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
+      e.currentTarget.style.background = 'var(--brand-cta-start)';
     }}
   >
     <span style={{ fontSize: '16px' }}>✨</span>
@@ -1510,6 +1510,7 @@ const PhotoGallery = ({
     return false;
   });
   const [showSearchInput, setShowSearchInput] = useState(false);
+  const [showPortraitTypeDropdown, setShowPortraitTypeDropdown] = useState(false);
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
   const [hiddenThemeGroups, setHiddenThemeGroups] = useState([]);
 
@@ -11402,6 +11403,19 @@ const PhotoGallery = ({
     };
   }, [showSearchInput]);
 
+  // Close portrait type dropdown when clicking outside
+  useEffect(() => {
+    if (!showPortraitTypeDropdown) return;
+    const handleClickOutside = (event) => {
+      const inDropdown = !!event.target.closest('.style-selector-text-container');
+      if (!inDropdown) {
+        setShowPortraitTypeDropdown(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showPortraitTypeDropdown]);
+
   // Ensure all photos have a Taipei frame number and frame padding assigned (migration for existing photos)
   // Use a ref to track if migration has been done to avoid repeated migrations
   // MUST be called before any early returns to maintain hook order
@@ -13167,7 +13181,7 @@ const PhotoGallery = ({
                 }
               }}
               style={{
-                background: 'linear-gradient(135deg, #ff6b6b, #ee5a24)',
+                background: 'linear-gradient(135deg, var(--brand-cta-start), var(--brand-cta-end))',
                 color: 'white',
                 border: 'none',
                 padding: '6px 14px',
@@ -14033,7 +14047,7 @@ const PhotoGallery = ({
                       position: 'absolute',
                       top: '-8px',
                       right: '-8px',
-                      background: 'linear-gradient(135deg, #ff6b6b, #ffa502)',
+                      background: 'linear-gradient(135deg, var(--brand-cta-start), var(--brand-cta-end))',
                       color: 'white',
                       fontSize: '9px',
                       fontWeight: 'bold',
@@ -14273,7 +14287,7 @@ const PhotoGallery = ({
                             padding: '12px 16px',
                             background: 'transparent',
                             border: 'none',
-                            color: '#ff6b6b',
+                            color: 'var(--brand-cta-start)',
                             fontSize: '14px',
                             cursor: 'pointer',
                             textAlign: 'left',
@@ -14874,214 +14888,49 @@ const PhotoGallery = ({
       {isPromptSelectorMode && (
         <div style={{
           display: 'flex',
-          justifyContent: 'center',
+          justifyContent: 'space-between',
           alignItems: 'center',
           paddingRight: '32px',
           paddingLeft: '32px',
           paddingBottom: '8px',
           marginBottom: '0px',
-          position: 'relative',
           gap: '12px'
         }} className="style-selector-text-container">
-          {/* Search icon and inline input on the left */}
-          <div style={{
-            position: 'absolute',
-            left: '22px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <button 
-              onClick={() => setShowSearchInput(!showSearchInput)}
-              style={{
-                paddingTop: '8px',
-                fontSize: '16px',
-                fontWeight: 500,
-                display: 'inline-block',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                background: 'none',
-                border: 'none',
-                color: showSearchInput ? 'var(--brand-accent-tertiary)' : 'white',
-                opacity: showSearchInput ? 1 : 0.8
-              }}
-              title="Search styles"
-            >
-              🔍
-            </button>
-            
-            {/* Inline search input */}
-            {showSearchInput && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <input
-                  type="text"
-                  placeholder="Search styles..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    const newValue = e.target.value;
-                    setSearchTerm(newValue);
-                    if (onSearchChange) {
-                      onSearchChange(newValue);
-                    }
-                  }}
-                  style={{
-                    width: '180px',
-                    padding: '6px 10px',
-                    fontSize: '13px',
-                    fontFamily: 'inherit',
-                    background: isExtensionMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.1)',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
-                    borderRadius: '6px',
-                    color: 'white',
-                    outline: 'none',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.background = 'rgba(255, 255, 255, 0.15)';
-                    e.target.style.borderColor = 'var(--brand-accent-tertiary)';
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.background = 'rgba(255, 255, 255, 0.1)';
-                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-                  }}
-                  autoFocus
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck="false"
-                  data-form-type="other"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => {
-                      setSearchTerm('');
-                      if (onSearchChange) {
-                        onSearchChange('');
-                      }
-                    }}
-                    style={{
-                      padding: '4px 6px',
-                      fontSize: '11px',
-                      background: isExtensionMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.2)',
-                      border: '1px solid rgba(255, 255, 255, 0.3)',
-                      borderRadius: '3px',
-                      color: 'white',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      lineHeight: 1
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.background = 'rgba(255, 255, 255, 0.3)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.background = 'rgba(255, 255, 255, 0.2)';
-                    }}
-                    title="Clear search"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-          
-          {/* Portrait Type Icons - Circular in center */}
+          {/* Portrait Type Selector - Single circle with dropdown */}
           <div style={{
             display: 'flex',
-            gap: '12px',
             alignItems: 'center',
-            justifyContent: 'center'
+            gap: '8px',
+            position: 'relative'
           }}>
-            <div 
-              style={{ position: 'relative' }} 
-              className="portrait-type-button-container"
-              onMouseEnter={(e) => {
-                if (portraitType !== 'headshot') {
-                  const label = e.currentTarget.querySelector('.portrait-type-label');
-                  if (label) label.style.opacity = '1';
-                }
-              }}
-              onMouseLeave={(e) => {
-                const label = e.currentTarget.querySelector('.portrait-type-label');
-                if (label) label.style.opacity = '0';
-              }}
-            >
-              <button 
-                onClick={() => onPortraitTypeChange && onPortraitTypeChange('headshot')}
-                style={{
-                  background: 'transparent',
-                  border: portraitType === 'headshot' ? '3px solid var(--brand-accent-tertiary)' : 'none',
-                  borderRadius: '50%',
-                  padding: '0',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  width: '60px',
-                  height: '60px',
-                  overflow: 'hidden',
-                  boxShadow: portraitType === 'headshot' ? '0 0 12px rgba(114, 227, 242, 0.6)' : '0 2px 8px rgba(0,0,0,0.2)'
-                }}
-                onMouseOver={e => {
-                  e.currentTarget.style.transform = 'scale(1.1)';
-                }}
-                onMouseOut={e => {
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
-                title="Up Close"
-              >
-                <img 
-                  src="/gallery/sample-gallery-headshot-einstein.jpg"
-                  alt="Up Close"
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    display: 'block'
-                  }}
-                />
-              </button>
-              <span style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                color: 'white',
-                textShadow: '0 0 4px rgba(0, 0, 0, 0.6), 0 0 2px rgba(0, 0, 0, 0.8)',
-                whiteSpace: 'nowrap',
-                pointerEvents: 'none',
-                opacity: 0,
-                transition: 'opacity 0.2s ease'
-              }} className="portrait-type-label">
-                NEAR
-              </span>
-            </div>
-            
-            <button 
-              onClick={() => onPortraitTypeChange && onPortraitTypeChange('medium')}
+            <span className="portrait-type-preview-label" style={{
+              fontSize: '14px',
+              fontFamily: '"Permanent Marker", cursive',
+              color: 'rgba(255, 255, 255, 0.7)'
+            }}>
+              Preview:
+            </span>
+            <button
+              onClick={() => setShowPortraitTypeDropdown(prev => !prev)}
               style={{
                 background: 'transparent',
-                border: portraitType === 'medium' ? '3px solid var(--brand-accent-tertiary)' : 'none',
+                border: 'none',
                 borderRadius: '50%',
                 padding: '0',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
-                width: '60px',
-                height: '60px',
+                width: '48px',
+                height: '48px',
                 overflow: 'hidden',
-                boxShadow: portraitType === 'medium' ? '0 0 12px rgba(114, 227, 242, 0.6)' : '0 2px 8px rgba(0,0,0,0.2)'
+                outline: '2px solid rgba(255, 255, 255, 0.5)',
+                outlineOffset: '2px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
               }}
-              onMouseOver={e => {
-                e.currentTarget.style.transform = 'scale(1.1)';
-              }}
-              onMouseOut={e => {
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
-              title="Waist-Up"
+              title={portraitType === 'headshot' ? 'Near (Up Close) — Click to change' : 'Waist-Up — Click to change'}
             >
-              <img 
-                src="/gallery/sample-gallery-medium-body-jen.jpg"
-                alt="Waist-Up"
+              <img
+                src={portraitType === 'headshot' ? '/gallery/sample-gallery-headshot-einstein.jpg' : '/gallery/sample-gallery-medium-body-jen.jpg'}
+                alt={portraitType === 'headshot' ? 'Near' : 'Waist-Up'}
                 style={{
                   width: '100%',
                   height: '100%',
@@ -15090,39 +14939,232 @@ const PhotoGallery = ({
                 }}
               />
             </button>
-          </div>
-
-          {/* Filter button on the right */}
-          <button 
-            onClick={() => setShowThemeFilters(!showThemeFilters)}
-            style={{
-              position: 'absolute',
-              right: '22px',
-              paddingTop: '8px',
-              fontSize: '14px',
-              fontWeight: 500,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              background: 'none',
-              border: 'none',
+            <span style={{
+              fontSize: '12px',
               fontFamily: '"Permanent Marker", cursive',
               color: 'white'
-            }}
-          >
-            Filter ({filteredPhotos.length})
+            }}>
+              {portraitType === 'headshot' ? 'Near' : 'Waist-Up'}
+            </span>
             <span style={{
-              display: 'inline-block',
-              transform: showThemeFilters ? 'rotate(0deg)' : 'rotate(-90deg)',
-              transition: 'transform 0.3s ease',
-              fontSize: '16px',
-              lineHeight: '1'
+              fontSize: '10px',
+              color: 'rgba(255, 255, 255, 0.6)',
+              transition: 'transform 0.2s ease',
+              transform: showPortraitTypeDropdown ? 'rotate(180deg)' : 'rotate(0deg)'
             }}>
               ▼
             </span>
-          </button>
+
+            {/* Dropdown */}
+            {showPortraitTypeDropdown && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                left: '0',
+                marginTop: '8px',
+                background: 'rgba(30, 30, 30, 0.95)',
+                backdropFilter: 'blur(12px)',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                padding: '6px',
+                zIndex: 100,
+                minWidth: '180px'
+              }}>
+                {[
+                  { value: 'headshot', label: 'Near', sublabel: 'Up Close', img: '/gallery/sample-gallery-headshot-einstein.jpg' },
+                  { value: 'medium', label: 'Waist-Up', sublabel: 'Half Body', img: '/gallery/sample-gallery-medium-body-jen.jpg' }
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => {
+                      if (onPortraitTypeChange) onPortraitTypeChange(opt.value);
+                      setShowPortraitTypeDropdown(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      width: '100%',
+                      padding: '8px 10px',
+                      background: portraitType === opt.value ? 'rgba(255, 255, 255, 0.12)' : 'transparent',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      transition: 'background 0.15s ease',
+                      color: 'white'
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = portraitType === opt.value ? 'rgba(255, 255, 255, 0.12)' : 'transparent'; }}
+                  >
+                    <div style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '50%',
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                      outline: portraitType === opt.value ? '2px solid var(--brand-accent-tertiary)' : '1px solid rgba(255, 255, 255, 0.2)',
+                      outlineOffset: '1px'
+                    }}>
+                      <img src={opt.img} alt={opt.label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    </div>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontSize: '14px', fontFamily: '"Permanent Marker", cursive' }}>{opt.label}</div>
+                      <div style={{ fontSize: '11px', opacity: 0.6 }}>{opt.sublabel}</div>
+                    </div>
+                    {portraitType === opt.value && (
+                      <span style={{ marginLeft: 'auto', fontSize: '14px', color: 'var(--brand-accent-tertiary)' }}>✓</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Search + Filter on the right */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0'
+          }}>
+            {/* Search icon and inline input */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <button
+                onClick={() => setShowSearchInput(!showSearchInput)}
+                style={{
+                  paddingTop: '8px',
+                  fontSize: '16px',
+                  fontWeight: 500,
+                  display: 'inline-block',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  background: 'none',
+                  border: 'none',
+                  color: showSearchInput ? 'var(--brand-accent-tertiary)' : 'white',
+                  opacity: showSearchInput ? 1 : 0.8
+                }}
+                title="Search styles"
+              >
+                🔍
+              </button>
+
+              {/* Inline search input */}
+              {showSearchInput && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <input
+                    type="text"
+                    placeholder="Search styles..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      const newValue = e.target.value;
+                      setSearchTerm(newValue);
+                      if (onSearchChange) {
+                        onSearchChange(newValue);
+                      }
+                    }}
+                    style={{
+                      width: '180px',
+                      padding: '6px 10px',
+                      fontSize: '13px',
+                      fontFamily: 'inherit',
+                      background: isExtensionMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      borderRadius: '6px',
+                      color: 'white',
+                      outline: 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.background = 'rgba(255, 255, 255, 0.15)';
+                      e.target.style.borderColor = 'var(--brand-accent-tertiary)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.background = 'rgba(255, 255, 255, 0.1)';
+                      e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                    }}
+                    autoFocus
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck="false"
+                    data-form-type="other"
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => {
+                        setSearchTerm('');
+                        if (onSearchChange) {
+                          onSearchChange('');
+                        }
+                      }}
+                      style={{
+                        padding: '4px 6px',
+                        fontSize: '11px',
+                        background: isExtensionMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.2)',
+                        border: '1px solid rgba(255, 255, 255, 0.3)',
+                        borderRadius: '3px',
+                        color: 'white',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        lineHeight: 1
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.background = 'rgba(255, 255, 255, 0.3)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.background = 'rgba(255, 255, 255, 0.2)';
+                      }}
+                      title="Clear search"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Thin white divider */}
+            <div style={{
+              width: '1px',
+              height: '20px',
+              background: 'rgba(255, 255, 255, 0.4)',
+              margin: '0 10px'
+            }} />
+
+            {/* Filter button */}
+            <button
+              onClick={() => setShowThemeFilters(!showThemeFilters)}
+              style={{
+                paddingTop: '8px',
+                fontSize: '14px',
+                fontWeight: 500,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                background: 'none',
+                border: 'none',
+                fontFamily: '"Permanent Marker", cursive',
+                color: 'white'
+              }}
+            >
+              Filter ({filteredPhotos.length})
+              <span style={{
+                display: 'inline-block',
+                transform: showThemeFilters ? 'rotate(0deg)' : 'rotate(-90deg)',
+                transition: 'transform 0.3s ease',
+                fontSize: '16px',
+                lineHeight: '1'
+              }}>
+                ▼
+              </span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -15869,7 +15911,7 @@ const PhotoGallery = ({
                             handleRetryPhoto(index);
                           }}
                           style={{
-                            background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
+                            background: 'linear-gradient(135deg, var(--brand-cta-start) 0%, var(--brand-cta-end) 100%)',
                             border: 'none',
                             color: 'white',
                             padding: '4px 12px',
@@ -16871,7 +16913,7 @@ const PhotoGallery = ({
                   >
                     <button
                       style={{
-                        background: '#ff5252',
+                        background: 'var(--brand-cta-start)',
                         color: 'white',
                         border: 'none',
                         padding: '12px 24px',
@@ -17933,7 +17975,7 @@ const PhotoGallery = ({
                 style={{
                   padding: '10px 20px',
                   border: 'none',
-                  background: customPrompt.trim() ? 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)' : '#ccc',
+                  background: customPrompt.trim() ? 'linear-gradient(135deg, var(--brand-cta-start) 0%, var(--brand-cta-end) 100%)' : '#ccc',
                   color: 'white',
                   borderRadius: '8px',
                   fontSize: '14px',

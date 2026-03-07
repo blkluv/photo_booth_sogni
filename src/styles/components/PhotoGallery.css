@@ -1255,6 +1255,13 @@ html body .photo-action-buttons .action-button,
   opacity: 1;
 }
 
+/* Hide "Preview:" label on mobile */
+@media (max-width: 768px) {
+  .portrait-type-preview-label {
+    display: none !important;
+  }
+}
+
 /* Vibe Selector Widget - Aligned to right, compact horizontal design */
 .photo-gallery-style-selector-button {
   position: fixed;

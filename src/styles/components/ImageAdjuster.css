@@ -372,7 +372,7 @@
   cursor: pointer;
   border: none;
   transition: all 0.2s ease;
-  background: #ff5252;
+  background: var(--brand-cta-start);
   color: white;
   display: flex;
   align-items: center;
@@ -381,7 +381,7 @@
 }
 
 .swap-image-button:hover {
-  background: #ff6b6b;
+  background: var(--brand-cta-end);
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(255, 82, 82, 0.4);
 }
