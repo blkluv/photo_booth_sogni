@@ -6,6 +6,7 @@
       "label": "Mandala Club",
       "defaultAspectRatio": "narrow",
       "framePadding": { "top": 0, "left": 0, "right": 0, "bottom": 34 },
+      "hiddenThemeGroups": ["halloween", "horror"],
       "tweetTemplate": "Just took my photo at the @sogni_protocol AI Photobooth at Mandala Club! https://photobooth.sogni.ai",
       "frames": {
         "narrow": [

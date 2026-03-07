@@ -12342,10 +12342,10 @@ const PhotoGallery = ({
       </button>
       {/* Brand title overlay - top left corner of gallery (hidden in Vibe Explorer fullscreen) */}
       {brandLogo && !isPromptSelectorMode && (
-        <div style={{ position: 'fixed', top: 24, left: 24, zIndex: 1100, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <img src={brandLogo} alt="" style={{ height: '2.4rem', width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))' }} />
-          <span style={{ fontFamily: "'Permanent Marker', cursive", fontSize: '1.2rem', color: 'var(--brand-dark-text)', opacity: 0.5 }}>x</span>
-          <span style={{ fontFamily: "'Permanent Marker', cursive", fontSize: '1.4rem', color: 'var(--brand-dark-text)', textShadow: '2px 2px 4px rgba(0, 0, 0, 0.1)', lineHeight: 1.15, textAlign: 'center' }}>Sogni<br />Photobooth</span>
+        <div style={{ position: 'fixed', top: 24, left: 24, zIndex: 1100, display: 'flex', alignItems: 'center', gap: 7 }}>
+          <img src={brandLogo} alt="" style={{ height: '1.6rem', width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))' }} />
+          <span style={{ fontFamily: "'Permanent Marker', cursive", fontSize: '0.8rem', color: 'var(--brand-dark-text)', opacity: 0.5 }}>x</span>
+          <span style={{ fontFamily: "'Permanent Marker', cursive", fontSize: '0.93rem', color: 'var(--brand-dark-text)', textShadow: '2px 2px 4px rgba(0, 0, 0, 0.1)', lineHeight: 1.15, textAlign: 'center' }}>Sogni<br />Photobooth</span>
         </div>
       )}
       {/* Settings button - always show in photo grid */}

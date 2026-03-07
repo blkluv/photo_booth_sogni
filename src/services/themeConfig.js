@@ -218,6 +218,16 @@ class ThemeConfigService {
   }
 
   /**
+   * Get hidden theme groups for a theme (categories to hide in Vibe Explorer)
+   * @param {string} themeId - Theme identifier
+   * @returns {Promise<string[]>} Array of theme group IDs to hide
+   */
+  async getHiddenThemeGroups(themeId) {
+    const theme = await this.getTheme(themeId);
+    return theme?.hiddenThemeGroups || [];
+  }
+
+  /**
    * Check if themes are available
    * @returns {Promise<boolean>} True if themes loaded successfully
    */
