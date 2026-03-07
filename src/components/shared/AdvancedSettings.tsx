@@ -1531,7 +1531,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
                 </div>
               </div>
 
-              {/* Show Splash on Inactivity toggle */}
+              {/* Kiosk Mode toggle (splash on inactivity + hide upload) */}
               <div className="control-option checkbox">
                 <input
                   type="checkbox"
@@ -1539,7 +1539,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
                   checked={showSplashOnInactivity || settings.showSplashOnInactivity}
                   onChange={(e) => handleShowSplashOnInactivityChange(e.target.checked)}
                 />
-                <label htmlFor="splash-inactivity-toggle" className="control-label">Show Splash Screen on Inactivity</label>
+                <label htmlFor="splash-inactivity-toggle" className="control-label">Kiosk Mode</label>
               </div>
             </div>
           )}

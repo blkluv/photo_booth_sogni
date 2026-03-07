@@ -78,6 +78,8 @@ interface CameraStartMenuProps {
   // Brand override
   brandTitle?: string | null;
   brandLogo?: string | null;
+  // Kiosk mode - hides upload option
+  isKioskMode?: boolean;
 }
 
 const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
@@ -109,7 +111,8 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
   onResetUploadedPhoto,
   currentThemes = {},
   brandTitle = null,
-  brandLogo = null
+  brandLogo = null,
+  isKioskMode = false
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showStyleDropdown, setShowStyleDropdown] = useState(false);
@@ -557,7 +560,7 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
                 <div className="step-separator">then</div>
 
                 {/* Photo Option Polaroids */}
-                <div className="photo-options-group">
+                <div className={`photo-options-group${isKioskMode ? ' kiosk-mode' : ''}`}>
                   <div className="polaroid-wrapper polaroid-2">
                     <button
                       className="polaroid-button option-button take-photo"
@@ -593,45 +596,49 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
                     )}
                   </div>
 
-                  {/* "or" separator */}
-                  <div className="step-separator">or</div>
+                  {/* "or" separator and upload option - hidden in kiosk mode */}
+                  {!isKioskMode && (
+                    <>
+                      <div className="step-separator">or</div>
 
-                  <div className="polaroid-wrapper polaroid-3">
-                    <button
-                      className="polaroid-button option-button browse-photo"
-                      onClick={handleBrowseClick}
-                    >
-                      <div className="polaroid-content">
-                        <img
-                          src={
-                            (originalPhotoUrl && photoSourceType === 'upload') 
-                              ? originalPhotoUrl 
-                              : (reusablePhotoUrl && reusablePhotoSourceType === 'upload')
-                                ? reusablePhotoUrl 
-                                : "/gallery/sample-gallery-medium-body-jen.jpg"
-                          }
-                          alt="Upload a pic"
-                          className="polaroid-bg-image"
-                        />
+                      <div className="polaroid-wrapper polaroid-3">
+                        <button
+                          className="polaroid-button option-button browse-photo"
+                          onClick={handleBrowseClick}
+                        >
+                          <div className="polaroid-content">
+                            <img
+                              src={
+                                (originalPhotoUrl && photoSourceType === 'upload')
+                                  ? originalPhotoUrl
+                                  : (reusablePhotoUrl && reusablePhotoSourceType === 'upload')
+                                    ? reusablePhotoUrl
+                                    : "/gallery/sample-gallery-medium-body-jen.jpg"
+                              }
+                              alt="Upload a pic"
+                              className="polaroid-bg-image"
+                            />
+                          </div>
+                        </button>
+                        <div className="polaroid-caption">
+                          upload a pic{((originalPhotoUrl && photoSourceType === 'upload') || (reusablePhotoUrl && reusablePhotoSourceType === 'upload')) ? ' ✓' : ''}
+                        </div>
+                        {/* Reset link - only show when there's a saved uploaded photo */}
+                        {((originalPhotoUrl && photoSourceType === 'upload') || (reusablePhotoUrl && reusablePhotoSourceType === 'upload')) && onResetUploadedPhoto && (
+                          <button
+                            className="polaroid-reset-link"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onResetUploadedPhoto();
+                            }}
+                            title="Reset uploaded photo"
+                          >
+                            RESET
+                          </button>
+                        )}
                       </div>
-                    </button>
-                    <div className="polaroid-caption">
-                      upload a pic{((originalPhotoUrl && photoSourceType === 'upload') || (reusablePhotoUrl && reusablePhotoSourceType === 'upload')) ? ' ✓' : ''}
-                    </div>
-                    {/* Reset link - only show when there's a saved uploaded photo */}
-                    {((originalPhotoUrl && photoSourceType === 'upload') || (reusablePhotoUrl && reusablePhotoSourceType === 'upload')) && onResetUploadedPhoto && (
-                      <button
-                        className="polaroid-reset-link"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onResetUploadedPhoto();
-                        }}
-                        title="Reset uploaded photo"
-                      >
-                        RESET
-                      </button>
-                    )}
-                  </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
