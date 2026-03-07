@@ -7775,7 +7775,7 @@ const App = () => {
             videoRef={videoReference}
             isReady={isSogniReady && !isPhotoButtonCooldown}
             countdown={countdown}
-            isDisabled={isPhotoButtonCooldown}
+            isDisabled={isPhotoButtonCooldown || showImageAdjuster}
             buttonLabel={isPhotoButtonCooldown ? "Get Ready!" : "Take Photo"}
             onTakePhoto={handleTakePhoto}
             showPhotoGrid={showPhotoGrid}
