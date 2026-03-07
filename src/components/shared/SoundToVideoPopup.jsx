@@ -949,7 +949,7 @@ const SoundToVideoPopup = ({
         }}>
           {[
             { id: 'wan', label: 'WAN 2.2', description: 'Lip-sync' },
-            { id: 'ltx2', label: 'LTX-2', description: 'Audio-reactive' }
+            { id: 'ltx2', label: 'LTX-2.3', description: 'Audio-reactive' }
           ].map((family) => (
             <button
               key={family.id}
