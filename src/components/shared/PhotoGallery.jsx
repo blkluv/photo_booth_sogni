@@ -921,6 +921,8 @@ const PhotoGallery = ({
   slothicornAnimationEnabled,
   backgroundAnimationsEnabled = false,
   tezdevTheme = 'off',
+  brandLogo = null,
+  brandTitle = null,
   aspectRatio = null,
   handleRetryPhoto,
   onPreGenerateFrame, // New prop to handle frame pre-generation from parent
@@ -1501,11 +1503,9 @@ const PhotoGallery = ({
     return getDefaultThemeGroupState();
   });
   const [showThemeFilters, setShowThemeFilters] = useState(() => {
-    // Auto-open filters if themes parameter exists in URL
+    // Always open filters by default in Vibe Explorer (prompt selector mode)
     if (isPromptSelectorMode) {
-      const urlParams = new URLSearchParams(window.location.search);
-      const themesParam = urlParams.get('themes');
-      return themesParam !== null;
+      return true;
     }
     return false;
   });
@@ -12304,14 +12304,14 @@ const PhotoGallery = ({
         }
       }}
       style={{
-        background: isExtensionMode ? 'transparent' : 'rgba(248, 248, 248, 0.85)',
-        backgroundImage: isExtensionMode ? 'none' : `
+        background: isExtensionMode ? 'transparent' : (tezdevTheme !== 'off' ? 'var(--brand-page-bg)' : 'rgba(248, 248, 248, 0.85)'),
+        backgroundImage: (isExtensionMode || tezdevTheme !== 'off' || !backgroundAnimationsEnabled) ? 'none' : `
           linear-gradient(125deg, rgba(255,138,0,0.8), rgba(229,46,113,0.8), rgba(185,54,238,0.8), rgba(58,134,255,0.8)),
           repeating-linear-gradient(45deg, rgba(255,255,255,0.15) 0px, rgba(255,255,255,0.15) 2px, transparent 2px, transparent 4px),
           repeating-linear-gradient(-45deg, rgba(255,255,255,0.15) 0px, rgba(255,255,255,0.15) 2px, transparent 2px, transparent 4px)
         `,
-        backgroundSize: isExtensionMode ? 'auto' : '400% 400%, 20px 20px, 20px 20px',
-        animation: (backgroundAnimationsEnabled && !isPWA && !isExtensionMode) ? 'psychedelic-shift 15s ease infinite' : 'none',
+        backgroundSize: (isExtensionMode || tezdevTheme !== 'off' || !backgroundAnimationsEnabled) ? 'auto' : '400% 400%, 20px 20px, 20px 20px',
+        animation: (backgroundAnimationsEnabled && !isPWA && !isExtensionMode && tezdevTheme === 'off') ? 'psychedelic-shift 15s ease infinite' : 'none',
       }}
     >
       <button
@@ -12320,6 +12320,14 @@ const PhotoGallery = ({
       >
         ← Menu
       </button>
+      {/* Brand title overlay - top left corner of gallery (hidden in Vibe Explorer fullscreen) */}
+      {brandLogo && !isPromptSelectorMode && (
+        <div style={{ position: 'fixed', top: 24, left: 24, zIndex: 1100, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <img src={brandLogo} alt="" style={{ height: '2.4rem', width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))' }} />
+          <span style={{ fontFamily: "'Permanent Marker', cursive", fontSize: '1.2rem', color: 'var(--brand-dark-text)', opacity: 0.5 }}>x</span>
+          <span style={{ fontFamily: "'Permanent Marker', cursive", fontSize: '1.4rem', color: 'var(--brand-dark-text)', textShadow: '2px 2px 4px rgba(0, 0, 0, 0.1)', lineHeight: 1.15, textAlign: 'center' }}>Sogni<br />Photobooth</span>
+        </div>
+      )}
       {/* Settings button - always show in photo grid */}
       {selectedPhotoIndex === null && (
         <button
