@@ -1821,6 +1821,7 @@ const App = () => {
 
   // Add new state for button cooldown
   const [isPhotoButtonCooldown, setIsPhotoButtonCooldown] = useState(false); // Keep this
+  const photoCaptureLockRef = useRef(false); // Synchronous guard against double-fire
   const [brandTitle, setBrandTitle] = useState(null);
   const [brandLogo, setBrandLogo] = useState(null);
   // Ref to track current project
@@ -6909,9 +6910,11 @@ const App = () => {
   //   Capture (webcam)
   // -------------------------
   const handleTakePhoto = async (e) => {
-    if (!isSogniReady || isPhotoButtonCooldown) {
+    if (!isSogniReady || isPhotoButtonCooldown || photoCaptureLockRef.current) {
       return;
     }
+    // Lock immediately (synchronous) to prevent double-fire from rapid keypresses
+    photoCaptureLockRef.current = true;
 
     // Cancel any existing project
     if (activeProjectReference.current) {
@@ -6930,6 +6933,7 @@ const App = () => {
     setIsPhotoButtonCooldown(true);
     setTimeout(() => {
       setIsPhotoButtonCooldown(false);
+      photoCaptureLockRef.current = false;
     }, 5000);
 
     console.log('handleTakePhoto called - device type:', /iphone|ipad|ipod|android/i.test(navigator.userAgent) ? 'mobile' : 'desktop');
