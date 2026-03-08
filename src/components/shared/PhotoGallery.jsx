@@ -12356,8 +12356,8 @@ const PhotoGallery = ({
       >
         ← Menu
       </button>
-      {/* Brand title overlay - top left corner of gallery (hidden in Vibe Explorer fullscreen) */}
-      {brandLogo && !isPromptSelectorMode && (
+      {/* Brand title overlay - top left corner of gallery (only in kiosk mode to avoid overlap with auth status) */}
+      {brandLogo && !isPromptSelectorMode && settings.showSplashOnInactivity && (
         <div style={{ position: 'fixed', top: 24, left: 24, zIndex: 1100, display: 'flex', alignItems: 'center', gap: 7 }}>
           <img src={brandLogo} alt="" style={{ height: '1.6rem', width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))' }} />
           <span style={{ fontFamily: "'Permanent Marker', cursive", fontSize: '0.8rem', color: 'var(--brand-dark-text)', opacity: 0.5 }}>x</span>

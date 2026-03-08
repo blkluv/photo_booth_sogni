@@ -7774,8 +7774,8 @@ const App = () => {
         <>
           {/* Show camera view only when start menu is not shown */}
           <CameraView
-            brandTitle={brandTitle}
-            brandLogo={brandLogo}
+            brandTitle={showSplashOnInactivity ? brandTitle : null}
+            brandLogo={showSplashOnInactivity ? brandLogo : null}
             videoRef={videoReference}
             isReady={isSogniReady && !isPhotoButtonCooldown}
             countdown={countdown}
@@ -7891,8 +7891,8 @@ const App = () => {
           {/* Other UI elements like canvas, flash effect, etc. */}
           <canvas ref={canvasReference} style={{ display: 'none' }} />
           
-          {/* Brand title overlay - top left corner of camera view */}
-          {!showStartMenu && !showPhotoGrid && brandLogo && (
+          {/* Brand title overlay - top left corner of camera view (only in kiosk mode to avoid overlap with auth status) */}
+          {!showStartMenu && !showPhotoGrid && brandLogo && showSplashOnInactivity && (
             <div style={{ position: 'fixed', top: 24, left: 24, zIndex: 1100, display: 'flex', alignItems: 'center', gap: 10 }}>
               <img src={brandLogo} alt="" style={{ height: '2.4rem', width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))' }} />
               <span style={{ fontFamily: "'Permanent Marker', cursive", fontSize: '1.2rem', color: 'var(--brand-dark-text)', opacity: 0.5 }}>x</span>
