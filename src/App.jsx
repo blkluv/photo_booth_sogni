@@ -6995,7 +6995,7 @@ const App = () => {
             }
           }, 1500);
         }
-      }, 1200);
+      }, 300);
     }
 
     // Custom canvas size and aspect ratio to match the model's expectations
