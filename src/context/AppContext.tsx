@@ -6,6 +6,7 @@ import { getSettingFromCookie, saveSettingsToCookies, getSettingsForModel, saveM
 import { IMAGE_EDIT_PROMPTS_CATEGORY } from '../constants/editPrompts';
 import { getDefaultThemeGroupState } from '../constants/themeGroups';
 import promptsDataRaw from '../prompts.json';
+import { getEventThemeForDomain } from '../utils/eventDomains';
 
 // Helper function to check if a style is from the Christmas/Winter category
 const isWinterStyle = (styleKey: string): boolean => {
@@ -25,21 +26,10 @@ const isEditPromptStyle = (styleKey: string): boolean => {
   return styleKey in editPrompts;
 };
 
-// Map of alternate domains to their event themes
-const DOMAIN_THEME_MAP: Record<string, string> = {
-  'mandala.sogni.ai': 'mandala',
-};
-
-// Helper function to get theme based on domain, falling back to cookie
-const getThemeForDomain = (): string | null => {
-  if (typeof window === 'undefined') return null;
-  return DOMAIN_THEME_MAP[window.location.hostname] || null;
-};
-
 // Helper function to handle TezDev theme cookie migration
 const getTezDevThemeFromCookie = () => {
   // If loaded from a themed domain, always use that domain's theme
-  const domainTheme = getThemeForDomain();
+  const domainTheme = getEventThemeForDomain();
   if (domainTheme) {
     return domainTheme;
   }
@@ -290,7 +280,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Prevent changing theme when domain enforces one (e.g., mandala.sogni.ai)
     if (key === 'tezdevTheme') {
-      const domainTheme = getThemeForDomain();
+      const domainTheme = getEventThemeForDomain();
       if (domainTheme) {
         console.log(`updateSetting: Theme locked to '${domainTheme}' by domain, ignoring change`);
         return;
@@ -494,7 +484,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const resetToDefaults = {
       ...DEFAULT_SETTINGS,
       selectedModel: currentModel, // Keep the current model
-      tezdevTheme: getThemeForDomain() || DEFAULT_SETTINGS.tezdevTheme, // Preserve domain-enforced theme
+      tezdevTheme: getEventThemeForDomain() || DEFAULT_SETTINGS.tezdevTheme, // Preserve domain-enforced theme
       inferenceSteps: modelDefaults.inferenceSteps,
       sampler: modelDefaults.sampler ?? DEFAULT_SETTINGS.sampler,
       scheduler: modelDefaults.scheduler ?? DEFAULT_SETTINGS.scheduler,
