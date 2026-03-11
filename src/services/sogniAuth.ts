@@ -2,6 +2,7 @@ import React from 'react';
 import { SogniClient } from '@sogni-ai/sogni-client';
 import { getOrCreateAppId } from '../utils/appId';
 import { tabSync } from './tabSync';
+import { isEventDomain } from '../utils/eventDomains';
 
 export interface SogniAuthState {
   isAuthenticated: boolean;
@@ -40,31 +41,46 @@ class SogniAuthManager implements SogniAuthService {
   constructor() {
     // Initialize on construction
     this.initializationPromise = this.initialize();
-    
-    // Setup tab synchronization listener
-    tabSync.onNewTabDetected((newTabDetected) => {
-      if (newTabDetected && this.authState.isAuthenticated) {
-        console.log('🔄 New authenticated tab detected, setting session transfer flag');
-        // Just set the flag - don't change auth state
-        this.setAuthState({
-          sessionTransferred: true,
-          error: 'Your Photobooth Session has been transferred to a new tab. Please refresh the browser to resume in this tab.'
-        });
-      }
-    });
+
+    // Setup tab synchronization listener (skip on event domains)
+    if (!isEventDomain()) {
+      tabSync.onNewTabDetected((newTabDetected) => {
+        if (newTabDetected && this.authState.isAuthenticated) {
+          console.log('🔄 New authenticated tab detected, setting session transfer flag');
+          // Just set the flag - don't change auth state
+          this.setAuthState({
+            sessionTransferred: true,
+            error: 'Your Photobooth Session has been transferred to a new tab. Please refresh the browser to resume in this tab.'
+          });
+        }
+      });
+    }
   }
 
   private async initialize(): Promise<void> {
     try {
+      // On event domains, skip auth entirely and use demo mode
+      if (isEventDomain()) {
+        this.setAuthState({
+          isAuthenticated: true,
+          authMode: 'demo',
+          user: null,
+          isLoading: false,
+          error: null,
+          sessionTransferred: false
+        });
+        return;
+      }
+
       this.setAuthState({ isLoading: true, error: null });
-      
+
       // Check for existing session first
       await this.checkExistingSession();
     } catch (error) {
       console.error('Failed to initialize auth manager:', error);
-      this.setAuthState({ 
+      this.setAuthState({
         error: error instanceof Error ? error.message : 'Failed to initialize authentication',
-        isLoading: false 
+        isLoading: false
       });
     }
   }
@@ -379,6 +395,10 @@ class SogniAuthManager implements SogniAuthService {
 
   // Ensure client is initialized (create if needed)
   async ensureClient(): Promise<SogniClient> {
+    if (isEventDomain()) {
+      throw new Error('Frontend SDK client not available on event domains');
+    }
+
     if (this.sogniClient) {
       return this.sogniClient;
     }
@@ -422,6 +442,8 @@ class SogniAuthManager implements SogniAuthService {
 
   // Directly set authenticated state after successful login/signup
   setAuthenticatedState(username: string, email?: string): void {
+    if (isEventDomain()) return;
+
     if (!this.sogniClient) {
       console.error('Cannot set authenticated state: no client available');
       return;
