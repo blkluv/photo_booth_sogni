@@ -138,6 +138,8 @@ const getHashtagForStyle = (styleKey) => {
   return styleKey;
 };
 
+// Neutralize credit error messages on event domains
+const getCreditErrorMessage = (defaultMsg) => isEventDomain() ? 'Generation unavailable' : defaultMsg;
 
 const App = () => {
   // --- Authentication Hook ---
@@ -1120,6 +1122,10 @@ const App = () => {
 
   // When out-of-credits popup opens, check if daily boost is available and offer it instead
   const handleOutOfCreditsShow = useCallback(() => {
+    if (isEventDomain()) {
+      showToast({ type: 'warning', title: 'Out of credits', message: 'Please try again later', timeout: 5000 });
+      return;
+    }
     if (canClaimDailyBoost && authState.isAuthenticated) {
       // Show daily boost celebration instead of the regular popup
       setShowDailyBoostFromCredits(true);
@@ -1138,7 +1144,7 @@ const App = () => {
   // Handle daily boost dismissal from the out-of-credits flow — fall through to regular popup
   const handleDailyBoostFromCreditsDismiss = useCallback(() => {
     setShowDailyBoostFromCredits(false);
-    if (!lastClaimSuccess) {
+    if (!lastClaimSuccess && !isEventDomain()) {
       // User declined the boost — show the regular out-of-credits popup
       setShowOutOfCreditsPopup(true);
     }
@@ -1452,6 +1458,7 @@ const App = () => {
 
   // Handle /signup route - auto-open signup modal when navigated from share page
   useEffect(() => {
+    if (isEventDomain()) return;
     const pendingSignup = sessionStorage.getItem('pendingSignup');
     if (pendingSignup === 'true') {
       sessionStorage.removeItem('pendingSignup');
@@ -5529,7 +5536,7 @@ const App = () => {
                     ...photo,
                     generating: false,
                     loading: false,
-                    error: 'INSUFFICIENT CREDITS',
+                    error: getCreditErrorMessage('INSUFFICIENT CREDITS'),
                     permanentError: true,
                     statusText: 'Out of Credits',
                     cancelled: true
@@ -6174,7 +6181,7 @@ const App = () => {
                   ...photo,
                   generating: false,
                   loading: false,
-                  error: 'INSUFFICIENT CREDITS',
+                  error: getCreditErrorMessage('INSUFFICIENT CREDITS'),
                   permanentError: true,
                   statusText: 'Out of Credits',
                   cancelled: true
@@ -6283,7 +6290,7 @@ const App = () => {
               
               if (error && typeof error === 'object') {
                 if (error.isInsufficientFunds || error.errorCode === 'insufficient_funds') {
-                  errorMessage = 'GENERATION FAILED: replenish tokens';
+                  errorMessage = getCreditErrorMessage('GENERATION FAILED: replenish tokens');
                 } else if (error.isAuthError || error.errorCode === 'auth_error') {
                   errorMessage = 'GENERATION FAILED: authentication failed';
                 } else if (error.isOffline || error.name === 'NetworkError' || 
@@ -6296,7 +6303,7 @@ const App = () => {
                 } else if (error.message) {
                   // Extract key info from error message
                   if (error.message.includes('Insufficient') || error.message.includes('credits')) {
-                    errorMessage = 'GENERATION FAILED: replenish tokens';
+                    errorMessage = getCreditErrorMessage('GENERATION FAILED: replenish tokens');
                   } else if (error.message.includes('auth') || error.message.includes('token')) {
                     errorMessage = 'GENERATION FAILED: authentication failed';
                   } else {
@@ -6305,7 +6312,7 @@ const App = () => {
                 }
               } else if (typeof error === 'string') {
                 if (error.includes('Insufficient') || error.includes('credits')) {
-                  errorMessage = 'GENERATION FAILED: replenish tokens';
+                  errorMessage = getCreditErrorMessage('GENERATION FAILED: replenish tokens');
                 } else if (error.includes('auth') || error.includes('token')) {
                   errorMessage = 'GENERATION FAILED: authentication failed';
                 } else if (error.includes('network') || error.includes('connection') || 
@@ -6696,13 +6703,13 @@ const App = () => {
               } else if (job.error.missingResult) {
                 errorMessage = 'GENERATION FAILED: result missing';
               } else if (job.error.isInsufficientFunds || job.error.errorCode === 'insufficient_funds') {
-                errorMessage = 'INSUFFICIENT FUNDS: replenish tokens';
+                errorMessage = getCreditErrorMessage('INSUFFICIENT FUNDS: replenish tokens');
               } else if (job.error.isAuthError || job.error.errorCode === 'auth_error') {
                 errorMessage = 'AUTH FAILED: login required';
               } else if (job.error.message) {
                 // Extract key info from error message
                 if (job.error.message.includes('Insufficient') || job.error.message.includes('credits') || job.error.message.includes('funds')) {
-                  errorMessage = 'INSUFFICIENT FUNDS: replenish tokens';
+                  errorMessage = getCreditErrorMessage('INSUFFICIENT FUNDS: replenish tokens');
                 } else if (job.error.message.includes('NSFW') || job.error.message.includes('filtered') || job.error.message.includes('CONTENT FILTERED')) {
                   errorMessage = 'CONTENT FILTERED: NSFW detected';
                 } else if (job.error.message.includes('missing') || job.error.message.includes('result')) {
@@ -6720,7 +6727,7 @@ const App = () => {
             } else if (typeof job.error === 'string') {
               // Handle string error case
               if (job.error.includes('Insufficient') || job.error.includes('credits') || job.error.includes('funds')) {
-                errorMessage = 'INSUFFICIENT FUNDS: replenish tokens';
+                errorMessage = getCreditErrorMessage('INSUFFICIENT FUNDS: replenish tokens');
               } else if (job.error.includes('NSFW') || job.error.includes('filtered') || job.error.includes('CONTENT FILTERED')) {
                 errorMessage = 'CONTENT FILTERED: NSFW detected';
               } else if (job.error.includes('missing') || job.error.includes('result')) {
@@ -6836,7 +6843,7 @@ const App = () => {
           } else if (error) {
             const errorText = error.message || error.toString();
             if (errorText.includes('Insufficient') || errorText.includes('credits') || errorText.includes('funds')) {
-              errorMessage = 'GENERATION FAILED: replenish tokens';
+              errorMessage = getCreditErrorMessage('GENERATION FAILED: replenish tokens');
             } else if (errorText.includes('auth') || errorText.includes('token') || errorText.includes('401')) {
               errorMessage = 'GENERATION FAILED: authentication failed';
             } else if (errorText.includes('network') || errorText.includes('connection') || errorText.includes('fetch')) {
@@ -7704,7 +7711,7 @@ const App = () => {
                   console.log('[ENHANCE] Triggering out of credits popup from PhotoGallery (prompt selector)');
                   handleOutOfCreditsShow();
                 }}
-                onOpenLoginModal={() => authStatusRef.current?.openLoginModal()}
+                onOpenLoginModal={isEventDomain() ? undefined : () => authStatusRef.current?.openLoginModal()}
                 // New props for prompt selector mode
                 isPromptSelectorMode={true}
                 selectedModel={selectedModel}
@@ -9038,7 +9045,7 @@ const App = () => {
   // -------------------------
   const handleGenerateMorePhotos = async () => {
     // Check if user is not authenticated and has already used their demo render
-    if (!authState.isAuthenticated && hasDoneDemoRender()) {
+    if (!authState.isAuthenticated && !isEventDomain() && hasDoneDemoRender()) {
       console.log('🚫 Non-authenticated user has already used their demo render - showing login upsell');
       setShowLoginUpsellPopup(true);
       setShowStartMenu(true); // Return to main yellow screen
@@ -9719,7 +9726,7 @@ const App = () => {
   // Add this new function to handle the adjusted image after confirmation
   const handleAdjustedImage = (adjustedBlob, adjustments) => {
     // Check if user is not authenticated and has already used their demo render
-    if (!authState.isAuthenticated && hasDoneDemoRender()) {
+    if (!authState.isAuthenticated && !isEventDomain() && hasDoneDemoRender()) {
       console.log('🚫 Non-authenticated user has already used their demo render - showing login upsell');
       setShowLoginUpsellPopup(true);
       // Hide the adjuster and clean up
@@ -10798,7 +10805,7 @@ const App = () => {
             console.log('[ENHANCE] Triggering out of credits popup from PhotoGallery (main)');
             handleOutOfCreditsShow();
           }}
-          onOpenLoginModal={() => authStatusRef.current?.openLoginModal()}
+          onOpenLoginModal={isEventDomain() ? undefined : () => authStatusRef.current?.openLoginModal()}
           numImages={numImages}
           authState={authState}
           onCopyImageStyleSelect={handleStyleReferenceUpload}
@@ -10871,7 +10878,7 @@ const App = () => {
 
       {/* Promotional Popup */}
       <PromoPopup
-        isOpen={showPromoPopup}
+        isOpen={showPromoPopup && !isEventDomain()}
         onClose={handlePromoPopupClose}
         onSignup={() => authStatusRef.current?.openSignupModal()}
       />
@@ -10900,7 +10907,7 @@ const App = () => {
 
       {/* Login Upsell Popup for non-authenticated users who've used their demo render */}
       <LoginUpsellPopup
-        isOpen={showLoginUpsellPopup && currentPage !== 'prompts'}
+        isOpen={showLoginUpsellPopup && currentPage !== 'prompts' && !isEventDomain()}
         onClose={() => setShowLoginUpsellPopup(false)}
       />
 
