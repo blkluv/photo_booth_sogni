@@ -35,6 +35,15 @@ const SOGNI_CLEANUP_DELAY_MS = 30 * 1000; // 30 seconds
 const recentDisconnectRequests = new Map();
 const DISCONNECT_CACHE_TTL = 3000; // 3 seconds
 
+// Detect if request originates from the Mandala Club domain
+function isMandalaOrigin(req) {
+  const origin = req.headers.origin;
+  if (origin === 'https://mandala.sogni.ai') return true;
+  const referer = req.headers.referer;
+  if (referer && referer.startsWith('https://mandala.sogni.ai/')) return true;
+  return false;
+}
+
 // Middleware to ensure session ID cookie exists
 const ensureSessionId = (req, res, next) => {
   const sessionCookieName = 'sogni_session_id';
@@ -506,9 +515,9 @@ router.post('/cancel/:projectId', ensureSessionId, async (req, res) => {
     // Extract client app ID from header, body, or query parameter
     const clientAppId = req.headers['x-client-app-id'] || req.body.clientAppId || req.query.clientAppId;
     console.log(`Request to cancel project ${projectId} for session ${req.sessionId} with app ID: ${clientAppId || 'none provided'}`);
-    
+
     // Get the existing client for this session
-    const client = await getSessionClient(req.sessionId, clientAppId);
+    const client = await getSessionClient(req.sessionId, clientAppId, isMandalaOrigin(req));
     
     // Cancel the project using the session's client
     await client.projects.cancel(projectId);
@@ -551,7 +560,7 @@ router.post('/estimate-cost', ensureSessionId, async (req, res) => {
 
     // Get client for this session
     const clientAppId = req.headers['x-client-app-id'] || req.body.clientAppId || req.query.clientAppId || `user-${req.sessionId}-${Date.now()}`;
-    const client = await getSessionClient(req.sessionId, clientAppId);
+    const client = await getSessionClient(req.sessionId, clientAppId, isMandalaOrigin(req));
 
     // Call the SDK's estimateCost method
     const result = await client.projects.estimateCost({
@@ -593,7 +602,9 @@ router.post('/generate', ensureSessionId, async (req, res) => {
     } else {
       console.log(`[${localProjectId}] Using provided client app ID: ${clientAppId}`);
     }
-    
+
+    const isMandala = isMandalaOrigin(req);
+
     // Server-side image generation caps
     const selectedModel = req.body.selectedModel;
     const requestedImages = parseInt(req.body.numberImages) || 1;
@@ -848,7 +859,7 @@ router.post('/generate', ensureSessionId, async (req, res) => {
     };
     
     // Get or create a client for this session, using the client-provided app ID
-    const client = await getSessionClient(req.sessionId, clientAppId);
+    const client = await getSessionClient(req.sessionId, clientAppId, isMandala);
     const params = { ...req.body, clientAppId };
 
     
@@ -880,31 +891,36 @@ router.post('/generate', ensureSessionId, async (req, res) => {
             console.log(`[${localProjectId}] Potential auth error detected, validating...`);
             
             try {
-              const isRealAuthError = await validateAuthError(error);
-              
+              const isRealAuthError = await validateAuthError(error, isMandala);
+
               if (isRealAuthError) {
                 console.log(`[${localProjectId}] Confirmed auth error, attempting retry with fresh client`);
-                
+
                 // Clear invalid cached tokens
-                clearInvalidTokens();
+                if (isMandala) {
+                  clearMandalaInvalidTokens();
+                } else {
+                  clearInvalidTokens();
+                }
                 
                 // Get the client ID associated with this session
                 const sessionId = req.sessionId;
-                if (sessionId && sessionClients.has(sessionId)) {
-                  const clientId = sessionClients.get(sessionId);
-                  
+                const sessionKey = isMandala ? `${sessionId}:mandala` : `${sessionId}:default`;
+                if (sessionId && sessionClients.has(sessionKey)) {
+                  const clientId = sessionClients.get(sessionKey);
+
                   // Force client cleanup to trigger re-authentication
                   console.log(`[${localProjectId}] Forcing cleanup of client ${clientId} due to auth error`);
                   cleanupSogniClient(clientId);
-                  
+
                   // Remove the session-to-client mapping to force new client creation
-                  sessionClients.delete(sessionId);
+                  sessionClients.delete(sessionKey);
                 }
-                
+
                 try {
                   // Get a fresh client with new authentication
                   console.log(`[${localProjectId}] Creating fresh client for retry...`);
-                  const freshClient = await getSessionClient(sessionId, clientAppId);
+                  const freshClient = await getSessionClient(sessionId, clientAppId, isMandala);
                   
                   // Retry the generation with the fresh client
                   console.log(`[${localProjectId}] Retrying generation with fresh client...`);
@@ -924,24 +940,29 @@ router.post('/generate', ensureSessionId, async (req, res) => {
           
           if (isAuthError) {
             console.log(`[${localProjectId}] Authentication error ${isRetry ? '(retry also failed)' : ''} - will clean up client state`);
-            
+
             // Clear invalid cached tokens
-            clearInvalidTokens();
-            
+            if (isMandala) {
+              clearMandalaInvalidTokens();
+            } else {
+              clearInvalidTokens();
+            }
+
             // Get the client ID associated with this session
             const sessionId = req.sessionId;
-            if (sessionId && sessionClients.has(sessionId)) {
-              const clientId = sessionClients.get(sessionId);
-              
+            const sessionKey = isMandala ? `${sessionId}:mandala` : `${sessionId}:default`;
+            if (sessionId && sessionClients.has(sessionKey)) {
+              const clientId = sessionClients.get(sessionKey);
+
               // Force client cleanup to trigger re-authentication on next request
               console.log(`[${localProjectId}] Forcing cleanup of client ${clientId} due to auth error`);
               cleanupSogniClient(clientId);
-              
+
               // Remove the session-to-client mapping to force new client creation
-              sessionClients.delete(sessionId);
+              sessionClients.delete(sessionKey);
             }
           }
-          
+
           // Re-throw the error to continue with normal error handling
           throw error;
         });
@@ -1091,6 +1112,8 @@ router.post('/generate-angle', ensureSessionId, async (req, res) => {
       clientAppId = `user-${req.sessionId}-${Date.now()}`;
       console.log(`[${localProjectId}] Generated unique client app ID for session: ${clientAppId}`);
     }
+
+    const isMandala = isMandalaOrigin(req);
 
     // Extract parameters from request
     const {
@@ -1243,7 +1266,7 @@ router.post('/generate-angle', ensureSessionId, async (req, res) => {
     };
 
     // Get session client
-    const client = await getSessionClient(req.sessionId, clientAppId);
+    const client = await getSessionClient(req.sessionId, clientAppId, isMandala);
 
     // Prepare context image as buffer
     let contextImageBuffer;
@@ -1303,17 +1326,22 @@ router.post('/generate-angle', ensureSessionId, async (req, res) => {
 
           if (isAuthError && !isRetry) {
             console.log(`[${localProjectId}] Auth error detected, attempting retry...`);
-            clearInvalidTokens();
+            if (isMandala) {
+              clearMandalaInvalidTokens();
+            } else {
+              clearInvalidTokens();
+            }
 
             const sessionId = req.sessionId;
-            if (sessionId && sessionClients.has(sessionId)) {
-              const clientId = sessionClients.get(sessionId);
+            const sessionKey = isMandala ? `${sessionId}:mandala` : `${sessionId}:default`;
+            if (sessionId && sessionClients.has(sessionKey)) {
+              const clientId = sessionClients.get(sessionKey);
               cleanupSogniClient(clientId);
-              sessionClients.delete(sessionId);
+              sessionClients.delete(sessionKey);
             }
 
             try {
-              const freshClient = await getSessionClient(sessionId, clientAppId);
+              const freshClient = await getSessionClient(sessionId, clientAppId, isMandala);
               return await attemptGeneration(freshClient, true);
             } catch (retryError) {
               console.error(`[${localProjectId}] Retry failed:`, retryError);
