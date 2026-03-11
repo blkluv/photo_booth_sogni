@@ -166,6 +166,11 @@ export async function enhanceImage(options: EnhanceImageOptions): Promise<string
 
     // Completion
     project.on('jobCompleted', (job: any) => {
+      // Skip preview events - only process final completions
+      if (job.isPreview) {
+        console.log(`[ImageEnhancer] Skipping preview event for job ${job.id} - waiting for final image`);
+        return;
+      }
       if (job.resultUrl) {
         resultUrl = job.resultUrl;
         console.log(`[ImageEnhancer] Job completed:`, resultUrl);

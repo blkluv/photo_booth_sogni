@@ -1526,7 +1526,8 @@ export async function generateVideo(client, params, progressCallback, localProje
                 break;
               }
 
-              case 'completed': {
+              case 'completed':
+              case 'jobCompleted': {
                 const jobId = event.id || event.jobId;
                 const resultUrl = event.resultUrl || event.result;
                 if (resultUrl) {
@@ -1559,6 +1560,20 @@ export async function generateVideo(client, params, progressCallback, localProje
             if (progressEvent) {
               emitToProgressCallback(progressEvent);
             }
+
+            // After forwarding a jobCompleted event, check if we can now send project completion
+            if (progressEvent && progressEvent.type === 'jobCompleted' &&
+                projectCompletionTracker.projectCompletionReceived &&
+                projectCompletionTracker.sentJobCompletions >= projectCompletionTracker.expectedJobs &&
+                !projectFinished) {
+              console.log(`[VIDEO] All ${projectCompletionTracker.sentJobCompletions} job completions sent after deferred project completion, sending now`);
+              emitToProgressCallback({
+                type: 'completed',
+                projectId: capturedLocalProjectId || project.id
+              });
+              cleanup();
+              resolve({ projectId: project.id, result: 'completed' });
+            }
           } catch (err) {
             console.error('[VIDEO] Error in job handler:', err);
           }
@@ -1584,17 +1599,44 @@ export async function generateVideo(client, params, progressCallback, localProje
         });
       }
 
-      // Listen for project-level events
+      // Listen for project-level events — defer completion until all jobCompleted events are forwarded
+      // (SDK fires project 'completed' BEFORE individual 'jobCompleted' events with result URLs)
       project.on('completed', () => {
-        console.log(`[VIDEO] Project ${project.id} completed`);
-        if (progressCallback) {
-          emitToProgressCallback({
-            type: 'completed',
-            projectId: capturedLocalProjectId || project.id
-          });
+        if (projectFinished) {
+          console.log('[VIDEO] Project already finished, ignoring duplicate completion');
+          return;
         }
-        cleanup();
-        resolve({ projectId: project.id, result: 'completed' });
+
+        projectCompletionTracker.projectCompletionReceived = true;
+        console.log(`[VIDEO] Project ${project.id} completion received: ${projectCompletionTracker.sentJobCompletions}/${projectCompletionTracker.expectedJobs} job completions sent`);
+
+        if (projectCompletionTracker.sentJobCompletions >= projectCompletionTracker.expectedJobs) {
+          console.log(`[VIDEO] All job completions already sent, sending project completion immediately`);
+          if (progressCallback) {
+            emitToProgressCallback({
+              type: 'completed',
+              projectId: capturedLocalProjectId || project.id
+            });
+          }
+          cleanup();
+          resolve({ projectId: project.id, result: 'completed' });
+        } else {
+          console.log(`[VIDEO] Waiting for ${projectCompletionTracker.expectedJobs - projectCompletionTracker.sentJobCompletions} more job completions before sending project completion`);
+          // Failsafe timeout — send completion even if job events are lost
+          setTimeout(() => {
+            if (!projectFinished) {
+              console.log(`[VIDEO] Failsafe timeout reached (sent ${projectCompletionTracker.sentJobCompletions}/${projectCompletionTracker.expectedJobs} job completions)`);
+              if (progressCallback) {
+                emitToProgressCallback({
+                  type: 'completed',
+                  projectId: capturedLocalProjectId || project.id
+                });
+              }
+              cleanup();
+              resolve({ projectId: project.id, result: 'completed' });
+            }
+          }, 10000); // 10s failsafe for video (longer than images since video jobs take minutes)
+        }
       });
 
       project.on('failed', (error) => {
@@ -1665,6 +1707,8 @@ export async function generateAudio(client, params, progressCallback, localProje
     const jobIndexMap = new Map();
     const workerNameCache = new Map();
     let sentJobCompletions = 0;
+    let projectCompletionReceived = false;
+    const expectedJobs = params.numberOfMedia || 1;
 
     const project = await sogniClient.projects.create(projectOptions);
     console.log('[AUDIO] Project created:', project.id);
@@ -1742,7 +1786,8 @@ export async function generateAudio(client, params, progressCallback, localProje
                 break;
               }
 
-              case 'completed': {
+              case 'completed':
+              case 'jobCompleted': {
                 const jobId = event.id || event.jobId;
                 const resultUrl = event.resultUrl || event.result;
                 if (resultUrl) {
@@ -1775,6 +1820,20 @@ export async function generateAudio(client, params, progressCallback, localProje
             if (progressEvent) {
               emitToProgressCallback(progressEvent);
             }
+
+            // After forwarding a jobCompleted event, check if we can now send project completion
+            if (progressEvent && progressEvent.type === 'jobCompleted' &&
+                projectCompletionReceived &&
+                sentJobCompletions >= expectedJobs &&
+                !projectFinished) {
+              console.log(`[AUDIO] All ${sentJobCompletions} job completions sent after deferred project completion, sending now`);
+              emitToProgressCallback({
+                type: 'completed',
+                projectId: capturedLocalProjectId || project.id
+              });
+              cleanup();
+              resolve({ projectId: project.id, result: 'completed' });
+            }
           } catch (err) {
             console.error('[AUDIO] Error in job handler:', err);
           }
@@ -1800,16 +1859,43 @@ export async function generateAudio(client, params, progressCallback, localProje
         });
       }
 
+      // Listen for project-level events — defer completion until all jobCompleted events are forwarded
       project.on('completed', () => {
-        console.log(`[AUDIO] Project ${project.id} completed`);
-        if (progressCallback) {
-          emitToProgressCallback({
-            type: 'completed',
-            projectId: capturedLocalProjectId || project.id
-          });
+        if (projectFinished) {
+          console.log('[AUDIO] Project already finished, ignoring duplicate completion');
+          return;
         }
-        cleanup();
-        resolve({ projectId: project.id, result: 'completed' });
+
+        projectCompletionReceived = true;
+        console.log(`[AUDIO] Project ${project.id} completion received: ${sentJobCompletions}/${expectedJobs} job completions sent`);
+
+        if (sentJobCompletions >= expectedJobs) {
+          console.log(`[AUDIO] All job completions already sent, sending project completion immediately`);
+          if (progressCallback) {
+            emitToProgressCallback({
+              type: 'completed',
+              projectId: capturedLocalProjectId || project.id
+            });
+          }
+          cleanup();
+          resolve({ projectId: project.id, result: 'completed' });
+        } else {
+          console.log(`[AUDIO] Waiting for ${expectedJobs - sentJobCompletions} more job completions before sending project completion`);
+          // Failsafe timeout
+          setTimeout(() => {
+            if (!projectFinished) {
+              console.log(`[AUDIO] Failsafe timeout reached (sent ${sentJobCompletions}/${expectedJobs} job completions)`);
+              if (progressCallback) {
+                emitToProgressCallback({
+                  type: 'completed',
+                  projectId: capturedLocalProjectId || project.id
+                });
+              }
+              cleanup();
+              resolve({ projectId: project.id, result: 'completed' });
+            }
+          }, 5000); // 5s failsafe for audio
+        }
       });
 
       project.on('failed', (error) => {

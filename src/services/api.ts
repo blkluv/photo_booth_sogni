@@ -996,7 +996,7 @@ function connectToSSEProgress(
   progressCallback: (data: unknown) => void,
   overallTimeoutMs: number = 300000 // default 5 min
 ): Promise<unknown> {
-  return new Promise((_resolve, reject) => {
+  return new Promise((resolve, reject) => {
     let retryCount = 0;
     const maxRetries = 5;
     let eventSource: EventSource | null = null;
@@ -1064,6 +1064,15 @@ function connectToSSEProgress(
             if (data.type === 'completed' || data.type === 'failed' || data.type === 'error') {
               clearAllTimers();
               safelyCloseEventSource();
+              // Resolve the Promise so callers (.then/.catch) work correctly
+              if (data.type === 'completed') {
+                resolve({ projectId, status: 'completed' });
+              } else {
+                reject(new NetworkError(
+                  (data.message as string) || (data.error as string) || 'Generation failed',
+                  false, false, true
+                ));
+              }
             }
           } catch (error) {
             console.error('Error parsing SSE message:', error);

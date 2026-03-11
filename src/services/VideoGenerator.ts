@@ -141,6 +141,7 @@ interface ActiveVideoProject {
   cleanup?: () => void;
   startTime?: number;
   lastETA?: number;
+  etaReceivedAt?: number; // Timestamp when lastETA was set, for countdown computation
   lastActivityTime?: number; // Track last time we received a jobETA update
   isCompleted?: boolean; // Prevent duplicate completion/error handling
 }
@@ -959,19 +960,26 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<void
               return updated;
             });
             
-            // Progress interval - update elapsed every second
+            // Progress interval - update elapsed and countdown every second
             activeProject.progressInterval = setInterval(() => {
               if (activeProject.startTime) {
                 const elapsed = Math.floor((Date.now() - activeProject.startTime) / 1000);
-                
+
+                // Compute remaining ETA by counting down from when it was received
+                let etaRemaining = activeProject.lastETA;
+                if (activeProject.etaReceivedAt && activeProject.lastETA) {
+                  const secondsSinceETA = Math.floor((Date.now() - activeProject.etaReceivedAt) / 1000);
+                  etaRemaining = Math.max(0, activeProject.lastETA - secondsSinceETA);
+                }
+
                 setPhotos(prev => {
                   const updated = [...prev];
                   if (!updated[photoIndex]?.generatingVideo) return prev;
-                  
+
                   updated[photoIndex] = {
                     ...updated[photoIndex],
                     videoElapsed: elapsed,
-                    videoETA: activeProject.lastETA
+                    videoETA: etaRemaining
                   };
                   return updated;
                 });
@@ -980,13 +988,18 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<void
           }
           break;
 
-        case 'progress':
-          // Handle step/stepCount progress events (if video model sends them)
+        case 'progress': {
+          // Handle step/stepCount progress events, or fall back to normalized progress (0-1)
+          let progressPercent: number | undefined;
           if (event.step !== undefined && event.stepCount !== undefined) {
             // Cap at 100% to prevent display issues when step exceeds stepCount
-            // (can happen during video encoding/post-processing phases)
-            const progressPercent = Math.min(100, Math.round((event.step / event.stepCount) * 100));
+            progressPercent = Math.min(100, Math.round((event.step / event.stepCount) * 100));
+          } else if (typeof event.progress === 'number') {
+            // Backend proxy sends normalized 0-1 progress without step/stepCount
+            progressPercent = Math.min(100, Math.round(event.progress * 100));
+          }
 
+          if (progressPercent !== undefined) {
             // Update last activity time
             activeProject.lastActivityTime = Date.now();
 
@@ -1003,11 +1016,13 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<void
             });
           }
           break;
+        }
 
         case 'jobETA':
           // Update last activity time to prevent inactivity timeout
           activeProject.lastActivityTime = Date.now();
           activeProject.lastETA = event.etaSeconds;
+          activeProject.etaReceivedAt = Date.now();
           
           setPhotos(prev => {
             const updated = [...prev];

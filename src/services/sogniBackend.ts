@@ -823,7 +823,7 @@ export class BackendSogniClient {
             case 'progress':
               if (targetJob && event.progress !== undefined) {
                 project.updateJobProgress(targetJob.id, event.progress as number, targetJob.workerName);
-                // Forward progress to global emitter
+                // Forward progress to global emitter (include step/stepCount for VideoGenerator)
                 projectsEmitter.emit('job', {
                   type: 'progress',
                   jobId: targetJob.id,
@@ -831,6 +831,8 @@ export class BackendSogniClient {
                   progress: event.progress as number,
                   projectId: project.id,
                   workerName: targetJob.workerName,
+                  step: event.step as number | undefined,
+                  stepCount: event.stepCount as number | undefined,
                 });
               }
               break;

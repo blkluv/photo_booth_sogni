@@ -411,8 +411,14 @@ export const enhancePhoto = async (options) => {
       // Listen for jobCompleted event (not completed)
       project.on('jobCompleted', (job) => {
         console.log('Enhance jobCompleted full payload:', job);
-        console.log(`[ENHANCE] Job completion check: job.id=${job.id}, photoIndex=${photoIndex}`);
-        
+        console.log(`[ENHANCE] Job completion check: job.id=${job.id}, photoIndex=${photoIndex}, isPreview=${job.isPreview}`);
+
+        // Skip preview events - only process final completions
+        if (job.isPreview) {
+          console.log(`[ENHANCE] Skipping preview event for job ${job.id} - waiting for final image`);
+          return;
+        }
+
         // Don't clear activeProjectReference since we didn't set it for enhancement
         // onSetActiveProject(null); // Commented out since we don't set it
         if (job.resultUrl) {
