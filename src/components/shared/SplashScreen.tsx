@@ -103,7 +103,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss, bypassLocalStora
               minHeight: '100%',
               objectFit: 'cover',
               objectPosition: 'center top',
-              opacity: 0.25,
+              opacity: 0.2,
               filter: 'saturate(0.3)',
             }}
           />
