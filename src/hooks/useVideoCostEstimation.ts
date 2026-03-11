@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useWallet } from './useWallet';
+import { isEventDomain } from '../utils/eventDomains';
 import {
   VIDEO_QUALITY_PRESETS,
   VIDEO_CONFIG,
@@ -124,6 +125,15 @@ export function useVideoCostEstimation(params: VideoCostEstimationParams): Video
   const frames = providedFrames ?? calculateVideoFrames(duration);
 
   const fetchCost = useCallback(async () => {
+    // Skip cost estimation on event domains (users don't see costs)
+    if (isEventDomain()) {
+      setCost(null);
+      setCostInUSD(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     // Don't fetch if disabled or missing required params
     if (!enabled || !imageWidth || !imageHeight) {
       setCost(null);

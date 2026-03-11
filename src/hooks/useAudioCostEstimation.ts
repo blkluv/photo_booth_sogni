@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useWallet } from './useWallet';
+import { isEventDomain } from '../utils/eventDomains';
 
 interface AudioCostEstimationParams {
   /** Audio model ID (e.g., 'ace_step_1.5_sft') */
@@ -83,6 +84,15 @@ export function useAudioCostEstimation(params: AudioCostEstimationParams): Audio
   } = params;
 
   const fetchCost = useCallback(async () => {
+    // Skip cost estimation on event domains (users don't see costs)
+    if (isEventDomain()) {
+      setCost(null);
+      setCostInUSD(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     if (!enabled || !modelId) {
       setCost(null);
       setCostInUSD(null);

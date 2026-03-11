@@ -1547,13 +1547,13 @@ router.post('/disconnect', ensureSessionId, async (req, res) => {
     
     if (clientAppId && activeConnections.has(clientAppId)) {
       hasClient = true;
-    } else if (sessionClients.has(req.sessionId)) {
-      const clientId = sessionClients.get(req.sessionId);
-      if (activeConnections.has(clientId)) {
+    } else if (sessionClients.has(`${req.sessionId}:default`) || sessionClients.has(`${req.sessionId}:mandala`) || sessionClients.has(req.sessionId)) {
+      const clientId = sessionClients.get(`${req.sessionId}:default`) || sessionClients.get(`${req.sessionId}:mandala`) || sessionClients.get(req.sessionId);
+      if (clientId && activeConnections.has(clientId)) {
         hasClient = true;
       }
     }
-    
+
     // Only attempt to disconnect if we have a client
     let result = false;
     if (hasClient) {
@@ -1616,13 +1616,13 @@ router.get('/disconnect', ensureSessionId, async (req, res) => {
     
     if (clientAppId && activeConnections.has(clientAppId)) {
       hasClient = true;
-    } else if (sessionClients.has(req.sessionId)) {
-      const clientId = sessionClients.get(req.sessionId);
-      if (activeConnections.has(clientId)) {
+    } else if (sessionClients.has(`${req.sessionId}:default`) || sessionClients.has(`${req.sessionId}:mandala`) || sessionClients.has(req.sessionId)) {
+      const clientId = sessionClients.get(`${req.sessionId}:default`) || sessionClients.get(`${req.sessionId}:mandala`) || sessionClients.get(req.sessionId);
+      if (clientId && activeConnections.has(clientId)) {
         hasClient = true;
       }
     }
-    
+
     // Queue the disconnect operation but don't wait for it
     // This ensures a fast response even during page unload
     if (hasClient) {

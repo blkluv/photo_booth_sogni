@@ -5465,7 +5465,7 @@ const App = () => {
       // Estimate job cost before creating project (for smart wallet switching)
       // Only do cost estimation for authenticated users - demo mode doesn't need it
       let estimatedCost = null;
-      if (authState.isAuthenticated) {
+      if (authState.isAuthenticated && authState.authMode === 'frontend') {
         try {
           estimatedCost = await estimateJobCost(sogniClient, {
             model: selectedModel,
@@ -5474,7 +5474,7 @@ const App = () => {
             guidance: usesContextImages ? guidance : promptGuidance,
             scheduler: scheduler,
             network: 'fast',
-            previewCount: authState.authMode === 'frontend' && usesContextImages ? 5 : 10, // Frontend context image models get 5 previews
+            previewCount: usesContextImages ? 5 : 10, // Frontend context image models get 5 previews
             contextImages: usesContextImages ? (selectedStyle === 'copyImageStyle' && styleReferenceImage ? 2 : 1) : 0,
             cnEnabled: !usesContextImages,
             tokenType: walletTokenType
@@ -7941,10 +7941,10 @@ const App = () => {
           
           {/* Brand title overlay - top left corner of camera view (only when auth status is hidden to avoid overlap) */}
           {!showStartMenu && !showPhotoGrid && brandLogo && (showSplashOnInactivity || isEventDomain()) && (
-            <div style={{ position: 'fixed', top: 24, left: 24, zIndex: 1100, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <img src={brandLogo} alt="" style={{ height: '2.4rem', width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))' }} />
-              <span style={{ fontFamily: "'Permanent Marker', cursive", fontSize: '1.2rem', color: 'var(--brand-dark-text)', opacity: 0.5 }}>x</span>
-              <span style={{ fontFamily: "'Permanent Marker', cursive", fontSize: '1.4rem', color: 'var(--brand-dark-text)', textShadow: '2px 2px 4px rgba(0, 0, 0, 0.1)', lineHeight: 1.15, textAlign: 'center' }}>Sogni<br />Photobooth</span>
+            <div style={{ position: 'fixed', top: 24, left: 24, zIndex: 1100, display: 'flex', alignItems: 'center', gap: 7 }}>
+              <img src={brandLogo} alt="" style={{ height: '1.6rem', width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))' }} />
+              <span style={{ fontFamily: "'Permanent Marker', cursive", fontSize: '0.8rem', color: 'var(--brand-dark-text)', opacity: 0.5 }}>x</span>
+              <span style={{ fontFamily: "'Permanent Marker', cursive", fontSize: '0.93rem', color: 'var(--brand-dark-text)', textShadow: '2px 2px 4px rgba(0, 0, 0, 0.1)', lineHeight: 1.15, textAlign: 'center' }}>Sogni<br />Photobooth</span>
             </div>
           )}
 
@@ -10884,7 +10884,7 @@ const App = () => {
 
       {/* Out of Credits Popup */}
       <OutOfCreditsPopup
-        isOpen={showOutOfCreditsPopup}
+        isOpen={showOutOfCreditsPopup && !isEventDomain()}
         onClose={handleOutOfCreditsPopupClose}
         onPurchase={authState.isAuthenticated && authState.authMode === 'frontend' ? () => setShowStripePurchase(true) : undefined}
         balances={balances}

@@ -13,6 +13,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSogniAuth } from '../services/sogniAuth';
 import { useWallet } from './useWallet';
+import { isEventDomain } from '../utils/eventDomains';
 import {
   CAMERA_ANGLE_MODEL,
   CAMERA_ANGLE_DEFAULTS
@@ -66,6 +67,15 @@ export function useCameraAngleCostEstimation(params: CameraAngleCostEstimationPa
 
   useEffect(() => {
     const estimateCost = async () => {
+      // Skip cost estimation on event domains (no frontend SDK client, users don't see costs)
+      if (isEventDomain()) {
+        setCost(null);
+        setCostInUSD(null);
+        setError(null);
+        setLoading(false);
+        return;
+      }
+
       // Don't fetch if disabled
       if (!enabled) {
         setCost(null);
