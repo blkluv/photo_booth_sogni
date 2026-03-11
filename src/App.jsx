@@ -7728,6 +7728,7 @@ const App = () => {
           <CameraStartMenu
             brandTitle={brandTitle}
             brandLogo={brandLogo}
+            brandBackgroundImage={brandBackgroundImage}
             onTakePhoto={handleShowExistingCameraPhoto}
             onBrowsePhoto={handleBrowsePhotoOption}
             onDragPhoto={handleDragPhotoOption}
@@ -10205,6 +10206,7 @@ const App = () => {
             bypassLocalStorage={splashTriggeredByInactivity}
             brandTitle={brandTitle}
             brandLogo={brandLogo}
+            brandBackgroundImage={brandBackgroundImage}
             onDismiss={() => {
               console.log('🎬 Splash screen dismissed - will restart inactivity timer if enabled');
               setShowSplashScreen(false);
@@ -10290,7 +10292,7 @@ const App = () => {
                 minHeight: '100%',
                 objectFit: 'cover',
                 objectPosition: 'center top',
-                opacity: 0.08,
+                opacity: 0.25,
                 filter: 'saturate(0.3)',
               }}
             />

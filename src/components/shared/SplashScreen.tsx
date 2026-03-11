@@ -11,9 +11,10 @@ interface SplashScreenProps {
   bypassLocalStorage?: boolean; // When true, ignores localStorage dismissal preference
   brandTitle?: string | null;
   brandLogo?: string | null;
+  brandBackgroundImage?: string | null;
 }
 
-const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss, bypassLocalStorage = false, brandLogo = null }) => {
+const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss, bypassLocalStorage = false, brandLogo = null, brandBackgroundImage = null }) => {
   const [isVisible, setIsVisible] = useState(true);
   const [isHiding, setIsHiding] = useState(false);
   const [hasCheckedStorage, setHasCheckedStorage] = useState(false);
@@ -78,10 +79,36 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onDismiss, bypassLocalStora
   console.log('🎬 SplashScreen rendering with state:', { hasCheckedStorage, isVisible, isHiding });
 
   return (
-    <div 
+    <div
       className={`splash-screen ${isHiding ? 'hiding' : ''}`}
       onClick={handleDismiss}
+      style={brandBackgroundImage ? { background: 'transparent' } : undefined}
     >
+      {/* Brand background image (for splash screen which is fixed/above app container) */}
+      {brandBackgroundImage && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 0,
+            overflow: 'hidden',
+            pointerEvents: 'none',
+          }}
+        >
+          <img
+            src={brandBackgroundImage}
+            alt=""
+            style={{
+              width: '100%',
+              minHeight: '100%',
+              objectFit: 'cover',
+              objectPosition: 'center top',
+              opacity: 0.25,
+              filter: 'saturate(0.3)',
+            }}
+          />
+        </div>
+      )}
       {/* Audio Toggle Button */}
       <button 
         className="audio-toggle-btn"

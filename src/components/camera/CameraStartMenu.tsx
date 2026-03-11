@@ -79,6 +79,7 @@ interface CameraStartMenuProps {
   // Brand override
   brandTitle?: string | null;
   brandLogo?: string | null;
+  brandBackgroundImage?: string | null;
 }
 
 const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
@@ -110,7 +111,8 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
   onResetUploadedPhoto,
   currentThemes = {},
   brandTitle = null,
-  brandLogo = null
+  brandLogo = null,
+  brandBackgroundImage = null
 }) => {
   const { settings } = useApp();
   const isKioskMode = settings.showSplashOnInactivity;
@@ -384,7 +386,7 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
   };
 
   return (
-    <div className={`camera-start-menu ${showIntro ? 'phase-intro' : 'phase-options'}`}>
+    <div className={`camera-start-menu ${showIntro ? 'phase-intro' : 'phase-options'}`} style={brandBackgroundImage ? { background: 'transparent' } : undefined}>
       <div className="start-menu-content">
         {showIntro ? (
           /* Intro Section - Camera + Video */
