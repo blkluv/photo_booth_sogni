@@ -63,6 +63,7 @@ Object.values(promptsDataRaw).forEach(themeGroup => {
 import PhotoGallery from './components/shared/PhotoGallery';
 import StyleDropdown from './components/shared/StyleDropdown';
 import { useApp } from './context/AppContext.tsx';
+import { useRewards } from './context/RewardsContext';
 import { useWallet } from './hooks/useWallet';
 import { isPremiumBoosted } from './services/walletService';
 import { estimateJobCost } from './hooks/useCostEstimation.ts';
@@ -82,6 +83,7 @@ import ErrorBoundary from './components/shared/ErrorBoundary';
 import UploadProgress from './components/shared/UploadProgress';
 import PromoPopup from './components/shared/PromoPopup';
 import OutOfCreditsPopup from './components/shared/OutOfCreditsPopup';
+import DailyBoostCelebration from './components/shared/DailyBoostCelebration';
 import LoginUpsellPopup from './components/shared/LoginUpsellPopup';
 import NetworkStatus from './components/shared/NetworkStatus';
 import ConfettiCelebration from './components/shared/ConfettiCelebration';
@@ -973,6 +975,13 @@ const App = () => {
   // Add state for out of credits popup
   const [showOutOfCreditsPopup, setShowOutOfCreditsPopup] = useState(false);
   const [lastJobCostEstimate, setLastJobCostEstimate] = useState(null);
+
+  // Daily boost from out-of-credits flow (bypasses event/kiosk mode suppression)
+  const [showDailyBoostFromCredits, setShowDailyBoostFromCredits] = useState(false);
+  const { rewards, claimRewardWithToken, claimInProgress, lastClaimSuccess, resetClaimState, error: dailyBoostClaimError } = useRewards();
+  const dailyBoostReward = rewards.find(r => r.id === '2');
+  const canClaimDailyBoost = dailyBoostReward?.canClaim &&
+    (!dailyBoostReward?.nextClaim || dailyBoostReward.nextClaim.getTime() <= Date.now());
   
   // Bald for Base popup state - rendered in App.jsx so it works independently of PhotoGallery
   const [showBaldForBasePopup, setShowBaldForBasePopup] = useState(false);
@@ -1107,6 +1116,33 @@ const App = () => {
   const handleOutOfCreditsPopupClose = () => {
     setShowOutOfCreditsPopup(false);
   };
+
+  // When out-of-credits popup opens, check if daily boost is available and offer it instead
+  const handleOutOfCreditsShow = useCallback(() => {
+    if (canClaimDailyBoost && authState.isAuthenticated) {
+      // Show daily boost celebration instead of the regular popup
+      setShowDailyBoostFromCredits(true);
+    } else {
+      setShowOutOfCreditsPopup(true);
+    }
+  }, [canClaimDailyBoost, authState.isAuthenticated]);
+
+  // Handle daily boost claim from the out-of-credits flow
+  const handleDailyBoostFromCreditsClaim = useCallback((turnstileToken) => {
+    if (dailyBoostReward) {
+      claimRewardWithToken(dailyBoostReward.id, turnstileToken);
+    }
+  }, [dailyBoostReward, claimRewardWithToken]);
+
+  // Handle daily boost dismissal from the out-of-credits flow — fall through to regular popup
+  const handleDailyBoostFromCreditsDismiss = useCallback(() => {
+    setShowDailyBoostFromCredits(false);
+    if (!lastClaimSuccess) {
+      // User declined the boost — show the regular out-of-credits popup
+      setShowOutOfCreditsPopup(true);
+    }
+    resetClaimState();
+  }, [lastClaimSuccess, resetClaimState]);
 
   // Photos array - this will hold either regular photos or gallery photos depending on mode
   const [photos, setPhotos] = useState([]);
@@ -5502,8 +5538,8 @@ const App = () => {
               });
             });
 
-            // Show the out of credits popup
-            setShowOutOfCreditsPopup(true);
+            // Show daily boost if available, otherwise out of credits popup
+            handleOutOfCreditsShow();
 
             return;
           }
@@ -6147,8 +6183,8 @@ const App = () => {
             });
           });
 
-          // Show the out of credits popup
-          setShowOutOfCreditsPopup(true);
+          // Show daily boost if available, otherwise out of credits popup
+          handleOutOfCreditsShow();
 
           return;
         }
@@ -7665,7 +7701,7 @@ const App = () => {
                 onCloseQR={() => setQrCodeData(null)}
                 onOutOfCredits={() => {
                   console.log('[ENHANCE] Triggering out of credits popup from PhotoGallery (prompt selector)');
-                  setShowOutOfCreditsPopup(true);
+                  handleOutOfCreditsShow();
                 }}
                 onOpenLoginModal={() => authStatusRef.current?.openLoginModal()}
                 // New props for prompt selector mode
@@ -9268,7 +9304,7 @@ const App = () => {
         isPremiumSpark: hasPremiumSpark, // Pass premium status for frontend auth
         onOutOfCredits: () => {
           console.log('[REFRESH] Triggering out of credits popup from handleRefreshPhoto');
-          setShowOutOfCreditsPopup(true);
+          handleOutOfCreditsShow();
         }
       });
     } catch (error) {
@@ -10757,7 +10793,7 @@ const App = () => {
           onCloseQR={() => setQrCodeData(null)}
           onOutOfCredits={() => {
             console.log('[ENHANCE] Triggering out of credits popup from PhotoGallery (main)');
-            setShowOutOfCreditsPopup(true);
+            handleOutOfCreditsShow();
           }}
           onOpenLoginModal={() => authStatusRef.current?.openLoginModal()}
           numImages={numImages}
@@ -10846,6 +10882,17 @@ const App = () => {
         currentTokenType={walletTokenType}
         estimatedCost={lastJobCostEstimate}
         onSwitchPaymentMethod={switchPaymentMethod}
+      />
+
+      {/* Daily Boost from out-of-credits flow (bypasses event/kiosk mode suppression) */}
+      <DailyBoostCelebration
+        isVisible={showDailyBoostFromCredits}
+        creditAmount={dailyBoostReward ? parseInt(dailyBoostReward.amount, 10) : 50}
+        onClaim={handleDailyBoostFromCreditsClaim}
+        onDismiss={handleDailyBoostFromCreditsDismiss}
+        isClaiming={claimInProgress}
+        claimSuccess={lastClaimSuccess}
+        claimError={dailyBoostClaimError}
       />
 
       {/* Login Upsell Popup for non-authenticated users who've used their demo render */}

@@ -79,8 +79,8 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
 
   // Auto-open wallet view on login/session resume if Daily Boost is available
   useEffect(() => {
-    // Skip in kiosk mode
-    if (isKioskMode) {
+    // Skip in kiosk mode or event mode (theme active)
+    if (isKioskMode || settings.tezdevTheme !== 'off') {
       return;
     }
 
@@ -608,47 +608,26 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
                         <div className="sogni-particle sogni-particle-8" />
                       </>
                     )}
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      viewBox="0 0 120 110" 
-                      style={{ 
-                        width: '32px', 
-                        height: '32px', 
-                        fill: 'currentColor',
+                    <img
+                      src="/icons/sogni-moon.svg"
+                      alt="Sogni"
+                      style={{
+                        width: '32px',
+                        height: '32px',
                         display: 'block',
                         flexShrink: 0,
                         position: 'relative',
                         zIndex: 3,
-                        transform: tokenType === 'sogni' 
-                          ? 'scale(1.2)' 
+                        transform: tokenType === 'sogni'
+                          ? 'scale(1.2)'
                           : 'scale(1)',
-                        filter: tokenType === 'sogni' 
-                          ? 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))' 
+                        filter: tokenType === 'sogni'
+                          ? 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))'
                           : 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))',
                         transition: 'all 0.3s ease',
                         opacity: tokenType === 'sogni' ? 1 : 0.6
                       }}
-                    >
-                    <defs>
-                      <clipPath id="sogni-circle-clip">
-                        <circle cx="51" cy="51" r="50" />
-                      </clipPath>
-                    </defs>
-                    <g clipPath="url(#sogni-circle-clip)">
-                      <path d="M1 1h100v100H1z" style={{ opacity: 0.08 }} />
-                      <path d="M44.6 94.8h-1.9l-1.9 6.3h1.9l1.9-6.3zM92 94.8H47.2l-1.9 6.3H90l2-6.3zM58 88.5h-1.9l-1.8 6.3h1.9l1.8-6.3zM100.1 88.5H60l-1.8 6.3h40.1l1.8-6.3zM50.8 82.3h-1.7l-1.8 6.3H49l1.8-6.3z" />
-                      <path d="M100 82.3H52.8l-1.7 6.3h47.2l1.7-6.3z" />
-                      <path d="M68 82.3h-2l-2.1 6.3h2l2.1-6.3zM44.2 76h-1.7l-1.8 6.3h1.7l1.8-6.3zM94.4 76h-5.2L86 82.3h5.2l3.2-6.3z" />
-                      <path d="M86.8 76H46.6l-1.8 6.3h39l3-6.3z" />
-                      <path d="M72.7 69.8h46.2l-2 6.3H71.4l1.3-6.3zM69 69.8h1.7L69.3 76h-1.7l1.4-6.2zM111 63.5H63.3l-1.5 6.3h47.4l1.8-6.3zM61.3 63.5h-1.7l-1.5 6.3h1.7l1.5-6.3zM58 63.5h42l1-6.3H59.6L58 63.5zM54.3 63.5H56l1.5-6.3h-1.7l-1.5 6.3z" />
-                      <path d="M74.4 51h31.2l-1 6.3H74.1l.3-6.3zM70.7 51h1.7l-.4 6.3h-1.7l.4-6.3zM60 44.7h25.9l.7 6.3H61.5L60 44.7zM88 44.7h41.4l1.8 6.3H88.8l-.8-6.3zM56.3 44.7H58l1.5 6.3h-1.7l-1.5-6.3z" />
-                      <path d="M56.6 38.5h43.2l1.2 6.3H58l-1.4-6.3zM52.8 38.5h1.7l1.5 6.3h-1.7l-1.5-6.3zM72.8 32.2h31.8v6.3H73.3l-.5-6.3zM69 32.2h1.7l.5 6.3h-1.7l-.5-6.3z" />
-                      <path d="M44.6 26h43.2l3.3 6.3h-45L44.6 26zM90.2 26h43.1l1.8 6.3H93.6L90.2 26zM40.9 26h1.7l1.5 6.3h-1.7L40.9 26zM69.7 19.7h43.6L115 26H71.5l-1.8-6.3zM66.1 19.7h1.7l1.7 6.3h-1.7l-1.7-6.3z" />
-                      <path d="M51 13.5h39.2l1.7 6.3H52.3L51 13.5zM93 13.5h39.2l1.6 6.3h-39L93 13.5zM47.3 13.5H49l1.5 6.3h-1.7l-1.5-6.3zM64.3 7.2h45.4l1.8 6.3H68.2l-3.9-6.3z" />
-                      <path d="M60.1 7.2h2l3.8 6.3h-2l-3.8-6.3zM91.3 1h39.1l1.8 6.3H93L91.3 1z" />
-                      <path d="M44.6 1h43.2l1.8 6.3H46.1L44.6 1zM40.9 1h1.7L44 7.2h-1.7L40.9 1z" />
-                    </g>
-                    </svg>
+                    />
                   </div>
                   <span style={{ marginLeft: '24px', position: 'relative', zIndex: 2 }}>sogni token</span>
                 </button>
