@@ -139,7 +139,7 @@ const getHashtagForStyle = (styleKey) => {
 };
 
 // Neutralize credit error messages on event domains
-const getCreditErrorMessage = (defaultMsg) => isEventDomain() ? 'Generation unavailable' : defaultMsg;
+const getCreditErrorMessage = (defaultMsg) => isEventDomain() ? 'Generation unavailable — please try again later' : defaultMsg;
 
 const App = () => {
   // --- Authentication Hook ---
