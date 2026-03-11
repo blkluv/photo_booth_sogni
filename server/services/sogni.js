@@ -22,6 +22,14 @@ let password = null;
 // Serialize SDK logins to avoid nonce races across concurrent clients
 let authLoginPromise = null;
 
+// Mandala Club event client (separate credentials, separate lifecycle)
+let mandalaGlobalSogniClient = null;
+let mandalaClientCreationPromise = null;
+let mandalaUsername = null;
+let mandalaPassword = null;
+let mandalaAuthLoginPromise = null;
+const mandalaLastRefreshAttempt = { timestamp: 0 };
+
 // Global event handler management to prevent conflicts
 let globalJobHandlerAttached = false;
 const activeProjectCallbacks = new Map(); // sdkProjectId -> { callback, localProjectId, projectDetails }
@@ -31,33 +39,35 @@ const lastRefreshAttempt = { timestamp: 0 };
 const REFRESH_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
 
 // Validate if an error is truly auth-related by making an additional authenticated call
-export async function validateAuthError(error) {
-  console.log(`[AUTH] Validating error to determine if it's truly an auth issue: ${error.message}`);
-  
-  // If we're in cooldown, assume it's auth-related to avoid spam
+export async function validateAuthError(error, isMandala = false) {
+  const clientLabel = isMandala ? 'MANDALA-AUTH' : 'AUTH';
+  console.log(`[${clientLabel}] Validating error to determine if it's truly an auth issue: ${error.message}`);
+
+  const refreshAttempt = isMandala ? mandalaLastRefreshAttempt : lastRefreshAttempt;
   const now = Date.now();
-  if (now - lastRefreshAttempt.timestamp < REFRESH_COOLDOWN_MS) {
-    console.log(`[AUTH] Within refresh cooldown period, treating as auth error`);
+  if (now - refreshAttempt.timestamp < REFRESH_COOLDOWN_MS) {
+    console.log(`[${clientLabel}] Within refresh cooldown period, treating as auth error`);
     return true;
   }
-  
+
   try {
-    // Try to make a simple authenticated API call to test if tokens are actually invalid
-    const client = await getOrCreateGlobalSogniClient();
+    const client = isMandala
+      ? await getOrCreateMandalaGlobalSogniClient()
+      : await getOrCreateGlobalSogniClient();
     await client.account.refreshBalance();
-    
-    console.log(`[AUTH] Error doesn't appear to be auth-related, treating as transient: ${error.message}`);
+
+    console.log(`[${clientLabel}] Error doesn't appear to be auth-related, treating as transient: ${error.message}`);
     return false;
   } catch (validationError) {
-    if (validationError.status === 401 || 
+    if (validationError.status === 401 ||
         (validationError.payload && validationError.payload.errorCode === 107) ||
         validationError.message?.includes('Invalid token')) {
-      console.log(`[AUTH] Validation confirmed this is a real auth error: ${validationError.message}`);
-      lastRefreshAttempt.timestamp = now;
+      console.log(`[${clientLabel}] Validation confirmed this is a real auth error: ${validationError.message}`);
+      refreshAttempt.timestamp = now;
       return true;
     }
-    
-    console.log(`[AUTH] Validation call failed with non-auth error, treating original error as transient: ${validationError.message}`);
+
+    console.log(`[${clientLabel}] Validation call failed with non-auth error, treating original error as transient: ${validationError.message}`);
     return false;
   }
 }
@@ -225,6 +235,95 @@ async function getOrCreateGlobalSogniClient() {
   return await clientCreationPromise;
 }
 
+// Create or get the Mandala-specific global Sogni client
+async function getOrCreateMandalaGlobalSogniClient() {
+  if (mandalaGlobalSogniClient && mandalaGlobalSogniClient.account.currentAccount.isAuthenicated) {
+    console.log(`[MANDALA] Reusing existing authenticated mandala client: ${mandalaGlobalSogniClient.appId}`);
+    recordClientActivity(mandalaGlobalSogniClient.appId);
+    return mandalaGlobalSogniClient;
+  }
+
+  if (mandalaClientCreationPromise) {
+    console.log(`[MANDALA] Client creation already in progress, waiting...`);
+    return await mandalaClientCreationPromise;
+  }
+
+  mandalaClientCreationPromise = (async () => {
+    try {
+      if (!mandalaUsername || !mandalaPassword) {
+        if (!sogniEnv) sogniEnv = process.env.SOGNI_ENV || 'production';
+        if (!sogniUrls) sogniUrls = getSogniUrls(sogniEnv);
+        mandalaUsername = process.env.MANDALA_SOGNI_USERNAME;
+        mandalaPassword = process.env.MANDALA_SOGNI_PASSWORD;
+
+        if (!mandalaUsername || !mandalaPassword) {
+          throw new Error('Mandala credentials not configured - check MANDALA_SOGNI_USERNAME and MANDALA_SOGNI_PASSWORD');
+        }
+      }
+
+      const clientAppId = `mandala-${uuidv4()}`;
+      console.log(`[MANDALA] Creating new mandala Sogni client with app ID: ${clientAppId}`);
+
+      if (!SogniClient) {
+        const sogniModule = await import('@sogni-ai/sogni-client');
+        SogniClient = sogniModule.SogniClient;
+      }
+
+      const client = await SogniClient.createInstance({
+        appId: clientAppId,
+        network: 'fast',
+        restEndpoint: sogniUrls.rest,
+        socketEndpoint: sogniUrls.socket,
+        testnet: sogniEnv === 'local' || sogniEnv === 'staging'
+      });
+
+      // Serialize login with its own lock (independent from default client)
+      if (mandalaAuthLoginPromise) {
+        try { await mandalaAuthLoginPromise; } catch (e) { /* ignore */ }
+      }
+      mandalaAuthLoginPromise = (async () => {
+        await client.account.login(mandalaUsername, mandalaPassword, false);
+      })();
+      try {
+        await mandalaAuthLoginPromise;
+      } finally {
+        mandalaAuthLoginPromise = null;
+      }
+
+      console.log(`[MANDALA] Successfully authenticated mandala client: ${clientAppId}`);
+
+      if (client.apiClient && client.apiClient.on) {
+        client.apiClient.on('connected', () => {
+          recordClientActivity(clientAppId);
+          console.log(`[MANDALA] Mandala client connected to Sogni`);
+        });
+        client.apiClient.on('disconnected', () => {
+          recordClientActivity(clientAppId);
+          console.log(`[MANDALA] Mandala client disconnected from Sogni`);
+        });
+        client.apiClient.on('error', (error) => {
+          recordClientActivity(clientAppId);
+          console.log(`[MANDALA] Mandala client socket error:`, error.message);
+        });
+      }
+
+      mandalaGlobalSogniClient = client;
+      activeConnections.set(clientAppId, client);
+      recordClientActivity(clientAppId);
+      logConnectionStatus('Created', clientAppId);
+
+      return mandalaGlobalSogniClient;
+    } catch (error) {
+      console.error(`[MANDALA] Failed to create mandala client:`, error);
+      throw error;
+    } finally {
+      mandalaClientCreationPromise = null;
+    }
+  })();
+
+  return await mandalaClientCreationPromise;
+}
+
 // Enhanced wrapper for Sogni operations with proper error handling
 async function withSogniClient(operation, operationName = 'operation') {
   let client;
@@ -323,6 +422,41 @@ export async function forceAuthReset() {
   console.log('[AUTH] Force auth reset completed - next request will re-authenticate');
 }
 
+export function clearMandalaInvalidTokens() {
+  console.log('[MANDALA-AUTH] Clearing mandala client due to invalid tokens');
+  if (mandalaGlobalSogniClient) {
+    try {
+      mandalaGlobalSogniClient.account.logout().catch(() => {});
+    } catch (error) {
+      // Ignore errors during logout
+    }
+    if (activeConnections.has(mandalaGlobalSogniClient.appId)) {
+      activeConnections.delete(mandalaGlobalSogniClient.appId);
+      connectionLastActivity.delete(mandalaGlobalSogniClient.appId);
+    }
+    mandalaGlobalSogniClient = null;
+    mandalaClientCreationPromise = null;
+  }
+}
+
+export async function forceMandalaAuthReset() {
+  console.log('[MANDALA-AUTH] Force clearing mandala client and re-authenticating');
+  if (mandalaGlobalSogniClient) {
+    try {
+      await mandalaGlobalSogniClient.account.logout();
+    } catch (error) {
+      console.log('[MANDALA-AUTH] Logout error during force reset (expected):', error.message);
+    }
+    if (activeConnections.has(mandalaGlobalSogniClient.appId)) {
+      activeConnections.delete(mandalaGlobalSogniClient.appId);
+      connectionLastActivity.delete(mandalaGlobalSogniClient.appId);
+    }
+    mandalaGlobalSogniClient = null;
+    mandalaClientCreationPromise = null;
+  }
+  console.log('[MANDALA-AUTH] Force auth reset completed - next request will re-authenticate');
+}
+
 // Create a dedicated client for a given appId (used for per-app concurrency)
 async function createDedicatedClient(appId) {
   // Import SogniClient if not already imported
@@ -366,28 +500,33 @@ async function createDedicatedClient(appId) {
 }
 
 // Simplified session client management - all sessions use the same global authenticated client
-export async function getSessionClient(sessionId, clientAppId) {
-  console.log(`[SESSION] Getting client for session ${sessionId}${clientAppId ? ` appId ${clientAppId}` : ''}`);
+export async function getSessionClient(sessionId, clientAppId, isMandala = false) {
+  const clientLabel = isMandala ? 'MANDALA-SESSION' : 'SESSION';
+  const sessionKey = isMandala ? `${sessionId}:mandala` : `${sessionId}:default`;
+  console.log(`[${clientLabel}] Getting client for session ${sessionId}${clientAppId ? ` appId ${clientAppId}` : ''}`);
   try {
-    // CRITICAL: All clients using the same Photobooth Backend should use the same global SDK instance
-    // This includes main frontend, browser extension, and any other clients hitting this backend
-    console.log(`[SESSION] Using global SDK instance for all clients on this backend (clientAppId: ${clientAppId || 'none'})`);
-    const client = await getOrCreateGlobalSogniClient();
-    sessionClients.set(sessionId, client.appId);
-    console.log(`[SESSION] Successfully provided global client to session ${sessionId}`);
+    console.log(`[${clientLabel}] Using ${isMandala ? 'mandala' : 'global'} SDK instance (clientAppId: ${clientAppId || 'none'})`);
+    const client = isMandala
+      ? await getOrCreateMandalaGlobalSogniClient()
+      : await getOrCreateGlobalSogniClient();
+    sessionClients.set(sessionKey, client.appId);
+    console.log(`[${clientLabel}] Successfully provided client to session ${sessionId}`);
     return client;
   } catch (error) {
-    console.error(`[SESSION] Failed to get client for session ${sessionId}:`, error);
+    console.error(`[${clientLabel}] Failed to get client for session ${sessionId}:`, error);
     throw error;
   }
 }
 
 export async function disconnectSessionClient(sessionId) {
   console.log(`[SESSION] Disconnecting session client for session ${sessionId}`);
-  
-  // Just remove the session mapping - don't disconnect the global client
+
+  // Clean up both possible composite keys (default and mandala)
+  sessionClients.delete(`${sessionId}:default`);
+  sessionClients.delete(`${sessionId}:mandala`);
+  // Also delete bare sessionId for backward compatibility during rollout
   sessionClients.delete(sessionId);
-  
+
   console.log(`[SESSION] Session ${sessionId} disconnected (global client remains active)`);
   return true;
 }

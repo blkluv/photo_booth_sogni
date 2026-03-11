@@ -1,5 +1,5 @@
 import express from 'express';
-import { getClientInfo, generateImage, cleanupSogniClient, getSessionClient, disconnectSessionClient, getActiveConnectionsCount, checkIdleConnections, activeConnections, sessionClients, clearInvalidTokens, validateAuthError } from '../services/sogni.js';
+import { getClientInfo, generateImage, cleanupSogniClient, getSessionClient, disconnectSessionClient, getActiveConnectionsCount, checkIdleConnections, activeConnections, sessionClients, clearInvalidTokens, clearMandalaInvalidTokens, validateAuthError } from '../services/sogni.js';
 import { v4 as uuidv4 } from 'uuid';
 import { 
   incrementBatchesGenerated, 
