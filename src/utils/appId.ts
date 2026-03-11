@@ -12,7 +12,7 @@
 function getAppIdKey(): string {
   const hostname = window.location.hostname;
   
-  if (hostname === 'photobooth.sogni.ai') {
+  if (hostname === 'photobooth.sogni.ai' || hostname === 'mandala.sogni.ai') {
     return 'sogni-appId-production';
   } else if (hostname.includes('staging')) {
     return 'sogni-appId-staging';

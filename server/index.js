@@ -46,6 +46,7 @@ app.set('trust proxy', 1); // Trust first proxy if deployed behind one (e.g., Ng
 // 2. CORS Configuration
 const allowedOrigins = [
   'https://photobooth.sogni.ai',
+  'https://mandala.sogni.ai',
   'https://photobooth-staging.sogni.ai',
   'https://photobooth-local.sogni.ai',
   'http://localhost:5173',

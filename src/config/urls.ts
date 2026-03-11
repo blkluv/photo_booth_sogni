@@ -43,10 +43,17 @@ export const getURLs = (): EnvironmentURLs => {
   console.log(`Loading URLs for environment: ${environment}`);
   
   // Special handling for secure local development
-  if (typeof window !== 'undefined' && 
+  if (typeof window !== 'undefined' &&
       window.location.hostname === 'photobooth-local.sogni.ai') {
     console.log('Using secure local development URLs');
     return localSecureUrls;
+  }
+
+  // Alternate production domains (e.g., mandala.sogni.ai) use production URLs
+  if (typeof window !== 'undefined' &&
+      window.location.hostname === 'mandala.sogni.ai') {
+    console.log('Using production URLs for alternate domain');
+    return productionUrls;
   }
   
   switch (environment) {

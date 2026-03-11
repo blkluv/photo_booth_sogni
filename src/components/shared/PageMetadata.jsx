@@ -108,17 +108,17 @@ const PageMetadata = () => {
     // Update Open Graph tags
     updateMetaTag('meta[property="og:title"]', metadata.ogTitle);
     updateMetaTag('meta[property="og:description"]', metadata.ogDescription);
-    updateMetaTag('meta[property="og:url"]', `https://photobooth.sogni.ai${pathname}`);
-    
+    updateMetaTag('meta[property="og:url"]', `${window.location.origin}${pathname}`);
+
     // Update og:image if provided
     if (metadata.ogImage) {
       updateMetaTag('meta[property="og:image"]', metadata.ogImage);
     }
-    
+
     // Update Twitter tags
     updateMetaTag('meta[name="twitter:title"]', metadata.twitterTitle);
     updateMetaTag('meta[name="twitter:description"]', metadata.twitterDescription);
-    updateMetaTag('meta[property="twitter:url"]', `https://photobooth.sogni.ai${pathname}`);
+    updateMetaTag('meta[property="twitter:url"]', `${window.location.origin}${pathname}`);
     
     // Update twitter:image if provided
     if (metadata.twitterImage) {

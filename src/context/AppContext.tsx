@@ -25,13 +25,30 @@ const isEditPromptStyle = (styleKey: string): boolean => {
   return styleKey in editPrompts;
 };
 
+// Map of alternate domains to their event themes
+const DOMAIN_THEME_MAP: Record<string, string> = {
+  'mandala.sogni.ai': 'mandala',
+};
+
+// Helper function to get theme based on domain, falling back to cookie
+const getThemeForDomain = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  return DOMAIN_THEME_MAP[window.location.hostname] || null;
+};
+
 // Helper function to handle TezDev theme cookie migration
 const getTezDevThemeFromCookie = () => {
+  // If loaded from a themed domain, always use that domain's theme
+  const domainTheme = getThemeForDomain();
+  if (domainTheme) {
+    return domainTheme;
+  }
+
   const savedTheme = getSettingFromCookie('tezdevTheme', DEFAULT_SETTINGS.tezdevTheme);
-  
+
   // Check if we've already performed the one-time migration
   const migrationCompleted = localStorage.getItem('sogni_theme_migration_v2');
-  
+
   if (!migrationCompleted) {
     // This is the one-time migration - reset any existing theme to 'off'
     if (savedTheme === 'supercasual') {
@@ -43,7 +60,7 @@ const getTezDevThemeFromCookie = () => {
     // Even if they had 'off' already, mark migration as completed so we don't check again
     localStorage.setItem('sogni_theme_migration_v2', 'completed');
   }
-  
+
   return savedTheme;
 };
 
@@ -270,6 +287,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.log(`updateSetting: ${String(key)} unchanged (${String(value)}), skipping`);
       return;
     }
+
+    // Prevent changing theme when domain enforces one (e.g., mandala.sogni.ai)
+    if (key === 'tezdevTheme') {
+      const domainTheme = getThemeForDomain();
+      if (domainTheme) {
+        console.log(`updateSetting: Theme locked to '${domainTheme}' by domain, ignoring change`);
+        return;
+      }
+    }
     
     // Special handling for model changes
     if (key === 'selectedModel') {
@@ -468,6 +494,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const resetToDefaults = {
       ...DEFAULT_SETTINGS,
       selectedModel: currentModel, // Keep the current model
+      tezdevTheme: getThemeForDomain() || DEFAULT_SETTINGS.tezdevTheme, // Preserve domain-enforced theme
       inferenceSteps: modelDefaults.inferenceSteps,
       sampler: modelDefaults.sampler ?? DEFAULT_SETTINGS.sampler,
       scheduler: modelDefaults.scheduler ?? DEFAULT_SETTINGS.scheduler,
