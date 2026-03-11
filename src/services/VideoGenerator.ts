@@ -69,7 +69,7 @@ type SogniClient = {
     on: (event: string, handler: (event: any) => void) => void;
     off?: (event: string, handler: (event: any) => void) => void;
   };
-  // supportsVideo is true for FrontendSogniClientAdapter (direct SDK), false for BackendSogniClient
+  // supportsVideo is true for both FrontendSogniClientAdapter (direct SDK) and BackendSogniClient
   supportsVideo?: boolean;
 };
 
@@ -264,31 +264,14 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<void
   }
 
   // Log client type for debugging video generation issues
-  const clientType = sogniClient?.supportsVideo === true ? 'FrontendSogniClientAdapter' : 
-                     sogniClient?.supportsVideo === false ? 'BackendSogniClient' : 'Unknown';
+  const clientType = sogniClient?.constructor?.name || 'Unknown';
+  console.log(`[VIDEO] 🎬 Starting with client: ${clientType}, supportsVideo: ${sogniClient?.supportsVideo}`);
   
-  // CRITICAL DEBUG: Log EVERYTHING about the client to diagnose the issue
-  console.group('🎬 VIDEO GENERATION STARTING');
-  console.log(`❗ CLIENT TYPE: ${clientType}`);
-  console.log(`❗ supportsVideo flag: ${sogniClient?.supportsVideo}`);
-  console.log(`❗ Client is null: ${sogniClient === null}`);
-  console.log(`❗ Client is undefined: ${sogniClient === undefined}`);
-  console.log(`❗ Client constructor name: ${sogniClient?.constructor?.name}`);
-  console.log(`❗ Client details:`, {
-    supportsVideo: sogniClient?.supportsVideo,
-    hasProjects: !!sogniClient?.projects,
-    hasCreate: !!sogniClient?.projects?.create,
-    hasOn: !!sogniClient?.projects?.on,
-    hasOff: !!sogniClient?.projects?.off,
-    hasAccount: !!(sogniClient as any)?.account,
-    hasApiClient: !!(sogniClient as any)?.apiClient
-  });
-  console.groupEnd();
-  
-  // CRITICAL: If backend client is being used for video, throw a clear error
-  if (sogniClient?.supportsVideo === false) {
-    const error = new Error('CRITICAL BUG: Backend client cannot generate videos. Only frontend SDK supports video generation. Check client initialization in App.jsx');
-    console.error('❌❌❌ VIDEO GENERATION BLOCKED:', error.message);
+  // Note: supportsVideo is now true for both FrontendSogniClientAdapter and BackendSogniClient
+  // Backend proxy supports video generation via /generate-video endpoint
+  if (!sogniClient) {
+    const error = new Error('No Sogni client available for video generation');
+    console.error('❌ VIDEO GENERATION BLOCKED:', error.message);
     onError?.(error);
     return;
   }

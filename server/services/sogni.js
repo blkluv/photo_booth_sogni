@@ -590,8 +590,8 @@ export async function generateImage(client, params, progressCallback, localProje
       guidance: params.promptGuidance || (isEnhancement ? 1 : 2),
       numberOfMedia: params.numberImages || 1,
       numberOfPreviews: numberOfPreviews,
-      sampler: params.sampler || 'DPM++ SDE',
-      scheduler: params.scheduler || 'Karras',
+      sampler: params.sampler || 'euler',
+      scheduler: params.scheduler || 'simple',
       // FORCE disable NSFW filter for Krea/Qwen Image Edit (not NSFW-aware), otherwise use user setting
       disableNSFWFilter: isNsfwUnawareModel ? true : (params.sensitiveContentFilter ? false : true),
       outputFormat: params.outputFormat || 'jpg',
@@ -1350,6 +1350,493 @@ export async function generateImage(client, params, progressCallback, localProje
     return await runGeneration(client);
   }
   return await withSogniClient(runGeneration, 'image generation');
+}
+
+export async function generateVideo(client, params, progressCallback, localProjectId = null) {
+  const runGeneration = async (sogniClient) => {
+    console.log('[VIDEO] Starting video generation with params:', {
+      model: params.modelId,
+      width: params.width,
+      height: params.height,
+      frames: params.frames,
+      fps: params.fps,
+      steps: params.steps
+    });
+
+    // Build project options for video
+    const projectOptions = {
+      type: 'video',
+      modelId: params.modelId,
+      positivePrompt: params.positivePrompt || '',
+      negativePrompt: params.negativePrompt || '',
+      stylePrompt: params.stylePrompt || '',
+      sizePreset: 'custom',
+      width: params.width,
+      height: params.height,
+      steps: params.steps || 20,
+      shift: params.shift,
+      guidance: params.guidance || 5,
+      numberOfMedia: params.numberOfMedia || 1,
+      numberOfPreviews: params.numberOfPreviews || 3,
+      sampler: params.sampler || 'euler',
+      scheduler: params.scheduler || 'simple',
+      disableNSFWFilter: true,
+      outputFormat: params.outputFormat || 'mp4',
+      tokenType: params.tokenType || 'spark',
+      frames: params.frames,
+      fps: params.fps,
+      ...(params.seed !== undefined ? { seed: params.seed } : {})
+    };
+
+    // Handle binary reference fields - convert from Array to Uint8Array
+    if (params.referenceImage) {
+      projectOptions.referenceImage = params.referenceImage instanceof Uint8Array
+        ? params.referenceImage
+        : new Uint8Array(params.referenceImage);
+      console.log(`[VIDEO] Reference image: ${(projectOptions.referenceImage.length / 1024 / 1024).toFixed(2)}MB`);
+    }
+    if (params.referenceImageEnd) {
+      projectOptions.referenceImageEnd = params.referenceImageEnd instanceof Uint8Array
+        ? params.referenceImageEnd
+        : new Uint8Array(params.referenceImageEnd);
+      console.log(`[VIDEO] Reference image end: ${(projectOptions.referenceImageEnd.length / 1024 / 1024).toFixed(2)}MB`);
+    }
+    if (params.referenceVideo) {
+      projectOptions.referenceVideo = params.referenceVideo instanceof Uint8Array
+        ? params.referenceVideo
+        : new Uint8Array(params.referenceVideo);
+      console.log(`[VIDEO] Reference video: ${(projectOptions.referenceVideo.length / 1024 / 1024).toFixed(2)}MB`);
+    }
+    if (params.referenceAudio) {
+      projectOptions.referenceAudio = params.referenceAudio instanceof Uint8Array
+        ? params.referenceAudio
+        : new Uint8Array(params.referenceAudio);
+      console.log(`[VIDEO] Reference audio: ${(projectOptions.referenceAudio.length / 1024 / 1024).toFixed(2)}MB`);
+    }
+
+    // Pass through any additional video-specific params
+    if (params.motionStrength !== undefined) projectOptions.motionStrength = params.motionStrength;
+    if (params.cameraMotion !== undefined) projectOptions.cameraMotion = params.cameraMotion;
+    if (params.loras) projectOptions.loras = params.loras;
+    if (params.loraStrengths) projectOptions.loraStrengths = params.loraStrengths;
+    if (params.audioStart !== undefined) projectOptions.audioStart = params.audioStart;
+    if (params.audioDuration !== undefined) projectOptions.audioDuration = params.audioDuration;
+    if (params.videoStart !== undefined) projectOptions.videoStart = params.videoStart;
+    if (params.sam2Coordinates !== undefined) projectOptions.sam2Coordinates = params.sam2Coordinates;
+    if (params.trimEndFrame !== undefined) projectOptions.trimEndFrame = params.trimEndFrame;
+    if (params.controlNet !== undefined) projectOptions.controlNet = params.controlNet;
+    if (params.detailerStrength !== undefined) projectOptions.detailerStrength = params.detailerStrength;
+
+    // Project completion tracking
+    const projectCompletionTracker = {
+      expectedJobs: params.numberOfMedia || 1,
+      sentJobCompletions: 0,
+      jobProgress: new Map(),
+      jobCompletionTimeouts: new Map(),
+      projectCompletionReceived: false,
+      projectCompletionEvent: null,
+      sendProjectCompletion: null,
+      jobIndexMap: new Map(),
+      workerNameCache: new Map()
+    };
+
+    const projectDetails = {
+      localProjectId: localProjectId,
+      positivePrompt: params.positivePrompt || '',
+      negativePrompt: params.negativePrompt || ''
+    };
+
+    let nextJobIndex = 0;
+
+    const project = await sogniClient.projects.create(projectOptions);
+    console.log('[VIDEO] Project created:', project.id);
+
+    if (progressCallback) {
+      progressCallback({
+        type: 'queued',
+        projectId: localProjectId || project.id,
+        queuePosition: 1
+      });
+    }
+
+    const capturedLocalProjectId = projectDetails.localProjectId;
+
+    return new Promise((resolve, reject) => {
+      let projectFinished = false;
+      let cleanup = () => {};
+      const emittedKeys = new Set();
+      const emitToProgressCallback = (evt) => {
+        if (!progressCallback) return;
+        const key = `${evt.type}:${evt.jobId || 'na'}:${evt.step || 'na'}:${evt.projectId}`;
+        if (emittedKeys.has(key)) return;
+        emittedKeys.add(key);
+        progressCallback(evt);
+      };
+
+      if (progressCallback) {
+        const jobHandler = (event) => {
+          try {
+            if (event.projectId !== project.id) return;
+
+            let progressEvent = null;
+
+            switch (event.type) {
+              case 'initiating':
+              case 'started': {
+                const jobIndex = nextJobIndex++;
+                projectCompletionTracker.jobIndexMap.set(event.id || event.jobId, jobIndex);
+                if (event.workerName) {
+                  projectCompletionTracker.workerNameCache.set(event.id || event.jobId, event.workerName);
+                }
+                progressEvent = {
+                  type: event.type,
+                  projectId: capturedLocalProjectId || project.id,
+                  jobId: event.id || event.jobId,
+                  workerName: event.workerName || 'Worker',
+                  index: jobIndex,
+                  positivePrompt: event.positivePrompt || params.positivePrompt || ''
+                };
+                break;
+              }
+
+              case 'progress': {
+                const jobId = event.id || event.jobId;
+                const progress = typeof event.progress === 'number' ? event.progress :
+                  (event.step && event.stepCount ? event.step / event.stepCount : 0);
+                const workerName = event.workerName || projectCompletionTracker.workerNameCache.get(jobId) || 'Worker';
+                progressEvent = {
+                  type: 'progress',
+                  projectId: capturedLocalProjectId || project.id,
+                  jobId: jobId,
+                  progress: progress,
+                  step: event.step,
+                  stepCount: event.stepCount,
+                  workerName: workerName
+                };
+                break;
+              }
+
+              case 'jobETA': {
+                progressEvent = {
+                  type: 'jobETA',
+                  projectId: capturedLocalProjectId || project.id,
+                  jobId: event.id || event.jobId,
+                  etaSeconds: event.etaSeconds
+                };
+                break;
+              }
+
+              case 'completed': {
+                const jobId = event.id || event.jobId;
+                const resultUrl = event.resultUrl || event.result;
+                if (resultUrl) {
+                  projectCompletionTracker.sentJobCompletions++;
+                  const jobIndex = projectCompletionTracker.jobIndexMap.get(jobId) ?? 0;
+                  progressEvent = {
+                    type: 'jobCompleted',
+                    projectId: capturedLocalProjectId || project.id,
+                    jobId: jobId,
+                    resultUrl: resultUrl,
+                    index: jobIndex,
+                    workerName: event.workerName || projectCompletionTracker.workerNameCache.get(jobId) || 'Worker'
+                  };
+                }
+                break;
+              }
+
+              case 'error':
+              case 'failed': {
+                progressEvent = {
+                  type: 'failed',
+                  projectId: capturedLocalProjectId || project.id,
+                  jobId: event.id || event.jobId,
+                  error: event.error || event.message || 'Video generation failed'
+                };
+                break;
+              }
+            }
+
+            if (progressEvent) {
+              emitToProgressCallback(progressEvent);
+            }
+          } catch (err) {
+            console.error('[VIDEO] Error in job handler:', err);
+          }
+        };
+
+        sogniClient.projects.on('job', jobHandler);
+
+        cleanup = () => {
+          if (projectFinished) return;
+          projectFinished = true;
+          try {
+            sogniClient.projects.off('job', jobHandler);
+          } catch (err) {
+            console.warn('[VIDEO] Error removing job handler:', err);
+          }
+          activeProjectCallbacks.delete(project.id);
+        };
+
+        activeProjectCallbacks.set(project.id, {
+          callback: progressCallback,
+          localProjectId: capturedLocalProjectId,
+          projectDetails
+        });
+      }
+
+      // Listen for project-level events
+      project.on('completed', () => {
+        console.log(`[VIDEO] Project ${project.id} completed`);
+        if (progressCallback) {
+          emitToProgressCallback({
+            type: 'completed',
+            projectId: capturedLocalProjectId || project.id
+          });
+        }
+        cleanup();
+        resolve({ projectId: project.id, result: 'completed' });
+      });
+
+      project.on('failed', (error) => {
+        console.error(`[VIDEO] Project ${project.id} failed:`, error);
+        if (progressCallback) {
+          emitToProgressCallback({
+            type: 'failed',
+            projectId: capturedLocalProjectId || project.id,
+            error: error?.message || error || 'Video generation failed'
+          });
+        }
+        cleanup();
+        reject(error);
+      });
+
+      // 20 minute timeout for video (much longer than images)
+      setTimeout(() => {
+        if (!projectFinished) {
+          console.error(`[VIDEO] Project ${project.id} timed out after 20 minutes`);
+          cleanup();
+          reject(new Error('Video generation timed out after 20 minutes'));
+        }
+      }, 20 * 60 * 1000);
+    });
+  };
+
+  // Execute with the provided client (global client pattern)
+  return runGeneration(client);
+}
+
+export async function generateAudio(client, params, progressCallback, localProjectId = null) {
+  const runGeneration = async (sogniClient) => {
+    console.log('[AUDIO] Starting audio generation with params:', {
+      model: params.modelId,
+      duration: params.duration,
+      numberOfMedia: params.numberOfMedia
+    });
+
+    // Build project options for audio
+    const projectOptions = {
+      type: 'audio',
+      modelId: params.modelId,
+      positivePrompt: params.positivePrompt || '',
+      numberOfMedia: params.numberOfMedia || 1,
+      steps: params.steps || 60,
+      duration: params.duration,
+      outputFormat: params.outputFormat || 'mp3',
+      tokenType: params.tokenType || 'spark',
+      ...(params.bpm !== undefined ? { bpm: params.bpm } : {}),
+      ...(params.keyscale !== undefined ? { keyscale: params.keyscale } : {}),
+      ...(params.timesignature !== undefined ? { timesignature: params.timesignature } : {}),
+      ...(params.language !== undefined ? { language: params.language } : {}),
+      ...(params.composerMode !== undefined ? { composerMode: params.composerMode } : {}),
+      ...(params.promptStrength !== undefined ? { promptStrength: params.promptStrength } : {}),
+      ...(params.creativity !== undefined ? { creativity: params.creativity } : {}),
+      ...(params.sampler !== undefined ? { sampler: params.sampler } : {}),
+      ...(params.scheduler !== undefined ? { scheduler: params.scheduler } : {}),
+      ...(params.lyrics !== undefined ? { lyrics: params.lyrics } : {}),
+      ...(params.seed !== undefined ? { seed: params.seed } : {})
+    };
+
+    const projectDetails = {
+      localProjectId: localProjectId,
+      positivePrompt: params.positivePrompt || ''
+    };
+
+    let nextJobIndex = 0;
+    const jobIndexMap = new Map();
+    const workerNameCache = new Map();
+    let sentJobCompletions = 0;
+
+    const project = await sogniClient.projects.create(projectOptions);
+    console.log('[AUDIO] Project created:', project.id);
+
+    if (progressCallback) {
+      progressCallback({
+        type: 'queued',
+        projectId: localProjectId || project.id,
+        queuePosition: 1
+      });
+    }
+
+    const capturedLocalProjectId = projectDetails.localProjectId;
+
+    return new Promise((resolve, reject) => {
+      let projectFinished = false;
+      let cleanup = () => {};
+      const emittedKeys = new Set();
+      const emitToProgressCallback = (evt) => {
+        if (!progressCallback) return;
+        const key = `${evt.type}:${evt.jobId || 'na'}:${evt.step || 'na'}:${evt.projectId}`;
+        if (emittedKeys.has(key)) return;
+        emittedKeys.add(key);
+        progressCallback(evt);
+      };
+
+      if (progressCallback) {
+        const jobHandler = (event) => {
+          try {
+            if (event.projectId !== project.id) return;
+
+            let progressEvent = null;
+
+            switch (event.type) {
+              case 'initiating':
+              case 'started': {
+                const jobIndex = nextJobIndex++;
+                jobIndexMap.set(event.id || event.jobId, jobIndex);
+                if (event.workerName) {
+                  workerNameCache.set(event.id || event.jobId, event.workerName);
+                }
+                progressEvent = {
+                  type: event.type,
+                  projectId: capturedLocalProjectId || project.id,
+                  jobId: event.id || event.jobId,
+                  workerName: event.workerName || 'Worker',
+                  index: jobIndex
+                };
+                break;
+              }
+
+              case 'progress': {
+                const jobId = event.id || event.jobId;
+                const progress = typeof event.progress === 'number' ? event.progress :
+                  (event.step && event.stepCount ? event.step / event.stepCount : 0);
+                progressEvent = {
+                  type: 'progress',
+                  projectId: capturedLocalProjectId || project.id,
+                  jobId: jobId,
+                  progress: progress,
+                  step: event.step,
+                  stepCount: event.stepCount,
+                  workerName: event.workerName || workerNameCache.get(jobId) || 'Worker'
+                };
+                break;
+              }
+
+              case 'jobETA': {
+                progressEvent = {
+                  type: 'jobETA',
+                  projectId: capturedLocalProjectId || project.id,
+                  jobId: event.id || event.jobId,
+                  etaSeconds: event.etaSeconds
+                };
+                break;
+              }
+
+              case 'completed': {
+                const jobId = event.id || event.jobId;
+                const resultUrl = event.resultUrl || event.result;
+                if (resultUrl) {
+                  sentJobCompletions++;
+                  const jobIndex = jobIndexMap.get(jobId) ?? 0;
+                  progressEvent = {
+                    type: 'jobCompleted',
+                    projectId: capturedLocalProjectId || project.id,
+                    jobId: jobId,
+                    resultUrl: resultUrl,
+                    index: jobIndex,
+                    workerName: event.workerName || workerNameCache.get(jobId) || 'Worker'
+                  };
+                }
+                break;
+              }
+
+              case 'error':
+              case 'failed': {
+                progressEvent = {
+                  type: 'failed',
+                  projectId: capturedLocalProjectId || project.id,
+                  jobId: event.id || event.jobId,
+                  error: event.error || event.message || 'Audio generation failed'
+                };
+                break;
+              }
+            }
+
+            if (progressEvent) {
+              emitToProgressCallback(progressEvent);
+            }
+          } catch (err) {
+            console.error('[AUDIO] Error in job handler:', err);
+          }
+        };
+
+        sogniClient.projects.on('job', jobHandler);
+
+        cleanup = () => {
+          if (projectFinished) return;
+          projectFinished = true;
+          try {
+            sogniClient.projects.off('job', jobHandler);
+          } catch (err) {
+            console.warn('[AUDIO] Error removing job handler:', err);
+          }
+          activeProjectCallbacks.delete(project.id);
+        };
+
+        activeProjectCallbacks.set(project.id, {
+          callback: progressCallback,
+          localProjectId: capturedLocalProjectId,
+          projectDetails
+        });
+      }
+
+      project.on('completed', () => {
+        console.log(`[AUDIO] Project ${project.id} completed`);
+        if (progressCallback) {
+          emitToProgressCallback({
+            type: 'completed',
+            projectId: capturedLocalProjectId || project.id
+          });
+        }
+        cleanup();
+        resolve({ projectId: project.id, result: 'completed' });
+      });
+
+      project.on('failed', (error) => {
+        console.error(`[AUDIO] Project ${project.id} failed:`, error);
+        if (progressCallback) {
+          emitToProgressCallback({
+            type: 'failed',
+            projectId: capturedLocalProjectId || project.id,
+            error: error?.message || error || 'Audio generation failed'
+          });
+        }
+        cleanup();
+        reject(error);
+      });
+
+      // 10 minute timeout for audio
+      setTimeout(() => {
+        if (!projectFinished) {
+          console.error(`[AUDIO] Project ${project.id} timed out after 10 minutes`);
+          cleanup();
+          reject(new Error('Audio generation timed out after 10 minutes'));
+        }
+      }, 10 * 60 * 1000);
+    });
+  };
+
+  return runGeneration(client);
 }
 
 // Client info for debugging

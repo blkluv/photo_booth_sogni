@@ -145,8 +145,8 @@ async function generateTransitionSDK(
     onError
   } = options;
 
-  if (!sogniClient || sogniClient.supportsVideo === false) {
-    throw new Error('Frontend SDK client required for video generation');
+  if (!sogniClient) {
+    throw new Error('Sogni client required for video generation');
   }
 
   const qualityConfig = TRANSITION_QUALITY_PRESETS[quality];

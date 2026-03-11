@@ -1,5 +1,5 @@
 import express from 'express';
-import { getClientInfo, generateImage, cleanupSogniClient, getSessionClient, disconnectSessionClient, getActiveConnectionsCount, checkIdleConnections, activeConnections, sessionClients, clearInvalidTokens, clearMandalaInvalidTokens, validateAuthError } from '../services/sogni.js';
+import { getClientInfo, generateImage, generateVideo, generateAudio, cleanupSogniClient, getSessionClient, disconnectSessionClient, getActiveConnectionsCount, checkIdleConnections, activeConnections, sessionClients, clearInvalidTokens, clearMandalaInvalidTokens, validateAuthError } from '../services/sogni.js';
 import { v4 as uuidv4 } from 'uuid';
 import { 
   incrementBatchesGenerated, 
@@ -1086,6 +1086,481 @@ router.post('/generate', ensureSessionId, async (req, res) => {
       error: 'Failed to initiate image generation',
       message: error.message,
       // Adding full error details to the response for debugging (consider removing for production)
+      errorDetails: { name: error.name, message: error.message, stack: error.stack, ...error }
+    });
+  }
+});
+
+// ============================================
+// Video Generation
+// ============================================
+
+// CORS preflight for video generation
+router.options('/generate-video', (req, res) => {
+  res.sendStatus(200);
+});
+
+router.post('/generate-video', express.json({ limit: '100mb' }), ensureSessionId, async (req, res) => {
+  const localProjectId = `video-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  console.log(`[${localProjectId}] Starting video generation request for session ${req.sessionId}...`);
+
+  try {
+    let clientAppId = req.headers['x-client-app-id'] || req.body.clientAppId || req.query.clientAppId;
+    if (!clientAppId) {
+      clientAppId = `user-${req.sessionId}-${Date.now()}`;
+    }
+
+    const isMandala = isMandalaOrigin(req);
+
+    // Server-side worker preference enforcement (same as /generate)
+    let positivePrompt = req.body.positivePrompt || '';
+    positivePrompt = positivePrompt
+      .replace(/--workers=[^\s]+/g, '')
+      .replace(/--preferred-workers=[^\s]+/g, '')
+      .replace(/--skip-workers=[^\s]+/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const tokenType = req.body.tokenType || 'spark';
+    const isPremiumSpark = req.body.isPremiumSpark === true;
+    const shouldApplyWorkerPreferences = tokenType !== 'spark' || isPremiumSpark;
+
+    if (shouldApplyWorkerPreferences) {
+      const preferredWorkers = ['SPICE.MUST.FLOW'];
+      const skipWorkers = ['freeman123'];
+      const hardcodedWorkerPreferences = [];
+      if (preferredWorkers.length > 0) {
+        hardcodedWorkerPreferences.push(`--preferred-workers=${preferredWorkers.join(',')}`);
+      }
+      if (skipWorkers.length > 0) {
+        hardcodedWorkerPreferences.push(`--skip-workers=${skipWorkers.slice(0, 2).join(',')}`);
+      }
+      if (hardcodedWorkerPreferences.length > 0) {
+        positivePrompt = `${positivePrompt} ${hardcodedWorkerPreferences.join(' ')}`.trim();
+      }
+    }
+
+    req.body.positivePrompt = positivePrompt;
+
+    // Track metrics
+    await trackMetric('videos_generated', 1);
+
+    // Handle binary data - convert base64 strings back to arrays
+    // The frontend sends referenceImage, referenceImageEnd, referenceVideo, referenceAudio as base64
+    const binaryFields = ['referenceImage', 'referenceImageEnd', 'referenceVideo', 'referenceAudio'];
+    for (const field of binaryFields) {
+      if (req.body[field] && typeof req.body[field] === 'string') {
+        // Decode base64 to Buffer, then to Array for the service
+        const buffer = Buffer.from(req.body[field], 'base64');
+        req.body[field] = Array.from(buffer);
+        console.log(`[${localProjectId}] Decoded ${field}: ${(buffer.length / 1024 / 1024).toFixed(2)}MB`);
+      }
+    }
+
+    let hasReceivedFirstEvent = false;
+    let firstEventResolve = null;
+    const firstEventPromise = new Promise((resolve) => {
+      firstEventResolve = resolve;
+    });
+
+    let lastProgressUpdate = Date.now();
+    const progressHandler = (eventData) => {
+      if (!hasReceivedFirstEvent && (eventData.type === 'queued' || eventData.type === 'started' || eventData.type === 'initiating')) {
+        hasReceivedFirstEvent = true;
+        if (firstEventResolve) {
+          firstEventResolve();
+          firstEventResolve = null;
+        }
+      }
+
+      const now = Date.now();
+      if (now - lastProgressUpdate < 500 && eventData.type === 'progress' && (eventData.progress !== 0 && eventData.progress !== 1)) {
+        return;
+      }
+      lastProgressUpdate = now;
+
+      const { jobId: originalJobId, ...eventDataWithoutJobId } = eventData;
+      const sseEvent = {
+        ...eventDataWithoutJobId,
+        projectId: localProjectId,
+        workerName: eventData.workerName || 'Worker',
+        progress: typeof eventData.progress === 'number' ?
+                  (eventData.progress > 1 ? eventData.progress / 100 : eventData.progress) :
+                  eventData.progress,
+      };
+
+      if (originalJobId !== undefined) {
+        sseEvent.jobId = originalJobId;
+      }
+
+      if (eventData.type === 'queued') {
+        const queuedEvent = {
+          type: 'queued',
+          projectId: localProjectId,
+          queuePosition: eventData.queuePosition,
+        };
+        forwardEventToSSE(localProjectId, clientAppId, queuedEvent, req.sessionId);
+        return;
+      }
+
+      forwardEventToSSE(localProjectId, clientAppId, sseEvent, req.sessionId);
+
+      if (!activeProjects.has(localProjectId)) {
+        if (!pendingProjectEvents.has(localProjectId)) {
+          pendingProjectEvents.set(localProjectId, []);
+        }
+        pendingProjectEvents.get(localProjectId).push({ ...sseEvent, clientAppId });
+
+        const events = pendingProjectEvents.get(localProjectId);
+        if (events.length > 50) {
+          events.splice(0, events.length - 50);
+        }
+
+        if (eventData.type === 'failed' || eventData.type === 'error') {
+          if (!globalThis.pendingProjectErrors) {
+            globalThis.pendingProjectErrors = new Map();
+          }
+          const errorEvent = {
+            type: 'error',
+            projectId: localProjectId,
+            message: (eventData.error && eventData.error.message) || eventData.message || 'Video generation failed',
+            details: eventData.error ? JSON.stringify(eventData.error) : 'Unknown error',
+            errorCode: 'unknown_error',
+            status: 500
+          };
+          globalThis.pendingProjectErrors.set(localProjectId, errorEvent);
+          setTimeout(() => {
+            if (globalThis.pendingProjectErrors) {
+              globalThis.pendingProjectErrors.delete(localProjectId);
+            }
+          }, 30000);
+        }
+
+        setTimeout(() => {
+          if (pendingProjectEvents.has(localProjectId)) {
+            pendingProjectEvents.delete(localProjectId);
+          }
+        }, 2 * 60 * 1000);
+      }
+    };
+
+    const client = await getSessionClient(req.sessionId, clientAppId, isMandala);
+    const params = { ...req.body, clientAppId };
+
+    const attemptGeneration = async (clientToUse, isRetry = false) => {
+      return generateVideo(clientToUse, params, progressHandler, localProjectId)
+        .then((sogniResult) => {
+          console.log(`[${localProjectId}] Video generation finished. Project ID: ${sogniResult.projectId}`);
+        })
+        .catch(async (error) => {
+          console.error(`[${localProjectId}] Video generation failed${isRetry ? ' (retry)' : ''}:`, error);
+
+          const isAuthError = error.status === 401 ||
+                             (error.payload && error.payload.errorCode === 107) ||
+                             error.message?.includes('Invalid token') ||
+                             error.message?.includes('Authentication required');
+
+          if (isAuthError && !isRetry) {
+            try {
+              const isRealAuthError = await validateAuthError(error, isMandala);
+              if (isRealAuthError) {
+                if (isMandala) { clearMandalaInvalidTokens(); } else { clearInvalidTokens(); }
+                const sessionId = req.sessionId;
+                const sessionKey = isMandala ? `${sessionId}:mandala` : `${sessionId}:default`;
+                if (sessionId && sessionClients.has(sessionKey)) {
+                  const clientId = sessionClients.get(sessionKey);
+                  cleanupSogniClient(clientId);
+                  sessionClients.delete(sessionKey);
+                }
+                const freshClient = await getSessionClient(sessionId, clientAppId, isMandala);
+                return await attemptGeneration(freshClient, true);
+              }
+            } catch (validationError) {
+              console.error(`[${localProjectId}] Auth validation failed:`, validationError);
+            }
+          }
+
+          throw error;
+        });
+    };
+
+    attemptGeneration(client)
+      .catch(error => {
+        const isInsufficientFundsError = error.payload?.errorCode === 4024 ||
+                                       error.message?.includes('Insufficient funds') ||
+                                       error.message?.includes('Debit Error');
+
+        if (activeProjects.has(localProjectId)) {
+          const clients = activeProjects.get(localProjectId);
+          let errorMessage = error.message || 'Video generation failed';
+          if (isInsufficientFundsError) {
+            errorMessage = 'Insufficient Sogni credits to generate video. Please add more credits to your account.';
+          }
+
+          const errorEvent = {
+            type: 'error',
+            projectId: localProjectId,
+            message: errorMessage,
+            details: error.toString(),
+            errorCode: isInsufficientFundsError ? 'insufficient_funds' : 'unknown_error',
+            status: error.status || 500,
+            isInsufficientFunds: isInsufficientFundsError
+          };
+          clients.forEach((client) => {
+            sendSSEMessage(client, errorEvent);
+          });
+        } else {
+          if (!globalThis.pendingProjectErrors) {
+            globalThis.pendingProjectErrors = new Map();
+          }
+          globalThis.pendingProjectErrors.set(localProjectId, {
+            type: 'error',
+            projectId: localProjectId,
+            message: error.message || 'Video generation failed',
+            details: error.toString(),
+            errorCode: 'unknown_error',
+            status: error.status || 500
+          });
+          setTimeout(() => {
+            if (globalThis.pendingProjectErrors) {
+              globalThis.pendingProjectErrors.delete(localProjectId);
+            }
+          }, 30000);
+        }
+
+        if (!hasReceivedFirstEvent && firstEventResolve) {
+          firstEventResolve();
+          firstEventResolve = null;
+        }
+      });
+
+    console.log(`[${localProjectId}] Responding immediately to allow fast SSE connection establishment`);
+    res.json({
+      status: 'processing',
+      projectId: localProjectId,
+      message: 'Video generation request received and processing started.',
+      clientAppId: clientAppId
+    });
+  } catch (error) {
+    console.error(`[${localProjectId}] Error in POST /generate-video handler:`, error);
+    res.status(500).json({
+      error: 'Failed to initiate video generation',
+      message: error.message,
+      errorDetails: { name: error.name, message: error.message, stack: error.stack, ...error }
+    });
+  }
+});
+
+// ============================================
+// Audio Generation
+// ============================================
+
+// CORS preflight for audio generation
+router.options('/generate-audio', (req, res) => {
+  res.sendStatus(200);
+});
+
+router.post('/generate-audio', ensureSessionId, async (req, res) => {
+  const localProjectId = `audio-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  console.log(`[${localProjectId}] Starting audio generation request for session ${req.sessionId}...`);
+
+  try {
+    let clientAppId = req.headers['x-client-app-id'] || req.body.clientAppId || req.query.clientAppId;
+    if (!clientAppId) {
+      clientAppId = `user-${req.sessionId}-${Date.now()}`;
+    }
+
+    const isMandala = isMandalaOrigin(req);
+
+    // Track metrics
+    await trackMetric('audio_generated', 1);
+
+    let hasReceivedFirstEvent = false;
+    let firstEventResolve = null;
+    const firstEventPromise = new Promise((resolve) => {
+      firstEventResolve = resolve;
+    });
+
+    let lastProgressUpdate = Date.now();
+    const progressHandler = (eventData) => {
+      if (!hasReceivedFirstEvent && (eventData.type === 'queued' || eventData.type === 'started' || eventData.type === 'initiating')) {
+        hasReceivedFirstEvent = true;
+        if (firstEventResolve) {
+          firstEventResolve();
+          firstEventResolve = null;
+        }
+      }
+
+      const now = Date.now();
+      if (now - lastProgressUpdate < 500 && eventData.type === 'progress' && (eventData.progress !== 0 && eventData.progress !== 1)) {
+        return;
+      }
+      lastProgressUpdate = now;
+
+      const { jobId: originalJobId, ...eventDataWithoutJobId } = eventData;
+      const sseEvent = {
+        ...eventDataWithoutJobId,
+        projectId: localProjectId,
+        workerName: eventData.workerName || 'Worker',
+        progress: typeof eventData.progress === 'number' ?
+                  (eventData.progress > 1 ? eventData.progress / 100 : eventData.progress) :
+                  eventData.progress,
+      };
+
+      if (originalJobId !== undefined) {
+        sseEvent.jobId = originalJobId;
+      }
+
+      if (eventData.type === 'queued') {
+        forwardEventToSSE(localProjectId, clientAppId, {
+          type: 'queued',
+          projectId: localProjectId,
+          queuePosition: eventData.queuePosition,
+        }, req.sessionId);
+        return;
+      }
+
+      forwardEventToSSE(localProjectId, clientAppId, sseEvent, req.sessionId);
+
+      if (!activeProjects.has(localProjectId)) {
+        if (!pendingProjectEvents.has(localProjectId)) {
+          pendingProjectEvents.set(localProjectId, []);
+        }
+        pendingProjectEvents.get(localProjectId).push({ ...sseEvent, clientAppId });
+
+        const events = pendingProjectEvents.get(localProjectId);
+        if (events.length > 50) {
+          events.splice(0, events.length - 50);
+        }
+
+        if (eventData.type === 'failed' || eventData.type === 'error') {
+          if (!globalThis.pendingProjectErrors) {
+            globalThis.pendingProjectErrors = new Map();
+          }
+          globalThis.pendingProjectErrors.set(localProjectId, {
+            type: 'error',
+            projectId: localProjectId,
+            message: (eventData.error && eventData.error.message) || eventData.message || 'Audio generation failed',
+            details: eventData.error ? JSON.stringify(eventData.error) : 'Unknown error',
+            errorCode: 'unknown_error',
+            status: 500
+          });
+          setTimeout(() => {
+            if (globalThis.pendingProjectErrors) {
+              globalThis.pendingProjectErrors.delete(localProjectId);
+            }
+          }, 30000);
+        }
+
+        setTimeout(() => {
+          if (pendingProjectEvents.has(localProjectId)) {
+            pendingProjectEvents.delete(localProjectId);
+          }
+        }, 2 * 60 * 1000);
+      }
+    };
+
+    const client = await getSessionClient(req.sessionId, clientAppId, isMandala);
+    const params = { ...req.body, clientAppId };
+
+    const attemptGeneration = async (clientToUse, isRetry = false) => {
+      return generateAudio(clientToUse, params, progressHandler, localProjectId)
+        .then((sogniResult) => {
+          console.log(`[${localProjectId}] Audio generation finished. Project ID: ${sogniResult.projectId}`);
+        })
+        .catch(async (error) => {
+          console.error(`[${localProjectId}] Audio generation failed${isRetry ? ' (retry)' : ''}:`, error);
+
+          const isAuthError = error.status === 401 ||
+                             (error.payload && error.payload.errorCode === 107) ||
+                             error.message?.includes('Invalid token') ||
+                             error.message?.includes('Authentication required');
+
+          if (isAuthError && !isRetry) {
+            try {
+              const isRealAuthError = await validateAuthError(error, isMandala);
+              if (isRealAuthError) {
+                if (isMandala) { clearMandalaInvalidTokens(); } else { clearInvalidTokens(); }
+                const sessionId = req.sessionId;
+                const sessionKey = isMandala ? `${sessionId}:mandala` : `${sessionId}:default`;
+                if (sessionId && sessionClients.has(sessionKey)) {
+                  const clientId = sessionClients.get(sessionKey);
+                  cleanupSogniClient(clientId);
+                  sessionClients.delete(sessionKey);
+                }
+                const freshClient = await getSessionClient(sessionId, clientAppId, isMandala);
+                return await attemptGeneration(freshClient, true);
+              }
+            } catch (validationError) {
+              console.error(`[${localProjectId}] Auth validation failed:`, validationError);
+            }
+          }
+
+          throw error;
+        });
+    };
+
+    attemptGeneration(client)
+      .catch(error => {
+        const isInsufficientFundsError = error.payload?.errorCode === 4024 ||
+                                       error.message?.includes('Insufficient funds') ||
+                                       error.message?.includes('Debit Error');
+
+        if (activeProjects.has(localProjectId)) {
+          const clients = activeProjects.get(localProjectId);
+          let errorMessage = error.message || 'Audio generation failed';
+          if (isInsufficientFundsError) {
+            errorMessage = 'Insufficient Sogni credits to generate audio. Please add more credits to your account.';
+          }
+
+          const errorEvent = {
+            type: 'error',
+            projectId: localProjectId,
+            message: errorMessage,
+            details: error.toString(),
+            errorCode: isInsufficientFundsError ? 'insufficient_funds' : 'unknown_error',
+            status: error.status || 500,
+            isInsufficientFunds: isInsufficientFundsError
+          };
+          clients.forEach((client) => {
+            sendSSEMessage(client, errorEvent);
+          });
+        } else {
+          if (!globalThis.pendingProjectErrors) {
+            globalThis.pendingProjectErrors = new Map();
+          }
+          globalThis.pendingProjectErrors.set(localProjectId, {
+            type: 'error',
+            projectId: localProjectId,
+            message: error.message || 'Audio generation failed',
+            details: error.toString(),
+            errorCode: 'unknown_error',
+            status: error.status || 500
+          });
+          setTimeout(() => {
+            if (globalThis.pendingProjectErrors) {
+              globalThis.pendingProjectErrors.delete(localProjectId);
+            }
+          }, 30000);
+        }
+
+        if (!hasReceivedFirstEvent && firstEventResolve) {
+          firstEventResolve();
+          firstEventResolve = null;
+        }
+      });
+
+    res.json({
+      status: 'processing',
+      projectId: localProjectId,
+      message: 'Audio generation request received and processing started.',
+      clientAppId: clientAppId
+    });
+  } catch (error) {
+    console.error(`[${localProjectId}] Error in POST /generate-audio handler:`, error);
+    res.status(500).json({
+      error: 'Failed to initiate audio generation',
+      message: error.message,
       errorDetails: { name: error.name, message: error.message, stack: error.stack, ...error }
     });
   }

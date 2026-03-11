@@ -987,6 +987,331 @@ export async function generateImage(params: Record<string, unknown>, progressCal
 }
 
 /**
+ * Connect to SSE progress stream for a project
+ * Shared by image, video, and audio generation
+ */
+function connectToSSEProgress(
+  projectId: string,
+  responseClientAppId: string,
+  progressCallback: (data: unknown) => void,
+  overallTimeoutMs: number = 300000 // default 5 min
+): Promise<unknown> {
+  return new Promise((_resolve, reject) => {
+    let retryCount = 0;
+    const maxRetries = 5;
+    let eventSource: EventSource | null = null;
+    let connectionTimeout: NodeJS.Timeout | undefined = undefined;
+    let overallTimeout: NodeJS.Timeout | undefined = undefined;
+    let reconnectionTimer: NodeJS.Timeout | undefined = undefined;
+
+    const clearAllTimers = () => {
+      if (connectionTimeout !== undefined) { clearTimeout(connectionTimeout); connectionTimeout = undefined; }
+      if (reconnectionTimer !== undefined) { clearTimeout(reconnectionTimer); reconnectionTimer = undefined; }
+      if (overallTimeout !== undefined) { clearTimeout(overallTimeout); overallTimeout = undefined; }
+    };
+
+    const safelyCloseEventSource = () => {
+      if (eventSource) {
+        try { eventSource.close(); } catch (err) { console.warn('Error closing EventSource:', err); }
+        eventSource = null;
+      }
+    };
+
+    const connectSSE = () => {
+      clearAllTimers();
+      safelyCloseEventSource();
+
+      const progressUrl = `${API_BASE_URL}/sogni/progress/${projectId}?clientAppId=${encodeURIComponent(responseClientAppId)}&_t=${Date.now()}`;
+      console.log(`Connecting to progress stream: ${progressUrl} (attempt ${retryCount + 1})`);
+
+      try {
+        eventSource = new EventSource(progressUrl, { withCredentials: true });
+
+        connectionTimeout = setTimeout(() => {
+          console.error('EventSource connection timeout');
+          safelyCloseEventSource();
+          if (retryCount < maxRetries) {
+            retryCount++;
+            reconnectionTimer = setTimeout(connectSSE, 1000 * Math.pow(1.5, retryCount));
+          } else {
+            clearAllTimers();
+            reject(new NetworkError('Connection timeout. Please check your internet connection and try again.', true, false, true));
+          }
+        }, 7000);
+
+        eventSource.onopen = () => {
+          clearTimeout(connectionTimeout);
+          connectionTimeout = undefined;
+          retryCount = 0;
+        };
+
+        eventSource.onmessage = (event) => {
+          try {
+            const parsed: unknown = typeof event.data === 'string' ? JSON.parse(event.data) : {};
+            const data: Record<string, unknown> = (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) ? parsed as Record<string, unknown> : {};
+
+            if (connectionTimeout !== undefined) {
+              clearTimeout(connectionTimeout);
+              connectionTimeout = undefined;
+            }
+
+            if (data.type === 'connected' || data.type === 'heartbeat') return;
+
+            if (progressCallback) {
+              progressCallback(data);
+            }
+
+            if (data.type === 'completed' || data.type === 'failed' || data.type === 'error') {
+              clearAllTimers();
+              safelyCloseEventSource();
+            }
+          } catch (error) {
+            console.error('Error parsing SSE message:', error);
+          }
+        };
+
+        eventSource.onerror = (err) => {
+          console.error('EventSource onerror:', err);
+          clearAllTimers();
+          if (retryCount < maxRetries) {
+            safelyCloseEventSource();
+            retryCount++;
+            const delay = 1000 * Math.pow(1.5, retryCount);
+            reconnectionTimer = setTimeout(connectSSE, delay);
+          } else {
+            clearAllTimers();
+            safelyCloseEventSource();
+            reject(new NetworkError('Unable to connect to processing server. Please try again.', false, false, true));
+          }
+        };
+
+        overallTimeout = setTimeout(() => {
+          console.log(`Overall timeout reached for project ${projectId}`);
+          clearAllTimers();
+          safelyCloseEventSource();
+          reject(new NetworkError('Generation timed out. Please try again.', true, false, true));
+        }, overallTimeoutMs);
+      } catch (error) {
+        console.error('Error creating EventSource:', error);
+        clearAllTimers();
+        safelyCloseEventSource();
+        reject(new NetworkError('Failed to establish connection.', false, false, true));
+      }
+    };
+
+    connectSSE();
+  });
+}
+
+/**
+ * Generate video using Sogni with progress tracking
+ *
+ * @param params Video generation parameters
+ * @param progressCallback Callback function for progress updates
+ * @returns Promise that resolves with the generated video data
+ */
+export async function createVideoProject(params: Record<string, unknown>, progressCallback?: (progress: unknown) => void): Promise<unknown> {
+  try {
+    console.log(`Making request to: ${API_BASE_URL}/sogni/generate-video`);
+
+    const isConnected = await checkConnectivity();
+    if (!isConnected) {
+      throw new NetworkError(
+        'No internet connection. Please check your network and try again.',
+        false,
+        true,
+        true
+      );
+    }
+
+    // Serialize binary Uint8Array fields to base64 for JSON transport
+    const serializedParams: Record<string, unknown> = { ...params, clientAppId };
+    const binaryFields = ['referenceImage', 'referenceImageEnd', 'referenceVideo', 'referenceAudio'];
+    for (const field of binaryFields) {
+      const value = serializedParams[field];
+      if (value instanceof Uint8Array) {
+        // Convert Uint8Array to base64 string (efficient for JSON, ~1.33x size vs 4x for Array.from)
+        let binary = '';
+        const len = value.length;
+        for (let i = 0; i < len; i++) {
+          binary += String.fromCharCode(value[i]);
+        }
+        serializedParams[field] = btoa(binary);
+        console.log(`Encoded ${field}: ${(value.length / 1024 / 1024).toFixed(2)}MB -> base64`);
+      } else if (value instanceof Blob) {
+        // Convert Blob to base64
+        const arrayBuffer = await value.arrayBuffer();
+        const uint8 = new Uint8Array(arrayBuffer);
+        let binary = '';
+        const len = uint8.length;
+        for (let i = 0; i < len; i++) {
+          binary += String.fromCharCode(uint8[i]);
+        }
+        serializedParams[field] = btoa(binary);
+        console.log(`Encoded ${field} (Blob): ${(uint8.length / 1024 / 1024).toFixed(2)}MB -> base64`);
+      }
+    }
+
+    // Use XMLHttpRequest for upload progress (video files can be very large)
+    const { projectId, status, responseData } = await new Promise<{ projectId: string | undefined; status: string | undefined; responseData: Record<string, unknown> }>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const REQUEST_TIMEOUT = 60000; // 60 seconds for video (larger uploads)
+      let requestTimer: NodeJS.Timeout | undefined;
+
+      const cleanup = () => {
+        if (requestTimer) {
+          clearTimeout(requestTimer);
+          requestTimer = undefined;
+        }
+      };
+
+      requestTimer = setTimeout(() => {
+        cleanup();
+        xhr.abort();
+        reject(new NetworkError('Request timed out. Please check your internet connection and try again.', true, false, true));
+      }, REQUEST_TIMEOUT);
+
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable && progressCallback) {
+          progressCallback({ type: 'uploadProgress', progress: (event.loaded / event.total) * 100 });
+        }
+      });
+
+      xhr.upload.addEventListener('load', () => {
+        if (progressCallback) {
+          progressCallback({ type: 'uploadComplete' });
+        }
+      });
+
+      xhr.addEventListener('load', () => {
+        cleanup();
+        try {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            const jsonRaw: unknown = JSON.parse(xhr.responseText);
+            const json: Record<string, unknown> = isObjectRecord(jsonRaw) ? jsonRaw : {};
+            resolve({
+              projectId: json.projectId as string | undefined,
+              status: json.status as string | undefined,
+              responseData: json
+            });
+          } else {
+            reject(new NetworkError(`Server error (${xhr.status}). Please try again.`, false, xhr.status === 0, true));
+          }
+        } catch (error) {
+          reject(new NetworkError(`Network error: ${error instanceof Error ? error.message : String(error)}`, false, false, true));
+        }
+      });
+
+      xhr.addEventListener('error', () => {
+        cleanup();
+        reject(new NetworkError('Network error during upload. Please try again.', false, false, true));
+      });
+
+      xhr.addEventListener('abort', () => {
+        cleanup();
+        reject(new NetworkError('Request was cancelled', false, false, false));
+      });
+
+      xhr.open('POST', `${API_BASE_URL}/sogni/generate-video`);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.setRequestHeader('Accept', 'application/json');
+      xhr.setRequestHeader('X-Client-App-ID', clientAppId);
+      xhr.withCredentials = true;
+      xhr.send(JSON.stringify(serializedParams));
+    });
+
+    hasConnectedToSogni = true;
+
+    if (status !== 'processing' || !projectId) {
+      throw new Error('Failed to start video generation');
+    }
+
+    let responseClientAppId = clientAppId;
+    if (responseData?.clientAppId && typeof responseData.clientAppId === 'string') {
+      responseClientAppId = responseData.clientAppId;
+    }
+
+    if (!progressCallback) {
+      return { projectId, clientAppId: responseClientAppId };
+    }
+
+    // Use SSE for progress tracking with 20-minute timeout for video
+    return connectToSSEProgress(projectId, responseClientAppId, progressCallback, 20 * 60 * 1000);
+  } catch (error: unknown) {
+    if (error instanceof NetworkError) throw error;
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new NetworkError(`Unexpected error: ${errorMessage}. Please try again.`, false, false, true);
+  }
+}
+
+/**
+ * Generate audio using Sogni with progress tracking
+ *
+ * @param params Audio generation parameters
+ * @param progressCallback Callback function for progress updates
+ * @returns Promise that resolves with the generated audio data
+ */
+export async function createAudioProject(params: Record<string, unknown>, progressCallback?: (progress: unknown) => void): Promise<unknown> {
+  try {
+    console.log(`Making request to: ${API_BASE_URL}/sogni/generate-audio`);
+
+    const isConnected = await checkConnectivity();
+    if (!isConnected) {
+      throw new NetworkError(
+        'No internet connection. Please check your network and try again.',
+        false,
+        true,
+        true
+      );
+    }
+
+    const requestParams = { ...params, clientAppId };
+
+    // Simple POST - no binary data for audio
+    const response = await fetch(`${API_BASE_URL}/sogni/generate-audio`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-Client-App-ID': clientAppId,
+      },
+      body: JSON.stringify(requestParams),
+    });
+
+    if (!response.ok) {
+      throw new NetworkError(`Server error (${response.status}). Please try again.`, false, false, true);
+    }
+
+    const responseData = await response.json() as Record<string, unknown>;
+    const projectId = responseData.projectId as string | undefined;
+    const status = responseData.status as string | undefined;
+
+    hasConnectedToSogni = true;
+
+    if (status !== 'processing' || !projectId) {
+      throw new Error('Failed to start audio generation');
+    }
+
+    let responseClientAppId = clientAppId;
+    if (responseData?.clientAppId && typeof responseData.clientAppId === 'string') {
+      responseClientAppId = responseData.clientAppId;
+    }
+
+    if (!progressCallback) {
+      return { projectId, clientAppId: responseClientAppId };
+    }
+
+    // Use SSE for progress tracking with 10-minute timeout for audio
+    return connectToSSEProgress(projectId, responseClientAppId, progressCallback, 10 * 60 * 1000);
+  } catch (error: unknown) {
+    if (error instanceof NetworkError) throw error;
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new NetworkError(`Unexpected error: ${errorMessage}. Please try again.`, false, false, true);
+  }
+}
+
+/**
  * Check if an error is a network-related error that can be retried
  */
 export function isNetworkError(error: unknown): error is NetworkError {

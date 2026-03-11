@@ -5,7 +5,7 @@
  * instead of directly using the Sogni SDK in the frontend.
  */
 
-import { createProject as apiCreateProject, checkSogniStatus, cancelProject, clientAppId, disconnectSession, type CancelProjectResult } from './api';
+import { createProject as apiCreateProject, createVideoProject as apiCreateVideoProject, createAudioProject as apiCreateAudioProject, checkSogniStatus, cancelProject, clientAppId, disconnectSession, type CancelProjectResult } from './api';
 import {
   getCancellationState,
   recordCancelAttempt,
@@ -196,6 +196,17 @@ export class BackendProject implements SogniEventEmitter {
       this.emit('jobFailed', { ...job, error });
     }
   }
+
+  // Cancel the project
+  async cancel(): Promise<void> {
+    console.log(`BackendProject: Cancelling project ${this.id}`);
+    try {
+      await cancelProject(this.id);
+    } catch (error) {
+      console.warn(`BackendProject: Cancel failed for ${this.id}:`, error);
+    }
+    this.emit('cancelled');
+  }
 }
 
 export interface BackendAccount {
@@ -213,13 +224,15 @@ export class BackendSogniClient {
   public network: string;
   public account: BackendAccount;
 
-  // Video generation requires the frontend SDK - backend API doesn't support it
-  public readonly supportsVideo: boolean = false;
+  // Video and audio generation are now supported through the backend proxy
+  public readonly supportsVideo: boolean = true;
   public projects: {
     create: (params: Record<string, unknown>) => Promise<BackendProject>;
     estimateCost: (params: Record<string, unknown>) => Promise<{ token: number } | null>;
     on: (event: string, callback: (...args: unknown[]) => void) => void;
+    off: (event: string, callback: (...args: unknown[]) => void) => void;
   };
+  private projectsEventEmitter: SogniEventEmitter = createEventEmitter();
   private activeProjects: Map<string, BackendProject> = new Map();
   private isDisconnecting: boolean = false;
   
@@ -248,12 +261,15 @@ export class BackendSogniClient {
       }
     };
     
-    // Mock projects methods
+    // Projects methods - with global event emitter for video/audio generation
     this.projects = {
       create: this.createProject.bind(this),
       estimateCost: this.estimateCost.bind(this),
-      on: () => {
-        // This would handle global project events if needed
+      on: (event: string, callback: (...args: unknown[]) => void) => {
+        this.projectsEventEmitter.on(event, callback);
+      },
+      off: (event: string, callback: (...args: unknown[]) => void) => {
+        this.projectsEventEmitter.off(event, callback);
       }
     };
     
@@ -502,7 +518,7 @@ export class BackendSogniClient {
     
     // Only clean up old projects for non-enhancement requests to prevent timeout conflicts
     // Enhancement projects should run independently without interfering with main generation
-    const isEnhancement = params.sourceType === 'enhancement';
+    const isEnhancement = typeof params.sourceType === 'string' && params.sourceType.startsWith('enhancement');
     if (this.activeProjects.size > 0 && !isEnhancement) {
       console.log(`Cleaning up ${this.activeProjects.size} old projects before starting new one`);
       for (const [oldProjectId, oldProject] of this.activeProjects.entries()) {
@@ -523,7 +539,8 @@ export class BackendSogniClient {
     // Create a new project object to return to the caller
     const projectId = `backend-project-${Date.now()}`;
     const project = new BackendProject(projectId);
-    
+    const projectsEmitter = this.projectsEventEmitter;
+
     // Keep track of this project
     this.activeProjects.set(projectId, project);
     
@@ -540,8 +557,13 @@ export class BackendSogniClient {
     }
     
     // Start the backend generation process
+    // Route to the appropriate API function based on project type
+    const apiFunction = params.type === 'video' ? apiCreateVideoProject :
+                        params.type === 'audio' ? apiCreateAudioProject :
+                        apiCreateProject;
+
     try {
-      apiCreateProject(params, (progressEvent: unknown) => {
+      apiFunction(params, (progressEvent: unknown) => {
         
         // Handle different event types from the server
         // console.log('ApiCreateProject progress callback received:', JSON.stringify(progressEvent));
@@ -620,6 +642,7 @@ export class BackendSogniClient {
                   delete (project as any)._pendingCompletion;
                   delete (project as any)._completionStartTime;
                   project.emit('completed', completionEvent);
+                  projectsEmitter.emit('project', { type: 'completed', projectId: project.id });
                 } else {
                   const elapsedSeconds = Math.floor((Date.now() - (project as any)._completionStartTime) / 1000);
                   console.log(`Still waiting for ${stillIncomplete.length} jobs to complete (${elapsedSeconds}s elapsed)`);
@@ -657,16 +680,18 @@ export class BackendSogniClient {
                   delete (project as any)._pendingCompletion;
                   delete (project as any)._completionStartTime;
                   project.emit('completed', completionEvent);
+                  projectsEmitter.emit('project', { type: 'completed', projectId: project.id });
                 }
               }, 15000);
             } else {
               // All jobs already complete, send immediately
               console.log(`All jobs already complete, sending project completion immediately`);
               project.emit('completed', completionEvent);
+              projectsEmitter.emit('project', { type: 'completed', projectId: project.id });
             }
             return;
           }
-          
+
           if (eventType === 'failed') {
             // Clean up any pending completion intervals on failure
             if ((project as any)._completionCheckInterval) {
@@ -676,13 +701,21 @@ export class BackendSogniClient {
               delete (project as any)._pendingCompletion;
               delete (project as any)._completionStartTime;
             }
-            
-            const failureError = new Error(event.error as string || 'Project failed') as Error & { projectId: string };
+
+            const failureMessage = event.error as string || 'Project failed';
+            const failureError = new Error(failureMessage) as Error & { projectId: string };
             failureError.projectId = project.id;
             project.emit('failed', failureError);
+            projectsEmitter.emit('project', { type: 'error', projectId: project.id, error: failureMessage });
+            // Also fail all incomplete jobs so job-level listeners (e.g., PhotoEnhancer) get notified
+            project.jobs.forEach(job => {
+              if (!job.resultUrl && !job.error) {
+                project.failJob(job.id, failureMessage);
+              }
+            });
             return;
           }
-          
+
           if (eventType === 'error') {
             // Clean up any pending completion intervals on error
             if ((project as any)._completionCheckInterval) {
@@ -692,12 +725,13 @@ export class BackendSogniClient {
               delete (project as any)._pendingCompletion;
               delete (project as any)._completionStartTime;
             }
-            
+
             console.error(`Backend reported an error for project ${project.id}:`, event);
             const backendErrorMessage = event.message as string || 'Backend generation error';
             const errorWithContext = new Error(backendErrorMessage) as Error & { projectId: string };
             errorWithContext.projectId = project.id;
             project.emit('failed', errorWithContext);
+            projectsEmitter.emit('project', { type: 'error', projectId: project.id, error: backendErrorMessage });
             project.jobs.forEach(job => {
               if (!job.resultUrl && !job.error) {
                 project.failJob(job.id, backendErrorMessage);
@@ -722,13 +756,15 @@ export class BackendSogniClient {
               if (targetJob) {
                   console.log(`Handling queued event for job ${targetJob.id} with position ${queuePosition}`);
                   // Emit a job event with the queued type and position
-                  project.emit('job', {
+                  const queuedPayload = {
                       type: 'queued',
                       jobId: targetJob.id, // Use placeholder ID
                       realJobId: jobId, // Include real ID if available (though queued might not have it yet)
                       projectId: project.id,
                       queuePosition: queuePosition,
-                  });
+                  };
+                  project.emit('job', queuedPayload);
+                  projectsEmitter.emit('job', queuedPayload);
               } else {
                   console.warn(`Queued event received for unknown job ID: ${jobId || 'N/A'}`);
               }
@@ -770,21 +806,46 @@ export class BackendSogniClient {
               if (targetJob) {
                 targetJob.jobIndex = event.index as number;
                 targetJob.positivePrompt = event.positivePrompt as string;
-                project.emit('job', { 
-                  type: eventType, 
+                const startedPayload = {
+                  type: eventType,
                   jobId: targetJob.id, // Emit with placeholder ID
                   realJobId: jobId, // Include real ID
                   projectId: project.id,
                   workerName,
                   positivePrompt: event.positivePrompt as string,
                   jobIndex: event.index as number,
-                });
+                };
+                project.emit('job', startedPayload);
+                projectsEmitter.emit('job', startedPayload);
               }
               break;
 
             case 'progress':
               if (targetJob && event.progress !== undefined) {
                 project.updateJobProgress(targetJob.id, event.progress as number, targetJob.workerName);
+                // Forward progress to global emitter
+                projectsEmitter.emit('job', {
+                  type: 'progress',
+                  jobId: targetJob.id,
+                  realJobId: jobId,
+                  progress: event.progress as number,
+                  projectId: project.id,
+                  workerName: targetJob.workerName,
+                });
+              }
+              break;
+
+            case 'jobETA':
+              if (targetJob) {
+                const etaPayload = {
+                  type: 'jobETA',
+                  jobId: targetJob.id,
+                  realJobId: jobId,
+                  projectId: project.id,
+                  etaSeconds: event.etaSeconds as number,
+                };
+                project.emit('job', etaPayload);
+                projectsEmitter.emit('job', etaPayload);
               }
               break;
               
@@ -897,7 +958,21 @@ export class BackendSogniClient {
                     console.log(`Job ${targetJob.id} was already completed, ignoring duplicate completion event`);
                   } else {
                     project.completeJob(targetJob.id, resultUrl);
-                  
+
+                    // Forward job completion to global projects emitter so that
+                    // consumers using sogniClient.projects.on('job', handler) receive it.
+                    // MusicGeneratorModal expects type: 'completed'; VideoGenerator accepts both.
+                    projectsEmitter.emit('job', {
+                      type: 'completed',
+                      jobId: targetJob.id,
+                      realJobId: jobId,
+                      projectId: project.id,
+                      resultUrl: resultUrl,
+                      seed: event.seed as number | undefined,
+                      workerName: targetJob.workerName,
+                      jobIndex: targetJob.jobIndex,
+                    });
+
                     // Check if we're waiting for project completion and all jobs are now done
                     if ((project as any)._pendingCompletion) {
                       const stillIncomplete = project.jobs ? project.jobs.filter(j => !j.resultUrl && !j.error) : [];
@@ -918,8 +993,9 @@ export class BackendSogniClient {
                             completed: project.jobs ? project.jobs.filter(j => j.resultUrl || j.error).length : 0
                           }
                         };
-                        
+
                         project.emit('completed', finalCompletionEvent);
+                        projectsEmitter.emit('project', { type: 'completed', projectId: project.id });
                       }
                     }
                   }
