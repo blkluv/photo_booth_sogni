@@ -1726,11 +1726,13 @@ const App = () => {
         root.style.setProperty('--polaroid-side-border', '0px');
         root.style.setProperty('--polaroid-bottom-border', '0px');
 
-        // Apply brand title, logo and colors if the theme defines them
+        // Apply brand title, logo, background image, and colors if the theme defines them
         const title = await themeConfigService.getBrandTitle(tezdevTheme);
         setBrandTitle(title);
         const logo = await themeConfigService.getBrandLogo(tezdevTheme);
         setBrandLogo(logo);
+        const bgImage = await themeConfigService.getBrandBackgroundImage(tezdevTheme);
+        setBrandBackgroundImage(bgImage);
         const brandColors = await themeConfigService.getBrandColors(tezdevTheme);
         if (brandColors) {
           const colorMap = {
@@ -1780,6 +1782,7 @@ const App = () => {
         removeBrandColors(root);
         setBrandTitle(null);
         setBrandLogo(null);
+        setBrandBackgroundImage(null);
       }
     };
 
@@ -1824,6 +1827,7 @@ const App = () => {
   const photoCaptureLockRef = useRef(false); // Synchronous guard against double-fire
   const [brandTitle, setBrandTitle] = useState(null);
   const [brandLogo, setBrandLogo] = useState(null);
+  const [brandBackgroundImage, setBrandBackgroundImage] = useState(null);
   // Ref to track current project
   const activeProjectReference = useRef(null);
   const activeProjectObjectReference = useRef(null); // Keep this
@@ -10231,6 +10235,31 @@ const App = () => {
         onDrop={handleDrop}
         style={{ position: 'relative', zIndex: 1 }}
       >
+        {/* Brand background image overlay (e.g., Mandala Club venue) */}
+        {brandBackgroundImage && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 0,
+              overflow: 'hidden',
+              pointerEvents: 'none',
+            }}
+          >
+            <img
+              src={brandBackgroundImage}
+              alt=""
+              style={{
+                width: '100%',
+                minHeight: '100%',
+                objectFit: 'cover',
+                objectPosition: 'center top',
+                opacity: 0.08,
+                filter: 'saturate(0.3)',
+              }}
+            />
+          </div>
+        )}
         {/* Control overlay panel - Use context state/handlers */}
         <AdvancedSettings 
           visible={showControlOverlay}

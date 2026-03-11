@@ -16,6 +16,7 @@
       "brand": {
         "title": "MANDALA CLUB x SOGNI",
         "logo": "/events/mandala/logo_white.png",
+        "backgroundImage": "/events/mandala/venue-bg-mirrored.webp",
         "colors": {
           "gradientStart": "#008C8C",
           "gradientEnd": "#006666",

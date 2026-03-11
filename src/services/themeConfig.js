@@ -217,6 +217,11 @@ class ThemeConfigService {
     return theme?.brand?.logo || null;
   }
 
+  async getBrandBackgroundImage(themeId) {
+    const theme = await this.getTheme(themeId);
+    return theme?.brand?.backgroundImage || null;
+  }
+
   /**
    * Get hidden theme groups for a theme (categories to hide in Vibe Explorer)
    * @param {string} themeId - Theme identifier

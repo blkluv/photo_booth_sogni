@@ -508,9 +508,146 @@ const handleGimiChallengeRoute = (req, res) => {
   });
 };
 
+// Mandala domain handler - inject branded meta tags when accessed via mandala.sogni.ai
+const handleMandalaRoot = (req, res) => {
+  const indexPath = path.join(staticDir, 'index.html');
+  console.log(`[Mandala Domain] Attempting to read: ${indexPath}`);
+
+  fs.readFile(indexPath, 'utf8', (err, html) => {
+    if (err) {
+      console.error('[Mandala Domain] Error reading index.html:', err);
+      return res.status(500).send('Error loading page: ' + err.message);
+    }
+
+    console.log('[Mandala Domain] Successfully read index.html, injecting meta tags...');
+
+    let modifiedHtml = html;
+
+    const mandalaTitle = 'Mandala Club x Sogni AI Photobooth | AI Portrait Generator';
+    const mandalaDesc = 'Create stunning AI portraits at Mandala Club, powered by Sogni AI. Transform your photos with 200+ AI styles in seconds.';
+    const mandalaUrl = 'https://mandala.sogni.ai/';
+    // Replace with a proper 1200x630 OG card image when available
+    const mandalaImage = 'https://mandala.sogni.ai/events/mandala/og-share.png';
+
+    // Replace title
+    modifiedHtml = modifiedHtml.replace(
+      /<title>Sogni AI Photobooth \| Free AI Headshot Generator & Portrait Maker<\/title>/,
+      `<title>${mandalaTitle}</title>`
+    );
+
+    // Replace og:title and twitter:title
+    modifiedHtml = modifiedHtml.replace(
+      /content="Sogni AI Photobooth \| Free AI Headshot Generator & Portrait Maker"/g,
+      `content="${mandalaTitle}"`
+    );
+    modifiedHtml = modifiedHtml.replace(
+      /content="Sogni AI Photobooth \| Free AI Headshot & Portrait Generator"/g,
+      `content="${mandalaTitle}"`
+    );
+
+    // Replace meta description (longer variant in <meta name="description">)
+    modifiedHtml = modifiedHtml.replace(
+      /Create stunning AI headshots, portraits, and video portraits with Sogni Photobooth—your all-in-one AI headshot generator, free AI portrait generator, and anime PFP maker\. Transform your photos with 200\+ styles in seconds, or generate AI videos from your portraits!/g,
+      mandalaDesc
+    );
+
+    // Replace og:description and twitter:description
+    modifiedHtml = modifiedHtml.replace(
+      /Create stunning AI headshots, portraits, and video portraits with Sogni Photobooth—your free AI portrait generator and anime PFP maker\. Transform your photos with 200\+ AI styles in seconds, or generate AI videos from your portraits!/g,
+      mandalaDesc
+    );
+    modifiedHtml = modifiedHtml.replace(
+      /Create stunning AI headshots, portraits, video portraits, and anime PFPs with our free AI generator\. 200\+ styles, instant results! Generate AI videos from your photos\./g,
+      mandalaDesc
+    );
+
+    // Replace og:image and twitter:image
+    modifiedHtml = modifiedHtml.replace(
+      /https:\/\/repository-images\.githubusercontent\.com\/945858402\/6ae0abb5-c7cc-42ba-9051-9d644e1f130a/g,
+      mandalaImage
+    );
+
+    // Replace og:url, twitter:url, and canonical
+    modifiedHtml = modifiedHtml.replace(
+      /content="https:\/\/photobooth\.sogni\.ai\/"/g,
+      `content="${mandalaUrl}"`
+    );
+    modifiedHtml = modifiedHtml.replace(
+      /href="https:\/\/photobooth\.sogni\.ai\/"/g,
+      `href="${mandalaUrl}"`
+    );
+
+    // Replace twitter:domain
+    modifiedHtml = modifiedHtml.replace(
+      /content="photobooth\.sogni\.ai"/g,
+      `content="mandala.sogni.ai"`
+    );
+
+    // Replace og:site_name
+    modifiedHtml = modifiedHtml.replace(
+      /content="Sogni AI Photobooth"/g,
+      `content="Mandala Club x Sogni AI"`
+    );
+
+    // Inject Mandala brand CSS variables into <head> to prevent flash of default yellow theme
+    const mandalaCssVars = `<style id="mandala-preload">
+:root {
+  --brand-gradient-start: #008C8C;
+  --brand-gradient-end: #006666;
+  --brand-frame-color: #008C8C;
+  --brand-accent-primary: #008C8C;
+  --brand-accent-secondary: #F4F1ED;
+  --brand-accent-tertiary: #6185F2;
+  --brand-accent-tertiary-hover: #4a6fd4;
+  --brand-header-bg: #004D4D;
+  --brand-header-stroke: #F4F1ED;
+  --brand-page-bg: #008C8C;
+  --brand-page-bg-mid: #007A7A;
+  --brand-page-bg-end: #006666;
+  --brand-slider-thumb: #F4F1ED;
+  --brand-glitch-primary: #F4F1ED;
+  --brand-glitch-secondary: #008C8C;
+  --brand-button-primary: #006666;
+  --brand-button-primary-end: #004D4D;
+  --brand-button-secondary: #6185F2;
+  --brand-adjuster-start: #006666;
+  --brand-adjuster-end: #004D4D;
+  --brand-dark-text: #FFFFFF;
+  --brand-dark-border: #FFFFFF;
+  --brand-text-secondary: #F4F1ED;
+  --brand-text-muted: #C8C4BE;
+  --brand-card-bg: #007A7A;
+  --brand-pwa-pink: #DE73BE;
+  --brand-gimi-purple: #6185F2;
+  --brand-cta-start: #6185F2;
+  --brand-cta-end: #4a6fd4;
+}
+</style>`;
+    modifiedHtml = modifiedHtml.replace('</head>', `${mandalaCssVars}\n</head>`);
+
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+
+    console.log('[Mandala Domain] Successfully injected meta tags and sent response');
+    res.send(modifiedHtml);
+  });
+};
+
 // Halloween event routes with custom meta tags for social sharing
 // Only enable on production/staging (local uses Vite dev server for everything)
 if (!isLocalEnv) {
+  // Mandala domain root - Nginx proxies root requests from mandala.sogni.ai here
+  app.get('/', (req, res, next) => {
+    const host = req.get('host') || '';
+    if (host === 'mandala.sogni.ai') {
+      return handleMandalaRoot(req, res);
+    }
+    next();
+  });
+
   app.get('/halloween', handleHalloweenRoute);
   app.get('/event/halloween', handleHalloweenRoute);
   app.get('/event/winter', handleWinterRoute);
