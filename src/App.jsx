@@ -5307,6 +5307,10 @@ const App = () => {
         pendingCompletions: new Map(),
         jobMap: new Map() // Store jobMap in projectState
       };
+      // Capture a local reference to this project's jobMap so that event handlers
+      // in this closure keep working even if projectStateReference.current is
+      // overwritten by a newer project (e.g., user takes another photo quickly).
+      const projectJobMap = projectStateReference.current.jobMap;
 
       // Skip setting up photos state if this is a "more" operation
       if (!isMoreOperation) {
@@ -5658,15 +5662,15 @@ const App = () => {
       // Set up handlers for any jobs that exist immediately
       if (project.jobs && project.jobs.length > 0) {
         project.jobs.forEach((job, index) => {
-          projectStateReference.current.jobMap.set(job.id, index);
+          projectJobMap.set(job.id, index);
         });
       }
 
       // For frontend clients, jobs are created dynamically - map them when they start
       project.on('jobStarted', (job) => {
-        if (!projectStateReference.current.jobMap.has(job.id)) {
-          const nextIndex = projectStateReference.current.jobMap.size;
-          projectStateReference.current.jobMap.set(job.id, nextIndex);
+        if (!projectJobMap.has(job.id)) {
+          const nextIndex = projectJobMap.size;
+          projectJobMap.set(job.id, nextIndex);
           // console.log(`Mapped frontend job ${job.id} to index ${nextIndex}`);
         }
       });
@@ -5683,8 +5687,8 @@ const App = () => {
 
         
         // Find the photo associated with this job
-        const photoIndex = projectStateReference.current.jobMap.has(jobId)
-          ? projectStateReference.current.jobMap.get(jobId) + (keepOriginalPhoto ? 1 : 0)
+        const photoIndex = projectJobMap.has(jobId)
+          ? projectJobMap.get(jobId) + (keepOriginalPhoto ? 1 : 0)
           : -1; // Handle cases where job ID might not be in the map yet
           
         if (photoIndex === -1) {
@@ -6345,9 +6349,18 @@ const App = () => {
       project.on('jobCompleted', (job) => {
         const isPreview = job.isPreview === true;
         
-        // Clear job timeout when it completes (only for final, not previews)
+        // Clear job timeout and pending throttled progress updates (only for final, not previews)
         if (!isPreview) {
           clearJobTimeout(job.id);
+          // Clear pending throttled progress updates so they don't re-set generating:true
+          if (progressUpdateTimeouts.has(job.id)) {
+            clearTimeout(progressUpdateTimeouts.get(job.id));
+            progressUpdateTimeouts.delete(job.id);
+          }
+          if (nonProgressUpdateTimeouts.has(job.id)) {
+            clearTimeout(nonProgressUpdateTimeouts.get(job.id));
+            nonProgressUpdateTimeouts.delete(job.id);
+          }
         }
         
         // FAILSAFE ERROR HANDLING: Check for missing resultUrl
@@ -6357,17 +6370,17 @@ const App = () => {
           console.error('Missing resultUrl for job (failsafe handler):', job.id);
           
           // Get job index for error handling
-          const jobIndex = projectStateReference.current.jobMap.get(job.id);
+          const jobIndex = projectJobMap.get(job.id);
           if (jobIndex === undefined) {
             console.error('Unknown job completed with missing resultUrl:', job.id);
-            console.error('jobMap contents:', Array.from(projectStateReference.current.jobMap.entries()));
+            console.error('jobMap contents:', Array.from(projectJobMap.entries()));
             console.error('Job details:', job);
             return;
           }
-          
+
           const offset = keepOriginalPhoto ? 1 : 0;
           const photoIndex = jobIndex + offset;
-          
+
           // Determine error type
           let errorMessage = 'GENERATION FAILED: result missing';
           let errorType = 'missing_result';
@@ -6420,7 +6433,7 @@ const App = () => {
           return; // Don't process further
         }
         
-        const jobIndex = projectStateReference.current.jobMap.get(job.id);
+        const jobIndex = projectJobMap.get(job.id);
         const offset = keepOriginalPhoto ? 1 : 0;
         const photoIndex = jobIndex + offset;
         const positivePrompt = job.positivePrompt;
@@ -6673,7 +6686,7 @@ const App = () => {
         
         console.error('Job failed:', job.id, job.error);
         
-        const jobIndex = projectStateReference.current.jobMap.get(job.id);
+        const jobIndex = projectJobMap.get(job.id);
         if (jobIndex === undefined) {
           console.error('Unknown job failed:', job.id);
           return;

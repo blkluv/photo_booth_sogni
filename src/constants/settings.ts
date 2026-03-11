@@ -166,8 +166,7 @@ export const getModelRanges = (modelValue: string, isLoggedInWithFrontendAuth: b
 
   // Qwen Image Edit 2511 Lightning (fast model)
   if (isQwenImageEditLightningModel(modelValue)) {
-    // For Qwen Image Edit Lightning: default 8 when not logged in, 4 when logged in (to save user credits)
-    const defaultNumImages = isLoggedInWithFrontendAuth ? 4 : 8;
+    const defaultNumImages = 8;
     // Cap at 16 for mobile devices, otherwise use 8
     const maxImages = deviceIsMobile ? Math.min(8, MOBILE_MAX_IMAGES) : 8;
 
@@ -186,8 +185,7 @@ export const getModelRanges = (modelValue: string, isLoggedInWithFrontendAuth: b
 
   // Qwen Image Edit 2511 (standard model)
   if (isQwenImageEditModel(modelValue)) {
-    // For Qwen Image Edit: default 8 when not logged in, 4 when logged in (to save user credits)
-    const defaultNumImages = isLoggedInWithFrontendAuth ? 4 : 8;
+    const defaultNumImages = 8;
     // Cap at 16 for mobile devices, otherwise use 8
     const maxImages = deviceIsMobile ? Math.min(8, MOBILE_MAX_IMAGES) : 8;
 
