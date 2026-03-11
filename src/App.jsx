@@ -32,6 +32,7 @@ import { CUSTOM_PROMPT_IMAGE_KEY } from './components/shared/CustomPromptPopup';
 import urls from './config/urls';
 import clickSound from './click.mp3';
 import { warmUpAudio } from './utils/sonicLogos';
+import { isEventDomain } from './utils/eventDomains';
 import flash1Sound from './flash1.mp3';
 import flash2Sound from './flash2.mp3';
 import flash3Sound from './flash3.mp3';
@@ -7815,8 +7816,8 @@ const App = () => {
         <>
           {/* Show camera view only when start menu is not shown */}
           <CameraView
-            brandTitle={showSplashOnInactivity ? brandTitle : null}
-            brandLogo={showSplashOnInactivity ? brandLogo : null}
+            brandTitle={(showSplashOnInactivity || isEventDomain()) ? brandTitle : null}
+            brandLogo={(showSplashOnInactivity || isEventDomain()) ? brandLogo : null}
             videoRef={videoReference}
             isReady={isSogniReady && !isPhotoButtonCooldown}
             countdown={countdown}
@@ -7932,8 +7933,8 @@ const App = () => {
           {/* Other UI elements like canvas, flash effect, etc. */}
           <canvas ref={canvasReference} style={{ display: 'none' }} />
           
-          {/* Brand title overlay - top left corner of camera view (only in kiosk mode to avoid overlap with auth status) */}
-          {!showStartMenu && !showPhotoGrid && brandLogo && showSplashOnInactivity && (
+          {/* Brand title overlay - top left corner of camera view (only when auth status is hidden to avoid overlap) */}
+          {!showStartMenu && !showPhotoGrid && brandLogo && (showSplashOnInactivity || isEventDomain()) && (
             <div style={{ position: 'fixed', top: 24, left: 24, zIndex: 1100, display: 'flex', alignItems: 'center', gap: 10 }}>
               <img src={brandLogo} alt="" style={{ height: '2.4rem', width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))' }} />
               <span style={{ fontFamily: "'Permanent Marker', cursive", fontSize: '1.2rem', color: 'var(--brand-dark-text)', opacity: 0.5 }}>x</span>
@@ -10409,8 +10410,8 @@ const App = () => {
           modelOptions={getModelOptions()} 
         />
 
-        {/* Authentication Status - top-left corner (hidden in kiosk mode) */}
-        {!showSplashScreen && currentPage !== 'prompts' && !showSplashOnInactivity && (
+        {/* Authentication Status - top-left corner (hidden in kiosk mode and on event domains) */}
+        {!showSplashScreen && currentPage !== 'prompts' && !showSplashOnInactivity && !isEventDomain() && (
           <div 
             className="auth-status-wrapper"
             style={{
