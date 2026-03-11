@@ -4220,10 +4220,11 @@ const App = () => {
         isLoading: currentAuthState.isLoading
       });
       
-      // Only initialize here if NOT authenticated (demo mode)
-      // If authenticated, the auth state change effect will handle it with correct state
-      if (!currentAuthState.isAuthenticated) {
-        console.log('🔵 Not authenticated, initializing backend client for demo mode');
+      // Initialize backend client if NOT authenticated, or if authenticated in demo mode
+      // (event domains are auto-demo — they use backend proxy, not frontend SDK)
+      // If authenticated with frontend mode, the auth state change effect handles it
+      if (!currentAuthState.isAuthenticated || currentAuthState.authMode === 'demo') {
+        console.log('🔵 Initializing backend client for demo mode');
         try {
           await initializeSogni();
           console.log('✅ Backend client initialized for demo mode');
@@ -4231,9 +4232,7 @@ const App = () => {
           console.warn('🔗 Sogni initialization failed:', error);
         }
       } else {
-        console.log('🟢 Already authenticated, letting auth state change effect initialize frontend client');
-        // Force a re-render to trigger the auth state change effect with correct values
-        // The auth change effect should run because authState dependency changed
+        console.log('🟢 Already authenticated with frontend mode, letting auth state change effect initialize frontend client');
       }
     };
     

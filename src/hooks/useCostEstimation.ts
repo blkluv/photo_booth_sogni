@@ -8,6 +8,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSogniAuth } from '../services/sogniAuth';
 import { useWallet } from './useWallet';
+import { isEventDomain } from '../utils/eventDomains';
 
 interface CostEstimationParams {
   model?: string;
@@ -48,6 +49,14 @@ export function useCostEstimation(params: CostEstimationParams): CostEstimationR
 
   useEffect(() => {
     const estimateCost = async () => {
+      // Skip cost estimation on event domains (no frontend SDK client, users don't see costs)
+      if (isEventDomain()) {
+        setCost(null);
+        setError(null);
+        setLoading(false);
+        return;
+      }
+
       // Don't fetch if we don't have the minimum required params
       if (!params.model || !params.imageCount) {
         setCost(null);
