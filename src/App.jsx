@@ -1001,6 +1001,8 @@ const App = () => {
   // Ref to AuthStatus component to trigger login modal
   const authStatusRef = useRef(null);
 
+  const referralAutoOpenDone = useRef(false);
+
   // Connection state management
   const [connectionState, setConnectionState] = useState(getCurrentConnectionState());
   const [isGenerating, setIsGenerating] = useState(false);
@@ -1321,7 +1323,7 @@ const App = () => {
     const skipWelcomeParam = url.searchParams.get('skipWelcome');
     const themesParam = url.searchParams.get('themes');
     const searchParam = url.searchParams.get('search');
-    const referralParam = url.searchParams.get('referral');
+    const referralParam = url.searchParams.get('referral') || url.searchParams.get('code');
     const galleryParam = url.searchParams.get('gallery');
     const baldForBaseParam = url.searchParams.get('baldForBase');
     
@@ -1468,6 +1470,21 @@ const App = () => {
       }, 500);
     }
   }, []);
+
+  // Auto-open signup modal when arriving with a referral code and not logged in
+  useEffect(() => {
+    if (isEventDomain()) return;
+    if (authState.isLoading || authState.isAuthenticated) return;
+    if (referralAutoOpenDone.current) return;
+    const url = new URL(window.location.href);
+    const hasReferralCode = url.searchParams.get('code') || url.searchParams.get('referral');
+    if (hasReferralCode) {
+      referralAutoOpenDone.current = true;
+      setTimeout(() => {
+        authStatusRef.current?.openSignupModal();
+      }, 500);
+    }
+  }, [authState.isLoading, authState.isAuthenticated]);
 
   // Handle browser navigation (back/forward) - allow URL prompt parameter to apply
   useEffect(() => {

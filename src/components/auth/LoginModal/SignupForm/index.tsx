@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Step1Fields, Step2Fields } from '../types';
+import { getReferralSource } from '../../../../utils/referralTracking';
 import Step1 from './Step1';
 import Step2 from './Step2';
 import Step3 from './Step3';
@@ -17,7 +18,7 @@ function SignupForm({ onLogin, onClose, onSignupComplete }: Props) {
     email: '',
     subscribe: false,
     remember: true,
-    referralCode: 'PHOTOBOOTH' // Hard-coded referral code
+    referralCode: getReferralSource() || 'PHOTOBOOTH'
   });
 
   const [step2, setStep2] = useState<Step2Fields>({

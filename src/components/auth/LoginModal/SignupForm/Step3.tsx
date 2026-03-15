@@ -6,7 +6,7 @@ import { useSogniAuth } from '../../../../services/sogniAuth';
 import { trackEvent } from '../../../../utils/analytics';
 import { trackSignUp } from '../../../../utils/analytics';
 import { getCampaignSource } from '../../../../utils/campaignAttribution';
-import { getReferralSource } from '../../../../utils/referralTracking';
+import { getReferralSource, clearReferralSource } from '../../../../utils/referralTracking';
 import Turnstile, { useTurnstile } from 'react-turnstile';
 import { TURNSTILE_KEY } from '../../../../config/turnstile';
 import '../styles.css';
@@ -91,6 +91,8 @@ function Step3({ step1, step2, onReturn, onContinue }: Props) {
 
     turnstile.reset();
     
+    clearReferralSource();
+
     // Continue to welcome screen
     onContinue();
   }, [step1, step2, onContinue, ensureClient, setAuthenticatedState, turnstileToken, turnstile]);
