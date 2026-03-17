@@ -129,10 +129,13 @@ export const ReferralSharePopup: React.FC<ReferralSharePopupProps> = ({ isOpen, 
             }}
           >
             <li>
-              Friends who sign up get <strong style={{ color: '#1a1a1a' }}>25 bonus credits</strong>
+              Friends who sign up with your link get <strong style={{ color: '#1a1a1a' }}>25 bonus credits</strong>
             </li>
             <li>
-              You earn a bonus on every credit purchase they make
+              You earn <strong style={{ color: '#1a1a1a' }}>25 credits</strong> after their first purchase
+            </li>
+            <li>
+              You also earn a share of rewards on every credit purchase they make — or that their own referrals make
             </li>
           </ul>
 
