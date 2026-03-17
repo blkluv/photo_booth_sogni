@@ -118,6 +118,15 @@ function Step1({ defaults, onContinue, onLogin }: Props) {
             onChange={handleFieldChange}
             error={fieldErrors.remember}
           />
+          <FormField
+            name="referralCode"
+            label="Referral Code"
+            value={fields.referralCode}
+            type="text"
+            placeholder="Optional"
+            onChange={handleFieldChange}
+            size="lg"
+          />
           {error && <ErrorMessage>{error.message}</ErrorMessage>}
         </FieldContainer>
       </FormContent>
