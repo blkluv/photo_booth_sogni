@@ -7,6 +7,7 @@ import { useApp } from '../../context/AppContext';
 import LoginModal, { LoginModalMode } from './LoginModal';
 import DailyBoostCelebration from '../shared/DailyBoostCelebration';
 import { getAuthButtonText, getDefaultModalMode, markAsVisited, incrementLoggedInVisitCount, hasShownProjectsTooltip, markProjectsTooltipShown } from '../../utils/visitorTracking';
+import { ReferralSharePopup } from '../shared/ReferralSharePopup';
 import '../../styles/components/AuthStatus.css';
 
 // Helper to format time remaining
@@ -41,6 +42,7 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
   const [highlightDailyBoost, setHighlightDailyBoost] = useState(false);
   const [showDailyBoostCelebration, setShowDailyBoostCelebration] = useState(false);
   const [showProjectsTooltip, setShowProjectsTooltip] = useState(false);
+  const [showReferralPopup, setShowReferralPopup] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
   const [tooltipBelow, setTooltipBelow] = useState(false);
   // Track if we've already shown the login boost prompt for this session
@@ -1013,6 +1015,73 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
             </div>
           )}
 
+          {/* Share & Earn Button */}
+          {authMode !== 'demo' && (
+            <div style={{
+              marginTop: '12px',
+              paddingTop: '12px',
+              borderTop: '2px dashed rgba(26, 26, 26, 0.15)',
+            }}>
+              <button
+                onClick={() => {
+                  setShowUserMenu(false);
+                  setShowReferralPopup(true);
+                }}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  border: '3px solid #1a1a1a',
+                  background: '#ffffff',
+                  color: '#1a1a1a',
+                  cursor: 'pointer',
+                  borderRadius: '50px',
+                  padding: '12px 16px',
+                  fontSize: '13px',
+                  fontWeight: '800',
+                  outline: 'none',
+                  transition: 'all 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+                  textTransform: 'lowercase',
+                  boxShadow: '3px 3px 0 #1a1a1a'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = '#f59e0b';
+                  e.currentTarget.style.color = '#1a1a1a';
+                  e.currentTarget.style.transform = 'translate(-1px, -1px)';
+                  e.currentTarget.style.boxShadow = '4px 4px 0 #1a1a1a';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = '#ffffff';
+                  e.currentTarget.style.color = '#1a1a1a';
+                  e.currentTarget.style.transform = 'translate(0, 0)';
+                  e.currentTarget.style.boxShadow = '3px 3px 0 #1a1a1a';
+                }}
+              >
+                {/* Gift/Share Icon */}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="20 12 20 22 4 22 4 12" />
+                  <rect x="2" y="7" width="20" height="5" />
+                  <line x1="12" y1="22" x2="12" y2="7" />
+                  <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
+                  <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+                </svg>
+                share &amp; earn
+              </button>
+            </div>
+          )}
+
           {/* Logout Button - Discrete */}
           <div style={{
             marginTop: '12px',
@@ -1171,6 +1240,12 @@ export const AuthStatus = memo(forwardRef<AuthStatusRef, AuthStatusProps>(({ onP
       isClaiming={claimInProgress}
       claimSuccess={lastClaimSuccess}
       claimError={claimError}
+    />
+
+    {/* Referral Share Popup */}
+    <ReferralSharePopup
+      isOpen={showReferralPopup}
+      onClose={() => setShowReferralPopup(false)}
     />
     </>
   );
