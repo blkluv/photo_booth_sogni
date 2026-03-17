@@ -12,6 +12,7 @@ export const ReferralSharePopup: React.FC<ReferralSharePopupProps> = ({ isOpen, 
   const [copied, setCopied] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
+  // Always point to production — shared referral links should work regardless of environment
   const referralUrl = user?.username
     ? `https://photobooth.sogni.ai/?code=${encodeURIComponent(user.username)}`
     : '';
