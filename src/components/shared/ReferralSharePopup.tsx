@@ -126,6 +126,8 @@ export const ReferralSharePopup: React.FC<ReferralSharePopupProps> = ({ isOpen, 
               color: 'rgba(26, 26, 26, 0.8)',
               margin: '0 0 16px',
               paddingLeft: '18px',
+              listStyleType: 'disc',
+              textAlign: 'left',
             }}
           >
             <li>
