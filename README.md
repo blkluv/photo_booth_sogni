@@ -41,8 +41,7 @@ Live demo → **https://photobooth.sogni.ai**
 | **RealVisXL v4** | SDXL Lightning | Ultra-realistic output |
 | **Qwen Image Edit 2511** | Context-aware | Image transformations & editing |
 | **Qwen Image Edit 2511 Lightning** | Context-aware | Fast image transformations |
-| **Flux.1 Kontext** | Flux | Advanced context-aware generation |
-| **Flux.2 [dev]** | Flux | Highest quality output |
+| **Flux.2 Dev** | Flux | Highest quality output |
 
 **150+ Style Prompts** across 18 categories:
 - 🎄 Christmas/Winter (35+ styles) - defrostMode, snowLeopardFur, winterElf, etc.

@@ -151,7 +151,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         localStorage.removeItem('sogni_model_qwen_image_edit_2511_fp8_lightning');
         localStorage.removeItem('sogni_model_qwen_image_edit_2511_fp8');
-        localStorage.removeItem('sogni_model_flux1-dev-kontext_fp8_scaled');
         localStorage.removeItem('sogni_model_flux2_dev_fp8');
         console.log('🔄 [INIT] Cleared context image model caches');
       } catch (e) {

@@ -550,7 +550,6 @@ export async function generateImage(client, params, progressCallback, localProje
     const isContextImageModel = [
       'qwen_image_edit_2511_fp8_lightning',
       'qwen_image_edit_2511_fp8',
-      'flux1-dev-kontext_fp8_scaled',
       'flux2_dev_fp8'
     ].includes(params.selectedModel);
     

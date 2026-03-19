@@ -482,24 +482,14 @@ const StyleDropdown = ({
                     <span>✏️ Qwen Image Edit 2511</span>
                   </div>
                   <div
-                    className={`model-option ${selectedModel === 'flux1-dev-kontext_fp8_scaled' ? 'selected' : ''}`}
-                    onClick={() => {
-                      console.log('StyleDropdown: Model changed to Flux.1 Kontext');
-                      onModelSelect('flux1-dev-kontext_fp8_scaled');
-                    }}
-                  >
-                    <span className="model-radio">{selectedModel === 'flux1-dev-kontext_fp8_scaled' ? '●' : '○'}</span>
-                    <span>✏️ Flux.1 Kontext</span>
-                  </div>
-                  <div
                     className={`model-option ${selectedModel === 'flux2_dev_fp8' ? 'selected' : ''}`}
                     onClick={() => {
-                      console.log('StyleDropdown: Model changed to Flux.2 [dev]');
+                      console.log('StyleDropdown: Model changed to Flux.2 Dev');
                       onModelSelect('flux2_dev_fp8');
                     }}
                   >
                     <span className="model-radio">{selectedModel === 'flux2_dev_fp8' ? '●' : '○'}</span>
-                    <span>✏️ Flux.2 [dev]</span>
+                    <span>✏️ Flux.2 Dev</span>
                   </div>
                 </div>
               </div>

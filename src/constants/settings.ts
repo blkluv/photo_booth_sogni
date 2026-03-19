@@ -10,9 +10,8 @@ export const QWEN_IMAGE_EDIT_MODEL_ID = 'qwen_image_edit_2511_fp8';
 export const QWEN_IMAGE_EDIT_MODEL_IDS = [QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID, QWEN_IMAGE_EDIT_MODEL_ID] as const;
 
 // Flux model IDs
-export const FLUX_KONTEXT_MODEL_ID = 'flux1-dev-kontext_fp8_scaled';
 export const FLUX2_DEV_MODEL_ID = 'flux2_dev_fp8';
-export const FLUX_MODEL_IDS = [FLUX_KONTEXT_MODEL_ID, FLUX2_DEV_MODEL_ID] as const;
+export const FLUX_MODEL_IDS = [FLUX2_DEV_MODEL_ID] as const;
 
 // All context image models (models that use contextImages instead of ControlNet)
 export const CONTEXT_IMAGE_MODEL_IDS = [...QWEN_IMAGE_EDIT_MODEL_IDS, ...FLUX_MODEL_IDS] as const;
@@ -99,11 +98,7 @@ export const getModelOptions = () => {
       value: "qwen_image_edit_2511_fp8",
     },
     {
-      label: "Flux.1 Kontext",
-      value: "flux1-dev-kontext_fp8_scaled",
-    },
-    {
-      label: "Flux.2 [dev]",
+      label: "Flux.2 Dev",
       value: "flux2_dev_fp8",
     },
   ];
@@ -138,12 +133,7 @@ export const isFluxModel = (modelValue: string): boolean => {
   return (FLUX_MODEL_IDS as readonly string[]).includes(modelValue);
 };
 
-// Helper function to check if the current model is Flux.1 Kontext
-export const isFluxKontextModel = (modelValue: string): boolean => {
-  return modelValue === FLUX_KONTEXT_MODEL_ID;
-};
-
-// Helper function to check if the current model is Flux.2 [dev]
+// Helper function to check if the current model is Flux.2 Dev
 export const isFlux2DevModel = (modelValue: string): boolean => {
   return modelValue === FLUX2_DEV_MODEL_ID;
 };
@@ -202,27 +192,7 @@ export const getModelRanges = (modelValue: string, isLoggedInWithFrontendAuth: b
     };
   }
 
-  // Flux.1 Kontext model
-  if (isFluxKontextModel(modelValue)) {
-    // For Flux.1 Kontext: default 8 when not logged in, 4 when logged in (to save user credits)
-    const defaultNumImages = isLoggedInWithFrontendAuth ? 4 : 8;
-    // Cap at 16 for mobile devices, otherwise use 8
-    const maxImages = deviceIsMobile ? Math.min(8, MOBILE_MAX_IMAGES) : 8;
-
-    return {
-      // Based on sogni-socket modelTiers t71_flx_o_1024: guidance min 1, max 5, default 3
-      guidance: { min: 1, max: 5, step: 0.1, default: 3 },
-      // Based on sogni-socket modelTiers: steps min 20, max 35, default 25
-      inferenceSteps: { min: 20, max: 35, step: 1, default: 25 },
-      numImages: { min: 1, max: maxImages, step: 1, default: defaultNumImages },
-      // Sampler options based on sogni-socket comfySampler
-      samplerOptions: ['Euler', 'Euler a', 'DPM++ 2M', 'DPM++ 2M SDE', 'DPM++ SDE'],
-      // Scheduler options based on sogni-socket comfyScheduler
-      schedulerOptions: ['Simple', 'Karras', 'Linear', 'SGM Uniform', 'Beta', 'Normal', 'DDIM', 'KL Optimal'],
-    };
-  }
-
-  // Flux.2 [dev] model
+  // Flux.2 Dev model
   if (isFlux2DevModel(modelValue)) {
     // For Flux.2: default 8 when not logged in, 4 when logged in (to save user credits)
     const defaultNumImages = isLoggedInWithFrontendAuth ? 4 : 8;
@@ -290,19 +260,7 @@ export const getModelDefaults = (modelValue: string, isLoggedInWithFrontendAuth:
     };
   }
 
-  // Flux.1 Kontext - include sampler/scheduler defaults
-  if (isFluxKontextModel(modelValue)) {
-    return {
-      guidance: ranges.guidance.default,
-      inferenceSteps: ranges.inferenceSteps.default,
-      // Based on sogni-socket defaults: euler sampler, simple scheduler
-      sampler: 'Euler',
-      scheduler: 'Simple',
-      numImages: ranges.numImages.default,
-    };
-  }
-
-  // Flux.2 [dev] - include sampler/scheduler defaults
+  // Flux.2 Dev - include sampler/scheduler defaults
   if (isFlux2DevModel(modelValue)) {
     return {
       guidance: ranges.guidance.default,

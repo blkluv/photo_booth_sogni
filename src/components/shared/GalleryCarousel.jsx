@@ -49,8 +49,7 @@ const GalleryCarouselItem = memo(({ entry, index, isSelected, onClick, onModelCl
       'coreml-epicrealismXL_VXIAbeast4SLightning': 'epiCRealism XL',
       'qwen_image_edit_2511_fp8_lightning': 'Qwen Image Edit 2511 Lightning',
       'qwen_image_edit_2511_fp8': 'Qwen Image Edit 2511',
-      'flux1-dev-kontext_fp8_scaled': 'Flux.1 Kontext',
-      'flux2_dev_fp8': 'Flux.2 [dev]'
+      'flux2_dev_fp8': 'Flux.2 Dev'
     };
     
     // Return mapped name or fallback to shortened version
@@ -60,7 +59,7 @@ const GalleryCarouselItem = memo(({ entry, index, isSelected, onClick, onModelCl
     
     // Fallback: try to extract a readable name from the ID
     if (modelId.includes('qwen')) return 'Qwen Image Edit';
-    if (modelId.includes('flux2')) return 'Flux.2 [dev]';
+    if (modelId.includes('flux2')) return 'Flux.2 Dev';
     if (modelId.includes('kontext')) return 'Flux.1 Kontext';
     if (modelId.includes('flux1')) return 'Flux.1';
     if (modelId.includes('sogni')) return 'SOGNI.XLT';
