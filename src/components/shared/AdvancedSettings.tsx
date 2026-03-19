@@ -875,7 +875,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
           <input
             type="range"
             min={modelRanges.numImages?.min || 1}
-            max={modelRanges.numImages?.max || (usesContextImages ? 8 : (isMobile() ? 16 : 32))}
+            max={modelRanges.numImages?.max || (isMobile() ? 16 : 32)}
             step={modelRanges.numImages?.step || 1}
             value={finalNumImages}
             onChange={(e) => onNumImagesChange?.(Number(e.target.value))}

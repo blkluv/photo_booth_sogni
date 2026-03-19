@@ -609,27 +609,7 @@ router.post('/generate', ensureSessionId, async (req, res) => {
     const selectedModel = req.body.selectedModel;
     const requestedImages = parseInt(req.body.numberImages) || 1;
     
-    // Define models that have 8 image cap (context image models)
-    const modelsWithCap = [
-      'qwen_image_edit_2511_fp8_lightning',
-      'qwen_image_edit_2511_fp8',
-      'flux1-dev-kontext_fp8_scaled',
-      'flux2_dev_fp8',
-      'flux1-krea-dev_fp8_scaled'
-    ];
-    const isCappedModel = modelsWithCap.includes(selectedModel);
-    
-    // Apply caps
-    if (isCappedModel && requestedImages > 8) {
-      console.log(`[${localProjectId}] REJECTED: Capped model ${selectedModel} requested ${requestedImages} images, max allowed is 8`);
-      return res.status(400).json({
-        error: 'Image generation limit exceeded',
-        message: `Context image models (Qwen, Flux) are limited to 8 images per project. Requested: ${requestedImages}`,
-        maxAllowed: 8,
-        modelType: 'context_image'
-      });
-    }
-    
+    // Apply caps - all models share the same 16-image cap
     if (requestedImages > 16) {
       console.log(`[${localProjectId}] REJECTED: Model ${selectedModel} requested ${requestedImages} images, max allowed is 16`);
       return res.status(400).json({

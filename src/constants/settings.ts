@@ -167,8 +167,8 @@ export const getModelRanges = (modelValue: string, isLoggedInWithFrontendAuth: b
   // Qwen Image Edit 2511 Lightning (fast model)
   if (isQwenImageEditLightningModel(modelValue)) {
     const defaultNumImages = 8;
-    // Cap at 16 for mobile devices, otherwise use 8
-    const maxImages = deviceIsMobile ? Math.min(8, MOBILE_MAX_IMAGES) : 8;
+    // 8 is the recommended default; allow up to 16 (mobile cap still applies)
+    const maxImages = deviceIsMobile ? Math.min(16, MOBILE_MAX_IMAGES) : 16;
 
     return {
       // Based on sogni-socket modelTiers: guidance min 1, max 2, default 1
@@ -186,8 +186,8 @@ export const getModelRanges = (modelValue: string, isLoggedInWithFrontendAuth: b
   // Qwen Image Edit 2511 (standard model)
   if (isQwenImageEditModel(modelValue)) {
     const defaultNumImages = 8;
-    // Cap at 16 for mobile devices, otherwise use 8
-    const maxImages = deviceIsMobile ? Math.min(8, MOBILE_MAX_IMAGES) : 8;
+    // 8 is the recommended default; allow up to 16 (mobile cap still applies)
+    const maxImages = deviceIsMobile ? Math.min(16, MOBILE_MAX_IMAGES) : 16;
 
     return {
       // Based on sogni-socket modelTiers: guidance min 1, max 4, default 2.5
