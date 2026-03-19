@@ -9,6 +9,7 @@ import { getCustomDimensions } from './utils/imageProcessing';
 import { generateGalleryFilename, getPortraitFolderWithFallback } from './utils/galleryLoader';
 import { goToPreviousPhoto, goToNextPhoto } from './utils/photoNavigation';
 import { initializeStylePrompts, getRandomStyle, getRandomMixPrompts, isEditPrompt } from './services/prompts';
+import { rewritePromptForEditModel } from './services/promptRewriter';
 import { getDefaultThemeGroupState, getEnabledPrompts, getOneOfEachPrompts } from './constants/themeGroups';
 import { getThemeGroupPreferences, saveThemeGroupPreferences } from './utils/cookies';
 import { initializeSogniClient } from './services/sogni';
@@ -1220,6 +1221,7 @@ const App = () => {
   // Sogni
   const [sogniClient, setSogniClient] = useState(null);
   const [isSogniReady, setIsSogniReady] = useState(false);
+  const subjectAnalysisRef = useRef(null); // Subject analysis from ImageAdjuster for prompt rewriting
 
   // Camera devices
   const [cameraDevices, setCameraDevices] = useState([]);
@@ -5270,27 +5272,48 @@ const App = () => {
         console.log('⚠️ Worker preferences SKIPPED in frontend - Premium Spark required');
       }
 
-      // When using an edit model with a non-edit prompt, prepend transformation instruction
-      // This helps the edit model understand it should transform while preserving identity
+      // When using an edit model, rewrite prompts with subject context for identity preservation
       const usesEditModel = isContextImageModel(selectedModel);
-      const isUsingEditPrompt = selectedStyle === 'copyImageStyle' || isEditPrompt(selectedStyle);
+      const isUsingEditPromptStyle = selectedStyle === 'copyImageStyle' || isEditPrompt(selectedStyle);
       const isCopyImageStylePrompt = finalPositivePrompt === COPY_IMAGE_STYLE_PROMPT;
 
-      if (usesEditModel && !isUsingEditPrompt && !isCopyImageStylePrompt && finalPositivePrompt && selectedStyle !== 'custom') {
-        console.log('✏️ Edit model with non-edit prompt detected - prepending transformation instruction');
+      if (usesEditModel && !isCopyImageStylePrompt && finalPositivePrompt && selectedStyle !== 'custom') {
+        // Get subject analysis (pre-warmed from ImageAdjuster, or use fallback)
+        const subjectAnalysis = subjectAnalysisRef.current || { faceCount: 1, subjectDescription: 'the person' };
+        const { subjectDescription, faceCount } = subjectAnalysis;
+
+        console.log('✏️ Edit model detected - rewriting prompt with subject context:', { subjectDescription, faceCount, isEditPrompt: isUsingEditPromptStyle });
 
         // Check if prompt uses pipe-separated syntax (randomMix, oneOfEach)
         if (finalPositivePrompt.startsWith('{') && finalPositivePrompt.includes('|') && finalPositivePrompt.endsWith('}')) {
-          // For pipe-separated prompts, prepend to each individual prompt
-          const pipedPrompts = finalPositivePrompt.slice(1, -1); // Remove { and }
-          const promptArray = pipedPrompts.split('|');
-          const transformedPrompts = promptArray.map(p =>
-            `${EDIT_MODEL_TRANSFORMATION_PREFIX}${p.trim()}`
+          const inner = finalPositivePrompt.slice(1, -1);
+          const rewritten = inner.split('|').map(p =>
+            rewritePromptForEditModel(p.trim(), { subjectDescription, faceCount, isEditPrompt: false })
           );
-          finalPositivePrompt = `{${transformedPrompts.join('|')}}`;
+          finalPositivePrompt = `{${rewritten.join('|')}}`;
         } else {
-          // For single prompts, prepend directly
-          finalPositivePrompt = `${EDIT_MODEL_TRANSFORMATION_PREFIX}${finalPositivePrompt}`;
+          finalPositivePrompt = rewritePromptForEditModel(finalPositivePrompt, {
+            subjectDescription,
+            faceCount,
+            isEditPrompt: isUsingEditPromptStyle && !isCopyImageStylePrompt
+          });
+        }
+
+        // If rewriter returned the prompt unchanged (analysis failed), apply legacy static prefix
+        // for non-edit prompts to maintain existing behavior
+        if (!isUsingEditPromptStyle && subjectDescription === 'the person') {
+          // rewritePromptForEditModel returns unchanged when subjectDescription is "the person"
+          // Apply the old static prefix as fallback
+          if (finalPositivePrompt.startsWith('{') && finalPositivePrompt.includes('|') && finalPositivePrompt.endsWith('}')) {
+            const pipedPrompts = finalPositivePrompt.slice(1, -1);
+            const promptArray = pipedPrompts.split('|');
+            const transformedPrompts = promptArray.map(p =>
+              `${EDIT_MODEL_TRANSFORMATION_PREFIX}${p.trim()}`
+            );
+            finalPositivePrompt = `{${transformedPrompts.join('|')}}`;
+          } else {
+            finalPositivePrompt = `${EDIT_MODEL_TRANSFORMATION_PREFIX}${finalPositivePrompt}`;
+          }
         }
       }
 
@@ -9787,13 +9810,18 @@ const App = () => {
     
     // Update lastAdjustedPhoto with the adjustments so user can return to resizer from photo gallery
     if (lastAdjustedPhoto && adjustments) {
-  
+
       setLastAdjustedPhoto({
         ...lastAdjustedPhoto,
         adjustments: adjustments
       });
     }
-    
+
+    // Capture subject analysis from ImageAdjuster for prompt rewriting
+    if (adjustments?.subjectAnalysis) {
+      subjectAnalysisRef.current = adjustments.subjectAnalysis;
+    }
+
     // Validate adjustedBlob before proceeding
     if (!adjustedBlob || !(adjustedBlob instanceof Blob)) {
       console.error('❌ Invalid blob received from ImageAdjuster:', adjustedBlob);

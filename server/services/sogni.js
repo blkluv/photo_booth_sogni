@@ -1955,39 +1955,43 @@ export async function getClientInfo(sessionId) {
   }
 }
 
-// Analyze image for main-subject face count using Sogni LLM vision
-const FACE_ANALYSIS_MODEL = 'qwen3.5-35b-a3b-gguf-q4km';
-const FACE_ANALYSIS_SYSTEM_PROMPT = `You are a face counter for a photo booth application. Count ONLY the main subjects who are intentionally posing or being captured in the photo. Ignore:
-- People in the background or far distance
-- Bystanders or passersby partially visible at frame edges
-- Faces on screens, posters, or artwork
-- Blurry or indistinct faces that are clearly not the focus
-Respond with ONLY a single number representing the count of main subject faces. Nothing else.`;
+// Analyze image subjects (face count + description) using Sogni LLM vision
+const SUBJECT_ANALYSIS_MODEL = 'qwen3.5-35b-a3b-gguf-q4km';
+const SUBJECT_ANALYSIS_SYSTEM_PROMPT = `You are a subject describer for a photo booth app. Describe ONLY the main subjects who are intentionally posing. Output a JSON object with two fields:
+- "count": number of main subjects
+- "description": a short phrase for use in image generation prompts
 
-export async function analyzeImageFaces(imageBase64DataUri) {
-  console.log('[FACE_ANALYSIS] Starting analysis, image data length:', imageBase64DataUri?.length);
+Examples:
+{"count": 1, "description": "a young woman with long dark curly hair"}
+{"count": 2, "description": "two men, one with a beard and one with glasses"}
+{"count": 1, "description": "a man with short gray hair and a mustache"}
+
+Focus on: apparent gender, hair (color/length/style), facial hair, glasses, distinctive visible features. Do NOT mention clothing or background. Keep the description under 25 words.`;
+
+export async function analyzeImageSubjects(imageBase64DataUri) {
+  console.log('[SUBJECT_ANALYSIS] Starting analysis, image data length:', imageBase64DataUri?.length);
   const client = await getOrCreateGlobalSogniClient();
 
   const messages = [
-    { role: 'system', content: FACE_ANALYSIS_SYSTEM_PROMPT },
+    { role: 'system', content: SUBJECT_ANALYSIS_SYSTEM_PROMPT },
     {
       role: 'user',
       content: [
         { type: 'image_url', image_url: { url: imageBase64DataUri } },
-        { type: 'text', text: 'How many people are the main subjects of this photo booth portrait?' },
+        { type: 'text', text: 'Describe the main subjects of this photo booth portrait.' },
       ],
     },
   ];
 
   const stream = await client.chat.completions.create({
-    model: FACE_ANALYSIS_MODEL,
+    model: SUBJECT_ANALYSIS_MODEL,
     messages,
     stream: true,
     tokenType: 'spark',
     temperature: 0.1,
     top_p: 0.9,
-    max_tokens: 16,
-    think: false, // CRITICAL: Disable Qwen3's <think> blocks which corrupt number parsing
+    max_tokens: 80,
+    think: false,
   });
 
   let fullContent = '';
@@ -1997,17 +2001,29 @@ export async function analyzeImageFaces(imageBase64DataUri) {
     }
   }
 
-  console.log('[FACE_ANALYSIS] Raw LLM response:', JSON.stringify(fullContent));
+  console.log('[SUBJECT_ANALYSIS] Raw LLM response:', JSON.stringify(fullContent));
 
   // Strip any residual <think>...</think> blocks just in case
   const stripped = fullContent.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
 
-  // Parse the number from the response (strip any non-digit chars)
-  const cleaned = stripped.replace(/[^0-9]/g, '');
-  const faceCount = parseInt(cleaned, 10);
-  const result = isNaN(faceCount) ? 1 : Math.max(faceCount, 0);
-  console.log('[FACE_ANALYSIS] Parsed faceCount:', result);
-  return result;
+  try {
+    const parsed = JSON.parse(stripped);
+    const faceCount = typeof parsed.count === 'number' ? Math.max(parsed.count, 0) : 1;
+    const subjectDescription = typeof parsed.description === 'string' && parsed.description.trim()
+      ? parsed.description.trim()
+      : 'the person';
+    console.log('[SUBJECT_ANALYSIS] Parsed result:', { faceCount, subjectDescription });
+    return { faceCount, subjectDescription };
+  } catch (parseError) {
+    console.warn('[SUBJECT_ANALYSIS] JSON parse failed, using fallback:', parseError?.message);
+    return { faceCount: 1, subjectDescription: 'the person' };
+  }
+}
+
+// Backward-compatible wrapper: returns only the face count as a number
+export async function analyzeImageFaces(imageBase64DataUri) {
+  const { faceCount } = await analyzeImageSubjects(imageBase64DataUri);
+  return faceCount;
 }
 
 // Backwards compatibility

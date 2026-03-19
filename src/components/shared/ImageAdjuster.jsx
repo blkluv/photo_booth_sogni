@@ -14,7 +14,7 @@ import { generateGalleryFilename, getPortraitFolderWithFallback } from '../../ut
 import promptsDataRaw from '../../prompts.json';
 import StyleDropdown from './StyleDropdown';
 import MultiFaceDetectedModal from './MultiFaceDetectedModal.tsx';
-import { analyzeImageFaces } from '../../services/faceAnalysisService';
+import { analyzeImageSubjects } from '../../services/faceAnalysisService';
 import { isContextImageModel, QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID } from '../../constants/settings';
 import '../../styles/components/ImageAdjuster.css';
 
@@ -47,7 +47,8 @@ const ImageAdjuster = ({
   
   const { settings, updateSetting, switchToModel } = useApp();
   const { aspectRatio, tezdevTheme, selectedModel, inferenceSteps, promptGuidance, scheduler, numImages: contextNumImages, selectedStyle, portraitType, positivePrompt, customSceneName } = settings;
-  const { isAuthenticated } = useSogniAuth();
+  const authState = useSogniAuth();
+  const { isAuthenticated } = authState;
   const { tokenType } = useWallet();
   const tokenLabel = getTokenLabel(tokenType);
   
@@ -113,6 +114,7 @@ const ImageAdjuster = ({
   const [showMultiFaceModal, setShowMultiFaceModal] = useState(false);
   const pendingConfirmRef = useRef(null); // Stores blob when waiting for modal response
   const pendingModelSwitchRef = useRef(false); // True when waiting for model switch to propagate
+  const subjectAnalysisRef = useRef(null); // Stores subject analysis result for passing to parent
 
   // Update position and scale when props change (for restoration)
   useEffect(() => {
@@ -179,31 +181,32 @@ const ImageAdjuster = ({
     };
   }, [imageUrl]);
 
-  // Background face analysis when imageUrl changes
+  // Background subject analysis when imageUrl changes
+  // For SD models: drives multi-face modal
+  // For context-image models: pre-warms cache for prompt rewriting
   useEffect(() => {
-    // Skip if already on a context image model (handles multiple faces natively)
-    if (isContextImageModel(selectedModel)) {
-      setFaceCount(null);
-      return;
-    }
-
     if (!imageUrl) return;
 
-    // Use a cancelled flag - more reliable than abort signal for the .then() check
-    // (React StrictMode double-mount can fire cleanup between fetch completion and .then())
     let cancelled = false;
     setFaceCount(null);
 
-    console.log('[FACE_ANALYSIS] Starting background analysis...');
-    analyzeImageFaces(imageUrl).then((result) => {
+    // Get the real SDK client for authenticated users (direct SDK analysis path)
+    const realClient = authState.isAuthenticated && authState.authMode === 'frontend'
+      ? authState.getSogniClient()
+      : null;
+
+    console.log('[SUBJECT_ANALYSIS] Starting background analysis...');
+    analyzeImageSubjects(imageUrl, realClient).then((result) => {
       if (!cancelled) {
-        console.log('[FACE_ANALYSIS] Result:', result.faceCount, 'face(s)');
+        console.log('[SUBJECT_ANALYSIS] Result:', result.faceCount, 'face(s), description:', result.subjectDescription);
         setFaceCount(result.faceCount);
+        // Store for passing to parent on confirm
+        subjectAnalysisRef.current = result;
       }
     });
 
     return () => { cancelled = true; };
-  }, [imageUrl, selectedModel]);
+  }, [imageUrl]);
 
   // Load theme frame URLs and padding when theme or aspect ratio changes
   useEffect(() => {
@@ -766,7 +769,7 @@ const ImageAdjuster = ({
     if (useOriginalImage && onUseRawImage) {
       onUseRawImage(finalBlob);
     } else {
-      onConfirm(finalBlob, { position, scale, batchCount: selectedBatchCount });
+      onConfirm(finalBlob, { position, scale, batchCount: selectedBatchCount, subjectAnalysis: subjectAnalysisRef.current });
     }
   }, [position, scale, selectedBatchCount, onConfirm, useOriginalImage, onUseRawImage]);
 

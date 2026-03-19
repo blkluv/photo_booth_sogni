@@ -23,6 +23,10 @@ export const EDIT_MODEL_NEGATIVE_PROMPT_PREFIX = "black bars, ";
  */
 export function stripTransformationPrefix(prompt: string): string {
   if (!prompt) return prompt;
+  // New dynamic pattern: "Transform ... into this style: "
+  const dynamicMatch = prompt.match(/^Transform .+? into this style:\s*/);
+  if (dynamicMatch) return prompt.slice(dynamicMatch[0].length);
+  // Legacy static prefix
   if (prompt.startsWith(EDIT_MODEL_TRANSFORMATION_PREFIX)) {
     return prompt.slice(EDIT_MODEL_TRANSFORMATION_PREFIX.length);
   }

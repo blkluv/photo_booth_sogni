@@ -1,5 +1,5 @@
 import express from 'express';
-import { analyzeImageFaces } from '../services/sogni.js';
+import { analyzeImageFaces, analyzeImageSubjects } from '../services/sogni.js';
 
 const router = express.Router();
 
@@ -33,6 +33,29 @@ router.post('/analyze', requireOrigin, async (req, res) => {
   } catch (error) {
     console.error('[FACE_ANALYSIS] Route error:', error?.message || error);
     res.json({ faceCount: 1 });
+  }
+});
+
+// POST /api/face-analysis/describe
+// Accepts { imageDataUri: string } and returns { faceCount: number, subjectDescription: string }
+router.post('/describe', requireOrigin, async (req, res) => {
+  const { imageDataUri } = req.body;
+
+  if (!imageDataUri || typeof imageDataUri !== 'string') {
+    return res.status(400).json({ error: 'imageDataUri is required' });
+  }
+
+  if (!imageDataUri.startsWith('data:image/')) {
+    return res.status(400).json({ error: 'Invalid image data URI' });
+  }
+
+  try {
+    const result = await analyzeImageSubjects(imageDataUri);
+    console.log(`[SUBJECT_ANALYSIS] Route result: ${result.faceCount} face(s), description: "${result.subjectDescription}"`);
+    res.json(result);
+  } catch (error) {
+    console.error('[SUBJECT_ANALYSIS] Route error:', error?.message || error);
+    res.json({ faceCount: 1, subjectDescription: 'the person' });
   }
 });
 
