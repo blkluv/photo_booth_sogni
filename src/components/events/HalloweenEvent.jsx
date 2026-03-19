@@ -249,7 +249,7 @@ const HalloweenEvent = () => {
                 />
               </button>
               <span className="portrait-type-label halloween-label">
-                NEAR
+                CLOSE UP
               </span>
             </div>
             
@@ -260,11 +260,11 @@ const HalloweenEvent = () => {
                 border: portraitType === 'medium' ? '3px solid #ff6b00' : '3px solid rgba(45, 24, 16, 0.3)',
                 boxShadow: portraitType === 'medium' ? '0 0 12px rgba(255, 107, 0, 0.6)' : '0 2px 8px rgba(0,0,0,0.2)'
               }}
-              title="Waist-Up"
+              title="Waist Up"
             >
               <img 
                 src="/gallery/sample-gallery-medium-body-jen.jpg"
-                alt="Waist-Up"
+                alt="Waist Up"
                 style={{
                   width: '100%',
                   height: '100%',

@@ -14921,8 +14921,8 @@ const PhotoGallery = ({
           {/* Portrait Type Toggle */}
           {(() => {
             const portraitOptions = {
-              headshot: { label: 'Near', img: '/gallery/sample-gallery-headshot-einstein.jpg' },
-              medium: { label: 'Waist-Up', img: '/gallery/sample-gallery-medium-body-jen.jpg' }
+              headshot: { label: 'Close Up', img: '/gallery/sample-gallery-headshot-einstein.jpg' },
+              medium: { label: 'Waist Up', img: '/gallery/sample-gallery-medium-body-jen.jpg' }
             };
             const current = portraitOptions[portraitType] || portraitOptions.medium;
             const nextValue = portraitType === 'headshot' ? 'medium' : 'headshot';
