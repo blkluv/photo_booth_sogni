@@ -14,8 +14,8 @@ export interface PromptRewriteOptions {
 /**
  * Rewrites a prompt with subject-specific context for edit/context-image models.
  *
- * For non-edit prompts: strips the "Attractive" prefix, injects the subject
- * description, and wraps with a transformation instruction prefix.
+ * For non-edit prompts: wraps with a transformation instruction prefix
+ * containing the subject description. Inner prompt text is preserved unchanged.
  *
  * For edit prompts: replaces generic subject references ("the person", "their")
  * with the actual subject description. No wrapper prefix is added since these
@@ -47,30 +47,13 @@ export function rewritePromptForEditModel(
 /**
  * Rewrite a non-edit prompt (e.g. "Attractive, portrait in anime style").
  *
- * 1. Strip leading "Attractive, " or "Attractive " prefix and replace with subject description
- * 2. Replace generic subject references ("a person", "the person", "someone", "a human")
- * 3. Wrap with transformation prefix
+ * Wraps with a transformation prefix containing the subject description.
+ * The inner prompt text is kept UNCHANGED to preserve reverse-lookup matching
+ * (hashtag extraction, style display, sharing all compare stripped prompt text
+ * against stylePrompts values).
  */
 function rewriteNonEditPrompt(prompt: string, subjectDescription: string): string {
-  let rewritten = prompt;
-
-  // Step 1: Strip "Attractive, " or "Attractive " prefix (case-insensitive)
-  // and replace with the subject description
-  const attractiveCommaMatch = rewritten.match(/^attractive,\s*/i);
-  if (attractiveCommaMatch) {
-    rewritten = subjectDescription + ', ' + rewritten.slice(attractiveCommaMatch[0].length);
-  } else {
-    const attractiveSpaceMatch = rewritten.match(/^attractive\s+/i);
-    if (attractiveSpaceMatch) {
-      rewritten = subjectDescription + ', ' + rewritten.slice(attractiveSpaceMatch[0].length);
-    }
-  }
-
-  // Step 2: Replace generic subject references (case-insensitive, word boundaries)
-  rewritten = replaceGenericSubjectReferences(rewritten, subjectDescription);
-
-  // Step 3: Wrap with transformation prefix
-  return `Transform ${subjectDescription} in the photo while preserving their facial features and identity exactly into this style: ${rewritten}`;
+  return `Transform ${subjectDescription} in the photo while preserving their facial features and identity exactly into this style: ${prompt}`;
 }
 
 /**
@@ -98,25 +81,6 @@ function rewriteEditPrompt(prompt: string, subjectDescription: string): string {
   });
 
   return rewritten;
-}
-
-/**
- * Replace generic subject references with the subject description.
- * Handles: "a person", "the person", "someone", "a human" (case-insensitive, word boundaries)
- */
-function replaceGenericSubjectReferences(text: string, subjectDescription: string): string {
-  const patterns = [
-    /\ba person\b/gi,
-    /\bthe person\b/gi,
-    /\bsomeone\b/gi,
-    /\ba human\b/gi,
-  ];
-
-  let result = text;
-  for (const pattern of patterns) {
-    result = result.replace(pattern, subjectDescription);
-  }
-  return result;
 }
 
 /**
