@@ -13,9 +13,9 @@ import { styleIdToDisplay } from '../../utils';
 import { generateGalleryFilename, getPortraitFolderWithFallback } from '../../utils/galleryLoader';
 import promptsDataRaw from '../../prompts.json';
 import StyleDropdown from './StyleDropdown';
-import MultiFaceDetectedModal from './MultiFaceDetectedModal.tsx';
 import { analyzeImageSubjects } from '../../services/faceAnalysisService';
 import { isContextImageModel, QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID } from '../../constants/settings';
+import { useToastContext } from '../../context/ToastContext';
 import '../../styles/components/ImageAdjuster.css';
 
 /**
@@ -51,6 +51,7 @@ const ImageAdjuster = ({
   const { isAuthenticated } = authState;
   const { tokenType } = useWallet();
   const tokenLabel = getTokenLabel(tokenType);
+  const { showToast } = useToastContext();
   
   // Style dropdown state
   const [showStyleDropdown, setShowStyleDropdown] = useState(false);
@@ -111,8 +112,7 @@ const ImageAdjuster = ({
 
   // Face analysis state
   const [faceCount, setFaceCount] = useState(null);
-  const [showMultiFaceModal, setShowMultiFaceModal] = useState(false);
-  const pendingConfirmRef = useRef(null); // Stores blob when waiting for modal response
+  const pendingConfirmRef = useRef(null); // Stores blob when waiting for model switch
   const pendingModelSwitchRef = useRef(false); // True when waiting for model switch to propagate
   const subjectAnalysisRef = useRef(null); // Stores subject analysis result for passing to parent
 
@@ -784,26 +784,6 @@ const ImageAdjuster = ({
     }
   }, [selectedModel]);
 
-  // Handle multi-face modal: user accepts model switch
-  const handleMultiFaceSwitch = useCallback(() => {
-    setShowMultiFaceModal(false);
-    if (switchToModel) {
-      pendingModelSwitchRef.current = true;
-      switchToModel(QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID);
-    }
-  }, [switchToModel]);
-
-  // Handle multi-face modal: user dismisses
-  const handleMultiFaceDismiss = useCallback(() => {
-    setShowMultiFaceModal(false);
-    // Proceed with current model
-    if (pendingConfirmRef.current) {
-      const blob = pendingConfirmRef.current;
-      pendingConfirmRef.current = null;
-      proceedWithGeneration(blob);
-    }
-  }, [proceedWithGeneration]);
-
   // Handle confirm button click
   const handleConfirm = useCallback(async () => {
     // Prevent multiple clicks while processing
@@ -821,17 +801,26 @@ const ImageAdjuster = ({
       const finalSizeMB = (finalBlob.size / 1024 / 1024).toFixed(2);
       console.log(`📤 ImageAdjuster transmission size: ${finalSizeMB}MB`);
 
-      // Check if multi-face modal should be shown
-      const shouldShowModal = faceCount !== null
+      // Auto-switch model when multiple faces detected
+      const shouldAutoSwitch = faceCount !== null
         && faceCount > 1
         && !isContextImageModel(selectedModel)
         && !useOriginalImage;
 
-      if (shouldShowModal) {
-        console.log('[FACE_ANALYSIS] Multiple faces detected (' + faceCount + '), showing modal');
+      if (shouldAutoSwitch) {
+        console.log('[FACE_ANALYSIS] Multiple faces detected (' + faceCount + '), auto-switching model');
         pendingConfirmRef.current = finalBlob;
+        if (switchToModel) {
+          pendingModelSwitchRef.current = true;
+          switchToModel(QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID);
+          showToast({
+            type: 'info',
+            title: 'Group Photo Detected',
+            message: `We detected ${faceCount} people, so we switched to a model that handles group photos better.`,
+            timeout: 5000
+          });
+        }
         setIsProcessing(false);
-        setShowMultiFaceModal(true);
         return;
       }
 
@@ -841,7 +830,7 @@ const ImageAdjuster = ({
       setIsProcessing(false);
       alert(error.message || 'Failed to process image. Please try again.');
     }
-  }, [isProcessing, processImageWithAdjustments, faceCount, selectedModel, useOriginalImage, proceedWithGeneration]);
+  }, [isProcessing, processImageWithAdjustments, faceCount, selectedModel, useOriginalImage, proceedWithGeneration, switchToModel, showToast]);
   
   
   return (
@@ -1152,15 +1141,6 @@ const ImageAdjuster = ({
           />
         )}
         
-        {/* Multi-Face Detection Modal */}
-        {showMultiFaceModal && faceCount > 1 && (
-          <MultiFaceDetectedModal
-            faceCount={faceCount}
-            onSwitchModel={handleMultiFaceSwitch}
-            onDismiss={handleMultiFaceDismiss}
-          />
-        )}
-
         </div>
       </div>
     </div>
