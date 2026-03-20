@@ -1,5 +1,4 @@
 import React, { useRef, useState, useMemo, useEffect, memo } from 'react';
-import StyleDropdown from '../shared/StyleDropdown';
 import { styleIdToDisplay } from '../../utils';
 import { generateGalleryFilename, getPortraitFolderWithFallback } from '../../utils/galleryLoader';
 import { CUSTOM_PROMPT_IMAGE_KEY } from '../shared/CustomPromptPopup';
@@ -88,19 +87,19 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
   selectedStyle = '',
   onStyleSelect,
   stylePrompts = {},
-  selectedModel = '',
-  onModelSelect,
+  selectedModel: _selectedModel = '',
+  onModelSelect: _onModelSelect,
   onNavigateToGallery,
-  onShowControlOverlay,
-  onThemeChange,
-  onCustomPromptChange,
-  currentCustomPrompt = '',
-  currentCustomSceneName = '',
+  onShowControlOverlay: _onShowControlOverlay,
+  onThemeChange: _onThemeChange,
+  onCustomPromptChange: _onCustomPromptChange,
+  currentCustomPrompt: _currentCustomPrompt = '',
+  currentCustomSceneName: _currentCustomSceneName = '',
   portraitType = 'medium',
   styleReferenceImage = null,
-  onEditStyleReference,
-  onCopyImageStyleSelect,
-  showToast,
+  onEditStyleReference: _onEditStyleReference,
+  onCopyImageStyleSelect: _onCopyImageStyleSelect,
+  showToast: _showToast,
   originalPhotoUrl = null,
   photoSourceType = null,
   reusablePhotoUrl = null,
@@ -117,7 +116,6 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
   const { settings } = useApp();
   const isKioskMode = settings.showSplashOnInactivity;
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [showStyleDropdown, setShowStyleDropdown] = useState(false);
   const [isAudioEnabled, setIsAudioEnabled] = useState(() => {
     // Initialize with saved preference immediately
     const savedAudioState = localStorage.getItem(AUDIO_ENABLED_KEY);
@@ -331,22 +329,12 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
 
   // Style selector handlers
   const handleStyleClick = () => {
-    // In kiosk mode, go directly to full-screen Vibe Explorer
-    if (isKioskMode && onNavigateToGallery) {
+    // Always go directly to full-screen Vibe Explorer
+    if (onNavigateToGallery) {
       onNavigateToGallery();
-      return;
     }
-    // Otherwise show the dropdown for quick selection
-    // Users can choose "Browse Vibe Explorer" from the dropdown if they want the full gallery
-    setShowStyleDropdown(true);
   };
 
-  const handleStyleSelect = (style: string) => {
-    onStyleSelect?.(style);
-    setShowStyleDropdown(false);
-    // Mark that user has explicitly selected a style
-    localStorage.setItem(STYLE_SELECTED_KEY, 'true');
-  };
 
   // Handle audio toggle
   const handleAudioToggle = (e: React.MouseEvent) => {
@@ -684,46 +672,6 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
         onChange={handleFileSelect}
       />
 
-      {/* Style Dropdown */}
-      {showStyleDropdown && (
-        <StyleDropdown
-          isOpen={showStyleDropdown}
-          onClose={() => setShowStyleDropdown(false)}
-          selectedStyle={selectedStyle}
-          updateStyle={handleStyleSelect}
-          defaultStylePrompts={stylePrompts}
-          setShowControlOverlay={onShowControlOverlay as any}
-          dropdownPosition="bottom"
-          triggerButtonClass=".style-selector-button"
-          onThemeChange={onThemeChange as any}
-          selectedModel={selectedModel as any}
-          onModelSelect={onModelSelect as any}
-          onGallerySelect={undefined}
-          onCustomPromptChange={onCustomPromptChange as any}
-          currentCustomPrompt={currentCustomPrompt}
-          currentCustomSceneName={currentCustomSceneName}
-          portraitType={portraitType}
-          styleReferenceImage={styleReferenceImage as any}
-          onEditStyleReference={onEditStyleReference as any}
-          onCopyImageStyle={(onCopyImageStyleSelect ? (() => {
-            console.log('CameraStartMenu: Copy Image Style triggered from StyleDropdown');
-            // Create a file input for the user to select an image
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'image/png, image/jpeg, image/jpg';
-            input.onchange = async (e) => {
-              const file = (e.target as HTMLInputElement).files?.[0];
-              if (file && onCopyImageStyleSelect) {
-                await onCopyImageStyleSelect(file);
-              }
-            };
-            input.click();
-          }) : undefined) as any}
-          showToast={showToast as any}
-          onNavigateToVibeExplorer={onNavigateToGallery as any}
-          slideInPanel={true}
-        />
-      )}
     </div>
   );
 };

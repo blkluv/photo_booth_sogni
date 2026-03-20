@@ -29,7 +29,6 @@ import CustomPromptPopup from './CustomPromptPopup';
 import ShareMenu from './ShareMenu';
 import GallerySubmissionConfirm from './GallerySubmissionConfirm';
 import GalleryCarousel from './GalleryCarousel';
-import StyleDropdown from './StyleDropdown';
 import { useSogniAuth } from '../../services/sogniAuth';
 import { useWallet } from '../../hooks/useWallet';
 import { useCostEstimation } from '../../hooks/useCostEstimation.ts';
@@ -1525,8 +1524,6 @@ const PhotoGallery = ({
   const [vibeExplorerMode, setVibeExplorerMode] = useState(() => getVibeExplorerMode());
   const [simplePickStyles, setSimplePickStyles] = useState(() => getSimplePickStyles());
 
-  // State for vibe selector widget (only show when NOT in prompt selector mode and widget props are provided)
-  const [showStyleDropdown, setShowStyleDropdown] = useState(false);
 
   // State for video overlay - track which photo's video is playing by photo ID (for easter egg videos)
   const [activeVideoPhotoId, setActiveVideoPhotoId] = useState(null);
@@ -12495,10 +12492,8 @@ const PhotoGallery = ({
         <button
           className="photo-gallery-style-selector-button"
           onClick={() => {
-            if (settings.showSplashOnInactivity && onNavigateToVibeExplorer) {
+            if (onNavigateToVibeExplorer) {
               onNavigateToVibeExplorer();
-            } else {
-              setShowStyleDropdown(prev => !prev);
             }
           }}
           title="Your selected vibe - Click to change"
@@ -12541,60 +12536,6 @@ const PhotoGallery = ({
         </button>
       )}
 
-      {/* Style Dropdown for Vibe Selector */}
-      {!isPromptSelectorMode && showStyleDropdown && updateStyle && (
-        <StyleDropdown
-          isOpen={showStyleDropdown}
-          onClose={() => setShowStyleDropdown(false)}
-          selectedStyle={selectedStyle}
-          updateStyle={(style) => {
-            if (updateStyle) updateStyle(style);
-          }}
-          defaultStylePrompts={stylePrompts}
-          setShowControlOverlay={() => {}}
-          dropdownPosition="top"
-          triggerButtonClass=".photo-gallery-style-selector-button"
-          selectedModel={selectedModel}
-          onModelSelect={(model) => {
-            console.log('PhotoGallery: Switching model to', model);
-            if (switchToModel) {
-              switchToModel(model);
-            }
-          }}
-          portraitType={portraitType}
-          styleReferenceImage={styleReferenceImage}
-          onEditStyleReference={onEditStyleReference}
-          onCopyImageStyle={() => {
-            console.log('PhotoGallery: Copy Image Style triggered from StyleDropdown');
-            // Create a file input for the user to select an image
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'image/png, image/jpeg, image/jpg';
-            input.onchange = async (e) => {
-              const file = e.target.files?.[0];
-              if (file && onCopyImageStyleSelect) {
-                await onCopyImageStyleSelect(file);
-              }
-            };
-            input.click();
-          }}
-          showToast={showToast}
-          onNavigateToVibeExplorer={onNavigateToVibeExplorer}
-          slideInPanel={true}
-          onCustomPromptChange={(prompt, sceneName) => {
-            // Update the settings using the context's updateSetting function
-            console.log('🎨 [PhotoGallery] Custom prompt change:', { prompt, sceneName });
-            updateSetting('positivePrompt', prompt);
-            updateSetting('customSceneName', sceneName || '');
-            console.log('🎨 [PhotoGallery] After updateSetting - settings:', { 
-              positivePrompt: settings.positivePrompt, 
-              customSceneName: settings.customSceneName 
-            });
-          }}
-          currentCustomPrompt={settings.positivePrompt || ''}
-          currentCustomSceneName={settings.customSceneName || ''}
-        />
-      )}
 
       {/* Bottom right button container - holds separate Download and Video buttons */}
       {/* Show when: has completed photos with images, OR has generating/loading photos (for cancel button), OR can start new batch */}
@@ -14715,6 +14656,49 @@ const PhotoGallery = ({
                 Pick up to 16 vibes
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {/* Portrait Type Toggle */}
+                {(() => {
+                  const portraitOptions = {
+                    headshot: { label: 'Close Up', img: '/gallery/sample-gallery-headshot-einstein.jpg' },
+                    medium: { label: 'Waist Up', img: '/gallery/sample-gallery-medium-body-jen.jpg' }
+                  };
+                  const current = portraitOptions[portraitType] || portraitOptions.medium;
+                  const nextValue = portraitType === 'headshot' ? 'medium' : 'headshot';
+                  return (
+                    <button
+                      onClick={() => onPortraitTypeChange && onPortraitTypeChange(nextValue)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '3px 10px 3px 3px',
+                        background: 'rgba(255, 255, 255, 0.15)',
+                        border: '1px solid rgba(255, 255, 255, 0.3)',
+                        borderRadius: '24px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        color: 'white'
+                      }}
+                      title={`Switch to ${portraitOptions[nextValue].label}`}
+                    >
+                      <div style={{
+                        width: '26px',
+                        height: '26px',
+                        borderRadius: '50%',
+                        overflow: 'hidden',
+                        flexShrink: 0
+                      }}>
+                        <img src={current.img} alt={current.label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      </div>
+                      <span style={{
+                        fontSize: '12px',
+                        fontFamily: '"Permanent Marker", cursive'
+                      }}>
+                        {current.label}
+                      </span>
+                    </button>
+                  );
+                })()}
                 <span style={{
                   fontSize: '14px',
                   fontFamily: '"Permanent Marker", cursive',

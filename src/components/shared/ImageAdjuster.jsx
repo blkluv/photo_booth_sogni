@@ -12,7 +12,6 @@ import { getTokenLabel } from '../../services/walletService';
 import { styleIdToDisplay } from '../../utils';
 import { generateGalleryFilename, getPortraitFolderWithFallback } from '../../utils/galleryLoader';
 import promptsDataRaw from '../../prompts.json';
-import StyleDropdown from './StyleDropdown';
 import { analyzeImageSubjects } from '../../services/faceAnalysisService';
 import { isContextImageModel, QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID } from '../../constants/settings';
 import { useToastContext } from '../../context/ToastContext';
@@ -53,8 +52,6 @@ const ImageAdjuster = ({
   const tokenLabel = getTokenLabel(tokenType);
   const { showToast } = useToastContext();
   
-  // Style dropdown state
-  const [showStyleDropdown, setShowStyleDropdown] = useState(false);
   
   // Generate preview image path for selected style
   const stylePreviewImage = useMemo(() => {
@@ -841,10 +838,8 @@ const ImageAdjuster = ({
           <button 
           className="image-adjuster-style-selector-button"
           onClick={() => {
-            if (settings.showSplashOnInactivity && onNavigateToVibeExplorer) {
+            if (onNavigateToVibeExplorer) {
               onNavigateToVibeExplorer();
-            } else {
-              setShowStyleDropdown(prev => !prev);
             }
           }}
           title="Your selected vibe - Click to change"
@@ -1111,35 +1106,6 @@ const ImageAdjuster = ({
           </div>
         </div>
 
-        {/* Style Dropdown */}
-        {showStyleDropdown && (
-          <StyleDropdown
-            isOpen={showStyleDropdown}
-            onClose={() => setShowStyleDropdown(false)}
-            selectedStyle={selectedStyle}
-            updateStyle={(style) => updateSetting('selectedStyle', style)}
-            defaultStylePrompts={stylePrompts}
-            setShowControlOverlay={() => {}}
-            dropdownPosition="top"
-            triggerButtonClass=".image-adjuster-style-selector-button"
-            selectedModel={selectedModel}
-            onModelSelect={(model) => {
-              console.log('ImageAdjuster: Switching model to', model);
-              if (switchToModel) {
-                switchToModel(model);
-              }
-            }}
-            portraitType={portraitType}
-            onNavigateToVibeExplorer={onNavigateToVibeExplorer}
-            onCustomPromptChange={(prompt, sceneName) => {
-              updateSetting('positivePrompt', prompt);
-              updateSetting('customSceneName', sceneName || '');
-            }}
-            currentCustomPrompt={positivePrompt}
-            currentCustomSceneName={customSceneName}
-            slideInPanel={true}
-          />
-        )}
         
         </div>
       </div>

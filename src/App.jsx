@@ -63,7 +63,6 @@ Object.values(promptsDataRaw).forEach(themeGroup => {
   Object.assign(promptsData, themeGroup.prompts);
 });
 import PhotoGallery from './components/shared/PhotoGallery';
-import StyleDropdown from './components/shared/StyleDropdown';
 import { useApp } from './context/AppContext.tsx';
 import { useRewards } from './context/RewardsContext';
 import { useWallet } from './hooks/useWallet';
@@ -473,7 +472,6 @@ const App = () => {
 
   // Info modal state - adding back the missing state
   const [showInfoModal, setShowInfoModal] = useState(false);
-  const [showCameraStyleDropdown, setShowCameraStyleDropdown] = useState(false);
   const [showPhotoGrid, setShowPhotoGrid] = useState(
     immediatePageParam === 'prompts' && immediateExtensionParam === 'true'
   );
@@ -10650,11 +10648,7 @@ const App = () => {
             <button
               className="camera-view-style-selector-button"
               onClick={() => {
-                if (showSplashOnInactivity) {
-                  handleNavigateToPromptSelector();
-                } else {
-                  setShowCameraStyleDropdown(prev => !prev);
-                }
+                handleNavigateToPromptSelector();
               }}
               title="Your selected vibe - Click to change"
             >
@@ -10697,42 +10691,6 @@ const App = () => {
           </>
         )}
 
-        {/* Camera View Style Dropdown */}
-        {!showPhotoGrid && !selectedPhotoIndex && !showStartMenu && showCameraStyleDropdown && (
-          <StyleDropdown
-            isOpen={showCameraStyleDropdown}
-            onClose={() => setShowCameraStyleDropdown(false)}
-            selectedStyle={selectedStyle}
-            updateStyle={(style) => {
-              updateSetting('selectedStyle', style);
-            }}
-            defaultStylePrompts={stylePrompts}
-            setShowControlOverlay={() => {}}
-            dropdownPosition="top"
-            triggerButtonClass=".camera-view-style-selector-button"
-            selectedModel={selectedModel}
-            onModelSelect={(model) => {
-              console.log('Camera View: Switching model to', model);
-              if (switchToModel) {
-                switchToModel(model);
-              }
-            }}
-            portraitType={portraitType}
-            onNavigateToVibeExplorer={() => {
-              setShowPhotoGrid(true);
-              setShowCameraStyleDropdown(false);
-            }}
-            onThemeChange={handleThemeChange}
-            currentThemes={currentThemeState}
-            onCustomPromptChange={(prompt, sceneName) => {
-              updateSetting('positivePrompt', prompt);
-              updateSetting('customSceneName', sceneName || '');
-            }}
-            currentCustomPrompt={positivePrompt}
-            currentCustomSceneName={customSceneName}
-            slideInPanel={true}
-          />
-        )}
         
         {/* Studio lights - permanent background elements */}
         <div className="studio-lights-container">
