@@ -14,7 +14,7 @@ import { getPreviousPhotoIndex, getNextPhotoIndex } from '../../utils/photoNavig
 import promptsDataRaw from '../../prompts.json';
 import { THEME_GROUPS, getDefaultThemeGroupState, getEnabledPrompts } from '../../constants/themeGroups';
 import { stripTransformationPrefix } from '../../constants/editPrompts';
-import { getThemeGroupPreferences, saveThemeGroupPreferences, getFavoriteImages, toggleFavoriteImage, saveFavoriteImages, getBlockedPrompts, blockPrompt, hasSeenBatchVideoTip, markBatchVideoTipShown } from '../../utils/cookies';
+import { getThemeGroupPreferences, saveThemeGroupPreferences, getFavoriteImages, toggleFavoriteImage, saveFavoriteImages, getBlockedPrompts, blockPrompt, hasSeenBatchVideoTip, markBatchVideoTipShown, getSimplePickStyles, saveSimplePickStyles, getVibeExplorerMode, saveVibeExplorerMode } from '../../utils/cookies';
 import { getAttributionText } from '../../config/ugcAttributions';
 import { isContextImageModel, SAMPLE_GALLERY_CONFIG, getQRWatermarkConfig, DEFAULT_SETTINGS } from '../../constants/settings';
 import { TRANSITION_MUSIC_PRESETS } from '../../constants/transitionMusicPresets';
@@ -963,7 +963,8 @@ const PhotoGallery = ({
   switchToModel = null, // Function to switch AI model
   onNavigateToVibeExplorer = null, // Function to navigate to full vibe explorer
   onRegisterVideoIntroTrigger = null, // Callback to register function that triggers video intro popup
-  onOpenLoginModal = null // Function to open the login modal
+  onOpenLoginModal = null, // Function to open the login modal
+  onSimplePickSelect = null // Callback when user confirms Simple Mode selections
 }) => {
   // Get settings from context
   const { settings, updateSetting } = useApp();
@@ -1519,6 +1520,10 @@ const PhotoGallery = ({
 
   // State for blocked prompts
   const [blockedPromptIds, setBlockedPromptIds] = useState(() => getBlockedPrompts());
+
+  // State for Vibe Explorer Simple Mode
+  const [vibeExplorerMode, setVibeExplorerMode] = useState(() => getVibeExplorerMode());
+  const [simplePickStyles, setSimplePickStyles] = useState(() => getSimplePickStyles());
 
   // State for vibe selector widget (only show when NOT in prompt selector mode and widget props are provided)
   const [showStyleDropdown, setShowStyleDropdown] = useState(false);
@@ -6834,6 +6839,31 @@ const PhotoGallery = ({
     }
   }, [favoriteImageIds, setPhotos]);
 
+  // Simple Mode handlers
+  const handleVibeExplorerModeChange = useCallback((mode) => {
+    setVibeExplorerMode(mode);
+    saveVibeExplorerMode(mode);
+  }, []);
+
+  const handleSimplePickToggle = useCallback((promptKey) => {
+    setSimplePickStyles(prev => {
+      let next;
+      if (prev.includes(promptKey)) {
+        next = prev.filter(k => k !== promptKey);
+      } else {
+        if (prev.length >= 16) return prev; // Cap at 16
+        next = [...prev, promptKey];
+      }
+      saveSimplePickStyles(next);
+      return next;
+    });
+  }, []);
+
+  const handleSimplePickClearAll = useCallback(() => {
+    setSimplePickStyles([]);
+    saveSimplePickStyles([]);
+  }, []);
+
   // Get consistent photoId for favorites
   // Only use promptKey - this allows favoriting styles that can be reused for generation
   // Returns null if no promptKey (custom/random styles can't be favorited)
@@ -6857,6 +6887,60 @@ const PhotoGallery = ({
     const usesContextImages = selectedModel && isContextImageModel(selectedModel);
     let filtered = photos;
 
+    // In Simple Mode, apply theme group filtering (same as normal mode) plus blocked prompts
+    if (vibeExplorerMode === 'simple') {
+      filtered = photos.filter(photo => {
+        // Filter out prompts from hidden theme groups (e.g., halloween/horror in Mandala Club)
+        if (hiddenThemeGroups.length > 0 && photo.promptKey) {
+          for (const groupId of hiddenThemeGroups) {
+            if (THEME_GROUPS[groupId] && THEME_GROUPS[groupId].prompts.includes(photo.promptKey)) {
+              return false;
+            }
+          }
+        }
+        // Filter out blocked prompts
+        if (photo.promptKey && blockedPromptIds.includes(photo.promptKey)) {
+          return false;
+        }
+
+        // Apply theme group filtering
+        const enabledThemeGroups = Object.entries(themeGroupState)
+          .filter(([groupId, enabled]) => enabled && groupId !== 'favorites')
+          .map(([groupId]) => groupId);
+        const hasFavoritesEnabled = themeGroupState['favorites'];
+        const hasAnyFilterEnabled = enabledThemeGroups.length > 0 || hasFavoritesEnabled;
+
+        // If no filters are enabled, show all photos
+        if (!hasAnyFilterEnabled) {
+          return true;
+        }
+
+        // Check if photo matches any enabled filter (OR logic)
+        if (hasFavoritesEnabled && isPhotoFavorited(photo)) {
+          return true;
+        }
+        if (enabledThemeGroups.length > 0) {
+          const enabledPrompts = getEnabledPrompts(themeGroupState, stylePrompts || {});
+          if (photo.promptKey && Object.prototype.hasOwnProperty.call(enabledPrompts, photo.promptKey)) {
+            return true;
+          }
+        }
+
+        return false;
+      });
+
+      // Apply search term filtering
+      if (searchTerm.trim()) {
+        const searchLower = searchTerm.toLowerCase().trim();
+        filtered = filtered.filter(photo => {
+          const displayText = photo.promptKey ? styleIdToDisplay(photo.promptKey).toLowerCase() : '';
+          return displayText.includes(searchLower);
+        });
+      }
+
+      return filtered;
+    }
+
     // Build a list of all photos that should be shown based on enabled filters (OR logic)
     const shouldShowPhoto = (photo) => {
       // Filter out prompts from hidden theme groups (e.g., halloween/horror in Mandala Club)
@@ -6872,39 +6956,39 @@ const PhotoGallery = ({
       if (photo.promptKey && blockedPromptIds.includes(photo.promptKey)) {
         return false;
       }
-      
+
       // Track if any filter is enabled
       const enabledFilters = [];
-      
+
       // Check if favorites filter is enabled
       if (themeGroupState['favorites']) {
         enabledFilters.push('favorites');
       }
-      
+
       // Check if any theme group filters are enabled (for all models)
       const enabledThemeGroups = Object.entries(themeGroupState)
         .filter(([groupId, enabled]) => enabled && groupId !== 'favorites')
         .map(([groupId]) => groupId);
-      
+
       if (enabledThemeGroups.length > 0) {
         enabledFilters.push('themes');
       }
-      
+
       // If no filters are enabled, show all photos
       if (enabledFilters.length === 0) {
         return true;
       }
-      
+
       // Check if photo matches any enabled filter (OR logic)
       let matchesAnyFilter = false;
-      
+
       // Check favorites filter
       if (themeGroupState['favorites']) {
         if (isPhotoFavorited(photo)) {
           matchesAnyFilter = true;
         }
       }
-      
+
       // Check theme group filters (for all models)
       if (!matchesAnyFilter) {
         const enabledPrompts = getEnabledPrompts(themeGroupState, stylePrompts || {});
@@ -6912,10 +6996,10 @@ const PhotoGallery = ({
           matchesAnyFilter = true;
         }
       }
-      
+
       return matchesAnyFilter;
     };
-    
+
     filtered = photos.filter(shouldShowPhoto);
 
     // Apply search term filtering if search term exists
@@ -6929,7 +7013,7 @@ const PhotoGallery = ({
     }
 
     return filtered;
-  }, [isPromptSelectorMode, photos, themeGroupState, stylePrompts, selectedModel, searchTerm, favoriteImageIds, blockedPromptIds, hiddenThemeGroups]);
+  }, [isPromptSelectorMode, photos, themeGroupState, stylePrompts, selectedModel, searchTerm, favoriteImageIds, blockedPromptIds, hiddenThemeGroups, vibeExplorerMode]);
 
   // Handle deep link gallery parameter on load - must come after filteredPhotos is defined
   useEffect(() => {
@@ -12424,7 +12508,7 @@ const PhotoGallery = ({
               // Generate the full gallery image path with fallback logic
               // Skip special styles that don't have preview images
               const isIndividualStyle = selectedStyle && 
-                !['custom', 'random', 'randomMix', 'oneOfEach', 'browseGallery', 'copyImageStyle'].includes(selectedStyle);
+                !['custom', 'random', 'randomMix', 'oneOfEach', 'browseGallery', 'copyImageStyle', 'simplePick'].includes(selectedStyle);
               const folder = isIndividualStyle ? getPortraitFolderWithFallback(portraitType, selectedStyle, promptsDataRaw) : null;
               const stylePreviewImage = isIndividualStyle && folder
                 ? `${urls.assetUrl}/gallery/prompts/${folder}/${generateGalleryFilename(selectedStyle)}`
@@ -13254,17 +13338,25 @@ const PhotoGallery = ({
         <button
           className="view-photos-btn corner-btn"
           onClick={() => {
+            // Block navigation in Simple Mode with no selections
+            if (vibeExplorerMode === 'simple' && simplePickStyles.length === 0) return;
             // Close download dropdown if open
             if (showMoreDropdown) {
               setShowMoreDropdown(false);
+            }
+            // In Simple Mode, confirm selections before navigating back
+            if (vibeExplorerMode === 'simple' && onSimplePickSelect) {
+              onSimplePickSelect(simplePickStyles);
             }
             // Navigate back to menu
             handleBackToCamera();
           }}
           title="Return to main menu"
+          disabled={vibeExplorerMode === 'simple' && simplePickStyles.length === 0}
+          style={vibeExplorerMode === 'simple' && simplePickStyles.length === 0 ? { opacity: 0.5 } : undefined}
         >
           <span className="view-photos-label">
-            Continue
+            {vibeExplorerMode === 'simple' ? `Continue (${simplePickStyles.length}/16)` : 'Continue'}
           </span>
         </button>
       )}
@@ -14555,11 +14647,153 @@ const PhotoGallery = ({
             </h1>
           </div>
 
-
-          {/* Workflow Options */}
+          {/* Simple / Advanced Mode Toggle */}
           <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '4px',
+            marginTop: '20px',
             marginBottom: '16px',
-            marginTop: '20px'
+            background: 'rgba(0, 0, 0, 0.3)',
+            borderRadius: '24px',
+            padding: '4px',
+            width: 'fit-content',
+            margin: '20px auto 16px'
+          }}>
+            <button
+              onClick={() => handleVibeExplorerModeChange('simple')}
+              style={{
+                background: vibeExplorerMode === 'simple' ? 'rgba(114, 227, 242, 0.9)' : 'transparent',
+                color: vibeExplorerMode === 'simple' ? 'white' : 'rgba(255, 255, 255, 0.7)',
+                border: 'none',
+                borderRadius: '20px',
+                padding: '8px 20px',
+                fontSize: '13px',
+                fontFamily: '"Permanent Marker", cursive',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Simple
+            </button>
+            <button
+              onClick={() => handleVibeExplorerModeChange('advanced')}
+              style={{
+                background: vibeExplorerMode === 'advanced' ? 'rgba(114, 227, 242, 0.9)' : 'transparent',
+                color: vibeExplorerMode === 'advanced' ? 'white' : 'rgba(255, 255, 255, 0.7)',
+                border: 'none',
+                borderRadius: '20px',
+                padding: '8px 20px',
+                fontSize: '13px',
+                fontFamily: '"Permanent Marker", cursive',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Advanced
+            </button>
+          </div>
+
+          {/* Simple Mode header bar */}
+          {vibeExplorerMode === 'simple' && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '8px 20px',
+              marginBottom: '8px',
+              background: 'rgba(0, 0, 0, 0.2)',
+              borderRadius: '12px',
+              flexWrap: 'wrap',
+              gap: '8px'
+            }}>
+              <span style={{
+                fontSize: '14px',
+                fontFamily: '"Permanent Marker", cursive',
+                color: 'rgba(255, 255, 255, 0.9)'
+              }}>
+                Pick up to 16 vibes
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{
+                  fontSize: '14px',
+                  fontFamily: '"Permanent Marker", cursive',
+                  color: simplePickStyles.length >= 16 ? 'rgba(255, 200, 50, 1)' : 'rgba(114, 227, 242, 0.9)'
+                }}>
+                  {simplePickStyles.length}/16 selected
+                </span>
+                {simplePickStyles.length > 0 && (
+                  <button
+                    onClick={handleSimplePickClearAll}
+                    style={{
+                      background: 'rgba(255, 71, 87, 0.8)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      padding: '4px 12px',
+                      fontSize: '11px',
+                      fontFamily: '"Permanent Marker", cursive',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    Clear All
+                  </button>
+                )}
+                {/* Search toggle - reuses existing search state */}
+                <button
+                  onClick={() => setShowSearchInput(!showSearchInput)}
+                  style={{
+                    background: showSearchInput ? 'rgba(114, 227, 242, 0.3)' : 'transparent',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '32px',
+                    height: '32px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    fontSize: '16px'
+                  }}
+                  title="Search styles"
+                >
+                  🔍
+                </button>
+              </div>
+              {/* Inline search input */}
+              {showSearchInput && (
+                <div style={{ width: '100%' }}>
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      if (onSearchChange) onSearchChange(e.target.value);
+                    }}
+                    placeholder="Search styles..."
+                    autoFocus
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      color: 'white',
+                      fontSize: '14px',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Workflow Options - Advanced Mode Only */}
+          {vibeExplorerMode === 'advanced' && <div style={{
+            marginBottom: '16px',
+            marginTop: '0px'
           }}>
             <h2 style={{
               fontFamily: '"Permanent Marker", cursive',
@@ -14882,13 +15116,13 @@ const PhotoGallery = ({
               background: 'linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%)',
               margin: '16px 0'
             }} />
-          </div>
+          </div>}
         </div>
       )}
 
 
-      {/* "Or select a style" text row - centered */}
-      {isPromptSelectorMode && (
+      {/* "Or select a style" text row - centered (Advanced Mode only) */}
+      {isPromptSelectorMode && vibeExplorerMode === 'advanced' && (
         <div style={{
           display: 'flex',
           justifyContent: 'center',
@@ -14905,8 +15139,8 @@ const PhotoGallery = ({
         </div>
       )}
 
-      {/* Filter Styles Button and text - aligned on same line for prompt selector mode */}
-      {isPromptSelectorMode && (
+      {/* Filter Styles Button and text - aligned on same line for prompt selector mode (Advanced Mode only) */}
+      {isPromptSelectorMode && vibeExplorerMode === 'advanced' && (
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -15725,8 +15959,8 @@ const PhotoGallery = ({
                   )}
                 </div>
 
-                {/* Block prompt button - show in prompt selector mode for desktop (only if photo has promptKey, hide when video is playing) */}
-                {isPromptSelectorMode && !isMobile() && photo.promptKey && (activeVideoPhotoId !== (photo.id || photo.promptKey)) && (
+                {/* Block prompt button - show in prompt selector mode for desktop (only if photo has promptKey, hide when video is playing) - hidden in Simple Mode */}
+                {isPromptSelectorMode && vibeExplorerMode !== 'simple' && !isMobile() && photo.promptKey && (activeVideoPhotoId !== (photo.id || photo.promptKey)) && (
                   <div
                     className="photo-block-btn"
                     onClickCapture={(e) => {
@@ -15782,8 +16016,8 @@ const PhotoGallery = ({
                   </div>
                 )}
 
-                {/* Favorite heart button - show in prompt selector mode for desktop (only if photo has promptKey) */}
-                {isPromptSelectorMode && !isMobile() && photo.promptKey && (
+                {/* Favorite heart button - show in prompt selector mode for desktop (only if photo has promptKey) - hidden in Simple Mode */}
+                {isPromptSelectorMode && vibeExplorerMode !== 'simple' && !isMobile() && photo.promptKey && (
                   <div
                     className="photo-favorite-btn"
                     onClickCapture={(e) => {
@@ -15945,8 +16179,14 @@ const PhotoGallery = ({
                   }
                 }
                 
-                // In prompt selector mode, handle touch device clicks to toggle rollover state
+                // In prompt selector mode, handle clicks
                 if (isPromptSelectorMode) {
+                  // Simple Mode: toggle selection on click (both touch and desktop)
+                  if (vibeExplorerMode === 'simple' && photo.promptKey) {
+                    handleSimplePickToggle(photo.promptKey);
+                    return;
+                  }
+                  // Advanced Mode: toggle touch hover state
                   const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
                   if (isTouchDevice) {
                     // On touch devices, toggle touch hover to show/hide rollover overlay and icons
@@ -16036,7 +16276,11 @@ const PhotoGallery = ({
                 borderRadius: '2px',
                 boxShadow: isExtensionMode ? '0 4px 12px rgba(0, 0, 0, 0.5)' : '0 4px 12px rgba(0, 0, 0, 0.3)',
                 display: photo.hidden ? 'none' : 'flex',
-                flexDirection: 'column'
+                flexDirection: 'column',
+                ...(vibeExplorerMode === 'simple' && isPromptSelectorMode && photo.promptKey && simplePickStyles.includes(photo.promptKey) && {
+                  border: '3px solid rgba(114, 227, 242, 0.9)',
+                  boxShadow: '0 0 12px rgba(114, 227, 242, 0.4)'
+                })
               }}
             >
               <div style={{
@@ -16834,8 +17078,35 @@ const PhotoGallery = ({
                   </div>
                 )}
 
-                {/* "Use this vibe" button overlay - shows on hover (desktop) or when selected (touch) */}
-                {isPromptSelectorMode && photo.isGalleryImage && !wantsFullscreen && (activeVideoPhotoId !== (photo.id || photo.promptKey)) && (
+                {/* Simple Mode selection indicator - checkmark circle in top-left */}
+                {isPromptSelectorMode && vibeExplorerMode === 'simple' && photo.promptKey && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '8px',
+                    left: '8px',
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '50%',
+                    background: simplePickStyles.includes(photo.promptKey) ? 'rgba(114, 227, 242, 0.95)' : 'rgba(0, 0, 0, 0.4)',
+                    border: simplePickStyles.includes(photo.promptKey) ? '2px solid white' : '2px solid rgba(255, 255, 255, 0.6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 15,
+                    pointerEvents: 'none',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.3)'
+                  }}>
+                    {simplePickStyles.includes(photo.promptKey) && (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20 6L9 17L4 12" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </div>
+                )}
+
+                {/* "Use this vibe" button overlay - shows on hover (desktop) or when selected (touch) - hidden in Simple Mode */}
+                {isPromptSelectorMode && vibeExplorerMode !== 'simple' && photo.isGalleryImage && !wantsFullscreen && (activeVideoPhotoId !== (photo.id || photo.promptKey)) && (
                   <div 
                     className="use-vibe-overlay-container"
                     onClick={(e) => {
@@ -20724,6 +20995,7 @@ PhotoGallery.propTypes = {
   onRandomMixSelect: PropTypes.func,
   onRandomSingleSelect: PropTypes.func,
   onOneOfEachSelect: PropTypes.func,
+  onSimplePickSelect: PropTypes.func,
   onCustomSelect: PropTypes.func,
   onThemeChange: PropTypes.func,
   initialThemeGroupState: PropTypes.object,
