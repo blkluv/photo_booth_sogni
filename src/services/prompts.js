@@ -178,6 +178,15 @@ export const getRandomMixPrompts = (count, stylePrompts) => {
 };
 
 /**
+ * Gets prompts for user-selected "Simple Pick" styles.
+ * Assembles the selected style keys into pipe-separated format.
+ */
+export const getSimplePickPrompts = (selectedKeys, stylePrompts) => {
+  const prompts = selectedKeys.map(key => stylePrompts[key]).filter(Boolean);
+  return prompts.length > 0 ? `{${prompts.join('|')}}` : '';
+};
+
+/**
  * Get the list of edit prompt keys from the image-edit-prompts category
  */
 export const getEditPromptKeys = () => {

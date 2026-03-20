@@ -23,7 +23,8 @@ export const SPECIAL_STYLE_MODES = [
   'randomMix',
   'oneOfEach',
   'browseGallery',
-  'copyImageStyle'
+  'copyImageStyle',
+  'simplePick'
 ] as const;
 
 // Styles that should not appear in URL parameters (sampler modes + special modes)
@@ -32,7 +33,8 @@ export const URL_EXCLUDED_STYLES = [
   'random',
   'custom',
   'oneOfEach',
-  'copyImageStyle'
+  'copyImageStyle',
+  'simplePick'
 ] as const;
 
 // Styles that should not have hashtags
@@ -40,7 +42,8 @@ export const HASHTAG_EXCLUDED_STYLES = [
   'random',
   'randomMix',
   'oneOfEach',
-  'copyImageStyle'
+  'copyImageStyle',
+  'simplePick'
 ] as const;
 
 // Helper function to check if a style is a special mode (not a library style)

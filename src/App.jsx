@@ -8,10 +8,10 @@ import { styleIdToDisplay, normalizeSampler, normalizeScheduler } from './utils'
 import { getCustomDimensions } from './utils/imageProcessing';
 import { generateGalleryFilename, getPortraitFolderWithFallback } from './utils/galleryLoader';
 import { goToPreviousPhoto, goToNextPhoto } from './utils/photoNavigation';
-import { initializeStylePrompts, getRandomStyle, getRandomMixPrompts, isEditPrompt } from './services/prompts';
+import { initializeStylePrompts, getRandomStyle, getRandomMixPrompts, getSimplePickPrompts, isEditPrompt } from './services/prompts';
 import { rewritePromptForEditModel } from './services/promptRewriter';
 import { getDefaultThemeGroupState, getEnabledPrompts, getOneOfEachPrompts } from './constants/themeGroups';
-import { getThemeGroupPreferences, saveThemeGroupPreferences } from './utils/cookies';
+import { getThemeGroupPreferences, saveThemeGroupPreferences, getSimplePickStyles } from './utils/cookies';
 import { initializeSogniClient } from './services/sogni';
 import { isNetworkError } from './services/api';
 import { AuthStatus } from './components/auth/AuthStatus';
@@ -123,13 +123,13 @@ const updateUrlParams = (updates, options = {}) => {
 // Helper function to update URL with prompt parameter (backward compatibility)
 const updateUrlWithPrompt = (promptKey) => {
   updateUrlParams({ 
-    prompt: (!promptKey || ['randomMix', 'random', 'custom', 'oneOfEach', 'copyImageStyle'].includes(promptKey)) ? null : promptKey 
+    prompt: (!promptKey || ['randomMix', 'random', 'custom', 'oneOfEach', 'copyImageStyle', 'simplePick'].includes(promptKey)) ? null : promptKey
   });
 };
 
 // Helper function to get the hashtag for a style
 const getHashtagForStyle = (styleKey) => {
-  if (!styleKey || styleKey === 'random' || styleKey === 'randomMix' || styleKey === 'oneOfEach' || styleKey === 'copyImageStyle') {
+  if (!styleKey || styleKey === 'random' || styleKey === 'randomMix' || styleKey === 'oneOfEach' || styleKey === 'copyImageStyle' || styleKey === 'simplePick') {
     return null;
   }
   // For custom prompts, use #SogniPhotobooth
@@ -2076,7 +2076,7 @@ const App = () => {
   // --- Ensure handlers are defined here, before any JSX or usage ---
   // Helper function to check if a style is from the Christmas/Winter category
   const isWinterStyle = (styleKey) => {
-    if (!styleKey || styleKey === 'custom' || styleKey === 'random' || styleKey === 'randomMix' || styleKey === 'oneOfEach' || styleKey === 'browseGallery') {
+    if (!styleKey || styleKey === 'custom' || styleKey === 'random' || styleKey === 'randomMix' || styleKey === 'oneOfEach' || styleKey === 'browseGallery' || styleKey === 'simplePick') {
       return false;
     }
     const winterPrompts = promptsDataRaw['christmas-winter']?.prompts || {};
@@ -2318,8 +2318,15 @@ const App = () => {
       slothicornReference.current.classList.remove('animating');
     }
 
-    // Show the start menu so user can choose camera or upload
-    setShowStartMenu(true);
+    // In kiosk mode, skip the start menu and go directly to camera/adjuster
+    if (showSplashOnInactivity) {
+      // handleShowExistingCameraPhoto will show ImageAdjuster if there's a previous
+      // camera photo, or start the camera if there isn't one
+      handleShowExistingCameraPhoto();
+    } else {
+      // Show the start menu so user can choose camera or upload
+      setShowStartMenu(true);
+    }
   };
 
   const handleBackToPhotosFromPromptSelector = (fromPopStateOrEvent = false) => {
@@ -2488,6 +2495,16 @@ const App = () => {
     // Mark that user has explicitly selected a style
     localStorage.setItem('sogni_style_explicitly_selected', 'true');
     // Don't automatically redirect - let user choose to navigate with camera/photos buttons
+  };
+
+  const handleSimplePickFromPage = (selectedStyles) => {
+    updateSetting('selectedStyle', 'simplePick');
+    updateSetting('positivePrompt', '');
+    updateSetting('numImages', selectedStyles.length);
+    setCurrentHashtag(null);
+    updateSetting('halloweenContext', false);
+    updateUrlWithPrompt('simplePick');
+    localStorage.setItem('sogni_style_explicitly_selected', 'true');
   };
 
   const handleCustomFromSampleGallery = () => {
@@ -3118,7 +3135,7 @@ const App = () => {
               ([, value]) => value === strippedStylePrompt
             )?.[0];
 
-            if (foundStyleKey && foundStyleKey !== 'custom' && foundStyleKey !== 'random' && foundStyleKey !== 'randomMix') {
+            if (foundStyleKey && foundStyleKey !== 'custom' && foundStyleKey !== 'random' && foundStyleKey !== 'randomMix' && foundStyleKey !== 'simplePick') {
               styleTag = foundStyleKey;
             }
           }
@@ -3130,13 +3147,13 @@ const App = () => {
               ([, value]) => value === strippedPositivePrompt
             )?.[0];
 
-            if (foundStyleKey && foundStyleKey !== 'custom' && foundStyleKey !== 'random' && foundStyleKey !== 'randomMix') {
+            if (foundStyleKey && foundStyleKey !== 'custom' && foundStyleKey !== 'random' && foundStyleKey !== 'randomMix' && foundStyleKey !== 'simplePick') {
               styleTag = foundStyleKey;
             }
           }
 
           // Fall back to selectedStyle if available
-          if (styleTag === 'vaporwave' && selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix') {
+          if (styleTag === 'vaporwave' && selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix' && selectedStyle !== 'simplePick') {
             styleTag = selectedStyle;
           }
           
@@ -3577,7 +3594,7 @@ const App = () => {
     prevStyleRef.current = currentStyle;
     
     // Skip special styles that don't need model switching
-    if (['random', 'randomMix', 'oneOfEach', 'browseGallery', 'copyImageStyle'].includes(currentStyle)) {
+    if (['random', 'randomMix', 'oneOfEach', 'browseGallery', 'copyImageStyle', 'simplePick'].includes(currentStyle)) {
       return;
     }
     
@@ -5216,6 +5233,14 @@ const App = () => {
           console.warn('Error reading favorites for logging:', e);
         }
         finalPositivePrompt = getOneOfEachPrompts(latestThemeState, stylePrompts, numImages);
+      } else if (selectedStyle === 'simplePick') {
+        const selectedKeys = getSimplePickStyles();
+        if (selectedKeys.length === 0) {
+          const filteredPrompts = getFilteredPromptsForRandom();
+          finalPositivePrompt = getRandomMixPrompts(numImages, filteredPrompts);
+        } else {
+          finalPositivePrompt = getSimplePickPrompts(selectedKeys, stylePrompts);
+        }
       } else {
         // Use the selected style prompt, but skip if it's blocked
         if (blockedPrompts.includes(selectedStyle)) {
@@ -5389,7 +5414,7 @@ const App = () => {
               newlyArrived: false,
               statusText: 'Calling Art Robot',
               sourceType, // Include sourceType in generated photos
-              promptKey: (selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix' && selectedStyle !== 'oneOfEach') ? selectedStyle : undefined, // Track which style is being used
+              promptKey: (selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix' && selectedStyle !== 'oneOfEach' && selectedStyle !== 'simplePick') ? selectedStyle : undefined, // Track which style is being used
               originalStyleMode: selectedStyle, // Store the original style mode (including randomMix) for proper refresh behavior
               customSceneName: selectedStyle === 'custom' && customSceneName ? customSceneName : undefined, // Store custom scene name at creation time
               // Assign Taipei frame number based on photo index for equal distribution (1-6)
@@ -6583,7 +6608,7 @@ const App = () => {
         }
 
         // Strategy 3: Fall back to selectedStyle if it's a valid style
-        if (!hashtag && selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix' && selectedStyle !== 'oneOfEach') {
+        if (!hashtag && selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix' && selectedStyle !== 'oneOfEach' && selectedStyle !== 'simplePick') {
           console.log('📸 Using selectedStyle for hashtag:', selectedStyle);
           hashtag = `#${selectedStyle}`;
         }
@@ -6633,14 +6658,14 @@ const App = () => {
               }
               
               // Extract promptKey from hashtag or selectedStyle
-              const extractedPromptKey = hashtag ? hashtag.replace('#', '') : 
-                (selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix' && selectedStyle !== 'oneOfEach') ? selectedStyle : undefined;
+              const extractedPromptKey = hashtag ? hashtag.replace('#', '') :
+                (selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix' && selectedStyle !== 'oneOfEach' && selectedStyle !== 'simplePick') ? selectedStyle : undefined;
               
               // Determine statusText - use empty string for custom prompts (no placeholder)
               let statusText;
               if (hashtag) {
                 statusText = styleIdToDisplay(hashtag.replace('#', ''));
-              } else if (selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix') {
+              } else if (selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix' && selectedStyle !== 'simplePick') {
                 statusText = styleIdToDisplay(selectedStyle);
               } else {
                 statusText = ''; // No placeholder text
@@ -7771,6 +7796,7 @@ const App = () => {
                 onRandomMixSelect={handleRandomMixFromPage}
                 onRandomSingleSelect={handleRandomSingleFromPage}
                 onOneOfEachSelect={handleOneOfEachFromPage}
+                onSimplePickSelect={handleSimplePickFromPage}
                 onCustomSelect={handleCustomFromSampleGallery}
                 onThemeChange={handleThemeChange}
                 initialThemeGroupState={currentThemeState}
@@ -10636,8 +10662,8 @@ const App = () => {
                 {(() => {
                   // Generate the full gallery image path with fallback logic
                   // Skip special styles that don't have preview images
-                  const isIndividualStyle = selectedStyle && 
-                    !['custom', 'random', 'randomMix', 'oneOfEach', 'browseGallery', 'copyImageStyle'].includes(selectedStyle);
+                  const isIndividualStyle = selectedStyle &&
+                    !['custom', 'random', 'randomMix', 'oneOfEach', 'browseGallery', 'copyImageStyle', 'simplePick'].includes(selectedStyle);
                   const folder = isIndividualStyle ? getPortraitFolderWithFallback(portraitType, selectedStyle, promptsDataRaw) : null;
                   const stylePreviewImage = isIndividualStyle && folder
                     ? `${urls.assetUrl}/gallery/prompts/${folder}/${generateGalleryFilename(selectedStyle)}`

@@ -254,6 +254,9 @@ export function styleIdToDisplay(styleId: string): string {
   if (styleId === 'browseGallery') {
     return 'Browse Gallery';
   }
+  if (styleId === 'simplePick') {
+    return 'My Picks';
+  }
   if (styleId === 'random') {
     return 'Random: Single';
   }

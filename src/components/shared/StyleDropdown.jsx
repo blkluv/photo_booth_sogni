@@ -57,7 +57,7 @@ const StyleDropdown = ({
   const [isStyleModeOpen, setIsStyleModeOpen] = useState(() => {
     // Check if selectedStyle is an individual style (not a preset mode)
     const isIndividualStyle = selectedStyle && 
-      !['custom', 'random', 'randomMix', 'oneOfEach', 'browseGallery', 'copyImageStyle'].includes(selectedStyle);
+      !['custom', 'random', 'randomMix', 'oneOfEach', 'browseGallery', 'copyImageStyle', 'simplePick'].includes(selectedStyle);
     return !isIndividualStyle; // Collapse if individual style is selected
   });
   const [isThemesSectionOpen, setIsThemesSectionOpen] = useState(false);
@@ -802,7 +802,7 @@ const StyleDropdown = ({
                 </div>
               )}
               {Object.keys(defaultStylePrompts)
-          .filter(key => key !== 'random' && key !== 'custom' && key !== 'randomMix' && key !== 'oneOfEach' && key !== 'copyImageStyle')
+          .filter(key => key !== 'random' && key !== 'custom' && key !== 'randomMix' && key !== 'oneOfEach' && key !== 'copyImageStyle' && key !== 'simplePick')
           .filter(key => {
             // Apply theme pack filter
             const enabledPrompts = getEnabledPrompts(themeGroupState, defaultStylePrompts);

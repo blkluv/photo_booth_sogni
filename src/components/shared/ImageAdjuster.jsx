@@ -60,7 +60,7 @@ const ImageAdjuster = ({
   const stylePreviewImage = useMemo(() => {
     // Check if it's an individual style (not a prompt sampler mode)
     const isIndividualStyle = selectedStyle && 
-      !['custom', 'random', 'randomMix', 'oneOfEach', 'browseGallery', 'copyImageStyle'].includes(selectedStyle);
+      !['custom', 'random', 'randomMix', 'oneOfEach', 'browseGallery', 'copyImageStyle', 'simplePick'].includes(selectedStyle);
     
     if (isIndividualStyle) {
       try {

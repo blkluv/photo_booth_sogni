@@ -158,7 +158,7 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
       : stylePrompts;
     
     const availableStyles = Object.keys(filteredPrompts).filter(
-      key => !['custom', 'random', 'randomMix', 'oneOfEach', 'browseGallery'].includes(key)
+      key => !['custom', 'random', 'randomMix', 'oneOfEach', 'browseGallery', 'simplePick'].includes(key)
     );
     
     console.log('🎲 CameraStartMenu - randomStyleForSamplers recalculating:', {
@@ -226,6 +226,8 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
         return '✏️';
       case 'copyImageStyle':
         return '🎨';
+      case 'simplePick':
+        return '🎯';
       case 'browseGallery':
         return '🖼️';
       default:
@@ -250,7 +252,7 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
     }
     
     // For random sampler modes, show a random style image in the background
-    const isSamplerMode = selectedStyle && ['random', 'randomMix', 'oneOfEach'].includes(selectedStyle);
+    const isSamplerMode = selectedStyle && ['random', 'randomMix', 'oneOfEach', 'simplePick'].includes(selectedStyle);
     
     console.log('🖼️ stylePreviewImage recalculating:', {
       selectedStyle,
@@ -274,7 +276,7 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
     
     // Check if it's an individual style (not a prompt sampler mode or special mode)
     const isIndividualStyle = selectedStyle &&
-      !['custom', 'random', 'randomMix', 'oneOfEach', 'browseGallery', 'copyImageStyle'].includes(selectedStyle);
+      !['custom', 'random', 'randomMix', 'oneOfEach', 'browseGallery', 'copyImageStyle', 'simplePick'].includes(selectedStyle);
 
     if (isIndividualStyle) {
       try {
@@ -520,7 +522,7 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
                       ) : null}
                       {/* Only show icon in content area if there's no image (not for sampler modes) */}
                       {(() => {
-                        const isSamplerMode = selectedStyle && ['random', 'randomMix', 'oneOfEach'].includes(selectedStyle);
+                        const isSamplerMode = selectedStyle && ['random', 'randomMix', 'oneOfEach', 'simplePick'].includes(selectedStyle);
                         const shouldShowIcon = !stylePreviewImage && !isSamplerMode;
                         return (
                           <span 
@@ -534,7 +536,7 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
                     </div>
                     <div className="polaroid-label">
                       {(() => {
-                        const isSamplerMode = selectedStyle && ['random', 'randomMix', 'oneOfEach'].includes(selectedStyle);
+                        const isSamplerMode = selectedStyle && ['random', 'randomMix', 'oneOfEach', 'simplePick'].includes(selectedStyle);
                         if (isSamplerMode) {
                           const text = selectedStyle ? styleIdToDisplay(selectedStyle) : 'Select Style';
                           return <>{getStyleIcon} {text}</>;

@@ -337,6 +337,48 @@ export function markBatchVideoTipShown(): void {
   }
 }
 
+// Simple Pick styles utilities (Vibe Explorer Simple Mode)
+export function getSimplePickStyles(): string[] {
+  try {
+    const styles = localStorage.getItem('sogni_simple_pick_styles');
+    if (styles) {
+      return JSON.parse(styles) as string[];
+    }
+  } catch (e) {
+    console.warn('Error reading simple pick styles:', e);
+  }
+  return [];
+}
+
+export function saveSimplePickStyles(styles: string[]): void {
+  try {
+    localStorage.setItem('sogni_simple_pick_styles', JSON.stringify(styles));
+  } catch (e) {
+    console.warn('Error saving simple pick styles:', e);
+  }
+}
+
+// Vibe Explorer mode utilities (Simple/Advanced toggle)
+export function getVibeExplorerMode(): 'simple' | 'advanced' {
+  try {
+    const mode = localStorage.getItem('sogni_vibe_explorer_mode');
+    if (mode === 'simple' || mode === 'advanced') {
+      return mode;
+    }
+  } catch (e) {
+    console.warn('Error reading vibe explorer mode:', e);
+  }
+  return 'simple'; // Default to simple mode
+}
+
+export function saveVibeExplorerMode(mode: 'simple' | 'advanced'): void {
+  try {
+    localStorage.setItem('sogni_vibe_explorer_mode', mode);
+  } catch (e) {
+    console.warn('Error saving vibe explorer mode:', e);
+  }
+}
+
 // Utility function to clean up corrupted localStorage values
 export function cleanupCorruptedSettings(): void {
   try {

@@ -15356,11 +15356,8 @@ const PhotoGallery = ({
       {/* Theme Filters - Show when filter is toggled */}
       {isPromptSelectorMode && showThemeFilters && (
         <div style={{
-          background: 'rgba(255, 255, 255, 0.1)',
-          borderRadius: '12px',
           marginBottom: '16px',
-          padding: '16px 32px',
-          border: '1px solid rgba(255, 255, 255, 0.2)'
+          padding: '16px 32px'
         }}>
           {/* Theme filter content */}
           <div style={{
