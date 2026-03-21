@@ -205,4 +205,31 @@ export const isEditPrompt = (promptKey) => {
  */
 export const getEditPrompts = () => {
   return { ...editPromptsData };
+};
+
+/**
+ * Merge custom personalized prompts into the style prompts object.
+ * Custom prompts get keys like 'custom_0', 'custom_1', etc.
+ * @param {Object} stylePrompts - The existing style prompts object
+ * @param {Array} customPrompts - Array of {name, prompt, negativePrompt, imageFilename}
+ * @returns {Object} - Updated style prompts with custom prompts merged in
+ */
+export const mergeCustomPrompts = (stylePrompts, customPrompts) => {
+  if (!customPrompts || customPrompts.length === 0) return stylePrompts;
+
+  const merged = { ...stylePrompts };
+  customPrompts.forEach((cp, i) => {
+    merged[`custom_${i}`] = cp.prompt;
+  });
+  return merged;
+};
+
+/**
+ * Get prompts for user's custom personalized styles.
+ * Returns pipe-separated format for batch generation.
+ */
+export const getPersonalizedPrompts = (customPrompts) => {
+  if (!customPrompts || customPrompts.length === 0) return '';
+  const prompts = customPrompts.map(cp => cp.prompt).filter(Boolean);
+  return prompts.length > 0 ? `{${prompts.join('|')}}` : '';
 }; 

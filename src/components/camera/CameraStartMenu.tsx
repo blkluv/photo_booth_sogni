@@ -49,19 +49,9 @@ interface CameraStartMenuProps {
   selectedStyle?: string;
   onStyleSelect?: (style: string) => void;
   stylePrompts?: Record<string, string>;
-  selectedModel?: string;
-  onModelSelect?: (model: string) => void;
   onNavigateToGallery?: () => void;
-  onShowControlOverlay?: () => void;
-  onThemeChange?: (themeState: Record<string, boolean>) => void;
-  onCustomPromptChange?: (prompt: string, sceneName: string) => void;
-  currentCustomPrompt?: string;
-  currentCustomSceneName?: string;
   portraitType?: 'headshot' | 'medium';
   styleReferenceImage?: { blob: File; dataUrl: string; croppedBlob: Blob | null } | null;
-  onEditStyleReference?: () => void;
-  onCopyImageStyleSelect?: (file: File) => Promise<void>;
-  showToast?: (options: { message: string; type: string; title?: string }) => void;
   // Photo tracking props
   originalPhotoUrl?: string | null;
   photoSourceType?: 'camera' | 'upload' | null;
@@ -87,19 +77,9 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
   selectedStyle = '',
   onStyleSelect,
   stylePrompts = {},
-  selectedModel: _selectedModel = '',
-  onModelSelect: _onModelSelect,
   onNavigateToGallery,
-  onShowControlOverlay: _onShowControlOverlay,
-  onThemeChange: _onThemeChange,
-  onCustomPromptChange: _onCustomPromptChange,
-  currentCustomPrompt: _currentCustomPrompt = '',
-  currentCustomSceneName: _currentCustomSceneName = '',
   portraitType = 'medium',
   styleReferenceImage = null,
-  onEditStyleReference: _onEditStyleReference,
-  onCopyImageStyleSelect: _onCopyImageStyleSelect,
-  showToast: _showToast,
   originalPhotoUrl = null,
   photoSourceType = null,
   reusablePhotoUrl = null,

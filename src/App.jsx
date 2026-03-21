@@ -8,9 +8,10 @@ import { styleIdToDisplay, normalizeSampler, normalizeScheduler } from './utils'
 import { getCustomDimensions } from './utils/imageProcessing';
 import { generateGalleryFilename, getPortraitFolderWithFallback } from './utils/galleryLoader';
 import { goToPreviousPhoto, goToNextPhoto } from './utils/photoNavigation';
-import { initializeStylePrompts, getRandomStyle, getRandomMixPrompts, getSimplePickPrompts, isEditPrompt } from './services/prompts';
+import { initializeStylePrompts, getRandomStyle, getRandomMixPrompts, getSimplePickPrompts, isEditPrompt, mergeCustomPrompts } from './services/prompts';
 import { rewritePromptForEditModel } from './services/promptRewriter';
-import { getDefaultThemeGroupState, getEnabledPrompts, getOneOfEachPrompts } from './constants/themeGroups';
+import { fetchCustomPrompts as fetchPersonalizedPrompts } from './services/personalizeService';
+import { getDefaultThemeGroupState, getEnabledPrompts, getOneOfEachPrompts, injectPersonalizedThemeGroup, removePersonalizedThemeGroup } from './constants/themeGroups';
 import { getThemeGroupPreferences, saveThemeGroupPreferences, getSimplePickStyles } from './utils/cookies';
 import { initializeSogniClient } from './services/sogni';
 import { isNetworkError } from './services/api';
@@ -1669,7 +1670,22 @@ const App = () => {
   // Function to load prompts based on current model
   const loadPromptsForModel = async (modelId) => {
     try {
-      const prompts = await initializeStylePrompts(modelId);
+      let prompts = await initializeStylePrompts(modelId);
+      // Re-merge personalized prompts if user is authenticated
+      if (authState.isAuthenticated) {
+        try {
+          const client = authState.getSogniClient ? authState.getSogniClient() : null;
+          const address = client?.account?.currentAccount?.walletAddress;
+          if (address) {
+            const customPrompts = await fetchPersonalizedPrompts(address);
+            if (customPrompts.length > 0) {
+              prompts = mergeCustomPrompts(prompts, customPrompts);
+            }
+          }
+        } catch (err) {
+          console.error('[Personalize] Failed to re-merge custom prompts on model change:', err);
+        }
+      }
       setStylePrompts(prompts);
       console.log(`Loaded prompts for model ${modelId}:`, Object.keys(prompts).length);
     } catch (error) {
@@ -1681,6 +1697,33 @@ const App = () => {
   useEffect(() => {
     loadPromptsForModel(selectedModel);
   }, [selectedModel]);
+
+  // Load personalized prompts when authenticated
+  useEffect(() => {
+    if (!authState.isAuthenticated) return;
+    const client = authState.getSogniClient ? authState.getSogniClient() : null;
+    const address = client?.account?.currentAccount?.walletAddress;
+    if (!address) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const customPrompts = await fetchPersonalizedPrompts(address);
+        if (cancelled) return;
+        if (customPrompts.length > 0) {
+          // Merge custom prompts into stylePrompts
+          setStylePrompts(prev => mergeCustomPrompts(prev, customPrompts));
+          // Inject into theme groups for Advanced mode filtering
+          const keys = customPrompts.map((_, i) => `custom_${i}`);
+          injectPersonalizedThemeGroup(keys);
+        }
+      } catch (err) {
+        console.error('[Personalize] Failed to load custom prompts:', err);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [authState.isAuthenticated]);
 
   // Load themes on startup and set default theme if needed
   useEffect(() => {
@@ -2513,9 +2556,34 @@ const App = () => {
     updateSetting('halloweenContext', false); // Clear Halloween context (user is manually entering custom mode)
     // Update URL (custom will clear the prompt parameter)
     updateUrlWithPrompt('custom');
-    // Note: User can now edit custom prompt via the popup in StyleDropdown
+    // Note: User can now edit custom prompt via the Vibe Explorer
     // or through the settings overlay if they choose to open it manually
   };
+
+  // Callback to refresh stylePrompts after personalized prompts are saved/removed
+  const handleCustomPromptsUpdated = useCallback(async () => {
+    const client = authState.getSogniClient ? authState.getSogniClient() : null;
+    const address = client?.account?.currentAccount?.walletAddress;
+    if (!address) return;
+
+    try {
+      const customPrompts = await fetchPersonalizedPrompts(address);
+      if (customPrompts.length > 0) {
+        // Re-initialize base prompts then merge custom
+        const basePrompts = await initializeStylePrompts(settings.selectedModel);
+        setStylePrompts(mergeCustomPrompts(basePrompts, customPrompts));
+        const keys = customPrompts.map((_, i) => `custom_${i}`);
+        injectPersonalizedThemeGroup(keys);
+      } else {
+        // Reset to base prompts
+        const basePrompts = await initializeStylePrompts(settings.selectedModel);
+        setStylePrompts(basePrompts);
+        removePersonalizedThemeGroup();
+      }
+    } catch (err) {
+      console.error('[Personalize] Failed to refresh custom prompts:', err);
+    }
+  }, [settings.selectedModel]);
 
   // Update handlePositivePromptChange to use updateSetting
   const handlePositivePromptChange = (value) => {
@@ -7803,6 +7871,7 @@ const App = () => {
                 portraitType={portraitType}
                 onPortraitTypeChange={handlePortraitTypeChange}
                 authState={authState}
+                onCustomPromptsUpdated={handleCustomPromptsUpdated}
               />
             </div>
           )}
@@ -7822,23 +7891,9 @@ const App = () => {
             selectedStyle={selectedStyle}
             onStyleSelect={handleUpdateStyle}
             stylePrompts={stylePrompts}
-            selectedModel={selectedModel}
-            onModelSelect={switchToModel}
             onNavigateToGallery={handleNavigateToPromptSelector}
-            onShowControlOverlay={() => setShowControlOverlay(true)}
-            onThemeChange={handleThemeChange}
-            currentThemes={currentThemeState}
-            onCustomPromptChange={(prompt, sceneName) => {
-              updateSetting('positivePrompt', prompt);
-              updateSetting('customSceneName', sceneName || '');
-            }}
-            currentCustomPrompt={positivePrompt}
-            currentCustomSceneName={customSceneName}
             portraitType={portraitType}
             styleReferenceImage={styleReferenceImage}
-            onEditStyleReference={handleEditStyleReference}
-            onCopyImageStyleSelect={handleStyleReferenceUpload}
-            showToast={showToast}
             // Photo tracking props
             originalPhotoUrl={
               // Show lastCameraPhoto for camera preview

@@ -14,6 +14,7 @@ import analyticsRoutes from './routes/analytics.js';
 import contestRoutes from './routes/contestRoutes.js';
 import audioTranscodeRoutes from './routes/audioTranscode.js';
 import faceAnalysisRoutes from './routes/faceAnalysis.js';
+import personalizeRoutes from './routes/personalize.js';
 import process from 'process'; // Added to address linter error
 
 // Load environment variables FIRST
@@ -118,6 +119,7 @@ app.use('/api/analytics', analyticsRoutes); // Analytics routes
 app.use('/api/contest', contestRoutes); // Contest routes
 app.use('/api/audio', audioTranscodeRoutes); // Audio transcoding routes
 app.use('/api/face-analysis', faceAnalysisRoutes); // Face analysis routes
+app.use('/api/personalize', personalizeRoutes); // Personalize custom prompts routes
 // Note: Stripe payments call Sogni API directly via SDK (no backend proxy needed)
 
 // Health check endpoint

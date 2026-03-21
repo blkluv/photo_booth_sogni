@@ -12,11 +12,12 @@ import { downloadImageMobile, enableMobileImageDownload } from '../../utils/mobi
 import { isMobile, styleIdToDisplay } from '../../utils/index';
 import { getPreviousPhotoIndex, getNextPhotoIndex } from '../../utils/photoNavigation';
 import promptsDataRaw from '../../prompts.json';
-import { THEME_GROUPS, getDefaultThemeGroupState, getEnabledPrompts } from '../../constants/themeGroups';
+import { THEME_GROUPS, getDefaultThemeGroupState, getEnabledPrompts, injectPersonalizedThemeGroup, removePersonalizedThemeGroup } from '../../constants/themeGroups';
+import { fetchCustomPrompts, expandPrompts as expandPromptsAPI, saveCustomPrompts, resetCustomPrompts, getPreviewImageUrl } from '../../services/personalizeService';
 import { stripTransformationPrefix } from '../../constants/editPrompts';
 import { getThemeGroupPreferences, saveThemeGroupPreferences, getFavoriteImages, toggleFavoriteImage, saveFavoriteImages, getBlockedPrompts, blockPrompt, hasSeenBatchVideoTip, markBatchVideoTipShown, getSimplePickStyles, saveSimplePickStyles, getVibeExplorerMode, saveVibeExplorerMode } from '../../utils/cookies';
 import { getAttributionText } from '../../config/ugcAttributions';
-import { isContextImageModel, SAMPLE_GALLERY_CONFIG, getQRWatermarkConfig, DEFAULT_SETTINGS } from '../../constants/settings';
+import { isContextImageModel, isQwenImageEditLightningModel, SAMPLE_GALLERY_CONFIG, getQRWatermarkConfig, DEFAULT_SETTINGS } from '../../constants/settings';
 import { TRANSITION_MUSIC_PRESETS } from '../../constants/transitionMusicPresets';
 import { themeConfigService } from '../../services/themeConfig';
 import { useApp } from '../../context/AppContext';
@@ -963,7 +964,8 @@ const PhotoGallery = ({
   onNavigateToVibeExplorer = null, // Function to navigate to full vibe explorer
   onRegisterVideoIntroTrigger = null, // Callback to register function that triggers video intro popup
   onOpenLoginModal = null, // Function to open the login modal
-  onSimplePickSelect = null // Callback when user confirms Simple Mode selections
+  onSimplePickSelect = null, // Callback when user confirms Simple Mode selections
+  onCustomPromptsUpdated = null // Callback when personalized prompts change
 }) => {
   // Get settings from context
   const { settings, updateSetting } = useApp();
@@ -1498,10 +1500,19 @@ const PhotoGallery = ({
       }
       const saved = getThemeGroupPreferences();
       const defaultState = getDefaultThemeGroupState();
-      // If no saved preferences exist (empty object), use default state (all enabled)
-      return Object.keys(saved).length === 0 ? defaultState : { ...defaultState, ...saved };
+      const base = Object.keys(saved).length === 0 ? defaultState : { ...defaultState, ...saved };
+      // If personalized theme group was injected (by App.jsx on mount), enable it
+      if (THEME_GROUPS['personalized'] && base.personalized === undefined) {
+        base.personalized = true;
+      }
+      return base;
     }
-    return getDefaultThemeGroupState();
+    const defaultState = getDefaultThemeGroupState();
+    // If personalized theme group was injected (by App.jsx on mount), enable it
+    if (THEME_GROUPS['personalized'] && defaultState.personalized === undefined) {
+      defaultState.personalized = true;
+    }
+    return defaultState;
   });
   const [showThemeFilters, setShowThemeFilters] = useState(() => {
     // Always open filters by default in Vibe Explorer (prompt selector mode)
@@ -1524,6 +1535,68 @@ const PhotoGallery = ({
   const [vibeExplorerMode, setVibeExplorerMode] = useState(() => getVibeExplorerMode());
   const [simplePickStyles, setSimplePickStyles] = useState(() => getSimplePickStyles());
 
+  // State for Personalize mode
+  const [personalizeInput, setPersonalizeInput] = useState('');
+  const [personalizeExpanding, setPersonalizeExpanding] = useState(false);
+  const [personalizeExpandedPrompts, setPersonalizeExpandedPrompts] = useState([]);
+  const [personalizeSavedPrompts, setPersonalizeSavedPrompts] = useState([]);
+  const [personalizePreviewSource, setPersonalizePreviewSource] = useState(() => {
+    try {
+      return localStorage.getItem('sogni_personalize_preview_source') || 'einstein';
+    } catch { return 'einstein'; }
+  });
+  const [personalizeError, setPersonalizeError] = useState(null);
+  const [personalizeResetConfirm, setPersonalizeResetConfirm] = useState(false);
+  const [personalizePreviewUrls, setPersonalizePreviewUrls] = useState({}); // { index: url }
+  const [personalizeGeneratingPreviews, setPersonalizeGeneratingPreviews] = useState(false);
+
+  // Refs for personalize state (used in callbacks to avoid stale closures)
+  const personalizeSavedPromptsRef = useRef(personalizeSavedPrompts);
+  personalizeSavedPromptsRef.current = personalizeSavedPrompts;
+  const personalizeExpandedPromptsRef = useRef(personalizeExpandedPrompts);
+  personalizeExpandedPromptsRef.current = personalizeExpandedPrompts;
+  const personalizePreviewUrlsRef = useRef(personalizePreviewUrls);
+  personalizePreviewUrlsRef.current = personalizePreviewUrls;
+  const onCustomPromptsUpdatedRef = useRef(onCustomPromptsUpdated);
+  onCustomPromptsUpdatedRef.current = onCustomPromptsUpdated;
+
+  // Load saved custom prompts when entering Personalize mode
+  useEffect(() => {
+    if (vibeExplorerMode !== 'personalize') return;
+    if (!isAuthenticated || !sogniClient) return;
+
+    const address = sogniClient.account?.currentAccount?.walletAddress;
+    if (!address) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const saved = await fetchCustomPrompts(address);
+        if (!cancelled) {
+          setPersonalizeSavedPrompts(saved);
+          // Inject into theme groups for Advanced mode and enable in filter state
+          if (saved.length > 0) {
+            const keys = saved.map((_, i) => `custom_${i}`);
+            injectPersonalizedThemeGroup(keys);
+            // Ensure personalized group is enabled in theme state
+            setThemeGroupState(prev => {
+              if (prev.personalized === undefined || prev.personalized === true) {
+                // Only update if not explicitly set yet
+                const next = { ...prev, personalized: true };
+                saveThemeGroupPreferences(next);
+                return next;
+              }
+              return prev;
+            });
+          }
+        }
+      } catch (err) {
+        console.error('[Personalize] Failed to load custom prompts:', err);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [vibeExplorerMode, isAuthenticated]);
 
   // State for video overlay - track which photo's video is playing by photo ID (for easter egg videos)
   const [activeVideoPhotoId, setActiveVideoPhotoId] = useState(null);
@@ -6861,6 +6934,311 @@ const PhotoGallery = ({
     saveSimplePickStyles([]);
   }, []);
 
+  // Personalize mode handlers
+  const handlePersonalizeExpand = useCallback(async () => {
+    if (!personalizeInput.trim()) return;
+    const address = sogniClient?.account?.currentAccount?.walletAddress;
+    if (!address) return;
+
+    setPersonalizeExpanding(true);
+    setPersonalizeError(null);
+    setPersonalizeExpandedPrompts([]);
+    setPersonalizePreviewUrls({});
+
+    try {
+      const modelType = selectedModel && isContextImageModel(selectedModel) ? 'image-edit' : 'sd';
+      const expanded = await expandPromptsAPI(address, personalizeInput.trim(), modelType);
+      setPersonalizeExpandedPrompts(expanded);
+
+      // Generate preview images as a single batch using the selected model
+      if (sogniClient && expanded.length > 0) {
+        setPersonalizeGeneratingPreviews(true);
+
+        // Fetch the reference image based on preview source selection
+        let refImageBuffer = null;
+        try {
+          if (personalizePreviewSource === 'photo' && lastPhotoData?.blob) {
+            // Use the blob directly - no need to fetch the data URL
+            const arrayBuffer = await lastPhotoData.blob.arrayBuffer();
+            refImageBuffer = new Uint8Array(arrayBuffer);
+          } else {
+            const refUrl = personalizePreviewSource === 'jen'
+              ? '/gallery/sample-gallery-medium-body-jen.jpg'
+              : '/gallery/sample-gallery-headshot-einstein.jpg';
+            const refResponse = await fetch(refUrl);
+            const refBlob = await refResponse.blob();
+            const refArrayBuffer = await refBlob.arrayBuffer();
+            refImageBuffer = new Uint8Array(refArrayBuffer);
+          }
+        } catch (err) {
+          console.warn('[Personalize] Could not load reference image:', err);
+        }
+
+        try {
+          // Build batch prompt using pipe-separated template syntax (same as rest of app)
+          const batchPrompt = `{${expanded.map(p => p.prompt).join('|')}}`;
+          const usesContext = selectedModel && isContextImageModel(selectedModel);
+          const currentModel = selectedModel || 'coreml-sogniXLturbo_alpha1_ad';
+
+          const projectConfig = {
+            type: 'image',
+            modelId: currentModel,
+            positivePrompt: batchPrompt,
+            negativePrompt: expanded[0]?.negativePrompt || 'deformed, distorted, bad quality, blurry',
+            sizePreset: 'custom',
+            width: 512,
+            height: 768,
+            steps: usesContext ? 8 : 7,
+            guidance: usesContext ? 1.5 : 2,
+            numberOfMedia: expanded.length,
+            numberOfPreviews: 5,
+            // Only include sampler/scheduler for non-Lightning models
+            // Use SDK alias format (lowercase) since frontend adapter passes directly to SDK
+            ...(currentModel && isQwenImageEditLightningModel(currentModel) ? {} : {
+              sampler: usesContext ? 'euler' : 'dpmpp_sde',
+              scheduler: usesContext ? 'simple' : 'karras',
+            }),
+            outputFormat: 'jpg',
+            tokenType: 'spark'
+          };
+
+          // Attach reference image using the correct method for the model type
+          if (refImageBuffer) {
+            if (usesContext) {
+              // Qwen Image Edit / Flux models: use contextImages array
+              projectConfig.contextImages = [refImageBuffer];
+            } else {
+              // SDXL models: use controlNet with instantid for face preservation
+              projectConfig.controlNet = {
+                name: 'instantid',
+                image: refImageBuffer,
+                strength: 0.7,
+                mode: 'balanced',
+                guidanceStart: 0,
+                guidanceEnd: 0.6
+              };
+            }
+          }
+
+          const project = await sogniClient.projects.create(projectConfig);
+          const jobIndexMap = new Map();
+          let nextJobIndex = 0;
+          let completedCount = 0;
+
+          await new Promise((resolve) => {
+            const timeout = setTimeout(() => resolve(null), 90000); // 90s timeout for batch
+
+            project.on('jobStarted', (job) => {
+              if (!jobIndexMap.has(job.id)) {
+                jobIndexMap.set(job.id, nextJobIndex++);
+              }
+            });
+
+            project.on('jobCompleted', (event) => {
+              const url = event.resultUrl || event.imageUrl || event.previewUrl;
+              if (url) {
+                const index = jobIndexMap.has(event.id) ? jobIndexMap.get(event.id) : completedCount;
+                setPersonalizePreviewUrls(prev => ({ ...prev, [index]: url }));
+              }
+              completedCount++;
+              if (completedCount >= expanded.length) {
+                clearTimeout(timeout);
+                resolve(null);
+              }
+            });
+
+            project.on('jobFailed', () => {
+              completedCount++;
+              if (completedCount >= expanded.length) {
+                clearTimeout(timeout);
+                resolve(null);
+              }
+            });
+
+            project.on('failed', () => {
+              clearTimeout(timeout);
+              resolve(null);
+            });
+          });
+        } catch (err) {
+          console.warn('[Personalize] Batch preview generation failed:', err);
+        }
+        setPersonalizeGeneratingPreviews(false);
+      }
+    } catch (err) {
+      console.error('[Personalize] Expansion failed:', err);
+      setPersonalizeError(err.message || 'Failed to generate prompt ideas. Please try again.');
+      setPersonalizeGeneratingPreviews(false);
+    } finally {
+      setPersonalizeExpanding(false);
+    }
+  }, [personalizeInput, selectedModel]);
+
+  const handlePersonalizeSave = useCallback(async (promptsToSave) => {
+    const address = sogniClient?.account?.currentAccount?.walletAddress;
+    if (!address) return;
+
+    // Read current state via refs to avoid stale closures
+    const currentSaved = personalizeSavedPromptsRef.current;
+    const currentExpanded = personalizeExpandedPromptsRef.current;
+    const currentPreviewUrls = personalizePreviewUrlsRef.current;
+
+    // Merge with existing saved prompts (up to 16 total)
+    const merged = [...currentSaved];
+    for (const p of promptsToSave) {
+      if (merged.length >= 16) break;
+      // Avoid duplicates by name
+      if (!merged.find(existing => existing.name === p.name)) {
+        merged.push(p);
+      }
+    }
+
+    try {
+      // Fetch preview images from S3 URLs and prepare for upload
+      // Track which prompt index each blob belongs to for correct server mapping
+      const indexedBlobs = [];
+      for (let i = 0; i < merged.length; i++) {
+        const p = merged[i];
+        // Skip prompts that already have a saved image on the server
+        if (p.imageFilename) continue;
+
+        // Find this prompt's index in the expanded prompts
+        const expandedIdx = currentExpanded.findIndex(ep => ep.name === p.name && ep.prompt === p.prompt);
+        const previewUrl = expandedIdx >= 0 ? currentPreviewUrls[expandedIdx] : null;
+        if (previewUrl) {
+          try {
+            const imgResponse = await fetch(previewUrl);
+            indexedBlobs.push({ blob: await imgResponse.blob(), promptIndex: i });
+          } catch { /* skip failed fetches */ }
+        }
+      }
+
+      // Build FormData with correct index-based filenames
+      const formData = new FormData();
+      formData.append('prompts', JSON.stringify(merged));
+      for (const { blob, promptIndex } of indexedBlobs) {
+        formData.append('images', blob, `preview_${promptIndex}.jpg`);
+      }
+
+      const response = await fetch(`${urls.apiUrl}/api/personalize/${encodeURIComponent(address)}`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Save failed: ${response.status}`);
+      }
+      const data = await response.json();
+      const savedResult = data.prompts || merged;
+
+      setPersonalizeSavedPrompts(savedResult);
+      setPersonalizeExpandedPrompts([]);
+      setPersonalizePreviewUrls({});
+      setPersonalizeInput('');
+
+      // Update theme groups and enable in filter state
+      const keys = savedResult.map((_, i) => `custom_${i}`);
+      injectPersonalizedThemeGroup(keys);
+
+      // Ensure personalized group is enabled in theme state
+      setThemeGroupState(prev => {
+        const next = { ...prev, personalized: true };
+        saveThemeGroupPreferences(next);
+        return next;
+      });
+
+      // Reset Simple Pick to only personalized keys when custom prompts change
+      saveSimplePickStyles(keys);
+      setSimplePickStyles(keys);
+
+      // Notify parent to refresh stylePrompts with new custom prompts
+      if (onCustomPromptsUpdatedRef.current) onCustomPromptsUpdatedRef.current();
+    } catch (err) {
+      console.error('[Personalize] Save failed:', err);
+      setPersonalizeError(err.message || 'Failed to save prompts.');
+    }
+  }, []);
+
+  const handlePersonalizeRemove = useCallback(async (index) => {
+    const address = sogniClient?.account?.currentAccount?.walletAddress;
+    if (!address) return;
+
+    const updated = personalizeSavedPromptsRef.current.filter((_, i) => i !== index);
+
+    try {
+      if (updated.length === 0) {
+        await resetCustomPrompts(address);
+        removePersonalizedThemeGroup();
+        // Remove custom keys from Simple Pick
+        setSimplePickStyles(prev => {
+          const filtered = prev.filter(k => !k.startsWith('custom_'));
+          saveSimplePickStyles(filtered);
+          return filtered;
+        });
+      } else {
+        await saveCustomPrompts(address, updated);
+        const keys = updated.map((_, i) => `custom_${i}`);
+        injectPersonalizedThemeGroup(keys);
+        // Update Simple Pick to only include valid custom keys
+        setSimplePickStyles(prev => {
+          const filtered = prev.filter(k => !k.startsWith('custom_') || keys.includes(k));
+          saveSimplePickStyles(filtered);
+          return filtered;
+        });
+      }
+      setPersonalizeSavedPrompts(updated);
+
+      // Notify parent to refresh stylePrompts with updated custom prompts
+      if (onCustomPromptsUpdatedRef.current) onCustomPromptsUpdatedRef.current();
+    } catch (err) {
+      console.error('[Personalize] Remove failed:', err);
+    }
+  }, []);
+
+  const handlePersonalizeReset = useCallback(async () => {
+    const address = sogniClient?.account?.currentAccount?.walletAddress;
+    if (!address) return;
+
+    try {
+      await resetCustomPrompts(address);
+      setPersonalizeSavedPrompts([]);
+      setPersonalizeExpandedPrompts([]);
+      setPersonalizeInput('');
+      setPersonalizeResetConfirm(false);
+      setPersonalizePreviewUrls({});
+      removePersonalizedThemeGroup();
+
+      // Remove custom keys from Simple Pick
+      setSimplePickStyles(prev => {
+        const filtered = prev.filter(k => !k.startsWith('custom_'));
+        saveSimplePickStyles(filtered);
+        return filtered;
+      });
+
+      // Remove personalized from theme state
+      setThemeGroupState(prev => {
+        const next = { ...prev };
+        delete next.personalized;
+        saveThemeGroupPreferences(next);
+        return next;
+      });
+
+      // Notify parent to refresh stylePrompts (removes custom prompts)
+      if (onCustomPromptsUpdatedRef.current) onCustomPromptsUpdatedRef.current();
+    } catch (err) {
+      console.error('[Personalize] Reset failed:', err);
+      setPersonalizeError(err.message || 'Failed to reset prompts.');
+    }
+  }, []);
+
+  const handlePersonalizePreviewSourceChange = useCallback((source) => {
+    setPersonalizePreviewSource(source);
+    try {
+      localStorage.setItem('sogni_personalize_preview_source', source);
+    } catch { /* ignore */ }
+  }, []);
+
   // Get consistent photoId for favorites
   // Only use promptKey - this allows favoriting styles that can be reused for generation
   // Returns null if no promptKey (custom/random styles can't be favorited)
@@ -11486,7 +11864,7 @@ const PhotoGallery = ({
     const handleClickOutside = (event) => {
       if (!showSearchInput) return;
       const target = event.target;
-      const inSearchContainer = !!target.closest('.style-selector-text-container');
+      const inSearchContainer = !!target.closest('.style-selector-text-container') || !!target.closest('.simple-mode-header');
       const inSearchInput = !!target.closest('input[placeholder="Search styles..."]');
       const inClearButton = target.textContent === '✕';
       if (!inSearchContainer && !inSearchInput && !inClearButton) {
@@ -13280,6 +13658,7 @@ const PhotoGallery = ({
           className="view-photos-btn corner-btn"
           onClick={() => {
             // Block navigation in Simple Mode with no selections
+            if (vibeExplorerMode === 'personalize' && personalizeSavedPrompts.length === 0) return;
             if (vibeExplorerMode === 'simple' && simplePickStyles.length === 0) return;
             // Close download dropdown if open
             if (showMoreDropdown) {
@@ -13293,11 +13672,11 @@ const PhotoGallery = ({
             handleBackToCamera();
           }}
           title="Return to main menu"
-          disabled={vibeExplorerMode === 'simple' && simplePickStyles.length === 0}
-          style={vibeExplorerMode === 'simple' && simplePickStyles.length === 0 ? { opacity: 0.5 } : undefined}
+          disabled={(vibeExplorerMode === 'simple' && simplePickStyles.length === 0) || (vibeExplorerMode === 'personalize' && personalizeSavedPrompts.length === 0)}
+          style={(vibeExplorerMode === 'simple' && simplePickStyles.length === 0) || (vibeExplorerMode === 'personalize' && personalizeSavedPrompts.length === 0) ? { opacity: 0.5 } : undefined}
         >
           <span className="view-photos-label">
-            {vibeExplorerMode === 'simple' ? `Continue (${simplePickStyles.length}/16)` : 'Continue'}
+            {vibeExplorerMode === 'simple' ? `Continue (${simplePickStyles.length}/16)` : vibeExplorerMode === 'personalize' ? `Continue (${personalizeSavedPrompts.length} custom)` : 'Continue'}
           </span>
         </button>
       )}
@@ -14633,11 +15012,27 @@ const PhotoGallery = ({
             >
               Advanced
             </button>
+            <button
+              onClick={() => handleVibeExplorerModeChange('personalize')}
+              style={{
+                background: vibeExplorerMode === 'personalize' ? 'rgba(114, 227, 242, 0.9)' : 'transparent',
+                color: vibeExplorerMode === 'personalize' ? 'white' : 'rgba(255, 255, 255, 0.7)',
+                border: 'none',
+                borderRadius: '20px',
+                padding: '8px 20px',
+                fontSize: '13px',
+                fontFamily: '"Permanent Marker", cursive',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Personalize
+            </button>
           </div>
 
           {/* Simple Mode header bar */}
           {vibeExplorerMode === 'simple' && (
-            <div style={{
+            <div className="simple-mode-header" style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -14770,6 +15165,563 @@ const PhotoGallery = ({
                     }}
                   />
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Personalize Mode */}
+          {vibeExplorerMode === 'personalize' && (
+            <div style={{
+              padding: '32px',
+              maxWidth: '800px',
+              margin: '0 auto'
+            }}>
+              {!isAuthenticated ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '60px 20px',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  borderRadius: '20px',
+                  border: '1px solid rgba(255, 255, 255, 0.12)'
+                }}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>&#x2728;</div>
+                  <h3 style={{
+                    fontSize: '22px',
+                    fontFamily: '"Permanent Marker", cursive',
+                    color: 'white',
+                    margin: '0 0 8px'
+                  }}>
+                    Create Your Own Vibes
+                  </h3>
+                  <p style={{
+                    fontSize: '14px',
+                    color: 'rgba(255, 255, 255, 0.6)',
+                    margin: '0 0 24px',
+                    maxWidth: '400px',
+                    marginLeft: 'auto',
+                    marginRight: 'auto',
+                    lineHeight: 1.5
+                  }}>
+                    Log in to build a custom collection of up to 16 AI styles that are uniquely yours.
+                  </p>
+                  <button
+                    onClick={onOpenLoginModal}
+                    style={{
+                      background: 'linear-gradient(135deg, var(--brand-cta-start, #6c5ce7), var(--brand-cta-end, #a855f7))',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '24px',
+                      padding: '12px 32px',
+                      fontSize: '15px',
+                      fontFamily: '"Permanent Marker", cursive',
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 15px rgba(108, 92, 231, 0.4)',
+                      transition: 'transform 0.15s ease, box-shadow 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(108, 92, 231, 0.5)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(108, 92, 231, 0.4)'; }}
+                  >
+                    Log In to Get Started
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Empty state — no saved prompts yet */}
+                  {personalizeSavedPrompts.length === 0 && personalizeExpandedPrompts.length === 0 && !personalizeExpanding && (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '40px 20px 24px',
+                      marginBottom: '24px'
+                    }}>
+                      <div style={{ fontSize: '40px', marginBottom: '12px' }}>&#x1F3A8;</div>
+                      <h3 style={{
+                        fontSize: '20px',
+                        fontFamily: '"Permanent Marker", cursive',
+                        color: 'white',
+                        margin: '0 0 8px'
+                      }}>
+                        Design Your Collection
+                      </h3>
+                      <p style={{
+                        fontSize: '13px',
+                        color: 'rgba(255, 255, 255, 0.55)',
+                        margin: '0 0 4px',
+                        lineHeight: 1.5
+                      }}>
+                        Describe the styles you want and AI will craft up to 16 custom vibes just for you.
+                      </p>
+                      <p style={{
+                        fontSize: '12px',
+                        color: 'rgba(255, 255, 255, 0.4)',
+                        margin: 0,
+                        fontStyle: 'italic'
+                      }}>
+                        Try: "Give me 16 classic photobooth styles with silly hats and signs"
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Saved prompts header + grid */}
+                  {personalizeSavedPrompts.length > 0 && (
+                    <div style={{ marginBottom: '24px' }}>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '16px'
+                      }}>
+                        <h3 style={{
+                          margin: 0,
+                          fontSize: '16px',
+                          fontFamily: '"Permanent Marker", cursive',
+                          color: 'white'
+                        }}>
+                          Your Vibes ({personalizeSavedPrompts.length}/16)
+                        </h3>
+                        {!personalizeResetConfirm ? (
+                          <button
+                            onClick={() => setPersonalizeResetConfirm(true)}
+                            style={{
+                              background: 'rgba(255, 71, 87, 0.15)',
+                              color: 'rgba(255, 150, 150, 0.9)',
+                              border: '1px solid rgba(255, 71, 87, 0.3)',
+                              borderRadius: '16px',
+                              padding: '5px 16px',
+                              fontSize: '12px',
+                              fontFamily: '"Permanent Marker", cursive',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 71, 87, 0.3)'; e.currentTarget.style.color = 'white'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255, 71, 87, 0.15)'; e.currentTarget.style.color = 'rgba(255, 150, 150, 0.9)'; }}
+                          >
+                            Reset All
+                          </button>
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '12px', color: 'rgba(255, 180, 180, 0.9)' }}>Delete all vibes?</span>
+                            <button
+                              onClick={handlePersonalizeReset}
+                              style={{
+                                background: 'rgba(255, 71, 87, 0.8)',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '12px',
+                                padding: '4px 12px',
+                                fontSize: '11px',
+                                fontFamily: '"Permanent Marker", cursive',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Yes, Reset
+                            </button>
+                            <button
+                              onClick={() => setPersonalizeResetConfirm(false)}
+                              style={{
+                                background: 'rgba(255, 255, 255, 0.1)',
+                                color: 'rgba(255, 255, 255, 0.7)',
+                                border: 'none',
+                                borderRadius: '12px',
+                                padding: '4px 12px',
+                                fontSize: '11px',
+                                fontFamily: '"Permanent Marker", cursive',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                        gap: '24px',
+                        justifyItems: 'center'
+                      }}>
+                        {personalizeSavedPrompts.map((p, i) => (
+                          <div key={`saved-${i}`} style={{
+                            background: 'white',
+                            borderRadius: '4px',
+                            padding: '10px 10px 36px',
+                            position: 'relative',
+                            transition: 'all 0.2s ease',
+                            boxShadow: '0 4px 16px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.15)',
+                            transform: `rotate(${(i % 2 === 0 ? -1 : 1) * (0.5 + (i % 4))}deg)`,
+                            width: '100%',
+                            maxWidth: '200px'
+                          }}
+                            onMouseEnter={(e) => { e.currentTarget.style.transform = 'rotate(0deg) translateY(-3px) scale(1.02)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.3)'; e.currentTarget.querySelector('.saved-remove-btn').style.opacity = '1'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.transform = `rotate(${(i % 2 === 0 ? -1 : 1) * (0.5 + (i % 4))}deg)`; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.15)'; e.currentTarget.querySelector('.saved-remove-btn').style.opacity = '0'; }}
+                          >
+                            <div style={{
+                              width: '100%',
+                              aspectRatio: '2/3',
+                              borderRadius: '2px',
+                              overflow: 'hidden',
+                              background: '#1a1a2e'
+                            }}>
+                              {p.imageFilename && sogniClient?.account?.currentAccount?.walletAddress ? (
+                                <img
+                                  src={getPreviewImageUrl(sogniClient.account.currentAccount.walletAddress, p.imageFilename)}
+                                  alt={p.name}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                                />
+                              ) : (
+                                <div style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
+                                  fontSize: '32px',
+                                  opacity: 0.4
+                                }}>
+                                  &#x2728;
+                                </div>
+                              )}
+                            </div>
+                            <div style={{
+                              position: 'absolute',
+                              bottom: '8px',
+                              left: '10px',
+                              right: '10px',
+                              textAlign: 'center',
+                              fontSize: '11px',
+                              fontFamily: '"Permanent Marker", cursive',
+                              color: '#333',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              {p.name}
+                            </div>
+                            <button
+                              className="saved-remove-btn"
+                              onClick={(e) => { e.stopPropagation(); handlePersonalizeRemove(i); }}
+                              style={{
+                                position: 'absolute',
+                                top: '-8px',
+                                right: '-8px',
+                                background: 'rgba(255, 71, 87, 0.9)',
+                                color: 'white',
+                                border: '2px solid white',
+                                borderRadius: '50%',
+                                width: '24px',
+                                height: '24px',
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                lineHeight: 1,
+                                opacity: 0,
+                                transition: 'opacity 0.15s ease',
+                                boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                                zIndex: 2
+                              }}
+                              title="Remove this vibe"
+                            >
+                              x
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Input area */}
+                  {personalizeSavedPrompts.length < 16 && (
+                    <div style={{
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      borderRadius: '16px',
+                      padding: '16px',
+                      border: '1px solid rgba(255, 255, 255, 0.1)'
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        gap: '10px',
+                        alignItems: 'stretch'
+                      }}>
+                        <input
+                          type="text"
+                          value={personalizeInput}
+                          onChange={(e) => setPersonalizeInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !personalizeExpanding) {
+                              handlePersonalizeExpand();
+                            }
+                          }}
+                          placeholder={personalizeSavedPrompts.length === 0
+                            ? 'Describe the styles you want...'
+                            : `Add more vibes (${16 - personalizeSavedPrompts.length} slots left)...`}
+                          disabled={personalizeExpanding}
+                          style={{
+                            flex: 1,
+                            padding: '12px 16px',
+                            borderRadius: '12px',
+                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                            background: 'rgba(0, 0, 0, 0.2)',
+                            color: 'white',
+                            fontSize: '14px',
+                            outline: 'none',
+                            fontFamily: 'inherit',
+                            transition: 'border-color 0.15s ease'
+                          }}
+                          onFocus={(e) => { e.target.style.borderColor = 'rgba(114, 227, 242, 0.5)'; }}
+                          onBlur={(e) => { e.target.style.borderColor = 'rgba(255, 255, 255, 0.15)'; }}
+                        />
+                        <button
+                          onClick={handlePersonalizeExpand}
+                          disabled={personalizeExpanding || !personalizeInput.trim()}
+                          style={{
+                            background: personalizeExpanding
+                              ? 'rgba(114, 227, 242, 0.3)'
+                              : 'linear-gradient(135deg, rgba(114, 227, 242, 0.9), rgba(80, 200, 220, 0.9))',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '12px',
+                            padding: '12px 24px',
+                            fontSize: '14px',
+                            fontFamily: '"Permanent Marker", cursive',
+                            cursor: personalizeExpanding ? 'wait' : 'pointer',
+                            whiteSpace: 'nowrap',
+                            opacity: !personalizeInput.trim() ? 0.4 : 1,
+                            transition: 'all 0.15s ease',
+                            boxShadow: personalizeInput.trim() && !personalizeExpanding ? '0 2px 10px rgba(114, 227, 242, 0.3)' : 'none'
+                          }}
+                        >
+                          {personalizeExpanding ? 'Thinking...' : 'Generate'}
+                        </button>
+                      </div>
+
+                      {/* Reference image selector */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        marginTop: '12px',
+                        flexWrap: 'wrap'
+                      }}>
+                        <span style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.5)', fontFamily: '"Permanent Marker", cursive' }}>
+                          Preview face:
+                        </span>
+                        {[
+                          { key: 'einstein', label: 'Einstein', img: '/gallery/sample-gallery-headshot-einstein.jpg' },
+                          { key: 'jen', label: 'Jen', img: '/gallery/sample-gallery-medium-body-jen.jpg' },
+                          ...(lastPhotoData?.dataUrl ? [{ key: 'photo', label: 'Your Photo', img: lastPhotoData.dataUrl }] : [])
+                        ].map(opt => (
+                          <button
+                            key={opt.key}
+                            onClick={() => handlePersonalizePreviewSourceChange(opt.key)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '3px 12px 3px 3px',
+                              background: personalizePreviewSource === opt.key ? 'rgba(114, 227, 242, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+                              border: personalizePreviewSource === opt.key ? '1px solid rgba(114, 227, 242, 0.5)' : '1px solid rgba(255, 255, 255, 0.15)',
+                              borderRadius: '20px',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              color: 'white'
+                            }}
+                          >
+                            <div style={{
+                              width: '28px',
+                              height: '28px',
+                              borderRadius: '50%',
+                              overflow: 'hidden',
+                              flexShrink: 0
+                            }}>
+                              <img src={opt.img} alt={opt.label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                            </div>
+                            <span style={{ fontSize: '11px', fontFamily: '"Permanent Marker", cursive' }}>{opt.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Error message */}
+                  {personalizeError && (
+                    <div style={{
+                      background: 'rgba(255, 71, 87, 0.12)',
+                      border: '1px solid rgba(255, 71, 87, 0.3)',
+                      borderRadius: '12px',
+                      padding: '12px 16px',
+                      marginTop: '16px',
+                      fontSize: '13px',
+                      color: 'rgba(255, 180, 180, 0.9)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <span style={{ flexShrink: 0 }}>&#x26A0;&#xFE0F;</span>
+                      {personalizeError}
+                    </div>
+                  )}
+
+                  {/* Expanded prompts preview */}
+                  {personalizeExpandedPrompts.length > 0 && (
+                    <div style={{ marginTop: '24px' }}>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '12px'
+                      }}>
+                        <h3 style={{
+                          margin: 0,
+                          fontSize: '15px',
+                          fontFamily: '"Permanent Marker", cursive',
+                          color: 'white'
+                        }}>
+                          {personalizeExpandedPrompts.length} Ideas Generated
+                        </h3>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={() => handlePersonalizeSave(personalizeExpandedPrompts)}
+                            style={{
+                              background: 'linear-gradient(135deg, rgba(80, 200, 120, 0.8), rgba(60, 180, 100, 0.8))',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '16px',
+                              padding: '7px 18px',
+                              fontSize: '12px',
+                              fontFamily: '"Permanent Marker", cursive',
+                              cursor: 'pointer',
+                              boxShadow: '0 2px 8px rgba(80, 200, 120, 0.3)',
+                              transition: 'transform 0.1s ease'
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
+                          >
+                            Save All
+                          </button>
+                          <button
+                            onClick={() => { setPersonalizeExpandedPrompts([]); setPersonalizePreviewUrls({}); }}
+                            style={{
+                              background: 'none',
+                              color: 'rgba(255, 255, 255, 0.6)',
+                              border: '1px solid rgba(255, 255, 255, 0.2)',
+                              borderRadius: '16px',
+                              padding: '7px 18px',
+                              fontSize: '12px',
+                              fontFamily: '"Permanent Marker", cursive',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.4)'; e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'; e.currentTarget.style.color = 'rgba(255, 255, 255, 0.6)'; }}
+                          >
+                            Discard
+                          </button>
+                        </div>
+                      </div>
+                      {/* Polaroid-style preview grid */}
+                      {personalizeGeneratingPreviews && Object.keys(personalizePreviewUrls).length === 0 && (
+                        <div style={{ textAlign: 'center', padding: '20px', color: 'rgba(255,255,255,0.6)', fontSize: '13px' }}>
+                          Generating preview images...
+                        </div>
+                      )}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                        gap: '24px',
+                        justifyItems: 'center'
+                      }}>
+                        {personalizeExpandedPrompts.map((p, i) => (
+                          <div key={`expanded-${i}`}
+                            onClick={() => handlePersonalizeSave([p])}
+                            title="Click to save this vibe"
+                            style={{
+                              background: 'white',
+                              borderRadius: '4px',
+                              padding: '10px 10px 36px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              boxShadow: '0 4px 16px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.15)',
+                              transform: `rotate(${(i % 2 === 0 ? -1 : 1) * (1 + (i % 3))}deg)`,
+                              width: '100%',
+                              maxWidth: '220px',
+                              position: 'relative'
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.transform = 'rotate(0deg) translateY(-4px) scale(1.03)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.2)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.transform = `rotate(${(i % 2 === 0 ? -1 : 1) * (1 + (i % 3))}deg)`; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.15)'; }}
+                          >
+                            {/* Image area */}
+                            <div style={{
+                              width: '100%',
+                              aspectRatio: '2/3',
+                              borderRadius: '2px',
+                              overflow: 'hidden',
+                              background: '#1a1a2e',
+                              position: 'relative'
+                            }}>
+                              {personalizePreviewUrls[i] ? (
+                                <img
+                                  src={personalizePreviewUrls[i]}
+                                  alt={p.name}
+                                  style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    objectFit: 'cover',
+                                    display: 'block'
+                                  }}
+                                />
+                              ) : (
+                                <div style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
+                                  gap: '8px'
+                                }}>
+                                  {personalizeGeneratingPreviews ? (
+                                    <>
+                                      <div style={{
+                                        width: '24px',
+                                        height: '24px',
+                                        border: '2px solid rgba(114, 227, 242, 0.3)',
+                                        borderTopColor: 'rgba(114, 227, 242, 0.9)',
+                                        borderRadius: '50%',
+                                        animation: 'spin 1s linear infinite'
+                                      }} />
+                                      <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>Generating...</span>
+                                    </>
+                                  ) : (
+                                    <span style={{ fontSize: '32px', opacity: 0.3 }}>&#x1F3A8;</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            {/* Label */}
+                            <div style={{
+                              position: 'absolute',
+                              bottom: '8px',
+                              left: '10px',
+                              right: '10px',
+                              textAlign: 'center',
+                              fontSize: '11px',
+                              fontFamily: '"Permanent Marker", cursive',
+                              color: '#333',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              {p.name}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -15337,8 +16289,8 @@ const PhotoGallery = ({
         </div>
       )}
 
-      {/* Theme Filters - Show when filter is toggled */}
-      {isPromptSelectorMode && showThemeFilters && (
+      {/* Theme Filters - Show when filter is toggled (not in Personalize mode) */}
+      {isPromptSelectorMode && showThemeFilters && vibeExplorerMode !== 'personalize' && (
         <div style={{
           marginBottom: '16px',
           padding: '16px 32px'
@@ -15507,8 +16459,8 @@ const PhotoGallery = ({
         </div>
       )}
 
-      {/* Photo Grid - full width for both modes */}
-      <div 
+      {/* Photo Grid - full width for both modes (hidden in Personalize mode) */}
+      {!(isPromptSelectorMode && vibeExplorerMode === 'personalize') && <div
         className={`film-strip-content ${selectedPhotoIndex !== null && (!isPromptSelectorMode || wantsFullscreen) ? 'has-selected' : ''} ${isPromptSelectorMode ? 'prompt-selector-mode' : ''}`}
         onClick={(e) => {
           // Dismiss touch hover state when clicking in the grid background
@@ -17923,7 +18875,7 @@ const PhotoGallery = ({
             </div>
           );
         })}
-      </div>
+      </div>}
 
       {/* Gallery Carousel - show when in fullscreen mode in prompt selector */}
       {isPromptSelectorMode && wantsFullscreen && selectedPhotoIndex !== null && (

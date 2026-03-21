@@ -21,21 +21,44 @@ export const isImageEditPromptsCategory = (groupId) => {
 // Get ordered theme group IDs with image-edit-prompts right after favorites
 export const getOrderedThemeGroupIds = () => {
   const ids = Object.keys(THEME_GROUPS);
-  // Ensure favorites is first, then image-edit-prompts, then rest alphabetically
   const favorites = ids.filter(id => id === 'favorites');
+  const personalized = ids.filter(id => id === 'personalized');
   const imageEdit = ids.filter(id => id === IMAGE_EDIT_PROMPTS_CATEGORY);
-  const rest = ids.filter(id => id !== 'favorites' && id !== IMAGE_EDIT_PROMPTS_CATEGORY);
-  return [...favorites, ...imageEdit, ...rest];
+  const rest = ids.filter(id => id !== 'favorites' && id !== 'personalized' && id !== IMAGE_EDIT_PROMPTS_CATEGORY);
+  return [...favorites, ...personalized, ...imageEdit, ...rest];
 };
 
 // Default state - favorites, horror, and image-edit-prompts start unchecked, all other groups enabled
 export const getDefaultThemeGroupState = () => {
   const defaultState = {};
   Object.keys(THEME_GROUPS).forEach(groupId => {
-    // Favorites, horror, and image-edit-prompts start unchecked, all other groups start enabled
+    // Personalized is enabled by default, favorites/horror/image-edit-prompts start unchecked
     defaultState[groupId] = (groupId === 'favorites' || groupId === 'horror' || groupId === IMAGE_EDIT_PROMPTS_CATEGORY) ? false : true;
   });
   return defaultState;
+};
+
+/**
+ * Inject a "Personalized" theme group for user's custom prompts.
+ * Called when custom prompts are loaded from the backend.
+ * @param {string[]} promptKeys - Array of custom prompt keys (e.g., ['custom_0', 'custom_1', ...])
+ */
+export const injectPersonalizedThemeGroup = (promptKeys) => {
+  if (promptKeys.length > 0) {
+    THEME_GROUPS['personalized'] = {
+      name: 'Personalized',
+      prompts: promptKeys
+    };
+  } else {
+    delete THEME_GROUPS['personalized'];
+  }
+};
+
+/**
+ * Remove the "Personalized" theme group
+ */
+export const removePersonalizedThemeGroup = () => {
+  delete THEME_GROUPS['personalized'];
 };
 
 // Get all prompts that are enabled based on theme group selections

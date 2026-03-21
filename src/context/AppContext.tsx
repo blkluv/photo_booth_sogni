@@ -78,10 +78,6 @@ interface AppContextType {
   switchToModel: (modelId: string, pendingSettings?: Partial<Settings>) => void;
   resetSettings: () => void;
   
-  // Style Dropdown
-  showStyleDropdown: boolean;
-  setShowStyleDropdown: React.Dispatch<React.SetStateAction<boolean>>;
-  
   // Project State
   projectState: ProjectState;
   
@@ -108,9 +104,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   
   // Image loading state
   const [loadedImages, setLoadedImages] = useState<LoadedImagesState>({});
-  
-  // Style dropdown state
-  const [showStyleDropdown, setShowStyleDropdown] = useState(false);
   
   // Settings state
   const [settings, setSettings] = useState<Settings>(() => {
@@ -559,8 +552,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     updateSetting,
     switchToModel,
     resetSettings,
-    showStyleDropdown,
-    setShowStyleDropdown,
     projectState,
     showInfoModal,
     setShowInfoModal,
@@ -575,7 +566,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     selectedPhotoIndex,
     loadedImages,
     settings,
-    showStyleDropdown,
     showInfoModal,
     showPhotoGrid,
     dragActive,

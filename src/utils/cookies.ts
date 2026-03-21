@@ -359,10 +359,10 @@ export function saveSimplePickStyles(styles: string[]): void {
 }
 
 // Vibe Explorer mode utilities (Simple/Advanced toggle)
-export function getVibeExplorerMode(): 'simple' | 'advanced' {
+export function getVibeExplorerMode(): 'simple' | 'advanced' | 'personalize' {
   try {
     const mode = localStorage.getItem('sogni_vibe_explorer_mode');
-    if (mode === 'simple' || mode === 'advanced') {
+    if (mode === 'simple' || mode === 'advanced' || mode === 'personalize') {
       return mode;
     }
   } catch (e) {
@@ -371,7 +371,7 @@ export function getVibeExplorerMode(): 'simple' | 'advanced' {
   return 'simple'; // Default to simple mode
 }
 
-export function saveVibeExplorerMode(mode: 'simple' | 'advanced'): void {
+export function saveVibeExplorerMode(mode: 'simple' | 'advanced' | 'personalize'): void {
   try {
     localStorage.setItem('sogni_vibe_explorer_mode', mode);
   } catch (e) {

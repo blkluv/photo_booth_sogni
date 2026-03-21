@@ -1500,6 +1500,14 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
     min-height: 44px !important;
     font-weight: 600 !important;
   }
+
+  /* Reset padding/sizing for Simple mode header buttons (search icon, portrait toggle, clear all) */
+  .prompt-selector-header .simple-mode-header button {
+    padding: revert !important;
+    min-height: revert !important;
+    font-size: revert !important;
+    font-weight: revert !important;
+  }
   
   /* More prominent selected state on mobile */
   .prompt-selector-header button[style*="rgba(114, 227, 242, 0.9)"] {
