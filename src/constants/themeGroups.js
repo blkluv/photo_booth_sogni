@@ -96,6 +96,16 @@ export const getEnabledPrompts = (themeGroupState, allPrompts) => {
       }
     }
   });
+
+  // Handle personalized prompts even if the theme group hasn't been injected yet
+  // (async race: injectPersonalizedThemeGroup may not have run by generation time)
+  if (themeGroupState['personalized'] && !THEME_GROUPS['personalized']) {
+    Object.keys(allPrompts).forEach(key => {
+      if (key.startsWith('custom_')) {
+        enabledPromptNames.push(key);
+      }
+    });
+  }
   
   // Filter the allPrompts object to only include enabled prompts (and exclude blocked prompts)
   const enabledPrompts = {};

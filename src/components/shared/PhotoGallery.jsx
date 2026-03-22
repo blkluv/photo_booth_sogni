@@ -13338,7 +13338,7 @@ const PhotoGallery = ({
             <div className="photo-gallery-style-info">
               <div className="photo-gallery-style-label">Selected vibe</div>
               <div className="photo-gallery-style-text">
-                {selectedStyle === 'custom' ? 'Custom...' : selectedStyle ? styleIdToDisplay(selectedStyle) : 'Select Style'}
+                {selectedStyle === 'custom' ? 'Custom...' : ((selectedStyle === 'randomMix' || selectedStyle === 'simplePick') && themeGroupState['personalized'] === true && Object.entries(themeGroupState).every(([k, v]) => k === 'personalized' ? v : !v)) ? 'Personalized' : selectedStyle ? styleIdToDisplay(selectedStyle) : 'Select Style'}
               </div>
             </div>
           </div>

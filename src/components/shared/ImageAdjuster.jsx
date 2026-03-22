@@ -11,6 +11,8 @@ import { useCostEstimation } from '../../hooks/useCostEstimation.ts';
 import { getTokenLabel } from '../../services/walletService';
 import { styleIdToDisplay } from '../../utils';
 import { generateGalleryFilename, getPortraitFolderWithFallback } from '../../utils/galleryLoader';
+import { getThemeGroupPreferences } from '../../utils/cookies';
+import { getDefaultThemeGroupState } from '../../constants/themeGroups';
 import promptsDataRaw from '../../prompts.json';
 import { analyzeImageSubjects } from '../../services/faceAnalysisService';
 import { isContextImageModel, QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID } from '../../constants/settings';
@@ -53,6 +55,17 @@ const ImageAdjuster = ({
   const { showToast } = useToastContext();
   
   
+  // Check if only Personalized category is enabled (for label override)
+  const isOnlyPersonalizedEnabled = useMemo(() => {
+    const saved = getThemeGroupPreferences();
+    const defaultState = getDefaultThemeGroupState();
+    const themes = { ...defaultState, ...saved };
+    const entries = Object.entries(themes);
+    if (entries.length === 0) return false;
+    return themes['personalized'] === true &&
+      entries.every(([k, v]) => k === 'personalized' ? v : !v);
+  }, [selectedStyle]); // Re-check when style changes (proxy for settings update)
+
   // Generate preview image path for selected style
   const stylePreviewImage = useMemo(() => {
     // Check if it's an individual style (not a prompt sampler mode)
@@ -866,7 +879,7 @@ const ImageAdjuster = ({
             <div className="image-adjuster-style-info">
               <div className="image-adjuster-style-label">Selected vibe</div>
               <div className="image-adjuster-style-text">
-                {selectedStyle === 'custom' ? 'Custom...' : selectedStyle ? styleIdToDisplay(selectedStyle) : 'Select Style'}
+                {selectedStyle === 'custom' ? 'Custom...' : ((selectedStyle === 'randomMix' || selectedStyle === 'simplePick') && isOnlyPersonalizedEnabled) ? 'Personalized' : selectedStyle ? styleIdToDisplay(selectedStyle) : 'Select Style'}
               </div>
             </div>
           </div>

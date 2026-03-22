@@ -470,6 +470,14 @@ const App = () => {
     return { ...defaultState, ...saved };
   });
 
+  // Check if only Personalized category is enabled (for label overrides)
+  const isOnlyPersonalizedEnabled = useMemo(() => {
+    const entries = Object.entries(currentThemeState);
+    if (entries.length === 0) return false;
+    return currentThemeState['personalized'] === true &&
+      entries.every(([k, v]) => k === 'personalized' ? v : !v);
+  }, [currentThemeState]);
+
   // Store personalized prompts data for preview images on start menu
   const [personalizePrompts, setPersonalizePrompts] = useState(null);
   const [personalizeAddress, setPersonalizeAddress] = useState(null);
@@ -503,6 +511,16 @@ const App = () => {
       const newThemeState = { ...defaultState, ...saved };
       setCurrentThemeState(newThemeState);
       console.log('🎨 Re-read theme preferences from localStorage:', newThemeState);
+    }
+
+    // Validate stale simplePick: if selectedStyle is 'simplePick' but no picks exist,
+    // reset to 'randomMix' which properly handles category-aware filtering
+    if (settings.selectedStyle === 'simplePick') {
+      const picks = getSimplePickStyles();
+      if (picks.length === 0) {
+        console.log('🎯 Resetting stale simplePick to randomMix (no picks in storage)');
+        updateSetting('selectedStyle', 'randomMix');
+      }
     }
   }, [currentPage]); // Re-read when navigating between pages
 
@@ -5378,8 +5396,16 @@ const App = () => {
       } else if (selectedStyle === 'simplePick') {
         const selectedKeys = getSimplePickStyles();
         if (selectedKeys.length === 0) {
-          const filteredPrompts = getFilteredPromptsForRandom();
-          finalPositivePrompt = getRandomMixPrompts(numImages, filteredPrompts);
+          // No explicit picks — check if personalized prompts exist in stylePrompts
+          // and use them directly if only the Personalized category is enabled
+          const customKeys = Object.keys(stylePrompts).filter(k => k.startsWith('custom_'));
+          if (customKeys.length > 0) {
+            console.log('🎯 simplePick has no stored picks, using personalized prompts directly:', customKeys);
+            finalPositivePrompt = getSimplePickPrompts(customKeys, stylePrompts);
+          } else {
+            const filteredPrompts = getFilteredPromptsForRandom();
+            finalPositivePrompt = getRandomMixPrompts(numImages, filteredPrompts);
+          }
         } else {
           finalPositivePrompt = getSimplePickPrompts(selectedKeys, stylePrompts);
         }
@@ -10804,7 +10830,7 @@ const App = () => {
                 <div className="camera-view-style-info">
                   <div className="camera-view-style-label">Selected vibe</div>
                   <div className="camera-view-style-text">
-                    {selectedStyle === 'custom' ? 'Custom...' : selectedStyle ? styleIdToDisplay(selectedStyle) : 'Select Style'}
+                    {selectedStyle === 'custom' ? 'Custom...' : ((selectedStyle === 'randomMix' || selectedStyle === 'simplePick') && isOnlyPersonalizedEnabled) ? 'Personalized' : selectedStyle ? styleIdToDisplay(selectedStyle) : 'Select Style'}
                   </div>
                 </div>
               </div>
