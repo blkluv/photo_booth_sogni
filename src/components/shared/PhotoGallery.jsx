@@ -14,6 +14,7 @@ import { getPreviousPhotoIndex, getNextPhotoIndex } from '../../utils/photoNavig
 import promptsDataRaw from '../../prompts.json';
 import { THEME_GROUPS, getDefaultThemeGroupState, getEnabledPrompts, injectPersonalizedThemeGroup, removePersonalizedThemeGroup } from '../../constants/themeGroups';
 import { fetchCustomPrompts, expandPrompts as expandPromptsAPI, saveCustomPrompts, resetCustomPrompts, getPreviewImageUrl, getPersonalizeAddress } from '../../services/personalizeService';
+import { exportPersonalizeZip, importPersonalizeZip } from '../../utils/personalizeExport';
 import { stripTransformationPrefix } from '../../constants/editPrompts';
 import { getThemeGroupPreferences, saveThemeGroupPreferences, getFavoriteImages, toggleFavoriteImage, saveFavoriteImages, getBlockedPrompts, blockPrompt, hasSeenBatchVideoTip, markBatchVideoTipShown, getSimplePickStyles, saveSimplePickStyles, getVibeExplorerMode, saveVibeExplorerMode, getPersonalizeModelType, savePersonalizeModelType } from '../../utils/cookies';
 import { getAttributionText } from '../../config/ugcAttributions';
@@ -1564,6 +1565,9 @@ const PhotoGallery = ({
 
   const [personalizeError, setPersonalizeError] = useState(null);
   const [personalizeResetConfirm, setPersonalizeResetConfirm] = useState(false);
+  const [personalizeExporting, setPersonalizeExporting] = useState(false);
+  const [personalizeImporting, setPersonalizeImporting] = useState(false);
+  const [personalizeImportConfirm, setPersonalizeImportConfirm] = useState(null); // holds File when confirming
   const [personalizePreviewUrls, setPersonalizePreviewUrls] = useState({}); // { [promptId]: url }
   const [personalizeGeneratingPreviews, setPersonalizeGeneratingPreviews] = useState(false);
   const [personalizeSavingCards, setPersonalizeSavingCards] = useState({}); // { [promptId]: 'saving' | 'saved' | 'error' }
@@ -1589,6 +1593,7 @@ const PhotoGallery = ({
   personalizePreviewUrlsRef.current = personalizePreviewUrls;
   const personalizePreviewSoundPlayed = useRef(new Set()); // Track which preview prompt IDs have played sound
   const personalizeIdCounter = useRef(0); // Monotonic counter for unique prompt IDs
+  const personalizeImportInputRef = useRef(null);
   const flashSoundSources = useMemo(() => [flash1Sound, flash2Sound, flash3Sound, flash4Sound, flash5Sound, flash6Sound], []);
   const onCustomPromptsUpdatedRef = useRef(onCustomPromptsUpdated);
   onCustomPromptsUpdatedRef.current = onCustomPromptsUpdated;
@@ -7544,6 +7549,112 @@ const PhotoGallery = ({
     personalizeMutexRef.current = operation.catch(() => {});
     return operation;
   }, []);
+
+  const handlePersonalizeExport = useCallback(async () => {
+    const address = getPersonalizeAddress(sogniClientRef.current);
+    if (!address || personalizeSavedPrompts.length === 0) return;
+
+    setPersonalizeExporting(true);
+    try {
+      const success = await exportPersonalizeZip(personalizeSavedPrompts, personalizeModelType, address);
+      if (success) {
+        showToast({ title: 'Export Complete', message: 'Your vibes have been exported.', type: 'success', timeout: 3000 });
+      } else {
+        showToast({ title: 'Export Failed', message: 'Could not create the export file.', type: 'error', timeout: 5000 });
+      }
+    } catch (err) {
+      console.error('[Personalize] Export failed:', err);
+      showToast({ title: 'Export Failed', message: err.message || 'Could not create the export file.', type: 'error', timeout: 5000 });
+    } finally {
+      setPersonalizeExporting(false);
+    }
+  }, [personalizeSavedPrompts, personalizeModelType, showToast]);
+
+  const handlePersonalizeImportSelect = useCallback((e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Reset the input so the same file can be re-selected
+    e.target.value = '';
+
+    if (personalizeSavedPromptsRef.current.length > 0) {
+      setPersonalizeImportConfirm(file);
+    } else {
+      handlePersonalizeImportExecute(file);
+    }
+  }, []);
+
+  const handlePersonalizeImportExecute = useCallback(async (file) => {
+    const address = getPersonalizeAddress(sogniClientRef.current);
+    if (!address) return;
+
+    setPersonalizeImportConfirm(null);
+    setPersonalizeImporting(true);
+
+    const operation = personalizeMutexRef.current.then(async () => {
+      try {
+        const { modelType, prompts } = await importPersonalizeZip(file);
+
+        // Reset existing prompts
+        await resetCustomPrompts(address);
+
+        // Save imported prompts (with previewImageUrl data URLs for backend to process)
+        const savedPrompts = await saveCustomPrompts(address, prompts, modelType);
+
+        // Assign fresh client-side IDs
+        const withIds = savedPrompts.map(p => ({ ...p, id: `pz_${++personalizeIdCounter.current}` }));
+
+        // Update all state
+        setPersonalizeSavedPrompts(withIds);
+        setPersonalizeExpandedPrompts([]);
+        setPersonalizeInput('');
+        setPersonalizeModelType(modelType);
+        setPersonalizePreviewUrls({});
+
+        // Rebuild theme groups and simple pick styles
+        if (withIds.length > 0) {
+          injectPersonalizedThemeGroup(withIds);
+          setThemeGroupState(prev => {
+            const next = { ...prev, personalized: true };
+            saveThemeGroupPreferences(next);
+            return next;
+          });
+          // Update Simple Pick with custom keys
+          const customKeys = withIds.map((_, i) => `custom_${i}`);
+          setSimplePickStyles(prev => {
+            const filtered = prev.filter(k => !k.startsWith('custom_'));
+            const merged = [...filtered, ...customKeys];
+            saveSimplePickStyles(merged);
+            return merged;
+          });
+        } else {
+          removePersonalizedThemeGroup();
+          setThemeGroupState(prev => {
+            const next = { ...prev };
+            delete next.personalized;
+            saveThemeGroupPreferences(next);
+            return next;
+          });
+          setSimplePickStyles(prev => {
+            const filtered = prev.filter(k => !k.startsWith('custom_'));
+            saveSimplePickStyles(filtered);
+            return filtered;
+          });
+        }
+
+        // Notify parent to refresh stylePrompts
+        if (onCustomPromptsUpdatedRef.current) onCustomPromptsUpdatedRef.current();
+
+        showToast({ title: 'Import Complete', message: `Imported ${withIds.length} vibes.`, type: 'success', timeout: 3000 });
+      } catch (err) {
+        console.error('[Personalize] Import failed:', err);
+        showToast({ title: 'Import Failed', message: err.message || 'Could not import the file.', type: 'error', timeout: 5000 });
+      } finally {
+        setPersonalizeImporting(false);
+      }
+    });
+    personalizeMutexRef.current = operation.catch(() => {});
+    return operation;
+  }, [showToast]);
 
   const handlePersonalizePreviewSourceChange = useCallback((source) => {
     setPersonalizePreviewSource(source);
@@ -15613,60 +15724,153 @@ const PhotoGallery = ({
                         }}>
                           Your Vibes ({personalizeSavedPrompts.length})
                         </h3>
-                        {!personalizeResetConfirm ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {/* Hidden file input for import */}
+                          <input
+                            ref={personalizeImportInputRef}
+                            type="file"
+                            accept=".zip"
+                            style={{ display: 'none' }}
+                            onChange={handlePersonalizeImportSelect}
+                          />
+
+                          {/* Export button */}
                           <button
-                            onClick={() => setPersonalizeResetConfirm(true)}
+                            onClick={handlePersonalizeExport}
+                            disabled={personalizeExporting || personalizeImporting || personalizeSavedPrompts.length === 0}
                             style={{
-                              background: 'rgba(255, 71, 87, 0.15)',
-                              color: 'rgba(255, 150, 150, 0.9)',
-                              border: '1px solid rgba(255, 71, 87, 0.3)',
+                              background: 'rgba(100, 200, 255, 0.15)',
+                              color: personalizeExporting ? 'rgba(150, 200, 255, 0.5)' : 'rgba(150, 200, 255, 0.9)',
+                              border: '1px solid rgba(100, 200, 255, 0.3)',
                               borderRadius: '16px',
                               padding: '5px 16px',
                               fontSize: '12px',
                               fontFamily: '"Permanent Marker", cursive',
-                              cursor: 'pointer',
+                              cursor: personalizeExporting || personalizeSavedPrompts.length === 0 ? 'not-allowed' : 'pointer',
+                              opacity: personalizeSavedPrompts.length === 0 ? 0.4 : 1,
                               transition: 'all 0.15s ease'
                             }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 71, 87, 0.3)'; e.currentTarget.style.color = 'white'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255, 71, 87, 0.15)'; e.currentTarget.style.color = 'rgba(255, 150, 150, 0.9)'; }}
+                            onMouseEnter={(e) => { if (!personalizeExporting && personalizeSavedPrompts.length > 0) { e.currentTarget.style.background = 'rgba(100, 200, 255, 0.3)'; e.currentTarget.style.color = 'white'; } }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(100, 200, 255, 0.15)'; e.currentTarget.style.color = 'rgba(150, 200, 255, 0.9)'; }}
                           >
-                            Reset All
+                            {personalizeExporting ? 'Exporting...' : 'Export'}
                           </button>
-                        ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '12px', color: 'rgba(255, 180, 180, 0.9)' }}>Delete all vibes?</span>
+
+                          {/* Import button or confirmation */}
+                          {personalizeImportConfirm ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '12px', color: 'rgba(255, 200, 150, 0.9)' }}>
+                                Replace {personalizeSavedPrompts.length} vibes?
+                              </span>
+                              <button
+                                onClick={() => handlePersonalizeImportExecute(personalizeImportConfirm)}
+                                style={{
+                                  background: 'rgba(255, 165, 0, 0.3)',
+                                  color: 'white',
+                                  border: '1px solid rgba(255, 165, 0, 0.5)',
+                                  borderRadius: '16px',
+                                  padding: '5px 12px',
+                                  fontSize: '12px',
+                                  fontFamily: '"Permanent Marker", cursive',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Yes, Import
+                              </button>
+                              <button
+                                onClick={() => setPersonalizeImportConfirm(null)}
+                                style={{
+                                  background: 'rgba(255, 255, 255, 0.1)',
+                                  color: 'rgba(255, 255, 255, 0.7)',
+                                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                                  borderRadius: '16px',
+                                  padding: '5px 12px',
+                                  fontSize: '12px',
+                                  fontFamily: '"Permanent Marker", cursive',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
                             <button
-                              onClick={handlePersonalizeReset}
+                              onClick={() => personalizeImportInputRef.current?.click()}
+                              disabled={personalizeImporting}
                               style={{
-                                background: 'rgba(255, 71, 87, 0.8)',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '12px',
-                                padding: '4px 12px',
-                                fontSize: '11px',
+                                background: 'rgba(100, 200, 255, 0.15)',
+                                color: personalizeImporting ? 'rgba(150, 200, 255, 0.5)' : 'rgba(150, 200, 255, 0.9)',
+                                border: '1px solid rgba(100, 200, 255, 0.3)',
+                                borderRadius: '16px',
+                                padding: '5px 16px',
+                                fontSize: '12px',
                                 fontFamily: '"Permanent Marker", cursive',
-                                cursor: 'pointer'
+                                cursor: personalizeImporting ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.15s ease'
                               }}
+                              onMouseEnter={(e) => { if (!personalizeImporting) { e.currentTarget.style.background = 'rgba(100, 200, 255, 0.3)'; e.currentTarget.style.color = 'white'; } }}
+                              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(100, 200, 255, 0.15)'; e.currentTarget.style.color = 'rgba(150, 200, 255, 0.9)'; }}
                             >
-                              Yes, Reset
+                              {personalizeImporting ? 'Importing...' : 'Import'}
                             </button>
+                          )}
+
+                          {/* Reset All button */}
+                          {!personalizeResetConfirm ? (
                             <button
-                              onClick={() => setPersonalizeResetConfirm(false)}
+                              onClick={() => setPersonalizeResetConfirm(true)}
                               style={{
-                                background: 'rgba(255, 255, 255, 0.1)',
-                                color: 'rgba(255, 255, 255, 0.7)',
-                                border: 'none',
-                                borderRadius: '12px',
-                                padding: '4px 12px',
-                                fontSize: '11px',
+                                background: 'rgba(255, 71, 87, 0.15)',
+                                color: 'rgba(255, 150, 150, 0.9)',
+                                border: '1px solid rgba(255, 71, 87, 0.3)',
+                                borderRadius: '16px',
+                                padding: '5px 16px',
+                                fontSize: '12px',
                                 fontFamily: '"Permanent Marker", cursive',
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease'
                               }}
+                              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 71, 87, 0.3)'; e.currentTarget.style.color = 'white'; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255, 71, 87, 0.15)'; e.currentTarget.style.color = 'rgba(255, 150, 150, 0.9)'; }}
                             >
-                              Cancel
+                              Reset All
                             </button>
-                          </div>
-                        )}
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '12px', color: 'rgba(255, 180, 180, 0.9)' }}>Delete all vibes?</span>
+                              <button
+                                onClick={handlePersonalizeReset}
+                                style={{
+                                  background: 'rgba(255, 71, 87, 0.8)',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '12px',
+                                  padding: '4px 12px',
+                                  fontSize: '11px',
+                                  fontFamily: '"Permanent Marker", cursive',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Yes, Reset
+                              </button>
+                              <button
+                                onClick={() => setPersonalizeResetConfirm(false)}
+                                style={{
+                                  background: 'rgba(255, 255, 255, 0.1)',
+                                  color: 'rgba(255, 255, 255, 0.7)',
+                                  border: 'none',
+                                  borderRadius: '12px',
+                                  padding: '4px 12px',
+                                  fontSize: '11px',
+                                  fontFamily: '"Permanent Marker", cursive',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div className="personalize-grid" style={{
                         display: 'grid',
