@@ -15679,6 +15679,14 @@ const PhotoGallery = ({
                 </div>
               ) : (
                 <>
+                  {/* Hidden file input for import (always rendered) */}
+                  <input
+                    ref={personalizeImportInputRef}
+                    type="file"
+                    accept=".zip"
+                    style={{ display: 'none' }}
+                    onChange={handlePersonalizeImportSelect}
+                  />
                   {/* Empty state — no saved prompts yet */}
                   {personalizeSavedPrompts.length === 0 && personalizeExpandedPrompts.length === 0 && !personalizeExpanding && (
                     <div style={{
@@ -15709,8 +15717,28 @@ const PhotoGallery = ({
                         margin: 0,
                         fontStyle: 'italic'
                       }}>
-                        Try: "Give me 16 classic photobooth styles with silly hats and signs"
+                        Try: &quot;Give me 16 classic photobooth styles with silly hats and signs&quot;
                       </p>
+                      <button
+                        onClick={() => personalizeImportInputRef.current?.click()}
+                        disabled={personalizeImporting}
+                        style={{
+                          marginTop: '16px',
+                          background: 'rgba(100, 200, 255, 0.15)',
+                          color: personalizeImporting ? 'rgba(150, 200, 255, 0.5)' : 'rgba(150, 200, 255, 0.9)',
+                          border: '1px solid rgba(100, 200, 255, 0.3)',
+                          borderRadius: '16px',
+                          padding: '5px 16px',
+                          fontSize: '12px',
+                          fontFamily: '"Permanent Marker", cursive',
+                          cursor: personalizeImporting ? 'not-allowed' : 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                        onMouseEnter={(e) => { if (!personalizeImporting) { e.currentTarget.style.background = 'rgba(100, 200, 255, 0.3)'; e.currentTarget.style.color = 'white'; } }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(100, 200, 255, 0.15)'; e.currentTarget.style.color = 'rgba(150, 200, 255, 0.9)'; }}
+                      >
+                        {personalizeImporting ? 'Importing...' : 'or Import from file'}
+                      </button>
                     </div>
                   )}
 
@@ -15732,15 +15760,6 @@ const PhotoGallery = ({
                           Your Vibes ({personalizeSavedPrompts.length})
                         </h3>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          {/* Hidden file input for import */}
-                          <input
-                            ref={personalizeImportInputRef}
-                            type="file"
-                            accept=".zip"
-                            style={{ display: 'none' }}
-                            onChange={handlePersonalizeImportSelect}
-                          />
-
                           {/* Export button */}
                           <button
                             onClick={handlePersonalizeExport}
