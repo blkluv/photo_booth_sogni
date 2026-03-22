@@ -1611,10 +1611,12 @@ const PhotoGallery = ({
             const keys = saved.map((_, i) => `custom_${i}`);
             injectPersonalizedThemeGroup(keys);
             // Ensure personalized group is enabled in theme state
+            // When personalized is auto-selected, unselect all other categories
             setThemeGroupState(prev => {
               if (prev.personalized === undefined || prev.personalized === true) {
-                // Only update if not explicitly set yet
-                const next = { ...prev, personalized: true };
+                const next = {};
+                Object.keys(prev).forEach(k => { next[k] = false; });
+                next.personalized = true;
                 saveThemeGroupPreferences(next);
                 return next;
               }
@@ -7348,7 +7350,10 @@ const PhotoGallery = ({
         injectPersonalizedThemeGroup(keys);
 
         setThemeGroupState(prev => {
-          const next = { ...prev, personalized: true };
+          // When saving new personalized styles, unselect all other categories
+          const next = {};
+          Object.keys(prev).forEach(k => { next[k] = false; });
+          next.personalized = true;
           saveThemeGroupPreferences(next);
           return next;
         });

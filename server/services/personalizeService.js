@@ -247,3 +247,31 @@ export function getPreviewImagePath(address, filename) {
   }
   return imagePath;
 }
+
+/**
+ * Clean up orphaned preview images that are no longer referenced by any prompt.
+ * This prevents stale image files from accumulating after prompts are removed.
+ */
+export function cleanupOrphanedImages(address, activeFilenames) {
+  try {
+    const sanitized = sanitizeAddress(address);
+    const dir = path.join(UPLOADS_DIR, sanitized);
+    if (!fs.existsSync(dir)) return;
+
+    const activeSet = new Set(activeFilenames);
+    const files = fs.readdirSync(dir);
+
+    for (const file of files) {
+      // Only clean up preview image files, not prompts.json or other metadata
+      if (!file.startsWith('preview_') || !file.endsWith('.jpg')) continue;
+      if (activeSet.has(file)) continue;
+
+      const filePath = path.join(dir, file);
+      fs.unlinkSync(filePath);
+      console.log(`[Personalize] Cleaned up orphaned image: ${filePath}`);
+    }
+  } catch (err) {
+    // Non-critical: log but don't throw
+    console.warn('[Personalize] Error cleaning up orphaned images:', err.message);
+  }
+}

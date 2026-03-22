@@ -1,5 +1,6 @@
 import express from 'express';
 import multer from 'multer';
+import crypto from 'crypto';
 import fs from 'fs';
 import {
   expandPrompts,
@@ -7,7 +8,8 @@ import {
   getCustomPrompts,
   deleteCustomPrompts,
   savePreviewImage,
-  getPreviewImagePath
+  getPreviewImagePath,
+  cleanupOrphanedImages
 } from '../services/personalizeService.js';
 import { initializeSogniClient } from '../services/sogni.js';
 
@@ -139,6 +141,8 @@ router.post('/:address', async (req, res) => {
     }
 
     // Fetch preview images from URLs (server-side, no CORS issues)
+    // Use content-based hash for filenames to prevent collisions when prompts are
+    // reordered after remove/add operations (fixes duplicate preview image bug)
     for (let i = 0; i < prompts.length; i++) {
       const p = prompts[i];
       if (p.imageFilename || !p.previewImageUrl) continue;
@@ -146,7 +150,13 @@ router.post('/:address', async (req, res) => {
         const imgResponse = await fetch(p.previewImageUrl);
         if (imgResponse.ok) {
           const arrayBuffer = await imgResponse.arrayBuffer();
-          const filename = `preview_${i}.jpg`;
+          // Generate a unique filename from prompt content hash + timestamp
+          // This ensures each prompt gets its own stable image file regardless of array position
+          const hash = crypto.createHash('sha256')
+            .update(p.name + '|' + p.prompt)
+            .digest('hex')
+            .slice(0, 12);
+          const filename = `preview_${hash}.jpg`;
           savePreviewImage(address, filename, Buffer.from(arrayBuffer));
           p.imageFilename = filename;
         }
@@ -158,6 +168,11 @@ router.post('/:address', async (req, res) => {
     }
 
     await saveCustomPrompts(address, prompts);
+
+    // Clean up orphaned image files that are no longer referenced by any prompt
+    const activeFilenames = prompts.map(p => p.imageFilename).filter(Boolean);
+    cleanupOrphanedImages(address, activeFilenames);
+
     res.json({ success: true, message: `Saved ${prompts.length} custom prompts`, prompts });
   } catch (error) {
     console.error('[Personalize] Error saving prompts:', error);

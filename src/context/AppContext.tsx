@@ -365,7 +365,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const isEditCategoryEnabled = themeState[IMAGE_EDIT_PROMPTS_CATEGORY] ?? false;
       
       // If switching TO an edit model and Image Edit Styles is NOT enabled, enable it
-      if (isNewContextImage && !isEditCategoryEnabled) {
+      // But skip if Personalized is the only enabled category (user is in personalize flow)
+      const isPersonalizedOnly = themeState['personalized'] &&
+        Object.entries(themeState).every(([k, v]) => k === 'personalized' ? v : !v);
+      if (isNewContextImage && !isEditCategoryEnabled && !isPersonalizedOnly) {
         console.log('✏️ Auto-enabling Image Edit Styles category (switched to edit model)');
         themeState[IMAGE_EDIT_PROMPTS_CATEGORY] = true;
         saveThemeGroupPreferences(themeState);
