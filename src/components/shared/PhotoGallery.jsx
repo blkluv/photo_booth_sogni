@@ -68,6 +68,12 @@ import PromptVideoConfirmationPopup from './PromptVideoConfirmationPopup';
 import VideoSelectionPopup from './VideoSelectionPopup';
 import AnimateMovePopup from './AnimateMovePopup';
 import AnimateReplacePopup from './AnimateReplacePopup';
+import flash1Sound from '../../flash1.mp3';
+import flash2Sound from '../../flash2.mp3';
+import flash3Sound from '../../flash3.mp3';
+import flash4Sound from '../../flash4.mp3';
+import flash5Sound from '../../flash5.mp3';
+import flash6Sound from '../../flash6.mp3';
 import SoundToVideoPopup from './SoundToVideoPopup';
 import MusicGeneratorModal from './MusicGeneratorModal';
 import MusicSelectorModal from './MusicSelectorModal';
@@ -1567,8 +1573,12 @@ const PhotoGallery = ({
   personalizeSavedPromptsRef.current = personalizeSavedPrompts;
   const personalizeExpandedPromptsRef = useRef(personalizeExpandedPrompts);
   personalizeExpandedPromptsRef.current = personalizeExpandedPrompts;
+  const personalizePreviewSourceRef = useRef(personalizePreviewSource);
+  personalizePreviewSourceRef.current = personalizePreviewSource;
   const personalizePreviewUrlsRef = useRef(personalizePreviewUrls);
   personalizePreviewUrlsRef.current = personalizePreviewUrls;
+  const personalizePreviewSoundPlayed = useRef(new Set()); // Track which preview indexes have played sound
+  const flashSoundSources = useMemo(() => [flash1Sound, flash2Sound, flash3Sound, flash4Sound, flash5Sound, flash6Sound], []);
   const onCustomPromptsUpdatedRef = useRef(onCustomPromptsUpdated);
   onCustomPromptsUpdatedRef.current = onCustomPromptsUpdated;
   const sogniClientRef = useRef(sogniClient);
@@ -6958,6 +6968,7 @@ const PhotoGallery = ({
     setPersonalizeError(null);
     setPersonalizeExpandedPrompts([]);
     setPersonalizePreviewUrls({});
+    personalizePreviewSoundPlayed.current.clear();
 
     try {
       const expanded = await expandPromptsAPI(address, personalizeInput.trim(), personalizeModelType);
@@ -6967,15 +6978,16 @@ const PhotoGallery = ({
       if (sogniClient && expanded.length > 0) {
         setPersonalizeGeneratingPreviews(true);
 
-        // Fetch the reference image based on preview source selection
+        // Fetch the reference image based on preview source selection (use ref for current value)
+        const currentPreviewSource = personalizePreviewSourceRef.current;
         let refImageBuffer = null;
         try {
-          if (personalizePreviewSource === 'photo' && lastPhotoData?.blob) {
+          if (currentPreviewSource === 'photo' && lastPhotoData?.blob) {
             // Use the blob directly - no need to fetch the data URL
             const arrayBuffer = await lastPhotoData.blob.arrayBuffer();
             refImageBuffer = new Uint8Array(arrayBuffer);
           } else {
-            const refUrl = personalizePreviewSource === 'jen'
+            const refUrl = currentPreviewSource === 'jen'
               ? '/gallery/sample-gallery-medium-body-jen.jpg'
               : '/gallery/sample-gallery-headshot-einstein.jpg';
             const refResponse = await fetch(refUrl);
@@ -15720,7 +15732,7 @@ const PhotoGallery = ({
                             Save All
                           </button>
                           <button
-                            onClick={() => { setPersonalizeExpandedPrompts([]); setPersonalizePreviewUrls({}); setPersonalizeInput(''); }}
+                            onClick={() => { setPersonalizeExpandedPrompts([]); setPersonalizePreviewUrls({}); setPersonalizeInput(''); personalizePreviewSoundPlayed.current.clear(); }}
                             style={{
                               background: 'none',
                               color: 'rgba(255, 255, 255, 0.6)',
@@ -15742,7 +15754,7 @@ const PhotoGallery = ({
                       {/* Polaroid-style preview grid */}
                       <div style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                        gridTemplateColumns: 'repeat(4, 1fr)',
                         gap: '24px',
                         justifyItems: 'center'
                       }}>
@@ -15785,7 +15797,20 @@ const PhotoGallery = ({
                                     width: '100%',
                                     height: '100%',
                                     objectFit: 'cover',
-                                    display: 'block'
+                                    display: 'block',
+                                    opacity: 0,
+                                    transition: 'opacity 0.5s ease-in'
+                                  }}
+                                  onLoad={(e) => {
+                                    e.currentTarget.style.opacity = '1';
+                                    // Play flash sound once per preview image
+                                    if (settings.soundEnabled && !personalizePreviewSoundPlayed.current.has(i)) {
+                                      personalizePreviewSoundPlayed.current.add(i);
+                                      const randomIndex = Math.floor(Math.random() * flashSoundSources.length);
+                                      const audio = new Audio(flashSoundSources[randomIndex]);
+                                      audio.volume = 0.3;
+                                      audio.play().catch(() => {});
+                                    }
                                   }}
                                 />
                               ) : (

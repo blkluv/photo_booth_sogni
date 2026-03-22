@@ -76,7 +76,7 @@ Return ONLY valid JSON — no markdown fences, no extra text. Return a JSON arra
 }]
 
 Rules:
-- Default to generating 9 prompts unless the user specifies a different count
+- Default to generating 16 prompts unless the user specifies a different count
 - If user asks for a specific count (e.g., "give me 16"), generate exactly that many
 - When the user mentions a franchise or category, generate SPECIFIC NAMED CHARACTERS — NOT generic themed scenes
   - "fairy tale characters" → Mad Hatter, White Rabbit, Sherlock Holmes, Captain Nemo, etc.
