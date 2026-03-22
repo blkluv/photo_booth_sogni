@@ -7596,6 +7596,9 @@ const PhotoGallery = ({
       try {
         const { modelType, prompts } = await importPersonalizeZip(file);
 
+        // Invalidate any in-flight preview generation
+        personalizeGenerationNonce.current++;
+
         // Reset existing prompts
         await resetCustomPrompts(address);
 
@@ -7609,6 +7612,7 @@ const PhotoGallery = ({
         setPersonalizeSavedPrompts(withIds);
         setPersonalizeExpandedPrompts([]);
         setPersonalizeInput('');
+        setPersonalizeResetConfirm(false);
         setPersonalizeModelType(modelType);
         savePersonalizeModelType(modelType);
         // Sync global model setting to match imported model type
@@ -7619,15 +7623,14 @@ const PhotoGallery = ({
         setPersonalizePreviewUrls({});
 
         // Rebuild theme groups and simple pick styles
+        const customKeys = withIds.map((_, i) => `custom_${i}`);
         if (withIds.length > 0) {
-          injectPersonalizedThemeGroup(withIds);
+          injectPersonalizedThemeGroup(customKeys);
           setThemeGroupState(prev => {
             const next = { ...prev, personalized: true };
             saveThemeGroupPreferences(next);
             return next;
           });
-          // Update Simple Pick with custom keys
-          const customKeys = withIds.map((_, i) => `custom_${i}`);
           setSimplePickStyles(prev => {
             const filtered = prev.filter(k => !k.startsWith('custom_'));
             const merged = [...filtered, ...customKeys];
