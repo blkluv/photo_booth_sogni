@@ -7552,11 +7552,12 @@ const PhotoGallery = ({
 
   const handlePersonalizeExport = useCallback(async () => {
     const address = getPersonalizeAddress(sogniClientRef.current);
-    if (!address || personalizeSavedPrompts.length === 0) return;
+    const prompts = personalizeSavedPromptsRef.current;
+    if (!address || prompts.length === 0) return;
 
     setPersonalizeExporting(true);
     try {
-      const success = await exportPersonalizeZip(personalizeSavedPrompts, personalizeModelType, address);
+      const success = await exportPersonalizeZip(prompts, personalizeModelType, address);
       if (success) {
         showToast({ title: 'Export Complete', message: 'Your vibes have been exported.', type: 'success', timeout: 3000 });
       } else {
@@ -7568,7 +7569,7 @@ const PhotoGallery = ({
     } finally {
       setPersonalizeExporting(false);
     }
-  }, [personalizeSavedPrompts, personalizeModelType, showToast]);
+  }, [personalizeModelType]);
 
   const handlePersonalizeImportSelect = useCallback((e) => {
     const file = e.target.files?.[0];
@@ -7654,7 +7655,7 @@ const PhotoGallery = ({
     });
     personalizeMutexRef.current = operation.catch(() => {});
     return operation;
-  }, [showToast]);
+  }, []);
 
   const handlePersonalizePreviewSourceChange = useCallback((source) => {
     setPersonalizePreviewSource(source);
