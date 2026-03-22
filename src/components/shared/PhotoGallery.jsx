@@ -15649,8 +15649,8 @@ const PhotoGallery = ({
                         </span>
                         <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.3)', borderRadius: '20px', padding: '3px' }}>
                           {[
-                            { key: 'sd', label: 'Stable Diffusion' },
-                            { key: 'image-edit', label: 'Image Edit' }
+                            { key: 'image-edit', label: 'Qwen Image Edit' },
+                            { key: 'sd', label: 'Stable Diffusion' }
                           ].map(opt => (
                             <button
                               key={opt.key}

@@ -387,7 +387,7 @@ export function getPersonalizeModelType(): 'sd' | 'image-edit' {
   } catch (e) {
     console.warn('Error reading personalize model type:', e);
   }
-  return 'sd';
+  return 'image-edit';
 }
 
 export function savePersonalizeModelType(type: 'sd' | 'image-edit'): void {
