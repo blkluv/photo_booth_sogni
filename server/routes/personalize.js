@@ -152,18 +152,32 @@ router.post('/:address', async (req, res) => {
       const p = prompts[i];
       if (p.imageFilename || !p.previewImageUrl) continue;
       try {
-        const imgResponse = await fetch(p.previewImageUrl);
-        if (imgResponse.ok) {
-          const arrayBuffer = await imgResponse.arrayBuffer();
-          // Generate a unique filename from prompt content hash + timestamp
-          // This ensures each prompt gets its own stable image file regardless of array position
-          const hash = crypto.createHash('sha256')
-            .update(p.name + '|' + p.prompt)
-            .digest('hex')
-            .slice(0, 12);
-          const filename = `preview_${hash}.jpg`;
-          savePreviewImage(address, filename, Buffer.from(arrayBuffer));
-          p.imageFilename = filename;
+        // Generate a unique filename from prompt content hash
+        // This ensures each prompt gets its own stable image file regardless of array position
+        const hash = crypto.createHash('sha256')
+          .update(p.name + '|' + p.prompt)
+          .digest('hex')
+          .slice(0, 12);
+
+        if (p.previewImageUrl.startsWith('data:')) {
+          // Handle data: URLs (e.g. from imported prompts) by decoding base64 directly
+          const matches = p.previewImageUrl.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
+          if (matches) {
+            const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+            const base64Data = matches[2];
+            const filename = `preview_${hash}.${ext}`;
+            savePreviewImage(address, filename, Buffer.from(base64Data, 'base64'));
+            p.imageFilename = filename;
+          }
+        } else {
+          // Handle HTTP(S) URLs by fetching the image server-side
+          const imgResponse = await fetch(p.previewImageUrl);
+          if (imgResponse.ok) {
+            const arrayBuffer = await imgResponse.arrayBuffer();
+            const filename = `preview_${hash}.jpg`;
+            savePreviewImage(address, filename, Buffer.from(arrayBuffer));
+            p.imageFilename = filename;
+          }
         }
       } catch (err) {
         console.warn(`[Personalize] Could not fetch preview image ${i}:`, err.message);
