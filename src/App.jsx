@@ -10,7 +10,7 @@ import { generateGalleryFilename, getPortraitFolderWithFallback } from './utils/
 import { goToPreviousPhoto, goToNextPhoto } from './utils/photoNavigation';
 import { initializeStylePrompts, getRandomStyle, getRandomMixPrompts, getSimplePickPrompts, isEditPrompt, mergeCustomPrompts } from './services/prompts';
 import { rewritePromptForEditModel } from './services/promptRewriter';
-import { fetchCustomPrompts as fetchPersonalizedPrompts } from './services/personalizeService';
+import { fetchCustomPrompts as fetchPersonalizedPrompts, getPersonalizeAddress } from './services/personalizeService';
 import { getDefaultThemeGroupState, getEnabledPrompts, getOneOfEachPrompts, injectPersonalizedThemeGroup, removePersonalizedThemeGroup } from './constants/themeGroups';
 import { getThemeGroupPreferences, saveThemeGroupPreferences, getSimplePickStyles, getPersonalizeModelType } from './utils/cookies';
 import { initializeSogniClient } from './services/sogni';
@@ -1608,11 +1608,10 @@ const App = () => {
           const { loadGalleryImages } = await import('./utils/galleryLoader');
           // Pass custom prompts data and wallet address for personalized preview images
           let customPromptsData = null;
-          let walletAddress = null;
+          const client = authState.getSogniClient ? authState.getSogniClient() : null;
+          const walletAddress = getPersonalizeAddress(client);
           let promptsForGallery = stylePrompts;
           try {
-            const client = authState.getSogniClient ? authState.getSogniClient() : null;
-            walletAddress = client?.account?.currentAccount?.walletAddress;
             if (walletAddress) {
               customPromptsData = await fetchPersonalizedPrompts(walletAddress);
               // Merge custom prompts and populate display name registry
@@ -1691,7 +1690,7 @@ const App = () => {
       if (authState.isAuthenticated) {
         try {
           const client = authState.getSogniClient ? authState.getSogniClient() : null;
-          const address = client?.account?.currentAccount?.walletAddress;
+          const address = getPersonalizeAddress(client);
           if (address) {
             const customPrompts = await fetchPersonalizedPrompts(address);
             if (customPrompts.length > 0) {
@@ -1718,7 +1717,7 @@ const App = () => {
   useEffect(() => {
     if (!authState.isAuthenticated) return;
     const client = authState.getSogniClient ? authState.getSogniClient() : null;
-    const address = client?.account?.currentAccount?.walletAddress;
+    const address = getPersonalizeAddress(client);
     if (!address) return;
 
     let cancelled = false;
@@ -2591,7 +2590,7 @@ const App = () => {
   // Callback to refresh stylePrompts after personalized prompts are saved/removed
   const handleCustomPromptsUpdated = useCallback(async () => {
     const client = authState.getSogniClient ? authState.getSogniClient() : null;
-    const address = client?.account?.currentAccount?.walletAddress;
+    const address = getPersonalizeAddress(client);
     if (!address) return;
 
     try {

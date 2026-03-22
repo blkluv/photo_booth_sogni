@@ -1,4 +1,5 @@
 import urls from '../config/urls';
+import { getOrCreateAppId } from '../utils/appId';
 
 export interface CustomPrompt {
   name: string;
@@ -8,6 +9,15 @@ export interface CustomPrompt {
 }
 
 const API_BASE = `${urls.apiUrl}/api/personalize`;
+
+/**
+ * Get user identifier for Personalize API calls.
+ * Authenticated users use their wallet address; demo/event mode users fall back to appId.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getPersonalizeAddress(client: any): string {
+  return client?.account?.currentAccount?.walletAddress || client?.appId || getOrCreateAppId();
+}
 
 /**
  * Fetch saved custom prompts for an account

@@ -13,7 +13,7 @@ import { isMobile, styleIdToDisplay } from '../../utils/index';
 import { getPreviousPhotoIndex, getNextPhotoIndex } from '../../utils/photoNavigation';
 import promptsDataRaw from '../../prompts.json';
 import { THEME_GROUPS, getDefaultThemeGroupState, getEnabledPrompts, injectPersonalizedThemeGroup, removePersonalizedThemeGroup } from '../../constants/themeGroups';
-import { fetchCustomPrompts, expandPrompts as expandPromptsAPI, saveCustomPrompts, resetCustomPrompts, getPreviewImageUrl } from '../../services/personalizeService';
+import { fetchCustomPrompts, expandPrompts as expandPromptsAPI, saveCustomPrompts, resetCustomPrompts, getPreviewImageUrl, getPersonalizeAddress } from '../../services/personalizeService';
 import { stripTransformationPrefix } from '../../constants/editPrompts';
 import { getThemeGroupPreferences, saveThemeGroupPreferences, getFavoriteImages, toggleFavoriteImage, saveFavoriteImages, getBlockedPrompts, blockPrompt, hasSeenBatchVideoTip, markBatchVideoTipShown, getSimplePickStyles, saveSimplePickStyles, getVibeExplorerMode, saveVibeExplorerMode, getPersonalizeModelType, savePersonalizeModelType } from '../../utils/cookies';
 import { getAttributionText } from '../../config/ugcAttributions';
@@ -1597,7 +1597,7 @@ const PhotoGallery = ({
     if (vibeExplorerMode !== 'personalize') return;
     if (!isAuthenticated || !sogniClient) return;
 
-    const address = sogniClient.account?.currentAccount?.walletAddress;
+    const address = getPersonalizeAddress(sogniClient);
     if (!address) return;
 
     let cancelled = false;
@@ -6971,7 +6971,7 @@ const PhotoGallery = ({
   // Personalize mode handlers
   const handlePersonalizeExpand = useCallback(async () => {
     if (!personalizeInput.trim()) return;
-    const address = sogniClient?.account?.currentAccount?.walletAddress;
+    const address = getPersonalizeAddress(sogniClient);
     if (!address) return;
 
     setPersonalizeExpanding(true);
@@ -7254,7 +7254,7 @@ const PhotoGallery = ({
   }, [personalizeModelType]);
 
   const handlePersonalizeSave = useCallback(async (promptsToSave) => {
-    const address = sogniClientRef.current?.account?.currentAccount?.walletAddress;
+    const address = getPersonalizeAddress(sogniClientRef.current);
     if (!address) return;
 
     setPersonalizeError(null);
@@ -7391,7 +7391,7 @@ const PhotoGallery = ({
   }, []);
 
   const handlePersonalizeRemove = useCallback(async (index) => {
-    const address = sogniClientRef.current?.account?.currentAccount?.walletAddress;
+    const address = getPersonalizeAddress(sogniClientRef.current);
     if (!address) return;
 
     // Mark this index as removing (for UI feedback)
@@ -7445,7 +7445,7 @@ const PhotoGallery = ({
   }, []);
 
   const handlePersonalizeReset = useCallback(async () => {
-    const address = sogniClientRef.current?.account?.currentAccount?.walletAddress;
+    const address = getPersonalizeAddress(sogniClientRef.current);
     if (!address) return;
 
     // Serialize via mutex to prevent races with concurrent save/remove
@@ -15273,6 +15273,20 @@ const PhotoGallery = ({
               }}
             >
               Personalize
+              <span style={{
+                fontSize: '8px',
+                fontFamily: 'system-ui, sans-serif',
+                fontWeight: 700,
+                background: 'linear-gradient(135deg, #ff6b6b, #ee5a24)',
+                color: 'white',
+                padding: '1px 4px',
+                borderRadius: '6px',
+                marginLeft: '4px',
+                verticalAlign: 'super',
+                letterSpacing: '0.5px',
+                textTransform: 'uppercase',
+                lineHeight: 1
+              }}>new</span>
             </button>
             <button
               onClick={() => handleVibeExplorerModeChange('advanced')}
@@ -15601,7 +15615,7 @@ const PhotoGallery = ({
                         gap: '24px',
                         justifyItems: 'center'
                       }}>
-                        {personalizeSavedPrompts.map((p, i) => (
+                        {(() => { const _addr = getPersonalizeAddress(sogniClient); return personalizeSavedPrompts.map((p, i) => (
                           <div key={`saved-${p.name}-${p.imageFilename || i}`} style={{
                             background: 'white',
                             borderRadius: '4px',
@@ -15623,9 +15637,9 @@ const PhotoGallery = ({
                               overflow: 'hidden',
                               background: '#1a1a2e'
                             }}>
-                              {p.imageFilename && sogniClient?.account?.currentAccount?.walletAddress ? (
+                              {p.imageFilename && _addr ? (
                                 <img
-                                  src={getPreviewImageUrl(sogniClient.account.currentAccount.walletAddress, p.imageFilename)}
+                                  src={getPreviewImageUrl(_addr, p.imageFilename)}
                                   alt={p.name}
                                   style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                                 />
@@ -15689,7 +15703,7 @@ const PhotoGallery = ({
                               {personalizeRemovingIndices.has(i) ? '...' : 'x'}
                             </button>
                           </div>
-                        ))}
+                        )); })()}
                       </div>
                     </div>
                   )}
