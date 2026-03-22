@@ -1568,6 +1568,7 @@ const PhotoGallery = ({
   const [personalizeExporting, setPersonalizeExporting] = useState(false);
   const [personalizeImporting, setPersonalizeImporting] = useState(false);
   const [personalizeImportConfirm, setPersonalizeImportConfirm] = useState(null); // holds File when confirming
+  const [personalizeImportRestore, setPersonalizeImportRestore] = useState(null); // holds File for "Reset to Last Import"
   const [personalizePreviewUrls, setPersonalizePreviewUrls] = useState({}); // { [promptId]: url }
   const [personalizeGeneratingPreviews, setPersonalizeGeneratingPreviews] = useState(false);
   const [personalizeSavingCards, setPersonalizeSavingCards] = useState({}); // { [promptId]: 'saving' | 'saved' | 'error' }
@@ -7650,6 +7651,9 @@ const PhotoGallery = ({
 
         // Notify parent to refresh stylePrompts
         if (onCustomPromptsUpdatedRef.current) onCustomPromptsUpdatedRef.current();
+
+        // Save the file as a restore point
+        setPersonalizeImportRestore(file);
 
         showToast({ title: 'Import Complete', message: `Imported ${withIds.length} vibes.`, type: 'success', timeout: 3000 });
       } catch (err) {
@@ -15838,6 +15842,29 @@ const PhotoGallery = ({
                               onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(100, 200, 255, 0.15)'; e.currentTarget.style.color = 'rgba(150, 200, 255, 0.9)'; }}
                             >
                               {personalizeImporting ? 'Importing...' : 'Import'}
+                            </button>
+                          )}
+
+                          {/* Reset to Last Import button */}
+                          {personalizeImportRestore && (
+                            <button
+                              onClick={() => handlePersonalizeImportExecute(personalizeImportRestore)}
+                              disabled={personalizeImporting}
+                              style={{
+                                background: 'rgba(255, 165, 0, 0.15)',
+                                color: personalizeImporting ? 'rgba(255, 200, 150, 0.5)' : 'rgba(255, 200, 150, 0.9)',
+                                border: '1px solid rgba(255, 165, 0, 0.3)',
+                                borderRadius: '16px',
+                                padding: '5px 16px',
+                                fontSize: '12px',
+                                fontFamily: '"Permanent Marker", cursive',
+                                cursor: personalizeImporting ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.15s ease'
+                              }}
+                              onMouseEnter={(e) => { if (!personalizeImporting) { e.currentTarget.style.background = 'rgba(255, 165, 0, 0.3)'; e.currentTarget.style.color = 'white'; } }}
+                              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255, 165, 0, 0.15)'; e.currentTarget.style.color = 'rgba(255, 200, 150, 0.9)'; }}
+                            >
+                              Reset to Last Import
                             </button>
                           )}
 
