@@ -70,7 +70,7 @@ KEY RULES for edit prompts:
 
 Return ONLY valid JSON — no markdown fences, no extra text. Return a JSON array:
 [{
-  "name": "Simple label, 2-3 words max, no parentheses (e.g. 'Buzz Lightyear', 'Iron Man', 'Watercolor Portrait')",
+  "name": "Simple label, 2-3 words max (not counting articles like a/an/the), no parentheses (e.g. 'The Mad Hatter', 'Iron Man', 'A Watercolor Portrait')",
   "prompt": "Full prompt text (1-3 detailed sentences)",
   "negativePrompt": "deformed, distorted, bad quality, blurry, extra limbs"
 }]
@@ -123,9 +123,17 @@ Rules:
         .replace(/\s*\(.*?\)\s*/g, '') // Remove anything in parentheses
         .replace(/\s*\[.*?\]\s*/g, '') // Remove anything in brackets
         .trim();
-      // Limit to 3 words
+      // Limit to 3 non-article words (articles like a/an/the don't count)
+      const articles = new Set(['a', 'an', 'the']);
       const words = name.split(/\s+/);
-      if (words.length > 3) name = words.slice(0, 3).join(' ');
+      let nonArticleCount = 0;
+      let keepCount = 0;
+      for (const word of words) {
+        keepCount++;
+        if (!articles.has(word.toLowerCase())) nonArticleCount++;
+        if (nonArticleCount >= 3) break;
+      }
+      if (words.length > keepCount) name = words.slice(0, keepCount).join(' ');
       name = name.slice(0, 30);
 
       return {
