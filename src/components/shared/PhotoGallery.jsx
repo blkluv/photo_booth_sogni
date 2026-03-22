@@ -15507,6 +15507,7 @@ const PhotoGallery = ({
           {vibeExplorerMode === 'personalize' && (
             <div className="personalize-container" style={{
               padding: '32px',
+              paddingBottom: '120px',
               maxWidth: '1100px',
               margin: '0 auto'
             }}>
@@ -15536,7 +15537,7 @@ const PhotoGallery = ({
                     marginRight: 'auto',
                     lineHeight: 1.5
                   }}>
-                    Log in to build a custom collection of up to 16 AI styles that are uniquely yours.
+                    Log in to build a custom collection of AI styles that are uniquely yours.
                   </p>
                   <button
                     onClick={onOpenLoginModal}
@@ -15582,7 +15583,7 @@ const PhotoGallery = ({
                         margin: '0 0 4px',
                         lineHeight: 1.5
                       }}>
-                        Describe the styles you want and AI will craft up to 16 custom vibes just for you.
+                        Describe the styles you want and AI will craft custom vibes just for you.
                       </p>
                       <p style={{
                         fontSize: '12px',
@@ -15610,7 +15611,7 @@ const PhotoGallery = ({
                           fontFamily: '"Permanent Marker", cursive',
                           color: 'white'
                         }}>
-                          Your Vibes ({personalizeSavedPrompts.length}/16)
+                          Your Vibes ({personalizeSavedPrompts.length})
                         </h3>
                         {!personalizeResetConfirm ? (
                           <button
@@ -15743,6 +15744,7 @@ const PhotoGallery = ({
                                 color: 'white',
                                 border: '2px solid white',
                                 borderRadius: '50%',
+                                minWidth: '24px',
                                 width: '24px',
                                 height: '24px',
                                 fontSize: '13px',
@@ -15754,11 +15756,12 @@ const PhotoGallery = ({
                                 opacity: 0,
                                 transition: 'opacity 0.15s ease',
                                 boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
-                                zIndex: 2
+                                zIndex: 2,
+                                padding: 0
                               }}
                               title={personalizeRemovingIndices.has(i) ? 'Removing...' : 'Remove this vibe'}
                             >
-                              {personalizeRemovingIndices.has(i) ? '...' : 'x'}
+                              {personalizeRemovingIndices.has(i) ? '...' : '\u00d7'}
                             </button>
                           </div>
                         )); })()}
@@ -15790,7 +15793,7 @@ const PhotoGallery = ({
                           }}
                           placeholder={personalizeSavedPrompts.length === 0
                             ? 'Describe the styles you want...'
-                            : `Add more vibes (${16 - personalizeSavedPrompts.length} slots left)...`}
+                            : 'Add more vibes...'}
                           disabled={personalizeExpanding}
                           style={{
                             flex: 1,
@@ -15815,16 +15818,19 @@ const PhotoGallery = ({
                               color: 'white',
                               border: 'none',
                               borderRadius: '12px',
-                              padding: '12px 24px',
+                              padding: '12px 16px',
                               fontSize: '14px',
                               fontFamily: '"Permanent Marker", cursive',
                               cursor: 'pointer',
                               whiteSpace: 'nowrap',
                               transition: 'all 0.15s ease',
-                              boxShadow: '0 2px 10px rgba(255, 100, 100, 0.3)'
+                              boxShadow: '0 2px 10px rgba(255, 100, 100, 0.3)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
                             }}
                           >
-                            <span style={{ fontSize: '12px', marginRight: '6px' }}>✕</span>
+                            <span style={{ fontSize: '14px', lineHeight: 1 }}>✕</span>
                             Cancel
                           </button>
                         ) : (
@@ -15854,14 +15860,19 @@ const PhotoGallery = ({
                       {/* Reference image selector */}
                       <div className="personalize-preview-faces" style={{
                         display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        marginTop: '12px',
-                        flexWrap: 'wrap'
+                        flexDirection: 'column',
+                        gap: '8px',
+                        marginTop: '12px'
                       }}>
                         <span style={{ fontSize: '12px', color: 'white', fontFamily: '"Permanent Marker", cursive' }}>
                           Preview face:
                         </span>
+                        <div style={{
+                          display: 'flex',
+                          gap: '8px',
+                          overflowX: 'auto',
+                          WebkitOverflowScrolling: 'touch'
+                        }}>
                         {[
                           ...(lastPhotoData?.dataUrl ? [{ key: 'photo', label: 'Your Photo', img: lastPhotoData.dataUrl }] : []),
                           { key: 'einstein', label: 'Einstein', img: '/gallery/sample-gallery-headshot-einstein.jpg' },
@@ -15884,17 +15895,18 @@ const PhotoGallery = ({
                             }}
                           >
                             <div className="personalize-face-avatar" style={{
-                              width: '56px',
-                              height: '56px',
+                              width: '36px',
+                              height: '36px',
                               borderRadius: '50%',
                               overflow: 'hidden',
                               flexShrink: 0
                             }}>
                               <img src={opt.img} alt={opt.label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                             </div>
-                            <span style={{ fontSize: '11px', fontFamily: '"Permanent Marker", cursive' }}>{opt.label}</span>
+                            <span style={{ fontSize: '11px', fontFamily: '"Permanent Marker", cursive', whiteSpace: 'nowrap' }}>{opt.label}</span>
                           </button>
                         ))}
+                        </div>
                       </div>
 
                       {/* Model type toggle */}
@@ -16136,13 +16148,13 @@ const PhotoGallery = ({
                                   title={personalizePreviewUrls[p.id] ? 'Refresh this image' : 'Generate preview image'}
                                   style={{
                                     position: 'absolute',
-                                    top: '4px',
-                                    right: '4px',
-                                    width: personalizePreviewUrls[p.id] ? '20px' : '28px',
-                                    height: personalizePreviewUrls[p.id] ? '20px' : '28px',
+                                    top: '6px',
+                                    right: '6px',
+                                    width: '28px',
+                                    height: '28px',
                                     borderRadius: '50%',
-                                    background: personalizePreviewUrls[p.id] ? 'rgba(0, 0, 0, 0.7)' : 'rgba(52, 152, 219, 0.8)',
-                                    border: 'none',
+                                    background: personalizePreviewUrls[p.id] ? 'rgba(0, 0, 0, 0.5)' : 'rgba(52, 152, 219, 0.8)',
+                                    border: '1.5px solid rgba(255, 255, 255, 0.4)',
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
@@ -16152,9 +16164,9 @@ const PhotoGallery = ({
                                     transition: 'all 0.2s ease'
                                   }}
                                   onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(52, 152, 219, 0.9)'; e.currentTarget.style.transform = 'scale(1.15)'; }}
-                                  onMouseLeave={(e) => { e.currentTarget.style.background = personalizePreviewUrls[p.id] ? 'rgba(0, 0, 0, 0.7)' : 'rgba(52, 152, 219, 0.8)'; e.currentTarget.style.transform = 'scale(1)'; }}
+                                  onMouseLeave={(e) => { e.currentTarget.style.background = personalizePreviewUrls[p.id] ? 'rgba(0, 0, 0, 0.5)' : 'rgba(52, 152, 219, 0.8)'; e.currentTarget.style.transform = 'scale(1)'; }}
                                 >
-                                  <svg width="11" height="11" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                     <path fill="#ffffff" d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
                                   </svg>
                                 </button>
