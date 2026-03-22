@@ -1564,10 +1564,10 @@ const PhotoGallery = ({
 
   const [personalizeError, setPersonalizeError] = useState(null);
   const [personalizeResetConfirm, setPersonalizeResetConfirm] = useState(false);
-  const [personalizePreviewUrls, setPersonalizePreviewUrls] = useState({}); // { [promptName]: url }
+  const [personalizePreviewUrls, setPersonalizePreviewUrls] = useState({}); // { [promptId]: url }
   const [personalizeGeneratingPreviews, setPersonalizeGeneratingPreviews] = useState(false);
-  const [personalizeSavingCards, setPersonalizeSavingCards] = useState({}); // { [promptName]: 'saving' | 'saved' | 'error' }
-  const [personalizeRefreshingIndices, setPersonalizeRefreshingIndices] = useState(new Set()); // Set of prompt names currently refreshing
+  const [personalizeSavingCards, setPersonalizeSavingCards] = useState({}); // { [promptId]: 'saving' | 'saved' | 'error' }
+  const [personalizeRefreshingIndices, setPersonalizeRefreshingIndices] = useState(new Set()); // Set of prompt IDs currently refreshing
   const [personalizeRemovingIndices, setPersonalizeRemovingIndices] = useState(new Set());
 
   // Mutex: serializes all mutative personalize operations (save, remove, reset)
@@ -1585,7 +1585,8 @@ const PhotoGallery = ({
   personalizePreviewSourceRef.current = personalizePreviewSource;
   const personalizePreviewUrlsRef = useRef(personalizePreviewUrls);
   personalizePreviewUrlsRef.current = personalizePreviewUrls;
-  const personalizePreviewSoundPlayed = useRef(new Set()); // Track which preview prompt names have played sound
+  const personalizePreviewSoundPlayed = useRef(new Set()); // Track which preview prompt IDs have played sound
+  const personalizeIdCounter = useRef(0); // Monotonic counter for unique prompt IDs
   const flashSoundSources = useMemo(() => [flash1Sound, flash2Sound, flash3Sound, flash4Sound, flash5Sound, flash6Sound], []);
   const onCustomPromptsUpdatedRef = useRef(onCustomPromptsUpdated);
   onCustomPromptsUpdatedRef.current = onCustomPromptsUpdated;
@@ -6982,7 +6983,9 @@ const PhotoGallery = ({
     const currentNonce = ++personalizeGenerationNonce.current;
 
     try {
-      const expanded = await expandPromptsAPI(address, personalizeInput.trim(), personalizeModelType);
+      const rawExpanded = await expandPromptsAPI(address, personalizeInput.trim(), personalizeModelType);
+      // Assign unique IDs to avoid collisions when multiple prompts share the same name/label
+      const expanded = rawExpanded.map(p => ({ ...p, id: `pz_${++personalizeIdCounter.current}` }));
       setPersonalizeExpandedPrompts(expanded);
 
       // Generate preview images as a single batch using the selected model
@@ -7101,8 +7104,8 @@ const PhotoGallery = ({
 
                 if (index >= 0) {
                   matchedIndices.add(index);
-                  const promptName = expanded[index].name;
-                  setPersonalizePreviewUrls(prev => ({ ...prev, [promptName]: url }));
+                  const promptId = expanded[index].id;
+                  setPersonalizePreviewUrls(prev => ({ ...prev, [promptId]: url }));
                 }
               }
               completedCount++;
@@ -7145,18 +7148,18 @@ const PhotoGallery = ({
   }, [personalizeInput, personalizeModelType]);
 
   // Refresh a single Personalize preview image (same prompt, new seed)
-  const handlePersonalizeRefresh = useCallback(async (promptName) => {
-    const prompt = personalizeExpandedPromptsRef.current.find(p => p.name === promptName);
+  const handlePersonalizeRefresh = useCallback(async (promptId) => {
+    const prompt = personalizeExpandedPromptsRef.current.find(p => p.id === promptId);
     if (!prompt || !sogniClient) return;
 
     // Mark this prompt as refreshing and clear its preview URL
-    setPersonalizeRefreshingIndices(prev => new Set(prev).add(promptName));
+    setPersonalizeRefreshingIndices(prev => new Set(prev).add(promptId));
     setPersonalizePreviewUrls(prev => {
       const next = { ...prev };
-      delete next[promptName];
+      delete next[promptId];
       return next;
     });
-    personalizePreviewSoundPlayed.current.delete(promptName);
+    personalizePreviewSoundPlayed.current.delete(promptId);
 
     try {
       // Load reference image (same logic as handlePersonalizeExpand)
@@ -7226,7 +7229,7 @@ const PhotoGallery = ({
           if (event.isPreview) return;
           const url = event.resultUrl || event.imageUrl || event.previewUrl;
           if (url) {
-            setPersonalizePreviewUrls(prev => ({ ...prev, [promptName]: url }));
+            setPersonalizePreviewUrls(prev => ({ ...prev, [promptId]: url }));
           }
           clearTimeout(timeout);
           resolve(null);
@@ -7243,11 +7246,11 @@ const PhotoGallery = ({
         });
       });
     } catch (err) {
-      console.warn('[Personalize] Refresh failed for prompt', promptName, err);
+      console.warn('[Personalize] Refresh failed for prompt', promptId, err);
     } finally {
       setPersonalizeRefreshingIndices(prev => {
         const next = new Set(prev);
-        next.delete(promptName);
+        next.delete(promptId);
         return next;
       });
     }
@@ -7259,11 +7262,11 @@ const PhotoGallery = ({
 
     setPersonalizeError(null);
 
-    // Show saving state on each card being saved
-    const savingNames = promptsToSave.map(p => p.name);
+    // Show saving state on each card being saved (use unique IDs to avoid collisions)
+    const savingIds = promptsToSave.map(p => p.id);
     setPersonalizeSavingCards(prev => {
       const next = { ...prev };
-      savingNames.forEach(n => { next[n] = 'saving'; });
+      savingIds.forEach(id => { next[id] = 'saving'; });
       return next;
     });
 
@@ -7275,30 +7278,35 @@ const PhotoGallery = ({
       const currentPreviewUrls = personalizePreviewUrlsRef.current;
 
       // Merge with existing saved prompts (up to 999 total)
+      // Dedup by name+prompt combination (not just name) so identically-labeled but
+      // differently-prompted vibes are each saved independently
       const merged = [...currentSaved];
       for (const p of promptsToSave) {
         if (merged.length >= 999) break;
-        if (!merged.find(existing => existing.name === p.name)) {
+        if (!merged.find(existing => existing.name === p.name && existing.prompt === p.prompt)) {
           merged.push(p);
         }
       }
 
       try {
         // Attach preview image URLs so the server can fetch them directly (avoids CORS)
-        // Preview URLs are keyed by prompt name, so lookup is stable regardless of array order
+        // Preview URLs are keyed by prompt ID, so lookup is stable regardless of array order
         for (let i = 0; i < merged.length; i++) {
           if (merged[i].imageFilename) continue;
-          const previewUrl = currentPreviewUrls[merged[i].name] || null;
+          const previewUrl = (merged[i].id && currentPreviewUrls[merged[i].id]) || null;
           if (previewUrl) {
             merged[i].previewImageUrl = previewUrl;
           }
         }
 
+        // Strip client-only `id` field before sending to server
+        // eslint-disable-next-line no-unused-vars
+        const mergedForServer = merged.map(({ id: _id, ...rest }) => rest);
         const response = await fetch(`${urls.apiUrl}/api/personalize/${encodeURIComponent(address)}`, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompts: merged }),
+          body: JSON.stringify({ prompts: mergedForServer }),
         });
         if (!response.ok) {
           const responseText = await response.text();
@@ -7315,30 +7323,30 @@ const PhotoGallery = ({
         // Mark cards as saved
         setPersonalizeSavingCards(prev => {
           const next = { ...prev };
-          savingNames.forEach(n => { next[n] = 'saved'; });
+          savingIds.forEach(id => { next[id] = 'saved'; });
           return next;
         });
         setTimeout(() => {
           setPersonalizeSavingCards(prev => {
             const next = { ...prev };
-            savingNames.forEach(n => { delete next[n]; });
+            savingIds.forEach(id => { delete next[id]; });
             return next;
           });
         }, 1500);
 
         // Remove saved prompts from expanded list using functional updater
         // to avoid overwriting concurrent modifications (stale closure fix)
-        const savedNamesSet = new Set(savingNames);
+        const savedIdsSet = new Set(savingIds);
         setPersonalizeExpandedPrompts(prev => {
-          const remaining = prev.filter(p => !savedNamesSet.has(p.name));
+          const remaining = prev.filter(p => !savedIdsSet.has(p.id));
           if (remaining.length === 0) {
             setPersonalizePreviewUrls({});
             setPersonalizeInput('');
           } else {
-            // Preview URLs are keyed by name -- just remove saved entries
+            // Preview URLs are keyed by ID -- just remove saved entries
             setPersonalizePreviewUrls(prevUrls => {
               const next = { ...prevUrls };
-              savingNames.forEach(n => { delete next[n]; });
+              savingIds.forEach(id => { delete next[id]; });
               return next;
             });
           }
@@ -7372,14 +7380,14 @@ const PhotoGallery = ({
         // Show error on the specific cards that failed
         setPersonalizeSavingCards(prev => {
           const next = { ...prev };
-          savingNames.forEach(n => { next[n] = 'error'; });
+          savingIds.forEach(id => { next[id] = 'error'; });
           return next;
         });
         // Clear error indicators after 3 seconds
         setTimeout(() => {
           setPersonalizeSavingCards(prev => {
             const next = { ...prev };
-            savingNames.forEach(n => { delete next[n]; });
+            savingIds.forEach(id => { delete next[id]; });
             return next;
           });
         }, 3000);
@@ -15941,9 +15949,9 @@ const PhotoGallery = ({
                         justifyItems: 'center'
                       }}>
                         {personalizeExpandedPrompts.map((p, i) => {
-                          const cardStatus = personalizeSavingCards[p.name];
+                          const cardStatus = personalizeSavingCards[p.id];
                           return (
-                          <div key={`expanded-${p.name}`}
+                          <div key={`expanded-${p.id}`}
                             className="personalize-card"
                             onClick={() => !cardStatus && handlePersonalizeSave([p])}
                             title={cardStatus === 'saving' ? 'Saving...' : cardStatus === 'saved' ? 'Saved!' : cardStatus === 'error' ? 'Save failed — tap to retry' : 'Click to save this vibe'}
@@ -15972,9 +15980,9 @@ const PhotoGallery = ({
                               background: '#1a1a2e',
                               position: 'relative'
                             }}>
-                              {personalizePreviewUrls[p.name] ? (
+                              {personalizePreviewUrls[p.id] ? (
                                 <img
-                                  src={personalizePreviewUrls[p.name]}
+                                  src={personalizePreviewUrls[p.id]}
                                   alt={p.name}
                                   style={{
                                     width: '100%',
@@ -15987,8 +15995,8 @@ const PhotoGallery = ({
                                   onLoad={(e) => {
                                     e.currentTarget.style.opacity = '1';
                                     // Play flash sound once per preview image
-                                    if (settings.soundEnabled && !personalizePreviewSoundPlayed.current.has(p.name)) {
-                                      personalizePreviewSoundPlayed.current.add(p.name);
+                                    if (settings.soundEnabled && !personalizePreviewSoundPlayed.current.has(p.id)) {
+                                      personalizePreviewSoundPlayed.current.add(p.id);
                                       const randomIndex = Math.floor(Math.random() * flashSoundSources.length);
                                       const audio = new Audio(flashSoundSources[randomIndex]);
                                       audio.volume = 0.3;
@@ -15999,7 +16007,7 @@ const PhotoGallery = ({
                                     // Image failed to load — clear the URL so the placeholder + refresh button appear
                                     setPersonalizePreviewUrls(prev => {
                                       const next = { ...prev };
-                                      delete next[p.name];
+                                      delete next[p.id];
                                       return next;
                                     });
                                   }}
@@ -16015,7 +16023,7 @@ const PhotoGallery = ({
                                   background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
                                   gap: '8px'
                                 }}>
-                                  {(personalizeGeneratingPreviews || personalizeRefreshingIndices.has(p.name)) ? (
+                                  {(personalizeGeneratingPreviews || personalizeRefreshingIndices.has(p.id)) ? (
                                     <>
                                       <div style={{
                                         width: '24px',
@@ -16033,22 +16041,22 @@ const PhotoGallery = ({
                                 </div>
                               )}
                               {/* Refresh button — show when image loaded OR when generation finished with no image */}
-                              {!personalizeRefreshingIndices.has(p.name) && !cardStatus && (!personalizeGeneratingPreviews || personalizePreviewUrls[p.name]) && (
+                              {!personalizeRefreshingIndices.has(p.id) && !cardStatus && (!personalizeGeneratingPreviews || personalizePreviewUrls[p.id]) && (
                                 <button
                                   className="photo-refresh-btn"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handlePersonalizeRefresh(p.name);
+                                    handlePersonalizeRefresh(p.id);
                                   }}
-                                  title={personalizePreviewUrls[p.name] ? 'Refresh this image' : 'Generate preview image'}
+                                  title={personalizePreviewUrls[p.id] ? 'Refresh this image' : 'Generate preview image'}
                                   style={{
                                     position: 'absolute',
                                     top: '4px',
                                     right: '4px',
-                                    width: personalizePreviewUrls[p.name] ? '20px' : '28px',
-                                    height: personalizePreviewUrls[p.name] ? '20px' : '28px',
+                                    width: personalizePreviewUrls[p.id] ? '20px' : '28px',
+                                    height: personalizePreviewUrls[p.id] ? '20px' : '28px',
                                     borderRadius: '50%',
-                                    background: personalizePreviewUrls[p.name] ? 'rgba(0, 0, 0, 0.7)' : 'rgba(52, 152, 219, 0.8)',
+                                    background: personalizePreviewUrls[p.id] ? 'rgba(0, 0, 0, 0.7)' : 'rgba(52, 152, 219, 0.8)',
                                     border: 'none',
                                     cursor: 'pointer',
                                     display: 'flex',
@@ -16059,7 +16067,7 @@ const PhotoGallery = ({
                                     transition: 'all 0.2s ease'
                                   }}
                                   onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(52, 152, 219, 0.9)'; e.currentTarget.style.transform = 'scale(1.15)'; }}
-                                  onMouseLeave={(e) => { e.currentTarget.style.background = personalizePreviewUrls[p.name] ? 'rgba(0, 0, 0, 0.7)' : 'rgba(52, 152, 219, 0.8)'; e.currentTarget.style.transform = 'scale(1)'; }}
+                                  onMouseLeave={(e) => { e.currentTarget.style.background = personalizePreviewUrls[p.id] ? 'rgba(0, 0, 0, 0.7)' : 'rgba(52, 152, 219, 0.8)'; e.currentTarget.style.transform = 'scale(1)'; }}
                                 >
                                   <svg width="11" height="11" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                     <path fill="#ffffff" d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
