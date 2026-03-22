@@ -15301,22 +15301,6 @@ const PhotoGallery = ({
             margin: '20px auto 16px'
           }}>
             <button
-              onClick={() => handleVibeExplorerModeChange('simple')}
-              style={{
-                background: vibeExplorerMode === 'simple' ? 'rgba(114, 227, 242, 0.9)' : 'transparent',
-                color: vibeExplorerMode === 'simple' ? 'white' : 'rgba(255, 255, 255, 0.7)',
-                border: 'none',
-                borderRadius: '20px',
-                padding: '8px 20px',
-                fontSize: '13px',
-                fontFamily: '"Permanent Marker", cursive',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              Simple
-            </button>
-            <button
               onClick={() => handleVibeExplorerModeChange('personalize')}
               style={{
                 background: vibeExplorerMode === 'personalize' ? 'rgba(114, 227, 242, 0.9)' : 'transparent',
@@ -15345,6 +15329,22 @@ const PhotoGallery = ({
                 textTransform: 'uppercase',
                 lineHeight: 1
               }}>new</span>
+            </button>
+            <button
+              onClick={() => handleVibeExplorerModeChange('simple')}
+              style={{
+                background: vibeExplorerMode === 'simple' ? 'rgba(114, 227, 242, 0.9)' : 'transparent',
+                color: vibeExplorerMode === 'simple' ? 'white' : 'rgba(255, 255, 255, 0.7)',
+                border: 'none',
+                borderRadius: '20px',
+                padding: '8px 20px',
+                fontSize: '13px',
+                fontFamily: '"Permanent Marker", cursive',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Simple
             </button>
             <button
               onClick={() => handleVibeExplorerModeChange('advanced')}
