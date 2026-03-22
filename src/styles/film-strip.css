@@ -524,15 +524,21 @@ body.extension-mode .action-button:not(.use-prompt-btn) {
 /* Smaller label for Style Explorer cards (prompt-selector-mode) */
 .prompt-selector-mode .film-frame .photo-label {
   font-size: 11px !important;
-  line-height: 20px !important;
-  bottom: 8px !important;
-  height: 24px !important;
+  bottom: 0 !important;
+  height: 36px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
 }
 .prompt-selector-mode .film-frame.loaded .photo-label:not(:empty) {
   font-size: 14px !important;
-  line-height: 20px !important;
-  bottom: 8px !important;
-  height: 24px !important;
+  bottom: 0 !important;
+  height: 36px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
 }
 body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty),
 body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label:not(:empty) {
@@ -600,12 +606,14 @@ body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label
     right: 6px !important;
     bottom: 24px !important;
   }
-  .prompt-selector-mode .film-frame .photo-label,
-  .prompt-selector-mode .film-frame.loaded .photo-label:not(:empty) {
+  .prompt-selector-mode .film-frame:not(.selected) .photo-label,
+  .prompt-selector-mode .film-frame:not(.selected).loaded .photo-label:not(:empty) {
     font-size: 10px !important;
-    line-height: 16px !important;
-    bottom: 4px !important;
-    height: 18px !important;
+    bottom: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
   }
 }
 
@@ -1539,14 +1547,14 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
     padding-right: 16px !important;
   }
   
-  /* Better spacing for random style buttons */
-  .prompt-selector-header > div {
+  /* Better spacing for random style buttons — exclude vibe-explorer-tabs from padding-top */
+  .prompt-selector-header > div:not(.vibe-explorer-tabs) {
     margin-bottom: 12px !important;
     padding-top: 15px !important;
   }
-  
-  /* Enhanced selected state for random buttons on mobile */
-  .prompt-selector-header button {
+
+  /* Enhanced selected state for random buttons on mobile — exclude personalize card buttons */
+  .prompt-selector-header button:not(.saved-remove-btn):not(.photo-refresh-btn) {
     font-size: 13px !important;
     padding: 12px 18px !important;
     min-height: 44px !important;
@@ -1559,6 +1567,14 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
     min-height: revert !important;
     font-size: revert !important;
     font-weight: revert !important;
+  }
+
+  /* Ensure personalize card buttons are NOT affected by prompt-selector-header button rules */
+  .prompt-selector-header .personalize-card button {
+    padding: 0 !important;
+    min-height: unset !important;
+    font-size: inherit !important;
+    font-weight: inherit !important;
   }
   
   /* More prominent selected state on mobile */

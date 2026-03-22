@@ -15392,16 +15392,13 @@ const PhotoGallery = ({
       {/* Prompt Selector Mode Header */}
       {isPromptSelectorMode && (
         <div className="prompt-selector-header" style={{
-          padding: '24px 20px 0px',
+          padding: '0px 20px 0px',
           background: 'transparent',
           position: 'relative'
         }}>
 
           {/* PHOTOBOOTH VIBE EXPLORER Title */}
           <div style={{
-            position: 'absolute',
-            top: '0px',
-            left: '20px',
             zIndex: 1000
           }}>
             <h1 
@@ -15422,6 +15419,7 @@ const PhotoGallery = ({
           <div className="vibe-explorer-tabs" style={{
             display: 'flex',
             justifyContent: 'center',
+            alignItems: 'center',
             gap: '4px',
             background: 'rgba(0, 0, 0, 0.3)',
             borderRadius: '24px',
@@ -15440,7 +15438,8 @@ const PhotoGallery = ({
                 fontSize: '13px',
                 fontFamily: '"Permanent Marker", cursive',
                 cursor: 'pointer',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.2s ease',
+                position: 'relative'
               }}
             >
               Personalize
@@ -15452,8 +15451,9 @@ const PhotoGallery = ({
                 color: 'white',
                 padding: '1px 4px',
                 borderRadius: '6px',
-                marginLeft: '4px',
-                verticalAlign: 'super',
+                position: 'absolute',
+                top: '2px',
+                right: '2px',
                 letterSpacing: '0.5px',
                 textTransform: 'uppercase',
                 lineHeight: 1
@@ -16002,26 +16002,34 @@ const PhotoGallery = ({
                               onClick={(e) => { e.stopPropagation(); if (!personalizeRemovingIndices.has(i)) handlePersonalizeRemove(i); }}
                               style={{
                                 position: 'absolute',
-                                top: '-8px',
-                                right: '-8px',
+                                top: '-5px',
+                                right: '-5px',
+                                width: '16px',
+                                height: '16px',
+                                minWidth: '16px',
+                                maxWidth: '16px',
+                                minHeight: '16px',
+                                maxHeight: '16px',
+                                aspectRatio: '1 / 1',
                                 background: personalizeRemovingIndices.has(i) ? 'rgba(150, 150, 150, 0.7)' : 'rgba(255, 71, 87, 0.9)',
                                 color: 'white',
-                                border: '2px solid white',
+                                border: '1.5px solid white',
                                 borderRadius: '50%',
-                                minWidth: '24px',
-                                width: '24px',
-                                height: '24px',
-                                fontSize: '13px',
                                 cursor: personalizeRemovingIndices.has(i) ? 'wait' : 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
+                                fontSize: '9px',
                                 lineHeight: 1,
                                 opacity: 0,
                                 transition: 'opacity 0.15s ease',
-                                boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
                                 zIndex: 2,
-                                padding: 0
+                                padding: 0,
+                                boxSizing: 'border-box',
+                                WebkitAppearance: 'none',
+                                appearance: 'none',
+                                overflow: 'hidden'
                               }}
                               title={personalizeRemovingIndices.has(i) ? 'Removing...' : 'Remove this vibe'}
                             >
@@ -16450,10 +16458,15 @@ const PhotoGallery = ({
                                   title={personalizePreviewUrls[p.id] ? 'Refresh this image' : 'Generate preview image'}
                                   style={{
                                     position: 'absolute',
-                                    top: '6px',
-                                    right: '6px',
-                                    width: '28px',
-                                    height: '28px',
+                                    top: '3px',
+                                    right: '3px',
+                                    width: '18px',
+                                    height: '18px',
+                                    minWidth: '18px',
+                                    maxWidth: '18px',
+                                    minHeight: '18px',
+                                    maxHeight: '18px',
+                                    aspectRatio: '1 / 1',
                                     borderRadius: '50%',
                                     background: personalizePreviewUrls[p.id] ? 'rgba(0, 0, 0, 0.5)' : 'rgba(52, 152, 219, 0.8)',
                                     border: '1.5px solid rgba(255, 255, 255, 0.4)',
@@ -16463,12 +16476,16 @@ const PhotoGallery = ({
                                     justifyContent: 'center',
                                     padding: 0,
                                     zIndex: 4,
-                                    transition: 'all 0.2s ease'
+                                    transition: 'all 0.2s ease',
+                                    boxSizing: 'border-box',
+                                    WebkitAppearance: 'none',
+                                    appearance: 'none',
+                                    overflow: 'hidden'
                                   }}
                                   onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(52, 152, 219, 0.9)'; e.currentTarget.style.transform = 'scale(1.15)'; }}
                                   onMouseLeave={(e) => { e.currentTarget.style.background = personalizePreviewUrls[p.id] ? 'rgba(0, 0, 0, 0.5)' : 'rgba(52, 152, 219, 0.8)'; e.currentTarget.style.transform = 'scale(1)'; }}
                                 >
-                                  <svg width="14" height="14" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                  <svg className="personalize-refresh-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ width: '9px', height: '9px' }}>
                                     <path fill="#ffffff" d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
                                   </svg>
                                 </button>
@@ -17390,8 +17407,7 @@ const PhotoGallery = ({
                   '--stagger-delay': `${index * 1}s`, // Add staggered delay based on index
                   ...(isPromptSelectorMode && {
                     transform: `rotate(${(index % 2 === 0 ? -1 : 1) * (0.5 + (index % 4))}deg)`,
-                    transition: 'all 0.2s ease',
-                    maxWidth: '280px'
+                    transition: 'all 0.2s ease'
                   })
                 }}
               >

@@ -897,6 +897,36 @@ html body .photo-action-buttons .action-button,
   cursor: pointer !important;
 }
 
+/* Default sizing for personalize card buttons (desktop) — no inline styles for width/height */
+.personalize-card .saved-remove-btn {
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  max-width: 22px !important;
+  max-height: 22px !important;
+  font-size: 12px !important;
+  box-sizing: border-box !important;
+  top: -7px !important;
+  right: -7px !important;
+}
+
+.personalize-card .photo-refresh-btn {
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  max-width: 24px !important;
+  max-height: 24px !important;
+  box-sizing: border-box !important;
+  top: 4px !important;
+  right: 4px !important;
+}
+
+.personalize-card .photo-refresh-btn svg,
+.personalize-card .personalize-refresh-svg {
+  width: 12px !important;
+  height: 12px !important;
+}
+
 /* On touch devices, always show batch gallery buttons and personalize card buttons (no hover needed) */
 @media (hover: none) and (pointer: coarse) {
   .photo-hide-btn,
@@ -912,20 +942,31 @@ html body .photo-action-buttons .action-button,
 
   /* Compact personalize card buttons on touch devices */
   .personalize-card .saved-remove-btn {
-    width: 20px !important;
-    height: 20px !important;
-    min-width: 20px !important;
-    font-size: 11px !important;
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    max-width: 18px !important;
+    max-height: 18px !important;
+    font-size: 10px !important;
+    border-width: 1.5px !important;
+    top: -5px !important;
+    right: -5px !important;
   }
 
   .personalize-card .photo-refresh-btn {
-    width: 22px !important;
-    height: 22px !important;
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    max-width: 20px !important;
+    max-height: 20px !important;
+    top: 3px !important;
+    right: 3px !important;
   }
 
-  .personalize-card .photo-refresh-btn svg {
-    width: 11px !important;
-    height: 11px !important;
+  .personalize-card .photo-refresh-btn svg,
+  .personalize-card .personalize-refresh-svg {
+    width: 10px !important;
+    height: 10px !important;
   }
 
   /* Keep block and motion buttons hidden on mobile - desktop only features */
@@ -950,20 +991,31 @@ html body .photo-action-buttons .action-button,
   }
 
   .personalize-card .saved-remove-btn {
-    width: 20px !important;
-    height: 20px !important;
-    min-width: 20px !important;
-    font-size: 11px !important;
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    max-width: 18px !important;
+    max-height: 18px !important;
+    font-size: 10px !important;
+    border-width: 1.5px !important;
+    top: -5px !important;
+    right: -5px !important;
   }
 
   .personalize-card .photo-refresh-btn {
-    width: 22px !important;
-    height: 22px !important;
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    max-width: 20px !important;
+    max-height: 20px !important;
+    top: 3px !important;
+    right: 3px !important;
   }
 
-  .personalize-card .photo-refresh-btn svg {
-    width: 11px !important;
-    height: 11px !important;
+  .personalize-card .photo-refresh-btn svg,
+  .personalize-card .personalize-refresh-svg {
+    width: 10px !important;
+    height: 10px !important;
   }
 
   /* Keep block and motion buttons hidden on mobile - desktop only features */
@@ -1988,9 +2040,15 @@ html body .photo-action-buttons .action-button,
 /* ========== Personalize Mode — Mobile Responsive ========== */
 
 @media (max-width: 768px) {
+  /* Ensure tab bar clears the absolutely-positioned VIBE EXPLORER title */
+  .prompt-selector-header {
+    padding-top: 12px !important;
+  }
+
   .vibe-explorer-tabs {
-    margin-top: 8px !important;
-    margin-bottom: 10px !important;
+    margin-top: 4px !important;
+    margin-bottom: 8px !important;
+    padding-top: 3px !important;
   }
 
   .personalize-container {
@@ -2023,6 +2081,16 @@ html body .photo-action-buttons .action-button,
 }
 
 @media (max-width: 480px) {
+  .prompt-selector-header {
+    padding-top: 8px !important;
+  }
+
+  .vibe-explorer-tabs {
+    margin-top: 2px !important;
+    margin-bottom: 6px !important;
+    padding-top: 3px !important;
+  }
+
   .personalize-container {
     padding: 10px !important;
   }
@@ -2057,24 +2125,32 @@ html body .photo-action-buttons .action-button,
 
   /* Even smaller buttons on narrow screens */
   .personalize-card .saved-remove-btn {
-    width: 18px !important;
-    height: 18px !important;
-    min-width: 18px !important;
-    font-size: 10px !important;
+    width: 16px !important;
+    height: 16px !important;
+    min-width: 16px !important;
+    max-width: 16px !important;
+    max-height: 16px !important;
+    font-size: 9px !important;
     border-width: 1.5px !important;
-    top: -6px !important;
-    right: -6px !important;
+    top: -4px !important;
+    right: -4px !important;
+    box-sizing: border-box !important;
   }
 
   .personalize-card .photo-refresh-btn {
-    width: 20px !important;
-    height: 20px !important;
-    top: 4px !important;
-    right: 4px !important;
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    max-width: 18px !important;
+    max-height: 18px !important;
+    top: 2px !important;
+    right: 2px !important;
+    box-sizing: border-box !important;
   }
 
-  .personalize-card .photo-refresh-btn svg {
-    width: 10px !important;
-    height: 10px !important;
+  .personalize-card .photo-refresh-btn svg,
+  .personalize-card .personalize-refresh-svg {
+    width: 9px !important;
+    height: 9px !important;
   }
 }
