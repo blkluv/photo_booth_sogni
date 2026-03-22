@@ -901,14 +901,14 @@ html body .photo-action-buttons .action-button,
 @media (hover: none) and (pointer: coarse) {
   .photo-hide-btn,
   .photo-refresh-btn,
-  .photo-motion-btn-batch,
   .photo-favorite-btn-batch {
     opacity: 1 !important;
     transform: scale(1) !important;
   }
 
-  /* Keep block button hidden on mobile - desktop only feature */
-  .photo-block-btn-batch {
+  /* Keep block and motion buttons hidden on mobile - desktop only features */
+  .photo-block-btn-batch,
+  .photo-motion-btn-batch {
     opacity: 0 !important;
     display: none !important;
   }
@@ -918,14 +918,14 @@ html body .photo-action-buttons .action-button,
 @media screen and (max-width: 768px) {
   .photo-hide-btn,
   .photo-refresh-btn,
-  .photo-motion-btn-batch,
   .photo-favorite-btn-batch {
     opacity: 1 !important;
     transform: scale(1) !important;
   }
 
-  /* Keep block button hidden on mobile - desktop only feature */
-  .photo-block-btn-batch {
+  /* Keep block and motion buttons hidden on mobile - desktop only features */
+  .photo-block-btn-batch,
+  .photo-motion-btn-batch {
     opacity: 0 !important;
     display: none !important;
   }
