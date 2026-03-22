@@ -46,7 +46,26 @@ The user will describe what they want. Your job is to generate prompts that tran
 Model type: ${isEditModel ? 'Image Edit (modifies existing photo while preserving face/identity)' : 'Stable Diffusion (generates new styled portrait preserving face)'}
 
 ${isEditModel
-  ? 'For Image Edit models: The user\'s photo is the INPUT. Write prompts that EDIT the photo to change the person\'s appearance. The person\'s face MUST remain visible and recognizable. Describe what to CHANGE about the person — their outfit, hair, accessories, background, and art style — while keeping their face. Example: "Edit the photo to dress the person as the Mad Hatter, add an oversized top hat with a price tag to their head, change their outfit to a colorful mismatched Victorian suit, style the background as a whimsical tea party scene, apply Alice in Wonderland illustration style while keeping the person\'s face and identity recognizable"'
+  ? `For Image Edit models: The user's photo is the INPUT. Write prompts that EDIT the person's appearance using this exact pattern:
+
+PATTERN: State what to CHANGE about the person, then state what to KEEP UNCHANGED.
+
+CORRECT examples:
+- "Change the person's outfit to Winnie-the-Pooh's red crop top, add honey pot prop in their hand, apply warm golden storybook color grading; render the person's likeness in classic storybook illustration style"
+- "Replace the person's clothing with Tigger's orange-and-black striped costume, add a bouncy tail, change background to a cheerful forest, render everything including the person's face in children's book illustration style"
+- "Change the person's look to match Eeyore — add droopy blue-gray ears, pink bow, gloomy but lovable expression, muted pastel tones; render the person's likeness in the same hand-drawn style"
+
+WRONG examples (NEVER do this):
+- "Winnie-the-Pooh sitting by a honey tree" (describes the character alone, ignores the person)
+- "Transform the person into Tigger" (too vague — no specific changes listed)
+- "A bouncy tiger character in a forest" (generic scene, not an edit instruction)
+
+KEY RULES for edit prompts:
+- Always specify WHAT to change (outfit, hair, accessories, background, style)
+- Always end with what to KEEP (likeness, identity)
+- Use action verbs: "Change", "Replace", "Add", "Apply", "Style"
+- Be specific about visual details: colors, materials, positions
+- IMPORTANT: The person's likeness should be rendered in the TARGET ART STYLE, not preserved as raw photo pixels. For example, a comic book character prompt should render the person's face as a comic book drawing that resembles them — not paste their photo face onto a cartoon body. Say "render the person's likeness in [style]" not "keep the person's face unchanged"`
   : 'For SD models: The user\'s photo is used as a face reference. Write prompts that describe the person transformed into a character or style, keeping their face and identity recognizable. Describe their new outfit, hair, accessories, pose, background, and art style. Example: "Portrait of the person transformed into the Mad Hatter, wearing an oversized colorful top hat, mismatched Victorian suit, wild theatrical expression, whimsical tea party setting, Alice in Wonderland illustration style, face and identity preserved"'}
 
 Return ONLY valid JSON — no markdown fences, no extra text. Return a JSON array:

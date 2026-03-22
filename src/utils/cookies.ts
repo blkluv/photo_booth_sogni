@@ -379,6 +379,25 @@ export function saveVibeExplorerMode(mode: 'simple' | 'advanced' | 'personalize'
   }
 }
 
+// Personalize model type utilities
+export function getPersonalizeModelType(): 'sd' | 'image-edit' {
+  try {
+    const type = localStorage.getItem('sogni_personalize_model_type');
+    if (type === 'sd' || type === 'image-edit') return type;
+  } catch (e) {
+    console.warn('Error reading personalize model type:', e);
+  }
+  return 'sd';
+}
+
+export function savePersonalizeModelType(type: 'sd' | 'image-edit'): void {
+  try {
+    localStorage.setItem('sogni_personalize_model_type', type);
+  } catch (e) {
+    console.warn('Error saving personalize model type:', e);
+  }
+}
+
 // Utility function to clean up corrupted localStorage values
 export function cleanupCorruptedSettings(): void {
   try {

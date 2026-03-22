@@ -34,9 +34,6 @@ export function rewritePromptForEditModel(
 
   const { subjectDescription, isEditPrompt } = options;
 
-  // Skip rewriting when analysis failed (no useful subject info)
-  if (subjectDescription === 'the person') return prompt;
-
   if (isEditPrompt) {
     return rewriteEditPrompt(prompt, subjectDescription);
   } else {
@@ -53,7 +50,7 @@ export function rewritePromptForEditModel(
  * against stylePrompts values).
  */
 function rewriteNonEditPrompt(prompt: string, subjectDescription: string): string {
-  return `Transform ${subjectDescription} in the photo while preserving their facial features and identity exactly into this style: ${prompt}`;
+  return `Apply this style to ${subjectDescription} in the photo: ${prompt}; preserve the person's likeness and identity, rendered in the art style of the prompt`;
 }
 
 /**

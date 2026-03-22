@@ -12,7 +12,7 @@ import { initializeStylePrompts, getRandomStyle, getRandomMixPrompts, getSimpleP
 import { rewritePromptForEditModel } from './services/promptRewriter';
 import { fetchCustomPrompts as fetchPersonalizedPrompts } from './services/personalizeService';
 import { getDefaultThemeGroupState, getEnabledPrompts, getOneOfEachPrompts, injectPersonalizedThemeGroup, removePersonalizedThemeGroup } from './constants/themeGroups';
-import { getThemeGroupPreferences, saveThemeGroupPreferences, getSimplePickStyles } from './utils/cookies';
+import { getThemeGroupPreferences, saveThemeGroupPreferences, getSimplePickStyles, getPersonalizeModelType } from './utils/cookies';
 import { initializeSogniClient } from './services/sogni';
 import { isNetworkError } from './services/api';
 import { AuthStatus } from './components/auth/AuthStatus';
@@ -2562,6 +2562,18 @@ const App = () => {
     updateSetting('halloweenContext', false);
     updateUrlWithPrompt('simplePick');
     localStorage.setItem('sogni_style_explicitly_selected', 'true');
+
+    // If any selected styles are personalized, switch to the personalize model
+    const hasCustomStyles = selectedStyles.some(k => k.startsWith('custom_'));
+    if (hasCustomStyles) {
+      const personalizeModel = getPersonalizeModelType();
+      const targetModel = personalizeModel === 'image-edit'
+        ? QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID
+        : DEFAULT_MODEL_ID;
+      if (selectedModel !== targetModel) {
+        switchToModel(targetModel);
+      }
+    }
   };
 
   const handleCustomFromSampleGallery = () => {
@@ -5418,22 +5430,8 @@ const App = () => {
           });
         }
 
-        // If rewriter returned the prompt unchanged (analysis failed), apply legacy static prefix
-        // for non-edit prompts to maintain existing behavior
-        if (!isUsingEditPromptStyle && subjectDescription === 'the person') {
-          // rewritePromptForEditModel returns unchanged when subjectDescription is "the person"
-          // Apply the old static prefix as fallback
-          if (finalPositivePrompt.startsWith('{') && finalPositivePrompt.includes('|') && finalPositivePrompt.endsWith('}')) {
-            const pipedPrompts = finalPositivePrompt.slice(1, -1);
-            const promptArray = pipedPrompts.split('|');
-            const transformedPrompts = promptArray.map(p =>
-              `${EDIT_MODEL_TRANSFORMATION_PREFIX}${p.trim()}`
-            );
-            finalPositivePrompt = `{${transformedPrompts.join('|')}}`;
-          } else {
-            finalPositivePrompt = `${EDIT_MODEL_TRANSFORMATION_PREFIX}${finalPositivePrompt}`;
-          }
-        }
+        // Legacy static prefix fallback removed — rewritePromptForEditModel now always rewrites,
+        // even when subjectDescription is "the person" (provides transformation context anchors)
       }
 
       // Style prompt logic: use context state

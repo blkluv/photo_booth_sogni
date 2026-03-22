@@ -15,9 +15,9 @@ import promptsDataRaw from '../../prompts.json';
 import { THEME_GROUPS, getDefaultThemeGroupState, getEnabledPrompts, injectPersonalizedThemeGroup, removePersonalizedThemeGroup } from '../../constants/themeGroups';
 import { fetchCustomPrompts, expandPrompts as expandPromptsAPI, saveCustomPrompts, resetCustomPrompts, getPreviewImageUrl } from '../../services/personalizeService';
 import { stripTransformationPrefix } from '../../constants/editPrompts';
-import { getThemeGroupPreferences, saveThemeGroupPreferences, getFavoriteImages, toggleFavoriteImage, saveFavoriteImages, getBlockedPrompts, blockPrompt, hasSeenBatchVideoTip, markBatchVideoTipShown, getSimplePickStyles, saveSimplePickStyles, getVibeExplorerMode, saveVibeExplorerMode } from '../../utils/cookies';
+import { getThemeGroupPreferences, saveThemeGroupPreferences, getFavoriteImages, toggleFavoriteImage, saveFavoriteImages, getBlockedPrompts, blockPrompt, hasSeenBatchVideoTip, markBatchVideoTipShown, getSimplePickStyles, saveSimplePickStyles, getVibeExplorerMode, saveVibeExplorerMode, getPersonalizeModelType, savePersonalizeModelType } from '../../utils/cookies';
 import { getAttributionText } from '../../config/ugcAttributions';
-import { isContextImageModel, isQwenImageEditLightningModel, SAMPLE_GALLERY_CONFIG, getQRWatermarkConfig, DEFAULT_SETTINGS } from '../../constants/settings';
+import { isContextImageModel, isQwenImageEditLightningModel, SAMPLE_GALLERY_CONFIG, getQRWatermarkConfig, DEFAULT_SETTINGS, DEFAULT_MODEL_ID, QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID } from '../../constants/settings';
 import { TRANSITION_MUSIC_PRESETS } from '../../constants/transitionMusicPresets';
 import { themeConfigService } from '../../services/themeConfig';
 import { useApp } from '../../context/AppContext';
@@ -1537,6 +1537,7 @@ const PhotoGallery = ({
   const [simplePickStyles, setSimplePickStyles] = useState(() => getSimplePickStyles());
 
   // State for Personalize mode
+  const [personalizeModelType, setPersonalizeModelType] = useState(() => getPersonalizeModelType());
   const [personalizeInput, setPersonalizeInput] = useState('');
   const [personalizeExpanding, setPersonalizeExpanding] = useState(false);
   const [personalizeExpandedPrompts, setPersonalizeExpandedPrompts] = useState([]);
@@ -6959,8 +6960,7 @@ const PhotoGallery = ({
     setPersonalizePreviewUrls({});
 
     try {
-      const modelType = selectedModel && isContextImageModel(selectedModel) ? 'image-edit' : 'sd';
-      const expanded = await expandPromptsAPI(address, personalizeInput.trim(), modelType);
+      const expanded = await expandPromptsAPI(address, personalizeInput.trim(), personalizeModelType);
       setPersonalizeExpandedPrompts(expanded);
 
       // Generate preview images as a single batch using the selected model
@@ -6990,8 +6990,8 @@ const PhotoGallery = ({
         try {
           // Build batch prompt using pipe-separated template syntax (same as rest of app)
           const batchPrompt = `{${expanded.map(p => p.prompt).join('|')}}`;
-          const usesContext = selectedModel && isContextImageModel(selectedModel);
-          const currentModel = selectedModel || 'coreml-sogniXLturbo_alpha1_ad';
+          const usesContext = personalizeModelType === 'image-edit';
+          const currentModel = usesContext ? QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID : DEFAULT_MODEL_ID;
 
           const projectConfig = {
             type: 'image',
@@ -7001,8 +7001,8 @@ const PhotoGallery = ({
             sizePreset: 'custom',
             width: 512,
             height: 768,
-            steps: usesContext ? 8 : 7,
-            guidance: usesContext ? 1.5 : 2,
+            steps: usesContext ? 5 : 7,
+            guidance: usesContext ? 1 : 2,
             numberOfMedia: expanded.length,
             numberOfPreviews: 5,
             // Only include sampler/scheduler for non-Lightning models
@@ -7106,7 +7106,7 @@ const PhotoGallery = ({
     } finally {
       setPersonalizeExpanding(false);
     }
-  }, [personalizeInput, selectedModel]);
+  }, [personalizeInput, personalizeModelType]);
 
   const handlePersonalizeSave = useCallback(async (promptsToSave) => {
     const address = sogniClientRef.current?.account?.currentAccount?.walletAddress;
@@ -13740,9 +13740,16 @@ const PhotoGallery = ({
             if (showMoreDropdown) {
               setShowMoreDropdown(false);
             }
-            // In Simple Mode, confirm selections before navigating back
+            // In Simple Mode or Personalize Mode, confirm selections before navigating back
             if (vibeExplorerMode === 'simple' && onSimplePickSelect) {
               onSimplePickSelect(simplePickStyles);
+            }
+            if (vibeExplorerMode === 'personalize' && onSimplePickSelect) {
+              // Use personalized keys as the Simple Pick selection
+              const keys = personalizeSavedPrompts.map((_, i) => `custom_${i}`);
+              saveSimplePickStyles(keys);
+              setSimplePickStyles(keys);
+              onSimplePickSelect(keys);
             }
             // Navigate back to menu
             handleBackToCamera();
@@ -15616,6 +15623,42 @@ const PhotoGallery = ({
                             <span style={{ fontSize: '11px', fontFamily: '"Permanent Marker", cursive' }}>{opt.label}</span>
                           </button>
                         ))}
+                      </div>
+
+                      {/* Model type toggle */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        marginTop: '12px'
+                      }}>
+                        <span style={{ fontSize: '12px', color: 'white', fontFamily: '"Permanent Marker", cursive' }}>
+                          Model:
+                        </span>
+                        <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.3)', borderRadius: '20px', padding: '3px' }}>
+                          {[
+                            { key: 'sd', label: 'Stable Diffusion' },
+                            { key: 'image-edit', label: 'Image Edit' }
+                          ].map(opt => (
+                            <button
+                              key={opt.key}
+                              onClick={() => { setPersonalizeModelType(opt.key); savePersonalizeModelType(opt.key); }}
+                              style={{
+                                background: personalizeModelType === opt.key ? 'rgba(114, 227, 242, 0.9)' : 'transparent',
+                                color: personalizeModelType === opt.key ? 'white' : 'rgba(255, 255, 255, 0.6)',
+                                border: 'none',
+                                borderRadius: '16px',
+                                padding: '5px 14px',
+                                fontSize: '11px',
+                                fontFamily: '"Permanent Marker", cursive',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )}
