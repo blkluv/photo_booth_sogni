@@ -1,5 +1,6 @@
 import urls from '../config/urls';
 import { getOrCreateAppId } from '../utils/appId';
+import { getEventThemeForDomain } from '../utils/eventDomains';
 
 export interface CustomPrompt {
   name: string;
@@ -12,10 +13,17 @@ const API_BASE = `${urls.apiUrl}/api/personalize`;
 
 /**
  * Get user identifier for Personalize API calls.
- * Authenticated users use their wallet address; demo/event mode users fall back to appId.
+ * Event domains use a deterministic address so all visitors share personalized content.
+ * Authenticated users use their wallet address; demo users fall back to appId.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getPersonalizeAddress(client: any): string {
+  // On event domains, use a deterministic address tied to the event theme
+  // so all browsers/sessions share the same personalized content
+  const eventTheme = getEventThemeForDomain();
+  if (eventTheme) {
+    return `event:${eventTheme}`;
+  }
   return client?.account?.currentAccount?.walletAddress || client?.appId || getOrCreateAppId();
 }
 

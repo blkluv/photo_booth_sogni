@@ -1596,7 +1596,10 @@ const PhotoGallery = ({
   // Load saved custom prompts when entering Personalize mode
   useEffect(() => {
     if (vibeExplorerMode !== 'personalize') return;
-    if (!isAuthenticated || !sogniClient) return;
+    if (!isAuthenticated) return;
+    // On event domains sogniClient is null (demo mode uses backend proxy),
+    // but we still need to load personalized prompts via deterministic address
+    if (!sogniClient && !isEventDomain()) return;
 
     const address = getPersonalizeAddress(sogniClient);
     if (!address) return;
