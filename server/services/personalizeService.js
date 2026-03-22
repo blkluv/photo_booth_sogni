@@ -152,9 +152,9 @@ Rules:
  * Save custom prompts to Redis (with file-based fallback)
  */
 export async function saveCustomPrompts(address, prompts) {
-  // Validate: max 16 prompts
-  if (prompts.length > 16) {
-    throw new Error('Maximum 16 custom prompts allowed');
+  // Validate: max 999 prompts
+  if (prompts.length > 999) {
+    throw new Error('Maximum 999 custom prompts allowed');
   }
 
   const redis = getRedisClient();

@@ -7274,10 +7274,10 @@ const PhotoGallery = ({
       const currentSaved = personalizeSavedPromptsRef.current;
       const currentPreviewUrls = personalizePreviewUrlsRef.current;
 
-      // Merge with existing saved prompts (up to 16 total)
+      // Merge with existing saved prompts (up to 999 total)
       const merged = [...currentSaved];
       for (const p of promptsToSave) {
-        if (merged.length >= 16) break;
+        if (merged.length >= 999) break;
         if (!merged.find(existing => existing.name === p.name)) {
           merged.push(p);
         }
@@ -15695,7 +15695,7 @@ const PhotoGallery = ({
                   )}
 
                   {/* Input area */}
-                  {personalizeSavedPrompts.length < 16 && (
+                  {personalizeSavedPrompts.length < 999 && (
                     <div style={{
                       background: 'rgba(255, 255, 255, 0.06)',
                       borderRadius: '16px',
@@ -15981,6 +15981,14 @@ const PhotoGallery = ({
                                       audio.play().catch(() => {});
                                     }
                                   }}
+                                  onError={() => {
+                                    // Image failed to load — clear the URL so the placeholder + refresh button appear
+                                    setPersonalizePreviewUrls(prev => {
+                                      const next = { ...prev };
+                                      delete next[p.name];
+                                      return next;
+                                    });
+                                  }}
                                 />
                               ) : (
                                 <div style={{
@@ -16010,23 +16018,23 @@ const PhotoGallery = ({
                                   )}
                                 </div>
                               )}
-                              {/* Refresh button */}
-                              {personalizePreviewUrls[p.name] && !personalizeRefreshingIndices.has(p.name) && !cardStatus && (
+                              {/* Refresh button — show when image loaded OR when generation finished with no image */}
+                              {!personalizeRefreshingIndices.has(p.name) && !cardStatus && (!personalizeGeneratingPreviews || personalizePreviewUrls[p.name]) && (
                                 <button
                                   className="photo-refresh-btn"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handlePersonalizeRefresh(p.name);
                                   }}
-                                  title="Refresh this image"
+                                  title={personalizePreviewUrls[p.name] ? 'Refresh this image' : 'Generate preview image'}
                                   style={{
                                     position: 'absolute',
                                     top: '4px',
                                     right: '4px',
-                                    width: '20px',
-                                    height: '20px',
+                                    width: personalizePreviewUrls[p.name] ? '20px' : '28px',
+                                    height: personalizePreviewUrls[p.name] ? '20px' : '28px',
                                     borderRadius: '50%',
-                                    background: 'rgba(0, 0, 0, 0.7)',
+                                    background: personalizePreviewUrls[p.name] ? 'rgba(0, 0, 0, 0.7)' : 'rgba(52, 152, 219, 0.8)',
                                     border: 'none',
                                     cursor: 'pointer',
                                     display: 'flex',
@@ -16037,7 +16045,7 @@ const PhotoGallery = ({
                                     transition: 'all 0.2s ease'
                                   }}
                                   onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(52, 152, 219, 0.9)'; e.currentTarget.style.transform = 'scale(1.15)'; }}
-                                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(0, 0, 0, 0.7)'; e.currentTarget.style.transform = 'scale(1)'; }}
+                                  onMouseLeave={(e) => { e.currentTarget.style.background = personalizePreviewUrls[p.name] ? 'rgba(0, 0, 0, 0.7)' : 'rgba(52, 152, 219, 0.8)'; e.currentTarget.style.transform = 'scale(1)'; }}
                                 >
                                   <svg width="11" height="11" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                     <path fill="#ffffff" d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>

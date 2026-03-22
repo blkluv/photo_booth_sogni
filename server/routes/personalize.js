@@ -123,8 +123,8 @@ router.post('/:address', async (req, res) => {
       return res.status(400).json({ error: 'Prompts array is required' });
     }
 
-    if (prompts.length > 16) {
-      return res.status(400).json({ error: 'Maximum 16 custom prompts allowed' });
+    if (prompts.length > 999) {
+      return res.status(400).json({ error: 'Maximum 999 custom prompts allowed' });
     }
 
     // Validate individual prompt structure
