@@ -7159,7 +7159,13 @@ const PhotoGallery = ({
     } catch (err) {
       console.error('[Personalize] Expansion failed:', err);
       personalizeProjectRef.current = null;
-      setPersonalizeError(err.message || 'Failed to generate prompt ideas. Please try again.');
+      const isNetworkError = err instanceof TypeError ||
+        (err.message && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError') || err.message.includes('network')));
+      setPersonalizeError(
+        isNetworkError
+          ? 'Network error — check your connection and try again.'
+          : 'Failed to generate prompt ideas. Please try again.'
+      );
       if (personalizeGenerationNonce.current === currentNonce) {
         setPersonalizeGeneratingPreviews(false);
       }
@@ -16122,7 +16128,7 @@ const PhotoGallery = ({
                         gap: '8px',
                         marginTop: '12px'
                       }}>
-                        <span style={{ fontSize: '12px', color: 'white', fontFamily: '"Permanent Marker", cursive' }}>
+                        <span style={{ fontSize: isMobile ? '12px' : '20px', color: 'white', fontFamily: '"Permanent Marker", cursive' }}>
                           Preview face:
                         </span>
                         <div style={{
@@ -16142,26 +16148,26 @@ const PhotoGallery = ({
                             style={{
                               display: 'flex',
                               alignItems: 'center',
-                              gap: '6px',
-                              padding: '3px 12px 3px 3px',
+                              gap: isMobile ? '6px' : '10px',
+                              padding: isMobile ? '3px 12px 3px 3px' : '5px 18px 5px 5px',
                               background: personalizePreviewSource === opt.key ? 'rgba(114, 227, 242, 0.2)' : 'rgba(255, 255, 255, 0.06)',
                               border: personalizePreviewSource === opt.key ? '1px solid rgba(114, 227, 242, 0.5)' : '1px solid rgba(255, 255, 255, 0.15)',
-                              borderRadius: '20px',
+                              borderRadius: isMobile ? '20px' : '40px',
                               cursor: 'pointer',
                               transition: 'all 0.15s ease',
                               color: 'white'
                             }}
                           >
                             <div className="personalize-face-avatar" style={{
-                              width: '36px',
-                              height: '36px',
+                              width: isMobile ? '36px' : '72px',
+                              height: isMobile ? '36px' : '72px',
                               borderRadius: '50%',
                               overflow: 'hidden',
                               flexShrink: 0
                             }}>
                               <img src={opt.img} alt={opt.label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                             </div>
-                            <span style={{ fontSize: '11px', fontFamily: '"Permanent Marker", cursive', whiteSpace: 'nowrap' }}>{opt.label}</span>
+                            <span style={{ fontSize: isMobile ? '11px' : '18px', fontFamily: '"Permanent Marker", cursive', whiteSpace: 'nowrap' }}>{opt.label}</span>
                           </button>
                         ))}
                         </div>
@@ -17378,17 +17384,26 @@ const PhotoGallery = ({
                   backgroundColor: 'white', // Keep polaroid frames white even in extension mode
                   position: 'relative',
                   borderRadius: '2px',
-                  boxShadow: isExtensionMode ? '0 4px 12px rgba(0, 0, 0, 0.5)' : '0 4px 12px rgba(0, 0, 0, 0.3)',
+                  boxShadow: isPromptSelectorMode ? '0 4px 16px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.15)' : (isExtensionMode ? '0 4px 12px rgba(0, 0, 0, 0.5)' : '0 4px 12px rgba(0, 0, 0, 0.3)'),
                   display: photo.hidden ? 'none' : 'flex',
                   flexDirection: 'column',
-                  '--stagger-delay': `${index * 1}s` // Add staggered delay based on index
+                  '--stagger-delay': `${index * 1}s`, // Add staggered delay based on index
+                  ...(isPromptSelectorMode && {
+                    transform: `rotate(${(index % 2 === 0 ? -1 : 1) * (0.5 + (index % 4))}deg)`,
+                    transition: 'all 0.2s ease',
+                    maxWidth: '280px'
+                  })
                 }}
               >
                 <div style={{
                   position: 'relative',
                   width: '100%',
-                  aspectRatio: dynamicStyle.aspectRatio,
-                  overflow: 'hidden'
+                  aspectRatio: (isPromptSelectorMode && photo.isGalleryImage) ? '2/3' : dynamicStyle.aspectRatio,
+                  overflow: 'hidden',
+                  ...(isPromptSelectorMode && photo.isGalleryImage && {
+                    background: '#1a1a2e',
+                    borderRadius: '2px'
+                  })
                 }}>
                   <PlaceholderImage placeholderUrl={placeholderUrl} />
                   
@@ -18197,7 +18212,7 @@ const PhotoGallery = ({
                     const useAbsolutePosition = !isSelected;
                     
                     const baseStyle = {
-                      objectFit: 'cover',
+                      objectFit: (isPromptSelectorMode && photo.isGalleryImage && useAbsolutePosition) ? 'contain' : 'cover',
                       // Only use absolute positioning for thumbnails, not selected photos
                       ...(useAbsolutePosition ? {
                         position: 'absolute',

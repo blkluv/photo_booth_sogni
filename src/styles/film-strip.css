@@ -158,11 +158,10 @@ body.extension-mode .action-button:not(.use-prompt-btn) {
   container-type: inline-size;
 }
 
-/* Style Explorer grid layout - 5 columns on desktop */
+/* Style Explorer grid layout - 4 columns on desktop (polaroid style like Personalize) */
 .film-strip-content.prompt-selector-mode {
-  /* Style Explorer - 5 columns with smaller images for better density */
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
-  /* Better responsive behavior for different screen sizes */
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 24px !important;
   container-type: inline-size;
 }
 
@@ -521,6 +520,20 @@ body.extension-mode .action-button:not(.use-prompt-btn) {
   display: block !important;
   line-height: 37px !important;
 }
+
+/* Smaller label for Style Explorer cards (prompt-selector-mode) */
+.prompt-selector-mode .film-frame .photo-label {
+  font-size: 11px !important;
+  line-height: 20px !important;
+  bottom: 8px !important;
+  height: 24px !important;
+}
+.prompt-selector-mode .film-frame.loaded .photo-label:not(:empty) {
+  font-size: 14px !important;
+  line-height: 20px !important;
+  bottom: 8px !important;
+  height: 24px !important;
+}
 body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty),
 body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label:not(:empty) {
   font-size: 35px !important; /* Slightly smaller than desktop but still larger than base mobile */
@@ -575,6 +588,25 @@ body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label
   
   /* Keep selected photo labels at original size for popup view */
   /* The existing rules for .selected photos will override these */
+
+  /* Style Explorer on mobile: keep compact polaroid padding */
+  .prompt-selector-mode .film-frame:not(.selected) {
+    padding: 6px !important;
+    padding-bottom: 24px !important;
+  }
+  .prompt-selector-mode .film-frame:not(.selected)::after {
+    top: 6px !important;
+    left: 6px !important;
+    right: 6px !important;
+    bottom: 24px !important;
+  }
+  .prompt-selector-mode .film-frame .photo-label,
+  .prompt-selector-mode .film-frame.loaded .photo-label:not(:empty) {
+    font-size: 10px !important;
+    line-height: 16px !important;
+    bottom: 4px !important;
+    height: 18px !important;
+  }
 }
 
 /* Back to Camera button - ensure it stays fixed */
@@ -701,6 +733,26 @@ body:has(.photos-corner-btn) .options-section .corner-btn.continue-corner-btn {
 .film-frame {
   padding: 16px;
   padding-bottom: 56px;
+}
+
+/* Smaller polaroid padding for Style Explorer cards */
+.prompt-selector-mode .film-frame:not(.selected) {
+  padding: 10px !important;
+  padding-bottom: 36px !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+/* Adjust inner bevel for prompt-selector-mode polaroid padding */
+.prompt-selector-mode .film-frame:not(.selected)::after {
+  top: 10px !important;
+  left: 10px !important;
+  right: 10px !important;
+  bottom: 36px !important;
+}
+
+.prompt-selector-mode .film-frame:not(.selected):hover {
+  transform: rotate(0deg) translateY(-4px) scale(1.03) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.2) !important;
 }
 
 /* Selected state with FLIP animation support - HIGHEST PRIORITY */
