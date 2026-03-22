@@ -15505,7 +15505,7 @@ const PhotoGallery = ({
 
           {/* Personalize Mode */}
           {vibeExplorerMode === 'personalize' && (
-            <div style={{
+            <div className="personalize-container" style={{
               padding: '32px',
               maxWidth: '1100px',
               margin: '0 auto'
@@ -15667,14 +15667,14 @@ const PhotoGallery = ({
                           </div>
                         )}
                       </div>
-                      <div style={{
+                      <div className="personalize-grid" style={{
                         display: 'grid',
                         gridTemplateColumns: 'repeat(4, 1fr)',
                         gap: '24px',
                         justifyItems: 'center'
                       }}>
                         {(() => { const _addr = getPersonalizeAddress(sogniClient); return personalizeSavedPrompts.map((p, i) => (
-                          <div key={`saved-${p.name}-${p.imageFilename || i}`} style={{
+                          <div key={`saved-${p.name}-${p.imageFilename || i}`} className="personalize-card" style={{
                             background: 'white',
                             borderRadius: '4px',
                             padding: '10px 10px 36px',
@@ -15768,7 +15768,7 @@ const PhotoGallery = ({
 
                   {/* Input area */}
                   {personalizeSavedPrompts.length < 999 && (
-                    <div style={{
+                    <div className="personalize-input-area" style={{
                       background: 'rgba(255, 255, 255, 0.06)',
                       borderRadius: '16px',
                       padding: '16px',
@@ -15852,7 +15852,7 @@ const PhotoGallery = ({
                       </div>
 
                       {/* Reference image selector */}
-                      <div style={{
+                      <div className="personalize-preview-faces" style={{
                         display: 'flex',
                         alignItems: 'center',
                         gap: '10px',
@@ -15883,7 +15883,7 @@ const PhotoGallery = ({
                               color: 'white'
                             }}
                           >
-                            <div style={{
+                            <div className="personalize-face-avatar" style={{
                               width: '56px',
                               height: '56px',
                               borderRadius: '50%',
@@ -15898,7 +15898,7 @@ const PhotoGallery = ({
                       </div>
 
                       {/* Model type toggle */}
-                      <div style={{
+                      <div className="personalize-model-toggle" style={{
                         display: 'flex',
                         alignItems: 'center',
                         gap: '10px',
@@ -15972,7 +15972,7 @@ const PhotoGallery = ({
                   {/* Expanded prompts preview */}
                   {personalizeExpandedPrompts.length > 0 && (
                     <div style={{ marginTop: '24px' }}>
-                      <div style={{
+                      <div className="personalize-expanded-header" style={{
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
@@ -16027,7 +16027,7 @@ const PhotoGallery = ({
                         </div>
                       </div>
                       {/* Polaroid-style preview grid */}
-                      <div style={{
+                      <div className="personalize-grid" style={{
                         display: 'grid',
                         gridTemplateColumns: 'repeat(4, 1fr)',
                         gap: '24px',

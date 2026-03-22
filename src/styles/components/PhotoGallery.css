@@ -1941,3 +1941,69 @@ html body .photo-action-buttons .action-button,
 .batch-video-tip-tooltip:hover {
   opacity: 0.9;
 }
+
+/* ========== Personalize Mode — Mobile Responsive ========== */
+
+@media (max-width: 768px) {
+  .personalize-container {
+    padding: 16px !important;
+  }
+
+  .personalize-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  .personalize-face-avatar {
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  .personalize-input-area {
+    padding: 12px !important;
+  }
+
+  .personalize-expanded-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Make refresh buttons always visible on touch devices */
+  .personalize-card .photo-refresh-btn {
+    opacity: 1 !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .personalize-container {
+    padding: 10px !important;
+  }
+
+  .personalize-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .personalize-grid .personalize-card {
+    padding: 6px 6px 28px !important;
+  }
+
+  .personalize-face-avatar {
+    width: 36px !important;
+    height: 36px !important;
+  }
+
+  .personalize-preview-faces {
+    gap: 6px !important;
+  }
+
+  .personalize-input-area {
+    padding: 10px !important;
+    border-radius: 12px !important;
+  }
+
+  .personalize-model-toggle {
+    flex-wrap: wrap;
+    gap: 6px !important;
+  }
+}
