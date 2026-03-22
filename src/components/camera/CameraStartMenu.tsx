@@ -530,8 +530,8 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
                       {(() => {
                         const isSamplerMode = selectedStyle && ['random', 'randomMix', 'oneOfEach', 'simplePick'].includes(selectedStyle);
                         if (isSamplerMode) {
-                          // When only Personalized is enabled, show "Personalized" instead of "Random: All"
-                          const text = (selectedStyle === 'randomMix' && isOnlyPersonalizedEnabled)
+                          // When only Personalized is enabled, show "Personalized" instead of "Random: All" or "My Picks"
+                          const text = ((selectedStyle === 'randomMix' || selectedStyle === 'simplePick') && isOnlyPersonalizedEnabled)
                             ? 'Personalized'
                             : (selectedStyle ? styleIdToDisplay(selectedStyle) : 'Select Style');
                           return <>{getStyleIcon} {text}</>;
