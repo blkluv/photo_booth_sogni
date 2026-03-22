@@ -7609,6 +7609,12 @@ const PhotoGallery = ({
         setPersonalizeExpandedPrompts([]);
         setPersonalizeInput('');
         setPersonalizeModelType(modelType);
+        savePersonalizeModelType(modelType);
+        // Sync global model setting to match imported model type
+        const targetModel = modelType === 'image-edit'
+          ? QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID
+          : DEFAULT_MODEL_ID;
+        updateSettingRef.current('selectedModel', targetModel);
         setPersonalizePreviewUrls({});
 
         // Rebuild theme groups and simple pick styles

@@ -134,8 +134,11 @@ export async function importPersonalizeZip(file: File): Promise<ImportResult> {
   const manifest = JSON.parse(manifestText) as ExportManifest;
 
   // Validate version
+  if (typeof manifest.version !== 'number' || manifest.version < 1) {
+    throw new Error('Invalid zip: missing or invalid version');
+  }
   if (manifest.version > 1) {
-    throw new Error('This export was created by a newer version');
+    throw new Error('This export was created by a newer version. Please update the app.');
   }
 
   // Validate prompts
@@ -164,16 +167,10 @@ export async function importPersonalizeZip(file: File): Promise<ImportResult> {
       const imageFile = zip.file(prompt.imageFilename);
       if (imageFile) {
         try {
-          const blob = await imageFile.async('blob');
-          const imageArrayBuffer = await blob.arrayBuffer();
-          const bytes = new Uint8Array(imageArrayBuffer);
-          let binary = '';
-          for (let i = 0; i < bytes.length; i++) {
-            binary += String.fromCharCode(bytes[i]);
-          }
-          const base64 = btoa(binary);
-          const dataUrl = `data:image/jpeg;base64,${base64}`;
-          imported.previewImageUrl = dataUrl;
+          const base64 = await imageFile.async('base64');
+          const ext = prompt.imageFilename.split('.').pop()?.toLowerCase() || 'jpeg';
+          const mimeType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+          imported.previewImageUrl = `data:${mimeType};base64,${base64}`;
         } catch (error) {
           console.error(`Error extracting preview image ${prompt.imageFilename}:`, error);
           // Continue without the preview image
