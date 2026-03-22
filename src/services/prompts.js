@@ -1,6 +1,7 @@
 import promptsDataRaw from '../prompts.json';
 import { IMAGE_EDIT_PROMPTS_CATEGORY } from '../constants/editPrompts';
 import { isContextImageModel } from '../constants/settings';
+import { _customPromptNames } from '../utils/index';
 
 // Extract prompts from the new nested structure
 const promptsData = {};
@@ -217,9 +218,13 @@ export const getEditPrompts = () => {
 export const mergeCustomPrompts = (stylePrompts, customPrompts) => {
   if (!customPrompts || customPrompts.length === 0) return stylePrompts;
 
+  // Update the display name registry (shared with styleIdToDisplay in utils/index.ts)
+  _customPromptNames.clear();
   const merged = { ...stylePrompts };
   customPrompts.forEach((cp, i) => {
-    merged[`custom_${i}`] = cp.prompt;
+    const key = `custom_${i}`;
+    merged[key] = cp.prompt;
+    _customPromptNames.set(key, cp.name);
   });
   return merged;
 };

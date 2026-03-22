@@ -55,26 +55,17 @@ export async function expandPrompts(
 }
 
 /**
- * Save custom prompts with optional preview images
+ * Save custom prompts (with optional preview image URLs for server-side fetch)
  */
 export async function saveCustomPrompts(
   address: string,
-  prompts: CustomPrompt[],
-  previewImages?: Blob[]
+  prompts: CustomPrompt[]
 ): Promise<CustomPrompt[]> {
-  const formData = new FormData();
-  formData.append('prompts', JSON.stringify(prompts));
-
-  if (previewImages) {
-    previewImages.forEach((blob, i) => {
-      formData.append('images', blob, `preview_${i}.jpg`);
-    });
-  }
-
   const response = await fetch(`${API_BASE}/${encodeURIComponent(address)}`, {
     method: 'POST',
     credentials: 'include',
-    body: formData,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompts }),
   });
 
   if (!response.ok) {

@@ -1,5 +1,6 @@
 import { styleIdToDisplay } from './index';
 import urls from '../config/urls';
+import { getPreviewImageUrl } from '../services/personalizeService';
 
 /**
  * Converts camelCase prompt key to kebab-case filename
@@ -95,7 +96,7 @@ const generateGalleryFilename = (promptKey) => {
  * @param {Object} promptsDataRaw - Optional raw prompts data for fallback logic
  * @returns {Promise<Array>} Array of photo objects for the gallery
  */
-export const loadGalleryImages = async (stylePrompts, portraitType = 'medium', promptsDataRaw = null) => {
+export const loadGalleryImages = async (stylePrompts, portraitType = 'medium', promptsDataRaw = null, customPromptsData = null, walletAddress = null) => {
   try {
     const galleryPhotos = [];
 
@@ -108,20 +109,35 @@ export const loadGalleryImages = async (stylePrompts, portraitType = 'medium', p
         return;
       }
 
-      // Generate the expected filename using strict naming convention
-      const expectedFilename = generateGalleryFilename(promptKey);
-      
-      // Use fallback logic to determine the correct folder
-      const folder = getPortraitFolderWithFallback(portraitType, promptKey, promptsDataRaw);
-      const imagePath = `${urls.assetUrl}/gallery/prompts/${folder}/${expectedFilename}`;
+      let imagePath;
+      let expectedFilename = null;
+
+      // Handle custom personalized prompts — use preview image from server
+      if (promptKey.startsWith('custom_')) {
+        const idx = parseInt(promptKey.split('_')[1], 10);
+        const customPrompt = customPromptsData && customPromptsData[idx];
+        if (customPrompt?.imageFilename && walletAddress) {
+          imagePath = getPreviewImageUrl(walletAddress, customPrompt.imageFilename);
+        } else {
+          // Use a 1x1 transparent data URI as placeholder so the photo passes images.length > 0 filters
+          imagePath = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+        }
+      } else {
+        // Generate the expected filename using strict naming convention
+        expectedFilename = generateGalleryFilename(promptKey);
+
+        // Use fallback logic to determine the correct folder
+        const folder = getPortraitFolderWithFallback(portraitType, promptKey, promptsDataRaw);
+        imagePath = `${urls.assetUrl}/gallery/prompts/${folder}/${expectedFilename}`;
+      }
 
       // Create photo object - will show placeholder if file doesn't exist
       const galleryPhoto = {
         id: `gallery-${promptKey}-${Date.now()}-${photoIndex}`,
         generating: false,
         loading: false,
-        images: [imagePath],
-        originalDataUrl: imagePath,
+        images: imagePath ? [imagePath] : [],
+        originalDataUrl: imagePath || '',
         newlyArrived: false,
         isOriginal: false,
         sourceType: 'gallery',

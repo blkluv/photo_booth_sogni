@@ -1606,7 +1606,23 @@ const App = () => {
 
           // Import the loadGalleryImages function
           const { loadGalleryImages } = await import('./utils/galleryLoader');
-          const loadedGalleryPhotos = await loadGalleryImages(stylePrompts, portraitType, promptsDataRaw);
+          // Pass custom prompts data and wallet address for personalized preview images
+          let customPromptsData = null;
+          let walletAddress = null;
+          let promptsForGallery = stylePrompts;
+          try {
+            const client = authState.getSogniClient ? authState.getSogniClient() : null;
+            walletAddress = client?.account?.currentAccount?.walletAddress;
+            if (walletAddress) {
+              customPromptsData = await fetchPersonalizedPrompts(walletAddress);
+              // Merge custom prompts and populate display name registry
+              // before gallery loads (mergeCustomPrompts also populates _customPromptNames)
+              if (customPromptsData.length > 0) {
+                promptsForGallery = mergeCustomPrompts(stylePrompts, customPromptsData);
+              }
+            }
+          } catch { /* custom prompts optional */ }
+          const loadedGalleryPhotos = await loadGalleryImages(promptsForGallery, portraitType, promptsDataRaw, customPromptsData, walletAddress);
 
           if (loadedGalleryPhotos.length > 0) {
             console.log(`Loaded ${loadedGalleryPhotos.length} gallery images for prompt selector`);
@@ -2571,9 +2587,21 @@ const App = () => {
       if (customPrompts.length > 0) {
         // Re-initialize base prompts then merge custom
         const basePrompts = await initializeStylePrompts(settings.selectedModel);
-        setStylePrompts(mergeCustomPrompts(basePrompts, customPrompts));
+        const updatedPrompts = mergeCustomPrompts(basePrompts, customPrompts);
+        setStylePrompts(updatedPrompts);
         const keys = customPrompts.map((_, i) => `custom_${i}`);
         injectPersonalizedThemeGroup(keys);
+
+        // Reload gallery images so Simple mode picks up custom prompt cards
+        try {
+          const { loadGalleryImages } = await import('./utils/galleryLoader');
+          const promptsDataRaw = (await import('./prompts.json')).default;
+          const loadedGalleryPhotos = await loadGalleryImages(updatedPrompts, portraitType, promptsDataRaw, customPrompts, address);
+          if (loadedGalleryPhotos.length > 0) {
+            setGalleryPhotos(loadedGalleryPhotos);
+            if (currentPage === 'prompts') setPhotos(loadedGalleryPhotos);
+          }
+        } catch { /* gallery reload optional */ }
       } else {
         // Reset to base prompts
         const basePrompts = await initializeStylePrompts(settings.selectedModel);
@@ -2583,7 +2611,7 @@ const App = () => {
     } catch (err) {
       console.error('[Personalize] Failed to refresh custom prompts:', err);
     }
-  }, [settings.selectedModel]);
+  }, [settings.selectedModel, portraitType, currentPage]);
 
   // Update handlePositivePromptChange to use updateSetting
   const handlePositivePromptChange = (value) => {

@@ -1,5 +1,11 @@
 import { getProxiedUrl } from './s3FetchWithFallback';
 
+/**
+ * Registry mapping custom prompt keys (e.g., 'custom_0') to display names.
+ * Populated by mergeCustomPrompts in services/prompts.js.
+ */
+export const _customPromptNames: Map<string, string> = new Map();
+
 // Domains where the backend proxy can help bypass CORS cache poisoning
 const PROXYABLE_DOMAINS = [
   's3-accelerate.amazonaws.com',
@@ -250,6 +256,11 @@ export const calculateAspectRatio = (): number => {
  * Convert style ID to display text
  */
 export function styleIdToDisplay(styleId: string): string {
+  // Handle custom personalized prompts (e.g., 'custom_0' → 'Enchanted Garden')
+  if (styleId.startsWith('custom_')) {
+    const name = _customPromptNames.get(styleId);
+    if (name) return name;
+  }
   // Handle special cases
   if (styleId === 'browseGallery') {
     return 'Browse Gallery';

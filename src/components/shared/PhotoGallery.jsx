@@ -1501,15 +1501,16 @@ const PhotoGallery = ({
       const saved = getThemeGroupPreferences();
       const defaultState = getDefaultThemeGroupState();
       const base = Object.keys(saved).length === 0 ? defaultState : { ...defaultState, ...saved };
-      // If personalized theme group was injected (by App.jsx on mount), enable it
+      // If personalized prompts exist, ensure the group is enabled
       if (THEME_GROUPS['personalized'] && base.personalized === undefined) {
         base.personalized = true;
       }
       return base;
     }
     const defaultState = getDefaultThemeGroupState();
-    // If personalized theme group was injected (by App.jsx on mount), enable it
-    if (THEME_GROUPS['personalized'] && defaultState.personalized === undefined) {
+    // If personalized prompts exist, default to showing ONLY personalized
+    if (THEME_GROUPS['personalized']) {
+      Object.keys(defaultState).forEach(k => { defaultState[k] = false; });
       defaultState.personalized = true;
     }
     return defaultState;
@@ -1545,10 +1546,20 @@ const PhotoGallery = ({
       return localStorage.getItem('sogni_personalize_preview_source') || 'einstein';
     } catch { return 'einstein'; }
   });
+
+  // Auto-select "Your Photo" as preview face when a photo is available
+  const hasPhoto = !!lastPhotoData?.dataUrl;
+  useEffect(() => {
+    if (hasPhoto) {
+      setPersonalizePreviewSource('photo');
+    }
+  }, [hasPhoto]);
+
   const [personalizeError, setPersonalizeError] = useState(null);
   const [personalizeResetConfirm, setPersonalizeResetConfirm] = useState(false);
   const [personalizePreviewUrls, setPersonalizePreviewUrls] = useState({}); // { index: url }
   const [personalizeGeneratingPreviews, setPersonalizeGeneratingPreviews] = useState(false);
+  const [personalizeSavingCards, setPersonalizeSavingCards] = useState({}); // { [promptName]: 'saving' | 'saved' | 'error' }
 
   // Refs for personalize state (used in callbacks to avoid stale closures)
   const personalizeSavedPromptsRef = useRef(personalizeSavedPrompts);
@@ -1559,6 +1570,8 @@ const PhotoGallery = ({
   personalizePreviewUrlsRef.current = personalizePreviewUrls;
   const onCustomPromptsUpdatedRef = useRef(onCustomPromptsUpdated);
   onCustomPromptsUpdatedRef.current = onCustomPromptsUpdated;
+  const sogniClientRef = useRef(sogniClient);
+  sogniClientRef.current = sogniClient;
 
   // Load saved custom prompts when entering Personalize mode
   useEffect(() => {
@@ -7021,24 +7034,45 @@ const PhotoGallery = ({
           }
 
           const project = await sogniClient.projects.create(projectConfig);
-          const jobIndexMap = new Map();
-          let nextJobIndex = 0;
           let completedCount = 0;
+          const matchedIndices = new Set();
 
           await new Promise((resolve) => {
             const timeout = setTimeout(() => resolve(null), 90000); // 90s timeout for batch
 
-            project.on('jobStarted', (job) => {
-              if (!jobIndexMap.has(job.id)) {
-                jobIndexMap.set(job.id, nextJobIndex++);
-              }
-            });
-
             project.on('jobCompleted', (event) => {
+              // Skip preview/progress thumbnails — only process final results
+              if (event.isPreview) return;
+
               const url = event.resultUrl || event.imageUrl || event.previewUrl;
               if (url) {
-                const index = jobIndexMap.has(event.id) ? jobIndexMap.get(event.id) : completedCount;
-                setPersonalizePreviewUrls(prev => ({ ...prev, [index]: url }));
+                // Match the completed job's individual prompt text back to the
+                // expanded prompts array to determine the correct frame index.
+                const jobPrompt = event.positivePrompt || '';
+                let index = -1;
+
+                // Exact match against expanded prompts (skip already-matched indices)
+                for (let i = 0; i < expanded.length; i++) {
+                  if (!matchedIndices.has(i) && expanded[i].prompt === jobPrompt) {
+                    index = i;
+                    break;
+                  }
+                }
+
+                // Fallback: first unmatched index
+                if (index === -1) {
+                  for (let i = 0; i < expanded.length; i++) {
+                    if (!matchedIndices.has(i)) {
+                      index = i;
+                      break;
+                    }
+                  }
+                }
+
+                if (index >= 0) {
+                  matchedIndices.add(index);
+                  setPersonalizePreviewUrls(prev => ({ ...prev, [index]: url }));
+                }
               }
               completedCount++;
               if (completedCount >= expanded.length) {
@@ -7075,8 +7109,18 @@ const PhotoGallery = ({
   }, [personalizeInput, selectedModel]);
 
   const handlePersonalizeSave = useCallback(async (promptsToSave) => {
-    const address = sogniClient?.account?.currentAccount?.walletAddress;
+    const address = sogniClientRef.current?.account?.currentAccount?.walletAddress;
     if (!address) return;
+
+    setPersonalizeError(null);
+
+    // Show saving state on each card being saved
+    const savingNames = promptsToSave.map(p => p.name);
+    setPersonalizeSavingCards(prev => {
+      const next = { ...prev };
+      savingNames.forEach(n => { next[n] = 'saving'; });
+      return next;
+    });
 
     // Read current state via refs to avoid stale closures
     const currentSaved = personalizeSavedPromptsRef.current;
@@ -7087,81 +7131,113 @@ const PhotoGallery = ({
     const merged = [...currentSaved];
     for (const p of promptsToSave) {
       if (merged.length >= 16) break;
-      // Avoid duplicates by name
       if (!merged.find(existing => existing.name === p.name)) {
         merged.push(p);
       }
     }
 
     try {
-      // Fetch preview images from S3 URLs and prepare for upload
-      // Track which prompt index each blob belongs to for correct server mapping
-      const indexedBlobs = [];
+      // Attach preview image URLs so the server can fetch them directly (avoids CORS)
       for (let i = 0; i < merged.length; i++) {
-        const p = merged[i];
-        // Skip prompts that already have a saved image on the server
-        if (p.imageFilename) continue;
-
-        // Find this prompt's index in the expanded prompts
-        const expandedIdx = currentExpanded.findIndex(ep => ep.name === p.name && ep.prompt === p.prompt);
+        if (merged[i].imageFilename) continue;
+        const expandedIdx = currentExpanded.findIndex(ep => ep.name === merged[i].name && ep.prompt === merged[i].prompt);
         const previewUrl = expandedIdx >= 0 ? currentPreviewUrls[expandedIdx] : null;
         if (previewUrl) {
-          try {
-            const imgResponse = await fetch(previewUrl);
-            indexedBlobs.push({ blob: await imgResponse.blob(), promptIndex: i });
-          } catch { /* skip failed fetches */ }
+          merged[i].previewImageUrl = previewUrl;
         }
-      }
-
-      // Build FormData with correct index-based filenames
-      const formData = new FormData();
-      formData.append('prompts', JSON.stringify(merged));
-      for (const { blob, promptIndex } of indexedBlobs) {
-        formData.append('images', blob, `preview_${promptIndex}.jpg`);
       }
 
       const response = await fetch(`${urls.apiUrl}/api/personalize/${encodeURIComponent(address)}`, {
         method: 'POST',
         credentials: 'include',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompts: merged }),
       });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Save failed: ${response.status}`);
+        const responseText = await response.text();
+        console.error(`[Personalize] Save failed (${response.status}):`, responseText);
+        let errorMessage = 'Could not save your vibes. Please try again.';
+        try { errorMessage = JSON.parse(responseText).details || JSON.parse(responseText).error || errorMessage; } catch { /* not JSON */ }
+        throw new Error(errorMessage);
       }
       const data = await response.json();
       const savedResult = data.prompts || merged;
 
       setPersonalizeSavedPrompts(savedResult);
-      setPersonalizeExpandedPrompts([]);
-      setPersonalizePreviewUrls({});
-      setPersonalizeInput('');
+
+      // Mark cards as saved
+      setPersonalizeSavingCards(prev => {
+        const next = { ...prev };
+        savingNames.forEach(n => { next[n] = 'saved'; });
+        return next;
+      });
+      setTimeout(() => {
+        setPersonalizeSavingCards(prev => {
+          const next = { ...prev };
+          savingNames.forEach(n => { delete next[n]; });
+          return next;
+        });
+      }, 1500);
+
+      // Remove saved prompts from expanded list (keep unsaved ones visible)
+      const savedNamesSet = new Set(savingNames);
+      const remainingExpanded = currentExpanded.filter(p => !savedNamesSet.has(p.name));
+      if (remainingExpanded.length === 0) {
+        setPersonalizeExpandedPrompts([]);
+        setPersonalizePreviewUrls({});
+        setPersonalizeInput('');
+      } else {
+        const newPreviewUrls = {};
+        remainingExpanded.forEach((p, newIdx) => {
+          const oldIdx = currentExpanded.findIndex(ep => ep.name === p.name && ep.prompt === p.prompt);
+          if (oldIdx >= 0 && currentPreviewUrls[oldIdx]) {
+            newPreviewUrls[newIdx] = currentPreviewUrls[oldIdx];
+          }
+        });
+        setPersonalizeExpandedPrompts(remainingExpanded);
+        setPersonalizePreviewUrls(newPreviewUrls);
+      }
 
       // Update theme groups and enable in filter state
       const keys = savedResult.map((_, i) => `custom_${i}`);
       injectPersonalizedThemeGroup(keys);
 
-      // Ensure personalized group is enabled in theme state
       setThemeGroupState(prev => {
         const next = { ...prev, personalized: true };
         saveThemeGroupPreferences(next);
         return next;
       });
 
-      // Reset Simple Pick to only personalized keys when custom prompts change
-      saveSimplePickStyles(keys);
-      setSimplePickStyles(keys);
+      setSimplePickStyles(prev => {
+        const withoutOldCustom = prev.filter(k => !k.startsWith('custom_'));
+        const updated = [...withoutOldCustom, ...keys];
+        const trimmed = updated.slice(0, 16);
+        saveSimplePickStyles(trimmed);
+        return trimmed;
+      });
 
-      // Notify parent to refresh stylePrompts with new custom prompts
       if (onCustomPromptsUpdatedRef.current) onCustomPromptsUpdatedRef.current();
     } catch (err) {
       console.error('[Personalize] Save failed:', err);
-      setPersonalizeError(err.message || 'Failed to save prompts.');
+      // Show error on the specific cards that failed
+      setPersonalizeSavingCards(prev => {
+        const next = { ...prev };
+        savingNames.forEach(n => { next[n] = 'error'; });
+        return next;
+      });
+      // Clear error indicators after 3 seconds
+      setTimeout(() => {
+        setPersonalizeSavingCards(prev => {
+          const next = { ...prev };
+          savingNames.forEach(n => { delete next[n]; });
+          return next;
+        });
+      }, 3000);
     }
   }, []);
 
   const handlePersonalizeRemove = useCallback(async (index) => {
-    const address = sogniClient?.account?.currentAccount?.walletAddress;
+    const address = sogniClientRef.current?.account?.currentAccount?.walletAddress;
     if (!address) return;
 
     const updated = personalizeSavedPromptsRef.current.filter((_, i) => i !== index);
@@ -7197,7 +7273,7 @@ const PhotoGallery = ({
   }, []);
 
   const handlePersonalizeReset = useCallback(async () => {
-    const address = sogniClient?.account?.currentAccount?.walletAddress;
+    const address = sogniClientRef.current?.account?.currentAccount?.walletAddress;
     if (!address) return;
 
     try {
@@ -15492,7 +15568,7 @@ const PhotoGallery = ({
                             boxShadow: personalizeInput.trim() && !personalizeExpanding ? '0 2px 10px rgba(114, 227, 242, 0.3)' : 'none'
                           }}
                         >
-                          {personalizeExpanding ? 'Thinking...' : 'Generate'}
+                          {personalizeExpanding ? 'Brainstorming...' : 'Generate'}
                         </button>
                       </div>
 
@@ -15504,13 +15580,13 @@ const PhotoGallery = ({
                         marginTop: '12px',
                         flexWrap: 'wrap'
                       }}>
-                        <span style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.5)', fontFamily: '"Permanent Marker", cursive' }}>
+                        <span style={{ fontSize: '12px', color: 'white', fontFamily: '"Permanent Marker", cursive' }}>
                           Preview face:
                         </span>
                         {[
+                          ...(lastPhotoData?.dataUrl ? [{ key: 'photo', label: 'Your Photo', img: lastPhotoData.dataUrl }] : []),
                           { key: 'einstein', label: 'Einstein', img: '/gallery/sample-gallery-headshot-einstein.jpg' },
-                          { key: 'jen', label: 'Jen', img: '/gallery/sample-gallery-medium-body-jen.jpg' },
-                          ...(lastPhotoData?.dataUrl ? [{ key: 'photo', label: 'Your Photo', img: lastPhotoData.dataUrl }] : [])
+                          { key: 'jen', label: 'Jen', img: '/gallery/sample-gallery-medium-body-jen.jpg' }
                         ].map(opt => (
                           <button
                             key={opt.key}
@@ -15601,7 +15677,7 @@ const PhotoGallery = ({
                             Save All
                           </button>
                           <button
-                            onClick={() => { setPersonalizeExpandedPrompts([]); setPersonalizePreviewUrls({}); }}
+                            onClick={() => { setPersonalizeExpandedPrompts([]); setPersonalizePreviewUrls({}); setPersonalizeInput(''); }}
                             style={{
                               background: 'none',
                               color: 'rgba(255, 255, 255, 0.6)',
@@ -15621,35 +15697,33 @@ const PhotoGallery = ({
                         </div>
                       </div>
                       {/* Polaroid-style preview grid */}
-                      {personalizeGeneratingPreviews && Object.keys(personalizePreviewUrls).length === 0 && (
-                        <div style={{ textAlign: 'center', padding: '20px', color: 'rgba(255,255,255,0.6)', fontSize: '13px' }}>
-                          Generating preview images...
-                        </div>
-                      )}
                       <div style={{
                         display: 'grid',
                         gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
                         gap: '24px',
                         justifyItems: 'center'
                       }}>
-                        {personalizeExpandedPrompts.map((p, i) => (
+                        {personalizeExpandedPrompts.map((p, i) => {
+                          const cardStatus = personalizeSavingCards[p.name];
+                          return (
                           <div key={`expanded-${i}`}
-                            onClick={() => handlePersonalizeSave([p])}
-                            title="Click to save this vibe"
+                            onClick={() => !cardStatus && handlePersonalizeSave([p])}
+                            title={cardStatus === 'saving' ? 'Saving...' : cardStatus === 'saved' ? 'Saved!' : cardStatus === 'error' ? 'Save failed — tap to retry' : 'Click to save this vibe'}
                             style={{
                               background: 'white',
                               borderRadius: '4px',
                               padding: '10px 10px 36px',
-                              cursor: 'pointer',
+                              cursor: cardStatus === 'saving' ? 'wait' : 'pointer',
                               transition: 'all 0.2s ease',
-                              boxShadow: '0 4px 16px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.15)',
-                              transform: `rotate(${(i % 2 === 0 ? -1 : 1) * (1 + (i % 3))}deg)`,
+                              boxShadow: cardStatus === 'saved' ? '0 0 20px rgba(80, 200, 120, 0.5)' : cardStatus === 'error' ? '0 0 20px rgba(255, 71, 87, 0.5)' : '0 4px 16px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.15)',
+                              transform: cardStatus === 'saved' ? 'scale(0.95)' : `rotate(${(i % 2 === 0 ? -1 : 1) * (1 + (i % 3))}deg)`,
+                              opacity: cardStatus === 'saved' ? 0.6 : 1,
                               width: '100%',
                               maxWidth: '220px',
                               position: 'relative'
                             }}
-                            onMouseEnter={(e) => { e.currentTarget.style.transform = 'rotate(0deg) translateY(-4px) scale(1.03)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.2)'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.transform = `rotate(${(i % 2 === 0 ? -1 : 1) * (1 + (i % 3))}deg)`; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.15)'; }}
+                            onMouseEnter={(e) => { if (!cardStatus) { e.currentTarget.style.transform = 'rotate(0deg) translateY(-4px) scale(1.03)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.2)'; } }}
+                            onMouseLeave={(e) => { if (!cardStatus) { e.currentTarget.style.transform = `rotate(${(i % 2 === 0 ? -1 : 1) * (1 + (i % 3))}deg)`; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.15)'; } }}
                           >
                             {/* Image area */}
                             <div style={{
@@ -15700,6 +15774,26 @@ const PhotoGallery = ({
                                 </div>
                               )}
                             </div>
+                            {/* Status overlay */}
+                            {cardStatus && (
+                              <div style={{
+                                position: 'absolute',
+                                top: 0, left: 0, right: 0, bottom: 0,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                background: cardStatus === 'saving' ? 'rgba(0,0,0,0.4)' : cardStatus === 'saved' ? 'rgba(80,200,120,0.3)' : 'rgba(255,71,87,0.3)',
+                                borderRadius: '4px',
+                                zIndex: 5
+                              }}>
+                                <span style={{
+                                  color: 'white',
+                                  fontSize: '13px',
+                                  fontFamily: '"Permanent Marker", cursive',
+                                  textShadow: '0 1px 4px rgba(0,0,0,0.5)'
+                                }}>
+                                  {cardStatus === 'saving' ? 'Saving...' : cardStatus === 'saved' ? 'Saved!' : 'Failed'}
+                                </span>
+                              </div>
+                            )}
                             {/* Label */}
                             <div style={{
                               position: 'absolute',
@@ -15717,7 +15811,7 @@ const PhotoGallery = ({
                               {p.name}
                             </div>
                           </div>
-                        ))}
+                        );})}
                       </div>
                     </div>
                   )}

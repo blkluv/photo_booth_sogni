@@ -108,22 +108,13 @@ router.get('/:address', async (req, res) => {
  * POST /api/personalize/:address
  * Save custom prompts (with optional preview images)
  */
-router.post('/:address', upload.array('images', 16), async (req, res) => {
+router.post('/:address', async (req, res) => {
   try {
     const { address } = req.params;
     let { prompts } = req.body;
 
     if (!address) {
       return res.status(400).json({ error: 'Address is required' });
-    }
-
-    // Parse prompts if it's a string (from multipart form)
-    if (typeof prompts === 'string') {
-      try {
-        prompts = JSON.parse(prompts);
-      } catch (e) {
-        return res.status(400).json({ error: 'Invalid prompts JSON format' });
-      }
     }
 
     if (!Array.isArray(prompts) || prompts.length === 0) {
@@ -142,35 +133,28 @@ router.post('/:address', upload.array('images', 16), async (req, res) => {
       if (!p.prompt || typeof p.prompt !== 'string') {
         return res.status(400).json({ error: 'Each prompt must have a prompt string' });
       }
-      // Truncate to reasonable limits
       p.name = p.name.slice(0, 100);
       p.prompt = p.prompt.slice(0, 2000);
       if (p.negativePrompt) p.negativePrompt = String(p.negativePrompt).slice(0, 500);
     }
 
-    // Save preview images if provided
-    // Images are named with their prompt index (e.g., preview_3.jpg for prompts[3])
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        // Use the original filename which encodes the prompt index
-        const match = file.originalname?.match(/preview_(\d+)\.jpg/);
-        if (match) {
-          const promptIdx = parseInt(match[1], 10);
-          const filename = `preview_${promptIdx}.jpg`;
-          savePreviewImage(address, filename, file.buffer);
-          if (prompts[promptIdx]) {
-            prompts[promptIdx].imageFilename = filename;
-          }
-        } else {
-          // Fallback: sequential assignment for backwards compatibility
-          const idx = req.files.indexOf(file);
-          const filename = `preview_${idx}.jpg`;
-          savePreviewImage(address, filename, file.buffer);
-          if (prompts[idx]) {
-            prompts[idx].imageFilename = filename;
-          }
+    // Fetch preview images from URLs (server-side, no CORS issues)
+    for (let i = 0; i < prompts.length; i++) {
+      const p = prompts[i];
+      if (p.imageFilename || !p.previewImageUrl) continue;
+      try {
+        const imgResponse = await fetch(p.previewImageUrl);
+        if (imgResponse.ok) {
+          const arrayBuffer = await imgResponse.arrayBuffer();
+          const filename = `preview_${i}.jpg`;
+          savePreviewImage(address, filename, Buffer.from(arrayBuffer));
+          p.imageFilename = filename;
         }
+      } catch (err) {
+        console.warn(`[Personalize] Could not fetch preview image ${i}:`, err.message);
       }
+      // Clean up the temporary URL field before saving to Redis
+      delete p.previewImageUrl;
     }
 
     await saveCustomPrompts(address, prompts);
