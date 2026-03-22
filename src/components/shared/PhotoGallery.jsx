@@ -1564,10 +1564,17 @@ const PhotoGallery = ({
 
   const [personalizeError, setPersonalizeError] = useState(null);
   const [personalizeResetConfirm, setPersonalizeResetConfirm] = useState(false);
-  const [personalizePreviewUrls, setPersonalizePreviewUrls] = useState({}); // { index: url }
+  const [personalizePreviewUrls, setPersonalizePreviewUrls] = useState({}); // { [promptName]: url }
   const [personalizeGeneratingPreviews, setPersonalizeGeneratingPreviews] = useState(false);
   const [personalizeSavingCards, setPersonalizeSavingCards] = useState({}); // { [promptName]: 'saving' | 'saved' | 'error' }
-  const [personalizeRefreshingIndices, setPersonalizeRefreshingIndices] = useState(new Set());
+  const [personalizeRefreshingIndices, setPersonalizeRefreshingIndices] = useState(new Set()); // Set of prompt names currently refreshing
+  const [personalizeRemovingIndices, setPersonalizeRemovingIndices] = useState(new Set());
+
+  // Mutex: serializes all mutative personalize operations (save, remove, reset)
+  // Each operation chains onto this promise so only one runs at a time.
+  const personalizeMutexRef = useRef(Promise.resolve());
+  // Generation nonce: incremented on each expand/discard/reset to invalidate in-flight batch handlers
+  const personalizeGenerationNonce = useRef(0);
 
   // Refs for personalize state (used in callbacks to avoid stale closures)
   const personalizeSavedPromptsRef = useRef(personalizeSavedPrompts);
@@ -1578,7 +1585,7 @@ const PhotoGallery = ({
   personalizePreviewSourceRef.current = personalizePreviewSource;
   const personalizePreviewUrlsRef = useRef(personalizePreviewUrls);
   personalizePreviewUrlsRef.current = personalizePreviewUrls;
-  const personalizePreviewSoundPlayed = useRef(new Set()); // Track which preview indexes have played sound
+  const personalizePreviewSoundPlayed = useRef(new Set()); // Track which preview prompt names have played sound
   const flashSoundSources = useMemo(() => [flash1Sound, flash2Sound, flash3Sound, flash4Sound, flash5Sound, flash6Sound], []);
   const onCustomPromptsUpdatedRef = useRef(onCustomPromptsUpdated);
   onCustomPromptsUpdatedRef.current = onCustomPromptsUpdated;
@@ -6970,6 +6977,7 @@ const PhotoGallery = ({
     setPersonalizeExpandedPrompts([]);
     setPersonalizePreviewUrls({});
     personalizePreviewSoundPlayed.current.clear();
+    const currentNonce = ++personalizeGenerationNonce.current;
 
     try {
       const expanded = await expandPromptsAPI(address, personalizeInput.trim(), personalizeModelType);
@@ -7057,10 +7065,17 @@ const PhotoGallery = ({
               // Skip preview/progress thumbnails — only process final results
               if (event.isPreview) return;
 
+              // Ignore results from a stale generation (user discarded or re-expanded)
+              if (personalizeGenerationNonce.current !== currentNonce) {
+                clearTimeout(timeout);
+                resolve(null);
+                return;
+              }
+
               const url = event.resultUrl || event.imageUrl || event.previewUrl;
               if (url) {
                 // Match the completed job's individual prompt text back to the
-                // expanded prompts array to determine the correct frame index.
+                // expanded prompts array to determine the correct prompt name.
                 const jobPrompt = event.positivePrompt || '';
                 let index = -1;
 
@@ -7084,7 +7099,8 @@ const PhotoGallery = ({
 
                 if (index >= 0) {
                   matchedIndices.add(index);
-                  setPersonalizePreviewUrls(prev => ({ ...prev, [index]: url }));
+                  const promptName = expanded[index].name;
+                  setPersonalizePreviewUrls(prev => ({ ...prev, [promptName]: url }));
                 }
               }
               completedCount++;
@@ -7110,30 +7126,35 @@ const PhotoGallery = ({
         } catch (err) {
           console.warn('[Personalize] Batch preview generation failed:', err);
         }
-        setPersonalizeGeneratingPreviews(false);
+        // Only clear generating flag if this is still the active generation
+        if (personalizeGenerationNonce.current === currentNonce) {
+          setPersonalizeGeneratingPreviews(false);
+        }
       }
     } catch (err) {
       console.error('[Personalize] Expansion failed:', err);
       setPersonalizeError(err.message || 'Failed to generate prompt ideas. Please try again.');
-      setPersonalizeGeneratingPreviews(false);
+      if (personalizeGenerationNonce.current === currentNonce) {
+        setPersonalizeGeneratingPreviews(false);
+      }
     } finally {
       setPersonalizeExpanding(false);
     }
   }, [personalizeInput, personalizeModelType]);
 
   // Refresh a single Personalize preview image (same prompt, new seed)
-  const handlePersonalizeRefresh = useCallback(async (index) => {
-    const prompt = personalizeExpandedPromptsRef.current[index];
+  const handlePersonalizeRefresh = useCallback(async (promptName) => {
+    const prompt = personalizeExpandedPromptsRef.current.find(p => p.name === promptName);
     if (!prompt || !sogniClient) return;
 
-    // Mark this index as refreshing and clear its preview URL
-    setPersonalizeRefreshingIndices(prev => new Set(prev).add(index));
+    // Mark this prompt as refreshing and clear its preview URL
+    setPersonalizeRefreshingIndices(prev => new Set(prev).add(promptName));
     setPersonalizePreviewUrls(prev => {
       const next = { ...prev };
-      delete next[index];
+      delete next[promptName];
       return next;
     });
-    personalizePreviewSoundPlayed.current.delete(index);
+    personalizePreviewSoundPlayed.current.delete(promptName);
 
     try {
       // Load reference image (same logic as handlePersonalizeExpand)
@@ -7203,7 +7224,7 @@ const PhotoGallery = ({
           if (event.isPreview) return;
           const url = event.resultUrl || event.imageUrl || event.previewUrl;
           if (url) {
-            setPersonalizePreviewUrls(prev => ({ ...prev, [index]: url }));
+            setPersonalizePreviewUrls(prev => ({ ...prev, [promptName]: url }));
           }
           clearTimeout(timeout);
           resolve(null);
@@ -7220,11 +7241,11 @@ const PhotoGallery = ({
         });
       });
     } catch (err) {
-      console.warn('[Personalize] Refresh failed for index', index, err);
+      console.warn('[Personalize] Refresh failed for prompt', promptName, err);
     } finally {
       setPersonalizeRefreshingIndices(prev => {
         const next = new Set(prev);
-        next.delete(index);
+        next.delete(promptName);
         return next;
       });
     }
@@ -7244,190 +7265,221 @@ const PhotoGallery = ({
       return next;
     });
 
-    // Read current state via refs to avoid stale closures
-    const currentSaved = personalizeSavedPromptsRef.current;
-    const currentExpanded = personalizeExpandedPromptsRef.current;
-    const currentPreviewUrls = personalizePreviewUrlsRef.current;
+    // Serialize via mutex: wait for any in-flight save/remove/reset to finish,
+    // then read the LATEST state before building the merged list.
+    const operation = personalizeMutexRef.current.then(async () => {
+      // Read current state INSIDE the mutex so we see results of prior operations
+      const currentSaved = personalizeSavedPromptsRef.current;
+      const currentPreviewUrls = personalizePreviewUrlsRef.current;
 
-    // Merge with existing saved prompts (up to 16 total)
-    const merged = [...currentSaved];
-    for (const p of promptsToSave) {
-      if (merged.length >= 16) break;
-      if (!merged.find(existing => existing.name === p.name)) {
-        merged.push(p);
-      }
-    }
-
-    try {
-      // Attach preview image URLs so the server can fetch them directly (avoids CORS)
-      for (let i = 0; i < merged.length; i++) {
-        if (merged[i].imageFilename) continue;
-        const expandedIdx = currentExpanded.findIndex(ep => ep.name === merged[i].name && ep.prompt === merged[i].prompt);
-        const previewUrl = expandedIdx >= 0 ? currentPreviewUrls[expandedIdx] : null;
-        if (previewUrl) {
-          merged[i].previewImageUrl = previewUrl;
+      // Merge with existing saved prompts (up to 16 total)
+      const merged = [...currentSaved];
+      for (const p of promptsToSave) {
+        if (merged.length >= 16) break;
+        if (!merged.find(existing => existing.name === p.name)) {
+          merged.push(p);
         }
       }
 
-      const response = await fetch(`${urls.apiUrl}/api/personalize/${encodeURIComponent(address)}`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompts: merged }),
-      });
-      if (!response.ok) {
-        const responseText = await response.text();
-        console.error(`[Personalize] Save failed (${response.status}):`, responseText);
-        let errorMessage = 'Could not save your vibes. Please try again.';
-        try { errorMessage = JSON.parse(responseText).details || JSON.parse(responseText).error || errorMessage; } catch { /* not JSON */ }
-        throw new Error(errorMessage);
-      }
-      const data = await response.json();
-      const savedResult = data.prompts || merged;
-
-      setPersonalizeSavedPrompts(savedResult);
-
-      // Mark cards as saved
-      setPersonalizeSavingCards(prev => {
-        const next = { ...prev };
-        savingNames.forEach(n => { next[n] = 'saved'; });
-        return next;
-      });
-      setTimeout(() => {
-        setPersonalizeSavingCards(prev => {
-          const next = { ...prev };
-          savingNames.forEach(n => { delete next[n]; });
-          return next;
-        });
-      }, 1500);
-
-      // Remove saved prompts from expanded list (keep unsaved ones visible)
-      const savedNamesSet = new Set(savingNames);
-      const remainingExpanded = currentExpanded.filter(p => !savedNamesSet.has(p.name));
-      if (remainingExpanded.length === 0) {
-        setPersonalizeExpandedPrompts([]);
-        setPersonalizePreviewUrls({});
-        setPersonalizeInput('');
-      } else {
-        const newPreviewUrls = {};
-        remainingExpanded.forEach((p, newIdx) => {
-          const oldIdx = currentExpanded.findIndex(ep => ep.name === p.name && ep.prompt === p.prompt);
-          if (oldIdx >= 0 && currentPreviewUrls[oldIdx]) {
-            newPreviewUrls[newIdx] = currentPreviewUrls[oldIdx];
+      try {
+        // Attach preview image URLs so the server can fetch them directly (avoids CORS)
+        // Preview URLs are keyed by prompt name, so lookup is stable regardless of array order
+        for (let i = 0; i < merged.length; i++) {
+          if (merged[i].imageFilename) continue;
+          const previewUrl = currentPreviewUrls[merged[i].name] || null;
+          if (previewUrl) {
+            merged[i].previewImageUrl = previewUrl;
           }
+        }
+
+        const response = await fetch(`${urls.apiUrl}/api/personalize/${encodeURIComponent(address)}`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompts: merged }),
         });
-        setPersonalizeExpandedPrompts(remainingExpanded);
-        setPersonalizePreviewUrls(newPreviewUrls);
-      }
+        if (!response.ok) {
+          const responseText = await response.text();
+          console.error(`[Personalize] Save failed (${response.status}):`, responseText);
+          let errorMessage = 'Could not save your vibes. Please try again.';
+          try { errorMessage = JSON.parse(responseText).details || JSON.parse(responseText).error || errorMessage; } catch { /* not JSON */ }
+          throw new Error(errorMessage);
+        }
+        const data = await response.json();
+        const savedResult = data.prompts || merged;
 
-      // Update theme groups and enable in filter state
-      const keys = savedResult.map((_, i) => `custom_${i}`);
-      injectPersonalizedThemeGroup(keys);
+        setPersonalizeSavedPrompts(savedResult);
 
-      setThemeGroupState(prev => {
-        const next = { ...prev, personalized: true };
-        saveThemeGroupPreferences(next);
-        return next;
-      });
-
-      setSimplePickStyles(prev => {
-        const withoutOldCustom = prev.filter(k => !k.startsWith('custom_'));
-        const updated = [...withoutOldCustom, ...keys];
-        const trimmed = updated.slice(0, 16);
-        saveSimplePickStyles(trimmed);
-        return trimmed;
-      });
-
-      if (onCustomPromptsUpdatedRef.current) onCustomPromptsUpdatedRef.current();
-    } catch (err) {
-      console.error('[Personalize] Save failed:', err);
-      // Show error on the specific cards that failed
-      setPersonalizeSavingCards(prev => {
-        const next = { ...prev };
-        savingNames.forEach(n => { next[n] = 'error'; });
-        return next;
-      });
-      // Clear error indicators after 3 seconds
-      setTimeout(() => {
+        // Mark cards as saved
         setPersonalizeSavingCards(prev => {
           const next = { ...prev };
-          savingNames.forEach(n => { delete next[n]; });
+          savingNames.forEach(n => { next[n] = 'saved'; });
           return next;
         });
-      }, 3000);
-    }
+        setTimeout(() => {
+          setPersonalizeSavingCards(prev => {
+            const next = { ...prev };
+            savingNames.forEach(n => { delete next[n]; });
+            return next;
+          });
+        }, 1500);
+
+        // Remove saved prompts from expanded list using functional updater
+        // to avoid overwriting concurrent modifications (stale closure fix)
+        const savedNamesSet = new Set(savingNames);
+        setPersonalizeExpandedPrompts(prev => {
+          const remaining = prev.filter(p => !savedNamesSet.has(p.name));
+          if (remaining.length === 0) {
+            setPersonalizePreviewUrls({});
+            setPersonalizeInput('');
+          } else {
+            // Preview URLs are keyed by name -- just remove saved entries
+            setPersonalizePreviewUrls(prevUrls => {
+              const next = { ...prevUrls };
+              savingNames.forEach(n => { delete next[n]; });
+              return next;
+            });
+          }
+          return remaining;
+        });
+
+        // Update theme groups and enable in filter state
+        const keys = savedResult.map((_, i) => `custom_${i}`);
+        injectPersonalizedThemeGroup(keys);
+
+        setThemeGroupState(prev => {
+          const next = { ...prev, personalized: true };
+          saveThemeGroupPreferences(next);
+          return next;
+        });
+
+        setSimplePickStyles(prev => {
+          const withoutOldCustom = prev.filter(k => !k.startsWith('custom_'));
+          const updated = [...withoutOldCustom, ...keys];
+          const trimmed = updated.slice(0, 16);
+          saveSimplePickStyles(trimmed);
+          return trimmed;
+        });
+
+        if (onCustomPromptsUpdatedRef.current) onCustomPromptsUpdatedRef.current();
+      } catch (err) {
+        console.error('[Personalize] Save failed:', err);
+        // Show error on the specific cards that failed
+        setPersonalizeSavingCards(prev => {
+          const next = { ...prev };
+          savingNames.forEach(n => { next[n] = 'error'; });
+          return next;
+        });
+        // Clear error indicators after 3 seconds
+        setTimeout(() => {
+          setPersonalizeSavingCards(prev => {
+            const next = { ...prev };
+            savingNames.forEach(n => { delete next[n]; });
+            return next;
+          });
+        }, 3000);
+      }
+    });
+    // Chain onto mutex (catch to prevent unhandled rejection from blocking future ops)
+    personalizeMutexRef.current = operation.catch(() => {});
+    return operation;
   }, []);
 
   const handlePersonalizeRemove = useCallback(async (index) => {
     const address = sogniClientRef.current?.account?.currentAccount?.walletAddress;
     if (!address) return;
 
-    const updated = personalizeSavedPromptsRef.current.filter((_, i) => i !== index);
+    // Mark this index as removing (for UI feedback)
+    setPersonalizeRemovingIndices(prev => new Set(prev).add(index));
 
-    try {
-      if (updated.length === 0) {
-        await resetCustomPrompts(address);
-        removePersonalizedThemeGroup();
-        // Remove custom keys from Simple Pick
-        setSimplePickStyles(prev => {
-          const filtered = prev.filter(k => !k.startsWith('custom_'));
-          saveSimplePickStyles(filtered);
-          return filtered;
-        });
-      } else {
-        await saveCustomPrompts(address, updated);
-        const keys = updated.map((_, i) => `custom_${i}`);
-        injectPersonalizedThemeGroup(keys);
-        // Update Simple Pick to only include valid custom keys
-        setSimplePickStyles(prev => {
-          const filtered = prev.filter(k => !k.startsWith('custom_') || keys.includes(k));
-          saveSimplePickStyles(filtered);
-          return filtered;
+    // Serialize via mutex to prevent races with concurrent save/remove/reset
+    const operation = personalizeMutexRef.current.then(async () => {
+      // Read FRESH state inside the mutex
+      const updated = personalizeSavedPromptsRef.current.filter((_, i) => i !== index);
+
+      try {
+        if (updated.length === 0) {
+          await resetCustomPrompts(address);
+          removePersonalizedThemeGroup();
+          // Remove custom keys from Simple Pick
+          setSimplePickStyles(prev => {
+            const filtered = prev.filter(k => !k.startsWith('custom_'));
+            saveSimplePickStyles(filtered);
+            return filtered;
+          });
+        } else {
+          await saveCustomPrompts(address, updated);
+          const keys = updated.map((_, i) => `custom_${i}`);
+          injectPersonalizedThemeGroup(keys);
+          // Update Simple Pick to only include valid custom keys
+          setSimplePickStyles(prev => {
+            const filtered = prev.filter(k => !k.startsWith('custom_') || keys.includes(k));
+            saveSimplePickStyles(filtered);
+            return filtered;
+          });
+        }
+        setPersonalizeSavedPrompts(updated);
+
+        // Notify parent to refresh stylePrompts with updated custom prompts
+        if (onCustomPromptsUpdatedRef.current) onCustomPromptsUpdatedRef.current();
+      } catch (err) {
+        console.error('[Personalize] Remove failed:', err);
+        setPersonalizeError('Failed to remove vibe. Please try again.');
+        setTimeout(() => setPersonalizeError(null), 3000);
+      } finally {
+        setPersonalizeRemovingIndices(prev => {
+          const next = new Set(prev);
+          next.delete(index);
+          return next;
         });
       }
-      setPersonalizeSavedPrompts(updated);
-
-      // Notify parent to refresh stylePrompts with updated custom prompts
-      if (onCustomPromptsUpdatedRef.current) onCustomPromptsUpdatedRef.current();
-    } catch (err) {
-      console.error('[Personalize] Remove failed:', err);
-    }
+    });
+    // Chain onto mutex
+    personalizeMutexRef.current = operation.catch(() => {});
+    return operation;
   }, []);
 
   const handlePersonalizeReset = useCallback(async () => {
     const address = sogniClientRef.current?.account?.currentAccount?.walletAddress;
     if (!address) return;
 
-    try {
-      await resetCustomPrompts(address);
-      setPersonalizeSavedPrompts([]);
-      setPersonalizeExpandedPrompts([]);
-      setPersonalizeInput('');
-      setPersonalizeResetConfirm(false);
-      setPersonalizePreviewUrls({});
-      removePersonalizedThemeGroup();
+    // Serialize via mutex to prevent races with concurrent save/remove
+    const operation = personalizeMutexRef.current.then(async () => {
+      try {
+        await resetCustomPrompts(address);
+        personalizeGenerationNonce.current++;
+        setPersonalizeSavedPrompts([]);
+        setPersonalizeExpandedPrompts([]);
+        setPersonalizeInput('');
+        setPersonalizeResetConfirm(false);
+        setPersonalizePreviewUrls({});
+        removePersonalizedThemeGroup();
 
-      // Remove custom keys from Simple Pick
-      setSimplePickStyles(prev => {
-        const filtered = prev.filter(k => !k.startsWith('custom_'));
-        saveSimplePickStyles(filtered);
-        return filtered;
-      });
+        // Remove custom keys from Simple Pick
+        setSimplePickStyles(prev => {
+          const filtered = prev.filter(k => !k.startsWith('custom_'));
+          saveSimplePickStyles(filtered);
+          return filtered;
+        });
 
-      // Remove personalized from theme state
-      setThemeGroupState(prev => {
-        const next = { ...prev };
-        delete next.personalized;
-        saveThemeGroupPreferences(next);
-        return next;
-      });
+        // Remove personalized from theme state
+        setThemeGroupState(prev => {
+          const next = { ...prev };
+          delete next.personalized;
+          saveThemeGroupPreferences(next);
+          return next;
+        });
 
-      // Notify parent to refresh stylePrompts (removes custom prompts)
-      if (onCustomPromptsUpdatedRef.current) onCustomPromptsUpdatedRef.current();
-    } catch (err) {
-      console.error('[Personalize] Reset failed:', err);
-      setPersonalizeError(err.message || 'Failed to reset prompts.');
-    }
+        // Notify parent to refresh stylePrompts (removes custom prompts)
+        if (onCustomPromptsUpdatedRef.current) onCustomPromptsUpdatedRef.current();
+      } catch (err) {
+        console.error('[Personalize] Reset failed:', err);
+        setPersonalizeError(err.message || 'Failed to reset prompts.');
+      }
+    });
+    // Chain onto mutex
+    personalizeMutexRef.current = operation.catch(() => {});
+    return operation;
   }, []);
 
   const handlePersonalizePreviewSourceChange = useCallback((source) => {
@@ -15202,22 +15254,6 @@ const PhotoGallery = ({
               Simple
             </button>
             <button
-              onClick={() => handleVibeExplorerModeChange('advanced')}
-              style={{
-                background: vibeExplorerMode === 'advanced' ? 'rgba(114, 227, 242, 0.9)' : 'transparent',
-                color: vibeExplorerMode === 'advanced' ? 'white' : 'rgba(255, 255, 255, 0.7)',
-                border: 'none',
-                borderRadius: '20px',
-                padding: '8px 20px',
-                fontSize: '13px',
-                fontFamily: '"Permanent Marker", cursive',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              Advanced
-            </button>
-            <button
               onClick={() => handleVibeExplorerModeChange('personalize')}
               style={{
                 background: vibeExplorerMode === 'personalize' ? 'rgba(114, 227, 242, 0.9)' : 'transparent',
@@ -15232,6 +15268,22 @@ const PhotoGallery = ({
               }}
             >
               Personalize
+            </button>
+            <button
+              onClick={() => handleVibeExplorerModeChange('advanced')}
+              style={{
+                background: vibeExplorerMode === 'advanced' ? 'rgba(114, 227, 242, 0.9)' : 'transparent',
+                color: vibeExplorerMode === 'advanced' ? 'white' : 'rgba(255, 255, 255, 0.7)',
+                border: 'none',
+                borderRadius: '20px',
+                padding: '8px 20px',
+                fontSize: '13px',
+                fontFamily: '"Permanent Marker", cursive',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Advanced
             </button>
           </div>
 
@@ -15545,7 +15597,7 @@ const PhotoGallery = ({
                         justifyItems: 'center'
                       }}>
                         {personalizeSavedPrompts.map((p, i) => (
-                          <div key={`saved-${i}`} style={{
+                          <div key={`saved-${p.name}-${p.imageFilename || i}`} style={{
                             background: 'white',
                             borderRadius: '4px',
                             padding: '10px 10px 36px',
@@ -15604,19 +15656,20 @@ const PhotoGallery = ({
                             </div>
                             <button
                               className="saved-remove-btn"
-                              onClick={(e) => { e.stopPropagation(); handlePersonalizeRemove(i); }}
+                              disabled={personalizeRemovingIndices.has(i)}
+                              onClick={(e) => { e.stopPropagation(); if (!personalizeRemovingIndices.has(i)) handlePersonalizeRemove(i); }}
                               style={{
                                 position: 'absolute',
                                 top: '-8px',
                                 right: '-8px',
-                                background: 'rgba(255, 71, 87, 0.9)',
+                                background: personalizeRemovingIndices.has(i) ? 'rgba(150, 150, 150, 0.7)' : 'rgba(255, 71, 87, 0.9)',
                                 color: 'white',
                                 border: '2px solid white',
                                 borderRadius: '50%',
                                 width: '24px',
                                 height: '24px',
                                 fontSize: '13px',
-                                cursor: 'pointer',
+                                cursor: personalizeRemovingIndices.has(i) ? 'wait' : 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -15626,9 +15679,9 @@ const PhotoGallery = ({
                                 boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
                                 zIndex: 2
                               }}
-                              title="Remove this vibe"
+                              title={personalizeRemovingIndices.has(i) ? 'Removing...' : 'Remove this vibe'}
                             >
-                              x
+                              {personalizeRemovingIndices.has(i) ? '...' : 'x'}
                             </button>
                           </div>
                         ))}
@@ -15734,8 +15787,8 @@ const PhotoGallery = ({
                             }}
                           >
                             <div style={{
-                              width: '28px',
-                              height: '28px',
+                              width: '56px',
+                              height: '56px',
                               borderRadius: '50%',
                               overflow: 'hidden',
                               flexShrink: 0
@@ -15842,7 +15895,7 @@ const PhotoGallery = ({
                             Save All
                           </button>
                           <button
-                            onClick={() => { setPersonalizeExpandedPrompts([]); setPersonalizePreviewUrls({}); setPersonalizeInput(''); personalizePreviewSoundPlayed.current.clear(); }}
+                            onClick={() => { personalizeGenerationNonce.current++; setPersonalizeExpandedPrompts([]); setPersonalizePreviewUrls({}); setPersonalizeInput(''); personalizePreviewSoundPlayed.current.clear(); }}
                             style={{
                               background: 'none',
                               color: 'rgba(255, 255, 255, 0.6)',
@@ -15871,7 +15924,7 @@ const PhotoGallery = ({
                         {personalizeExpandedPrompts.map((p, i) => {
                           const cardStatus = personalizeSavingCards[p.name];
                           return (
-                          <div key={`expanded-${i}`}
+                          <div key={`expanded-${p.name}`}
                             className="personalize-card"
                             onClick={() => !cardStatus && handlePersonalizeSave([p])}
                             title={cardStatus === 'saving' ? 'Saving...' : cardStatus === 'saved' ? 'Saved!' : cardStatus === 'error' ? 'Save failed — tap to retry' : 'Click to save this vibe'}
@@ -15900,9 +15953,9 @@ const PhotoGallery = ({
                               background: '#1a1a2e',
                               position: 'relative'
                             }}>
-                              {personalizePreviewUrls[i] ? (
+                              {personalizePreviewUrls[p.name] ? (
                                 <img
-                                  src={personalizePreviewUrls[i]}
+                                  src={personalizePreviewUrls[p.name]}
                                   alt={p.name}
                                   style={{
                                     width: '100%',
@@ -15915,8 +15968,8 @@ const PhotoGallery = ({
                                   onLoad={(e) => {
                                     e.currentTarget.style.opacity = '1';
                                     // Play flash sound once per preview image
-                                    if (settings.soundEnabled && !personalizePreviewSoundPlayed.current.has(i)) {
-                                      personalizePreviewSoundPlayed.current.add(i);
+                                    if (settings.soundEnabled && !personalizePreviewSoundPlayed.current.has(p.name)) {
+                                      personalizePreviewSoundPlayed.current.add(p.name);
                                       const randomIndex = Math.floor(Math.random() * flashSoundSources.length);
                                       const audio = new Audio(flashSoundSources[randomIndex]);
                                       audio.volume = 0.3;
@@ -15935,7 +15988,7 @@ const PhotoGallery = ({
                                   background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
                                   gap: '8px'
                                 }}>
-                                  {(personalizeGeneratingPreviews || personalizeRefreshingIndices.has(i)) ? (
+                                  {(personalizeGeneratingPreviews || personalizeRefreshingIndices.has(p.name)) ? (
                                     <>
                                       <div style={{
                                         width: '24px',
@@ -15953,12 +16006,12 @@ const PhotoGallery = ({
                                 </div>
                               )}
                               {/* Refresh button */}
-                              {personalizePreviewUrls[i] && !personalizeRefreshingIndices.has(i) && !cardStatus && (
+                              {personalizePreviewUrls[p.name] && !personalizeRefreshingIndices.has(p.name) && !cardStatus && (
                                 <button
                                   className="photo-refresh-btn"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handlePersonalizeRefresh(i);
+                                    handlePersonalizeRefresh(p.name);
                                   }}
                                   title="Refresh this image"
                                   style={{
