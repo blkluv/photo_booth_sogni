@@ -590,7 +590,7 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
                                   ? originalPhotoUrl
                                   : (reusablePhotoUrl && reusablePhotoSourceType === 'upload')
                                     ? reusablePhotoUrl
-                                    : "/gallery/sample-gallery-medium-body-jen.jpg"
+                                    : "/gallery/sample-gallery-medium-body-jen2.jpg"
                               }
                               alt="Upload a pic"
                               className="polaroid-bg-image"

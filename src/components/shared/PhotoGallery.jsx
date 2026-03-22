@@ -6988,7 +6988,7 @@ const PhotoGallery = ({
             refImageBuffer = new Uint8Array(arrayBuffer);
           } else {
             const refUrl = currentPreviewSource === 'jen'
-              ? '/gallery/sample-gallery-medium-body-jen.jpg'
+              ? '/gallery/sample-gallery-medium-body-jen2.jpg'
               : '/gallery/sample-gallery-headshot-einstein.jpg';
             const refResponse = await fetch(refUrl);
             const refBlob = await refResponse.blob();
@@ -15150,7 +15150,7 @@ const PhotoGallery = ({
                 {(() => {
                   const portraitOptions = {
                     headshot: { label: 'Close Up', img: '/gallery/sample-gallery-headshot-einstein.jpg' },
-                    medium: { label: 'Waist Up', img: '/gallery/sample-gallery-medium-body-jen.jpg' }
+                    medium: { label: 'Waist Up', img: '/gallery/sample-gallery-medium-body-jen2.jpg' }
                   };
                   const current = portraitOptions[portraitType] || portraitOptions.medium;
                   const nextValue = portraitType === 'headshot' ? 'medium' : 'headshot';
@@ -15605,7 +15605,7 @@ const PhotoGallery = ({
                         {[
                           ...(lastPhotoData?.dataUrl ? [{ key: 'photo', label: 'Your Photo', img: lastPhotoData.dataUrl }] : []),
                           { key: 'einstein', label: 'Einstein', img: '/gallery/sample-gallery-headshot-einstein.jpg' },
-                          { key: 'jen', label: 'Jen', img: '/gallery/sample-gallery-medium-body-jen.jpg' }
+                          { key: 'jen', label: 'Jen', img: '/gallery/sample-gallery-medium-body-jen2.jpg' }
                         ].map(opt => (
                           <button
                             key={opt.key}
@@ -16254,7 +16254,7 @@ const PhotoGallery = ({
           {(() => {
             const portraitOptions = {
               headshot: { label: 'Close Up', img: '/gallery/sample-gallery-headshot-einstein.jpg' },
-              medium: { label: 'Waist Up', img: '/gallery/sample-gallery-medium-body-jen.jpg' }
+              medium: { label: 'Waist Up', img: '/gallery/sample-gallery-medium-body-jen2.jpg' }
             };
             const current = portraitOptions[portraitType] || portraitOptions.medium;
             const nextValue = portraitType === 'headshot' ? 'medium' : 'headshot';

@@ -263,7 +263,7 @@ const HalloweenEvent = () => {
               title="Waist Up"
             >
               <img 
-                src="/gallery/sample-gallery-medium-body-jen.jpg"
+                src="/gallery/sample-gallery-medium-body-jen2.jpg"
                 alt="Waist Up"
                 style={{
                   width: '100%',
