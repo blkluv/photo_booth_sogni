@@ -1575,6 +1575,8 @@ const PhotoGallery = ({
   const personalizeMutexRef = useRef(Promise.resolve());
   // Generation nonce: incremented on each expand/discard/reset to invalidate in-flight batch handlers
   const personalizeGenerationNonce = useRef(0);
+  // Active personalize project reference for cancellation
+  const personalizeProjectRef = useRef(null);
 
   // Refs for personalize state (used in callbacks to avoid stale closures)
   const personalizeSavedPromptsRef = useRef(personalizeSavedPrompts);
@@ -7063,6 +7065,7 @@ const PhotoGallery = ({
           }
 
           const project = await sogniClient.projects.create(projectConfig);
+          personalizeProjectRef.current = project;
           let completedCount = 0;
           const matchedIndices = new Set();
 
@@ -7134,6 +7137,7 @@ const PhotoGallery = ({
         } catch (err) {
           console.warn('[Personalize] Batch preview generation failed:', err);
         }
+        personalizeProjectRef.current = null;
         // Only clear generating flag if this is still the active generation
         if (personalizeGenerationNonce.current === currentNonce) {
           setPersonalizeGeneratingPreviews(false);
@@ -7141,6 +7145,7 @@ const PhotoGallery = ({
       }
     } catch (err) {
       console.error('[Personalize] Expansion failed:', err);
+      personalizeProjectRef.current = null;
       setPersonalizeError(err.message || 'Failed to generate prompt ideas. Please try again.');
       if (personalizeGenerationNonce.current === currentNonce) {
         setPersonalizeGeneratingPreviews(false);
@@ -7149,6 +7154,38 @@ const PhotoGallery = ({
       setPersonalizeExpanding(false);
     }
   }, [personalizeInput, personalizeModelType]);
+
+  // Cancel an in-progress Personalize generation (brainstorming + preview batch)
+  const handlePersonalizeCancelGeneration = useCallback(async () => {
+    const project = personalizeProjectRef.current;
+    const projectId = project?.id;
+
+    // Bump nonce to invalidate in-flight handlers
+    ++personalizeGenerationNonce.current;
+
+    // Clear local state immediately so the UI unblocks
+    personalizeProjectRef.current = null;
+    setPersonalizeExpanding(false);
+    setPersonalizeGeneratingPreviews(false);
+    setPersonalizeExpandedPrompts([]);
+    setPersonalizePreviewUrls({});
+
+    // Cancel the SDK project if one was created
+    if (projectId && sogniClient?.cancelProject) {
+      try {
+        await sogniClient.cancelProject(projectId);
+      } catch (err) {
+        console.warn('[Personalize] Cancel project failed:', err);
+      }
+    }
+
+    showToast({
+      title: 'cancelled ✨',
+      message: 'Brainstorming cancelled',
+      type: 'info',
+      timeout: 3000
+    });
+  }, [sogniClient, showToast]);
 
   // Refresh a single Personalize preview image (same prompt, new seed)
   const handlePersonalizeRefresh = useCallback(async (promptId) => {
@@ -15760,28 +15797,48 @@ const PhotoGallery = ({
                           onFocus={(e) => { e.target.style.borderColor = 'rgba(114, 227, 242, 0.5)'; }}
                           onBlur={(e) => { e.target.style.borderColor = 'rgba(255, 255, 255, 0.15)'; }}
                         />
-                        <button
-                          onClick={handlePersonalizeExpand}
-                          disabled={personalizeExpanding || !personalizeInput.trim()}
-                          style={{
-                            background: personalizeExpanding
-                              ? 'rgba(114, 227, 242, 0.3)'
-                              : 'linear-gradient(135deg, rgba(114, 227, 242, 0.9), rgba(80, 200, 220, 0.9))',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '12px',
-                            padding: '12px 24px',
-                            fontSize: '14px',
-                            fontFamily: '"Permanent Marker", cursive',
-                            cursor: personalizeExpanding ? 'wait' : 'pointer',
-                            whiteSpace: 'nowrap',
-                            opacity: !personalizeInput.trim() ? 0.4 : 1,
-                            transition: 'all 0.15s ease',
-                            boxShadow: personalizeInput.trim() && !personalizeExpanding ? '0 2px 10px rgba(114, 227, 242, 0.3)' : 'none'
-                          }}
-                        >
-                          {personalizeExpanding ? 'Brainstorming...' : 'Generate'}
-                        </button>
+                        {personalizeExpanding ? (
+                          <button
+                            onClick={handlePersonalizeCancelGeneration}
+                            style={{
+                              background: 'linear-gradient(135deg, rgba(255, 100, 100, 0.9), rgba(200, 60, 60, 0.9))',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '12px',
+                              padding: '12px 24px',
+                              fontSize: '14px',
+                              fontFamily: '"Permanent Marker", cursive',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                              transition: 'all 0.15s ease',
+                              boxShadow: '0 2px 10px rgba(255, 100, 100, 0.3)'
+                            }}
+                          >
+                            <span style={{ fontSize: '12px', marginRight: '6px' }}>✕</span>
+                            Cancel
+                          </button>
+                        ) : (
+                          <button
+                            onClick={handlePersonalizeExpand}
+                            disabled={!personalizeInput.trim()}
+                            style={{
+                              background: 'linear-gradient(135deg, rgba(114, 227, 242, 0.9), rgba(80, 200, 220, 0.9))',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '12px',
+                              padding: '12px 24px',
+                              fontSize: '14px',
+                              fontFamily: '"Permanent Marker", cursive',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                              opacity: !personalizeInput.trim() ? 0.4 : 1,
+                              transition: 'all 0.15s ease',
+                              boxShadow: personalizeInput.trim() ? '0 2px 10px rgba(114, 227, 242, 0.3)' : 'none'
+                            }}
+                          >
+                            Generate
+                          </button>
+                        )}
                       </div>
 
                       {/* Reference image selector */}
