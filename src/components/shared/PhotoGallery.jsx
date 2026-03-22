@@ -15268,7 +15268,7 @@ const PhotoGallery = ({
           {vibeExplorerMode === 'personalize' && (
             <div style={{
               padding: '32px',
-              maxWidth: '800px',
+              maxWidth: '1100px',
               margin: '0 auto'
             }}>
               {!isAuthenticated ? (
@@ -15430,7 +15430,7 @@ const PhotoGallery = ({
                       </div>
                       <div style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                        gridTemplateColumns: 'repeat(4, 1fr)',
                         gap: '24px',
                         justifyItems: 'center'
                       }}>
@@ -15444,7 +15444,7 @@ const PhotoGallery = ({
                             boxShadow: '0 4px 16px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.15)',
                             transform: `rotate(${(i % 2 === 0 ? -1 : 1) * (0.5 + (i % 4))}deg)`,
                             width: '100%',
-                            maxWidth: '200px'
+                            maxWidth: '220px'
                           }}
                             onMouseEnter={(e) => { e.currentTarget.style.transform = 'rotate(0deg) translateY(-3px) scale(1.02)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.3)'; e.currentTarget.querySelector('.saved-remove-btn').style.opacity = '1'; }}
                             onMouseLeave={(e) => { e.currentTarget.style.transform = `rotate(${(i % 2 === 0 ? -1 : 1) * (0.5 + (i % 4))}deg)`; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.15)'; e.currentTarget.querySelector('.saved-remove-btn').style.opacity = '0'; }}
