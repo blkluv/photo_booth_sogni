@@ -897,13 +897,35 @@ html body .photo-action-buttons .action-button,
   cursor: pointer !important;
 }
 
-/* On touch devices, always show batch gallery buttons (no hover needed) */
+/* On touch devices, always show batch gallery buttons and personalize card buttons (no hover needed) */
 @media (hover: none) and (pointer: coarse) {
   .photo-hide-btn,
   .photo-refresh-btn,
   .photo-favorite-btn-batch {
     opacity: 1 !important;
     transform: scale(1) !important;
+  }
+
+  .saved-remove-btn {
+    opacity: 1 !important;
+  }
+
+  /* Compact personalize card buttons on touch devices */
+  .personalize-card .saved-remove-btn {
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    font-size: 11px !important;
+  }
+
+  .personalize-card .photo-refresh-btn {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .personalize-card .photo-refresh-btn svg {
+    width: 11px !important;
+    height: 11px !important;
   }
 
   /* Keep block and motion buttons hidden on mobile - desktop only features */
@@ -921,6 +943,27 @@ html body .photo-action-buttons .action-button,
   .photo-favorite-btn-batch {
     opacity: 1 !important;
     transform: scale(1) !important;
+  }
+
+  .saved-remove-btn {
+    opacity: 1 !important;
+  }
+
+  .personalize-card .saved-remove-btn {
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    font-size: 11px !important;
+  }
+
+  .personalize-card .photo-refresh-btn {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .personalize-card .photo-refresh-btn svg {
+    width: 11px !important;
+    height: 11px !important;
   }
 
   /* Keep block and motion buttons hidden on mobile - desktop only features */
@@ -1945,6 +1988,11 @@ html body .photo-action-buttons .action-button,
 /* ========== Personalize Mode — Mobile Responsive ========== */
 
 @media (max-width: 768px) {
+  .vibe-explorer-tabs {
+    margin-top: 8px !important;
+    margin-bottom: 10px !important;
+  }
+
   .personalize-container {
     padding: 16px !important;
   }
@@ -2005,5 +2053,28 @@ html body .photo-action-buttons .action-button,
   .personalize-model-toggle {
     flex-wrap: wrap;
     gap: 6px !important;
+  }
+
+  /* Even smaller buttons on narrow screens */
+  .personalize-card .saved-remove-btn {
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    font-size: 10px !important;
+    border-width: 1.5px !important;
+    top: -6px !important;
+    right: -6px !important;
+  }
+
+  .personalize-card .photo-refresh-btn {
+    width: 20px !important;
+    height: 20px !important;
+    top: 4px !important;
+    right: 4px !important;
+  }
+
+  .personalize-card .photo-refresh-btn svg {
+    width: 10px !important;
+    height: 10px !important;
   }
 }

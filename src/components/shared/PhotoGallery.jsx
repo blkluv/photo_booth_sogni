@@ -15413,12 +15413,10 @@ const PhotoGallery = ({
           </div>
 
           {/* Simple / Advanced Mode Toggle */}
-          <div style={{
+          <div className="vibe-explorer-tabs" style={{
             display: 'flex',
             justifyContent: 'center',
             gap: '4px',
-            marginTop: '20px',
-            marginBottom: '16px',
             background: 'rgba(0, 0, 0, 0.3)',
             borderRadius: '24px',
             padding: '4px',
@@ -16238,6 +16236,44 @@ const PhotoGallery = ({
                     }}>
                       <span style={{ flexShrink: 0 }}>&#x26A0;&#xFE0F;</span>
                       {personalizeError}
+                    </div>
+                  )}
+
+                  {/* Generation progress indicator */}
+                  {personalizeExpanding && personalizeExpandedPrompts.length === 0 && (
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '40px 20px',
+                      marginTop: '16px',
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      borderRadius: '16px',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      gap: '12px'
+                    }}>
+                      <div style={{
+                        width: '28px',
+                        height: '28px',
+                        border: '3px solid rgba(114, 227, 242, 0.2)',
+                        borderTopColor: 'rgba(114, 227, 242, 0.9)',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                      }} />
+                      <span style={{
+                        fontSize: '14px',
+                        fontFamily: '"Permanent Marker", cursive',
+                        color: 'rgba(255, 255, 255, 0.7)'
+                      }}>
+                        Generating concepts...
+                      </span>
+                      <span style={{
+                        fontSize: '11px',
+                        color: 'rgba(255, 255, 255, 0.4)'
+                      }}>
+                        AI is crafting custom vibes from your description
+                      </span>
                     </div>
                   )}
 
