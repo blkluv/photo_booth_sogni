@@ -3,6 +3,7 @@ import { styleIdToDisplay } from '../../utils';
 import { generateGalleryFilename, getPortraitFolderWithFallback } from '../../utils/galleryLoader';
 import { CUSTOM_PROMPT_IMAGE_KEY } from '../shared/CustomPromptPopup';
 import { getEnabledPrompts } from '../../constants/themeGroups';
+import { getPreviewImageUrl } from '../../services/personalizeService';
 import { useApp } from '../../context/AppContext';
 import urls from '../../config/urls';
 import promptsDataRaw from '../../prompts.json';
@@ -65,6 +66,9 @@ interface CameraStartMenuProps {
   onResetUploadedPhoto?: () => void;
   // Theme state
   currentThemes?: Record<string, boolean>;
+  // Personalized prompt data for preview images
+  personalizePrompts?: Array<{ name: string; prompt: string; negativePrompt: string; imageFilename?: string }> | null;
+  personalizeAddress?: string | null;
   // Brand override
   brandTitle?: string | null;
   brandLogo?: string | null;
@@ -89,6 +93,8 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
   onResetCameraPhoto,
   onResetUploadedPhoto,
   currentThemes = {},
+  personalizePrompts = null,
+  personalizeAddress = null,
   brandTitle = null,
   brandLogo = null,
   brandBackgroundImage = null
@@ -171,6 +177,14 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
     return localStorage.getItem(STYLE_SELECTED_KEY) === 'true';
   }, [selectedStyle]); // Re-check when selectedStyle changes
 
+  // Check if only Personalized category is enabled
+  const isOnlyPersonalizedEnabled = useMemo(() => {
+    const entries = Object.entries(currentThemes);
+    if (entries.length === 0) return false;
+    return currentThemes['personalized'] === true &&
+      entries.every(([k, v]) => k === 'personalized' ? v : !v);
+  }, [currentThemes]);
+
   // Load custom prompt image from localStorage
   const [customPromptImage, setCustomPromptImage] = useState<string | null>(null);
   
@@ -241,6 +255,16 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
     
     if (isSamplerMode && randomStyleForSamplers) {
       try {
+        // Handle personalized custom prompts - use preview image from server
+        if (randomStyleForSamplers.startsWith('custom_') && personalizePrompts && personalizeAddress) {
+          const idx = parseInt(randomStyleForSamplers.split('_')[1], 10);
+          const customPrompt = personalizePrompts[idx];
+          if (customPrompt?.imageFilename) {
+            const imagePath = getPreviewImageUrl(personalizeAddress, customPrompt.imageFilename);
+            console.log('✅ Generated personalized preview image path:', imagePath);
+            return imagePath;
+          }
+        }
         const expectedFilename = generateGalleryFilename(randomStyleForSamplers);
         const folder = getPortraitFolderWithFallback(portraitType, randomStyleForSamplers, promptsDataRaw);
         const imagePath = `${urls.assetUrl}/gallery/prompts/${folder}/${expectedFilename}`;
@@ -271,7 +295,7 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
 
     console.log('⚪ No preview image (returning null)');
     return null;
-  }, [selectedStyle, portraitType, randomStyleForSamplers, styleReferenceImage, customPromptImage]);
+  }, [selectedStyle, portraitType, randomStyleForSamplers, styleReferenceImage, customPromptImage, personalizePrompts, personalizeAddress]);
 
   const handleBrowseClick = () => {
     // If there's an existing upload stored, show the adjuster with that photo first
@@ -506,7 +530,10 @@ const CameraStartMenu: React.FC<CameraStartMenuProps> = ({
                       {(() => {
                         const isSamplerMode = selectedStyle && ['random', 'randomMix', 'oneOfEach', 'simplePick'].includes(selectedStyle);
                         if (isSamplerMode) {
-                          const text = selectedStyle ? styleIdToDisplay(selectedStyle) : 'Select Style';
+                          // When only Personalized is enabled, show "Personalized" instead of "Random: All"
+                          const text = (selectedStyle === 'randomMix' && isOnlyPersonalizedEnabled)
+                            ? 'Personalized'
+                            : (selectedStyle ? styleIdToDisplay(selectedStyle) : 'Select Style');
                           return <>{getStyleIcon} {text}</>;
                         }
                         if (selectedStyle === 'custom') return 'Custom Prompt';

@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useRef, useMemo } from 'react';
 
 import { Photo, ProjectState, Settings } from '../types/index';
-import { DEFAULT_SETTINGS, getModelDefaults, isContextImageModel, DEFAULT_MODEL_ID } from '../constants/settings';
-import { getSettingFromCookie, saveSettingsToCookies, getSettingsForModel, saveModelSpecificSettings, getThemeGroupPreferences, saveThemeGroupPreferences } from '../utils/cookies';
+import { DEFAULT_SETTINGS, getModelDefaults, isContextImageModel, DEFAULT_MODEL_ID, QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID } from '../constants/settings';
+import { getSettingFromCookie, saveSettingsToCookies, getSettingsForModel, saveModelSpecificSettings, getThemeGroupPreferences, saveThemeGroupPreferences, getPersonalizeModelType } from '../utils/cookies';
 import { IMAGE_EDIT_PROMPTS_CATEGORY } from '../constants/editPrompts';
 import { getDefaultThemeGroupState } from '../constants/themeGroups';
 import promptsDataRaw from '../prompts.json';
@@ -127,10 +127,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Only preserve DreamShaper if the style is actually winter
     const isCurrentStyleWinter = isWinterStyle(selectedStyle);
     const shouldPreserveDreamShaper = selectedModel === 'coreml-dreamshaperXL_v21TurboDPMSDE' && isCurrentStyleWinter;
-    
+
+    // Check if only the Personalized category is enabled — preserve the personalize model
+    // so that restarting the photobooth doesn't reset away from Qwen Image Edit Lightning
+    const themePrefs = getThemeGroupPreferences();
+    const themeEntries = Object.entries(themePrefs);
+    const isPersonalizedOnly = themeEntries.length > 0 &&
+      themePrefs['personalized'] === true &&
+      themeEntries.every(([k, v]) => k === 'personalized' ? v : !v);
+    const personalizeTargetModel = getPersonalizeModelType() === 'image-edit'
+      ? QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID
+      : DEFAULT_MODEL_ID;
+    const shouldPreservePersonalizeModel = isPersonalizedOnly && selectedModel === personalizeTargetModel;
+
     // Always reset non-default models on page load/initialization
     // EXCEPT DreamShaper when the current style is actually a winter style
-    if (selectedModel !== DEFAULT_MODEL_ID && !shouldPreserveDreamShaper) {
+    // EXCEPT the personalize model when only the Personalized category is enabled
+    if (selectedModel !== DEFAULT_MODEL_ID && !shouldPreserveDreamShaper && !shouldPreservePersonalizeModel) {
       console.log(`🔄 [INIT] Resetting model from ${selectedModel} to default (${DEFAULT_MODEL_ID}) - style: ${selectedStyle}, isWinter: ${isCurrentStyleWinter}`);
       selectedModel = DEFAULT_MODEL_ID;
       
@@ -159,6 +172,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     } else if (shouldPreserveDreamShaper) {
       console.log('❄️ [INIT] Preserving DreamShaper model because current style is winter');
+    } else if (shouldPreservePersonalizeModel) {
+      console.log(`🎨 [INIT] Preserving model ${selectedModel} because only Personalized category is enabled`);
     }
     
     // Reset custom prompt to blank on page load (but preserve if style is 'custom')

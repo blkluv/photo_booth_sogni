@@ -27,8 +27,13 @@ export function getPersonalizeAddress(client: any): string {
   return client?.account?.currentAccount?.walletAddress || client?.appId || getOrCreateAppId();
 }
 
+export interface PersonalizeData {
+  prompts: CustomPrompt[];
+  modelType: 'sd' | 'image-edit';
+}
+
 /**
- * Fetch saved custom prompts for an account
+ * Fetch saved custom prompts and model type preference for an account
  */
 export async function fetchCustomPrompts(address: string): Promise<CustomPrompt[]> {
   try {
@@ -45,6 +50,31 @@ export async function fetchCustomPrompts(address: string): Promise<CustomPrompt[
   } catch (error) {
     console.error('[Personalize] Failed to fetch custom prompts:', error);
     return [];
+  }
+}
+
+/**
+ * Fetch saved custom prompts along with the server-side model type preference.
+ * Use this on startup/init to sync the model type across kiosks on event domains.
+ */
+export async function fetchPersonalizeData(address: string): Promise<PersonalizeData> {
+  try {
+    const response = await fetch(`${API_BASE}/${encodeURIComponent(address)}`, {
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const modelType = (data.modelType === 'sd' || data.modelType === 'image-edit')
+      ? data.modelType
+      : 'image-edit';
+    return { prompts: data.prompts || [], modelType };
+  } catch (error) {
+    console.error('[Personalize] Failed to fetch personalize data:', error);
+    return { prompts: [], modelType: 'image-edit' };
   }
 }
 
@@ -74,16 +104,21 @@ export async function expandPrompts(
 
 /**
  * Save custom prompts (with optional preview image URLs for server-side fetch)
+ * Optionally saves the model type preference alongside prompts.
  */
 export async function saveCustomPrompts(
   address: string,
-  prompts: CustomPrompt[]
+  prompts: CustomPrompt[],
+  modelType?: 'sd' | 'image-edit'
 ): Promise<CustomPrompt[]> {
+  const body: Record<string, unknown> = { prompts };
+  if (modelType) body.modelType = modelType;
+
   const response = await fetch(`${API_BASE}/${encodeURIComponent(address)}`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompts }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {

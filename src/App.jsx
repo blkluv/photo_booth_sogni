@@ -10,9 +10,9 @@ import { generateGalleryFilename, getPortraitFolderWithFallback } from './utils/
 import { goToPreviousPhoto, goToNextPhoto } from './utils/photoNavigation';
 import { initializeStylePrompts, getRandomStyle, getRandomMixPrompts, getSimplePickPrompts, isEditPrompt, mergeCustomPrompts } from './services/prompts';
 import { rewritePromptForEditModel } from './services/promptRewriter';
-import { fetchCustomPrompts as fetchPersonalizedPrompts, getPersonalizeAddress } from './services/personalizeService';
+import { fetchCustomPrompts as fetchPersonalizedPrompts, fetchPersonalizeData, getPersonalizeAddress } from './services/personalizeService';
 import { getDefaultThemeGroupState, getEnabledPrompts, getOneOfEachPrompts, injectPersonalizedThemeGroup, removePersonalizedThemeGroup } from './constants/themeGroups';
-import { getThemeGroupPreferences, saveThemeGroupPreferences, getSimplePickStyles, getPersonalizeModelType } from './utils/cookies';
+import { getThemeGroupPreferences, saveThemeGroupPreferences, getSimplePickStyles, getPersonalizeModelType, savePersonalizeModelType } from './utils/cookies';
 import { initializeSogniClient } from './services/sogni';
 import { isNetworkError } from './services/api';
 import { AuthStatus } from './components/auth/AuthStatus';
@@ -469,6 +469,10 @@ const App = () => {
     const defaultState = getDefaultThemeGroupState();
     return { ...defaultState, ...saved };
   });
+
+  // Store personalized prompts data for preview images on start menu
+  const [personalizePrompts, setPersonalizePrompts] = useState(null);
+  const [personalizeAddress, setPersonalizeAddress] = useState(null);
 
 
   // Info modal state - adding back the missing state
@@ -1713,7 +1717,7 @@ const App = () => {
     loadPromptsForModel(selectedModel);
   }, [selectedModel]);
 
-  // Load personalized prompts when authenticated
+  // Load personalized prompts and model type when authenticated
   useEffect(() => {
     if (!authState.isAuthenticated) return;
     const client = authState.getSogniClient ? authState.getSogniClient() : null;
@@ -1723,14 +1727,44 @@ const App = () => {
     let cancelled = false;
     (async () => {
       try {
-        const customPrompts = await fetchPersonalizedPrompts(address);
+        const data = await fetchPersonalizeData(address);
         if (cancelled) return;
-        if (customPrompts.length > 0) {
+
+        // Sync server-side model type to localStorage so it persists across kiosks
+        if (data.modelType) {
+          const localType = getPersonalizeModelType();
+          if (localType !== data.modelType) {
+            console.log(`🎨 [Personalize] Syncing model type from server: ${localType} → ${data.modelType}`);
+            savePersonalizeModelType(data.modelType);
+          }
+
+          // If only the Personalized category is active, ensure the model matches
+          // This handles fresh kiosks where localStorage had no model type yet
+          const themePrefs = getThemeGroupPreferences();
+          const themeEntries = Object.entries(themePrefs);
+          const isPersonalizedOnly = themeEntries.length > 0 &&
+            themePrefs['personalized'] === true &&
+            themeEntries.every(([k, v]) => k === 'personalized' ? v : !v);
+          if (isPersonalizedOnly && data.prompts.length > 0) {
+            const targetModel = data.modelType === 'image-edit'
+              ? QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID
+              : DEFAULT_MODEL_ID;
+            if (selectedModel !== targetModel) {
+              console.log(`🎨 [Personalize] Switching model to ${targetModel} (personalized-only, synced from server)`);
+              switchToModel(targetModel);
+            }
+          }
+        }
+
+        if (data.prompts.length > 0) {
           // Merge custom prompts into stylePrompts
-          setStylePrompts(prev => mergeCustomPrompts(prev, customPrompts));
+          setStylePrompts(prev => mergeCustomPrompts(prev, data.prompts));
           // Inject into theme groups for Advanced mode filtering
-          const keys = customPrompts.map((_, i) => `custom_${i}`);
+          const keys = data.prompts.map((_, i) => `custom_${i}`);
           injectPersonalizedThemeGroup(keys);
+          // Store for start menu preview images
+          setPersonalizePrompts(data.prompts);
+          setPersonalizeAddress(address);
         }
       } catch (err) {
         console.error('[Personalize] Failed to load custom prompts:', err);
@@ -2602,6 +2636,9 @@ const App = () => {
         setStylePrompts(updatedPrompts);
         const keys = customPrompts.map((_, i) => `custom_${i}`);
         injectPersonalizedThemeGroup(keys);
+        // Update stored personalize data for start menu
+        setPersonalizePrompts(customPrompts);
+        setPersonalizeAddress(address);
 
         // Reload gallery images so Simple mode picks up custom prompt cards
         try {
@@ -7953,6 +7990,10 @@ const App = () => {
             // Reset handlers for camera and upload photos
             onResetCameraPhoto={handleResetCameraPhoto}
             onResetUploadedPhoto={handleResetUploadedPhoto}
+            // Theme + personalize data for preview
+            currentThemes={currentThemeState}
+            personalizePrompts={personalizePrompts}
+            personalizeAddress={personalizeAddress}
           />
           
 

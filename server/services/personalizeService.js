@@ -7,6 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PERSONALIZE_PREFIX = 'personalize:prompts:';
+const PERSONALIZE_MODEL_PREFIX = 'personalize:modeltype:';
 const UPLOADS_DIR = path.join(__dirname, '..', 'uploads', 'personalize');
 
 /**
@@ -146,6 +147,51 @@ Rules:
     console.error('[Personalize] VLM expansion failed:', error);
     throw new Error('Failed to expand prompts: ' + error.message);
   }
+}
+
+/**
+ * Get the personalize model type preference for an address
+ */
+export async function getModelType(address) {
+  const redis = getRedisClient();
+  if (redis) {
+    const key = `${PERSONALIZE_MODEL_PREFIX}${address}`;
+    const data = await redis.get(key);
+    if (data === 'sd' || data === 'image-edit') return data;
+  }
+
+  // Fallback: read from file
+  try {
+    const sanitized = sanitizeAddress(address);
+    const filePath = path.join(UPLOADS_DIR, sanitized, 'modeltype.json');
+    if (fs.existsSync(filePath)) {
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      if (data.modelType === 'sd' || data.modelType === 'image-edit') return data.modelType;
+    }
+  } catch (e) {
+    console.error('[Personalize] Failed to read file-based model type:', e);
+  }
+
+  return 'image-edit'; // Default
+}
+
+/**
+ * Save the personalize model type preference for an address
+ */
+export async function saveModelType(address, modelType) {
+  if (modelType !== 'sd' && modelType !== 'image-edit') {
+    throw new Error('Invalid model type');
+  }
+
+  const redis = getRedisClient();
+  if (redis) {
+    const key = `${PERSONALIZE_MODEL_PREFIX}${address}`;
+    await redis.set(key, modelType);
+  } else {
+    const dir = ensureUploadDir(address);
+    fs.writeFileSync(path.join(dir, 'modeltype.json'), JSON.stringify({ modelType }));
+  }
+  console.log(`[Personalize] Saved model type '${modelType}' for ${address}`);
 }
 
 /**

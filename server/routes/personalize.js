@@ -9,7 +9,9 @@ import {
   deleteCustomPrompts,
   savePreviewImage,
   getPreviewImagePath,
-  cleanupOrphanedImages
+  cleanupOrphanedImages,
+  getModelType,
+  saveModelType
 } from '../services/personalizeService.js';
 import { initializeSogniClient } from '../services/sogni.js';
 
@@ -98,8 +100,11 @@ router.get('/:address', async (req, res) => {
       return res.status(400).json({ error: 'Address is required' });
     }
 
-    const prompts = await getCustomPrompts(address);
-    res.json({ success: true, prompts });
+    const [prompts, modelType] = await Promise.all([
+      getCustomPrompts(address),
+      getModelType(address)
+    ]);
+    res.json({ success: true, prompts, modelType });
   } catch (error) {
     console.error('[Personalize] Error fetching prompts:', error);
     res.status(500).json({ error: 'Failed to fetch custom prompts', details: error.message });
@@ -113,7 +118,7 @@ router.get('/:address', async (req, res) => {
 router.post('/:address', async (req, res) => {
   try {
     const { address } = req.params;
-    let { prompts } = req.body;
+    let { prompts, modelType } = req.body;
 
     if (!address) {
       return res.status(400).json({ error: 'Address is required' });
@@ -168,6 +173,11 @@ router.post('/:address', async (req, res) => {
     }
 
     await saveCustomPrompts(address, prompts);
+
+    // Save model type preference if provided
+    if (modelType === 'sd' || modelType === 'image-edit') {
+      await saveModelType(address, modelType);
+    }
 
     // Clean up orphaned image files that are no longer referenced by any prompt
     const activeFilenames = prompts.map(p => p.imageFilename).filter(Boolean);

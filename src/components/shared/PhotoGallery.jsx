@@ -1595,6 +1595,10 @@ const PhotoGallery = ({
   const sogniClientRef = useRef(sogniClient);
   sogniClientRef.current = sogniClient;
 
+  // Ref for updateSetting so useCallback handlers can access latest version
+  const updateSettingRef = useRef(updateSetting);
+  updateSettingRef.current = updateSetting;
+
   // Load saved custom prompts when entering Personalize mode
   useEffect(() => {
     if (vibeExplorerMode !== 'personalize') return;
@@ -7024,6 +7028,9 @@ const PhotoGallery = ({
           const usesContext = personalizeModelType === 'image-edit';
           const currentModel = usesContext ? QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID : DEFAULT_MODEL_ID;
 
+          // Sync global model to match Personalize model on generation
+          updateSettingRef.current('selectedModel', currentModel);
+
           const projectConfig = {
             type: 'image',
             modelId: currentModel,
@@ -7225,6 +7232,9 @@ const PhotoGallery = ({
       const usesContext = personalizeModelType === 'image-edit';
       const currentModel = usesContext ? QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID : DEFAULT_MODEL_ID;
 
+      // Sync global model to match Personalize model on generation
+      updateSettingRef.current('selectedModel', currentModel);
+
       const projectConfig = {
         type: 'image',
         modelId: currentModel,
@@ -7346,7 +7356,7 @@ const PhotoGallery = ({
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompts: mergedForServer }),
+          body: JSON.stringify({ prompts: mergedForServer, modelType: personalizeModelType }),
         });
         if (!response.ok) {
           const responseText = await response.text();
@@ -7461,7 +7471,7 @@ const PhotoGallery = ({
             return filtered;
           });
         } else {
-          await saveCustomPrompts(address, updated);
+          await saveCustomPrompts(address, updated, personalizeModelType);
           const keys = updated.map((_, i) => `custom_${i}`);
           injectPersonalizedThemeGroup(keys);
           // Update Simple Pick to only include valid custom keys
@@ -15904,7 +15914,22 @@ const PhotoGallery = ({
                           ].map(opt => (
                             <button
                               key={opt.key}
-                              onClick={() => { setPersonalizeModelType(opt.key); savePersonalizeModelType(opt.key); }}
+                              onClick={() => {
+                                setPersonalizeModelType(opt.key);
+                                savePersonalizeModelType(opt.key);
+                                // Sync global model setting to match Personalize selection
+                                const targetModel = opt.key === 'image-edit'
+                                  ? QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID
+                                  : DEFAULT_MODEL_ID;
+                                updateSetting('selectedModel', targetModel);
+                                // Sync model type to server so it persists across kiosks
+                                const addr = getPersonalizeAddress(sogniClientRef.current);
+                                if (addr && personalizeSavedPrompts.length > 0) {
+                                  saveCustomPrompts(addr, personalizeSavedPrompts, opt.key).catch(err =>
+                                    console.warn('[Personalize] Failed to sync model type to server:', err)
+                                  );
+                                }
+                              }}
                               style={{
                                 background: personalizeModelType === opt.key ? 'rgba(114, 227, 242, 0.9)' : 'transparent',
                                 color: personalizeModelType === opt.key ? 'white' : 'rgba(255, 255, 255, 0.6)',
