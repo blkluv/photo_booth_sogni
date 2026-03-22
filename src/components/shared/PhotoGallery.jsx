@@ -1567,6 +1567,7 @@ const PhotoGallery = ({
   const [personalizePreviewUrls, setPersonalizePreviewUrls] = useState({}); // { index: url }
   const [personalizeGeneratingPreviews, setPersonalizeGeneratingPreviews] = useState(false);
   const [personalizeSavingCards, setPersonalizeSavingCards] = useState({}); // { [promptName]: 'saving' | 'saved' | 'error' }
+  const [personalizeRefreshingIndices, setPersonalizeRefreshingIndices] = useState(new Set());
 
   // Refs for personalize state (used in callbacks to avoid stale closures)
   const personalizeSavedPromptsRef = useRef(personalizeSavedPrompts);
@@ -7119,6 +7120,115 @@ const PhotoGallery = ({
       setPersonalizeExpanding(false);
     }
   }, [personalizeInput, personalizeModelType]);
+
+  // Refresh a single Personalize preview image (same prompt, new seed)
+  const handlePersonalizeRefresh = useCallback(async (index) => {
+    const prompt = personalizeExpandedPromptsRef.current[index];
+    if (!prompt || !sogniClient) return;
+
+    // Mark this index as refreshing and clear its preview URL
+    setPersonalizeRefreshingIndices(prev => new Set(prev).add(index));
+    setPersonalizePreviewUrls(prev => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
+    personalizePreviewSoundPlayed.current.delete(index);
+
+    try {
+      // Load reference image (same logic as handlePersonalizeExpand)
+      const currentPreviewSource = personalizePreviewSourceRef.current;
+      let refImageBuffer = null;
+      try {
+        if (currentPreviewSource === 'photo' && lastPhotoData?.blob) {
+          const arrayBuffer = await lastPhotoData.blob.arrayBuffer();
+          refImageBuffer = new Uint8Array(arrayBuffer);
+        } else {
+          const refUrl = currentPreviewSource === 'jen'
+            ? '/gallery/sample-gallery-medium-body-jen2.jpg'
+            : '/gallery/sample-gallery-headshot-einstein.jpg';
+          const refResponse = await fetch(refUrl);
+          const refBlob = await refResponse.blob();
+          const refArrayBuffer = await refBlob.arrayBuffer();
+          refImageBuffer = new Uint8Array(refArrayBuffer);
+        }
+      } catch (err) {
+        console.warn('[Personalize] Could not load reference image for refresh:', err);
+      }
+
+      const usesContext = personalizeModelType === 'image-edit';
+      const currentModel = usesContext ? QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID : DEFAULT_MODEL_ID;
+
+      const projectConfig = {
+        type: 'image',
+        modelId: currentModel,
+        positivePrompt: prompt.prompt,
+        negativePrompt: prompt.negativePrompt || 'deformed, distorted, bad quality, blurry',
+        sizePreset: 'custom',
+        width: 512,
+        height: 768,
+        steps: usesContext ? 5 : 7,
+        guidance: usesContext ? 1 : 2,
+        numberOfMedia: 1,
+        numberOfPreviews: 5,
+        ...(currentModel && isQwenImageEditLightningModel(currentModel) ? {} : {
+          sampler: usesContext ? 'euler' : 'dpmpp_sde',
+          scheduler: usesContext ? 'simple' : 'karras',
+        }),
+        outputFormat: 'jpg',
+        tokenType: 'spark'
+      };
+
+      if (refImageBuffer) {
+        if (usesContext) {
+          projectConfig.contextImages = [refImageBuffer];
+        } else {
+          projectConfig.controlNet = {
+            name: 'instantid',
+            image: refImageBuffer,
+            strength: 0.7,
+            mode: 'balanced',
+            guidanceStart: 0,
+            guidanceEnd: 0.6
+          };
+        }
+      }
+
+      const project = await sogniClient.projects.create(projectConfig);
+
+      await new Promise((resolve) => {
+        const timeout = setTimeout(() => resolve(null), 60000);
+
+        project.on('jobCompleted', (event) => {
+          if (event.isPreview) return;
+          const url = event.resultUrl || event.imageUrl || event.previewUrl;
+          if (url) {
+            setPersonalizePreviewUrls(prev => ({ ...prev, [index]: url }));
+          }
+          clearTimeout(timeout);
+          resolve(null);
+        });
+
+        project.on('jobFailed', () => {
+          clearTimeout(timeout);
+          resolve(null);
+        });
+
+        project.on('failed', () => {
+          clearTimeout(timeout);
+          resolve(null);
+        });
+      });
+    } catch (err) {
+      console.warn('[Personalize] Refresh failed for index', index, err);
+    } finally {
+      setPersonalizeRefreshingIndices(prev => {
+        const next = new Set(prev);
+        next.delete(index);
+        return next;
+      });
+    }
+  }, [personalizeModelType]);
 
   const handlePersonalizeSave = useCallback(async (promptsToSave) => {
     const address = sogniClientRef.current?.account?.currentAccount?.walletAddress;
@@ -15762,6 +15872,7 @@ const PhotoGallery = ({
                           const cardStatus = personalizeSavingCards[p.name];
                           return (
                           <div key={`expanded-${i}`}
+                            className="personalize-card"
                             onClick={() => !cardStatus && handlePersonalizeSave([p])}
                             title={cardStatus === 'saving' ? 'Saving...' : cardStatus === 'saved' ? 'Saved!' : cardStatus === 'error' ? 'Save failed — tap to retry' : 'Click to save this vibe'}
                             style={{
@@ -15824,7 +15935,7 @@ const PhotoGallery = ({
                                   background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
                                   gap: '8px'
                                 }}>
-                                  {personalizeGeneratingPreviews ? (
+                                  {(personalizeGeneratingPreviews || personalizeRefreshingIndices.has(i)) ? (
                                     <>
                                       <div style={{
                                         width: '24px',
@@ -15840,6 +15951,40 @@ const PhotoGallery = ({
                                     <span style={{ fontSize: '32px', opacity: 0.3 }}>&#x1F3A8;</span>
                                   )}
                                 </div>
+                              )}
+                              {/* Refresh button */}
+                              {personalizePreviewUrls[i] && !personalizeRefreshingIndices.has(i) && !cardStatus && (
+                                <button
+                                  className="photo-refresh-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handlePersonalizeRefresh(i);
+                                  }}
+                                  title="Refresh this image"
+                                  style={{
+                                    position: 'absolute',
+                                    top: '4px',
+                                    right: '4px',
+                                    width: '20px',
+                                    height: '20px',
+                                    borderRadius: '50%',
+                                    background: 'rgba(0, 0, 0, 0.7)',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    padding: 0,
+                                    zIndex: 4,
+                                    transition: 'all 0.2s ease'
+                                  }}
+                                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(52, 152, 219, 0.9)'; e.currentTarget.style.transform = 'scale(1.15)'; }}
+                                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(0, 0, 0, 0.7)'; e.currentTarget.style.transform = 'scale(1)'; }}
+                                >
+                                  <svg width="11" height="11" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path fill="#ffffff" d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+                                  </svg>
+                                </button>
                               )}
                             </div>
                             {/* Status overlay */}

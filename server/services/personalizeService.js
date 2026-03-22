@@ -70,7 +70,7 @@ KEY RULES for edit prompts:
 
 Return ONLY valid JSON — no markdown fences, no extra text. Return a JSON array:
 [{
-  "name": "Simple label, 2-3 words max (not counting articles like a/an/the), no parentheses (e.g. 'The Mad Hatter', 'Iron Man', 'A Watercolor Portrait')",
+  "name": "Simple label, 2-4 words max (not counting articles like a/an/the), no parentheses (e.g. 'The Mad Hatter', 'Iron Man', 'A Watercolor Portrait')",
   "prompt": "Full prompt text (1-3 detailed sentences)",
   "negativePrompt": "deformed, distorted, bad quality, blurry, extra limbs"
 }]
@@ -118,12 +118,12 @@ Rules:
 
     // Validate and normalize
     return prompts.slice(0, 16).map((p, i) => {
-      // Clean up name: strip parentheses, limit to ~3 words
+      // Clean up name: strip parentheses, limit to ~4 words
       let name = String(p.name || `Style ${i + 1}`)
         .replace(/\s*\(.*?\)\s*/g, '') // Remove anything in parentheses
         .replace(/\s*\[.*?\]\s*/g, '') // Remove anything in brackets
         .trim();
-      // Limit to 3 non-article words (articles like a/an/the don't count)
+      // Limit to 4 non-article words (articles like a/an/the don't count)
       const articles = new Set(['a', 'an', 'the']);
       const words = name.split(/\s+/);
       let nonArticleCount = 0;
@@ -131,7 +131,7 @@ Rules:
       for (const word of words) {
         keepCount++;
         if (!articles.has(word.toLowerCase())) nonArticleCount++;
-        if (nonArticleCount >= 3) break;
+        if (nonArticleCount >= 4) break;
       }
       if (words.length > keepCount) name = words.slice(0, keepCount).join(' ');
       name = name.slice(0, 30);

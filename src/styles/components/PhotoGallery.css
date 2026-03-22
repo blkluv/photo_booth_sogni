@@ -939,7 +939,8 @@ html body .photo-action-buttons .action-button,
     pointer-events: auto !important;
   }
 
-  .film-frame:not(.selected):hover .photo-refresh-btn {
+  .film-frame:not(.selected):hover .photo-refresh-btn,
+  .personalize-card:hover .photo-refresh-btn {
     opacity: 1 !important;
     transform: scale(1) !important;
     pointer-events: auto !important;
