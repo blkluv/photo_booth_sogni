@@ -342,7 +342,16 @@ export function getSimplePickStyles(): string[] {
   try {
     const styles = localStorage.getItem('sogni_simple_pick_styles');
     if (styles) {
-      return JSON.parse(styles) as string[];
+      const parsed = JSON.parse(styles) as string[];
+      // Don't persist personalized-only selections across page refreshes —
+      // custom_* keys are dynamic (loaded from the Personalize API) and
+      // shouldn't survive a reload when no static styles were also selected.
+      const nonCustom = parsed.filter(key => !key.startsWith('custom_'));
+      if (nonCustom.length === 0 && parsed.length > 0) {
+        localStorage.removeItem('sogni_simple_pick_styles');
+        return [];
+      }
+      return parsed;
     }
   } catch (e) {
     console.warn('Error reading simple pick styles:', e);
