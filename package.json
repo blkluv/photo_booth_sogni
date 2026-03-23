@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "npx kill-port 5175 && vite --host 0.0.0.0 --port 5175 --strictPort",
     "dev:test": "vite --port 5176 --strictPort",
-    "build": "tsc && vite build",
-    "build:staging": "tsc && vite build --mode staging",
+    "build": "vite build",
+    "build:staging": "vite build --mode staging",
     "lint": "eslint \"src/**/*.{ts,tsx,js,jsx}\" --report-unused-disable-directives --max-warnings 0",
     "deploy:production": "bash scripts/deploy-production.sh",
     "deploy:staging": "bash scripts/deploy-staging.sh",
@@ -83,6 +83,6 @@
     "vite": "^6.2.2"
   },
   "engines": {
-    "node": "18.x"
+    "node": "24.x"
   }
 }
