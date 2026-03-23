@@ -1,6 +1,7 @@
 import JSZip from 'jszip';
 import { getPreviewImageUrl } from '../services/personalizeService';
 import { fetchWithRetry } from './index';
+import { METADATA_API_URL } from '../config/urls';
 
 import type { CustomPrompt } from '../services/personalizeService';
 
@@ -185,4 +186,95 @@ export async function importPersonalizeZip(file: File): Promise<ImportResult> {
     modelType: manifest.modelType,
     prompts: importedPrompts,
   };
+}
+
+interface ImageImportSuccess {
+  name: string;
+  prompt: string;
+  previewImageUrl: string;
+}
+
+interface ImageImportResult {
+  succeeded: ImageImportSuccess[];
+  failed: string[];
+}
+
+interface MetadataResponse {
+  sogniDetails?: {
+    positivePrompt?: string;
+  };
+}
+
+/**
+ * Extract positive prompts from image files via the Sogni metadata service.
+ * Each image with a valid prompt becomes a new vibe entry.
+ *
+ * @param files - Array of image File objects (JPG/PNG)
+ * @param startIndex - Starting number for "Imported Style N" labels (default 1)
+ * @returns Object with succeeded prompts and failed filenames
+ */
+export async function extractPromptsFromImages(files: File[], startIndex = 1): Promise<ImageImportResult> {
+  const succeeded: ImageImportSuccess[] = [];
+  const failed: string[] = [];
+
+  // Process all images concurrently
+  const results = await Promise.allSettled(
+    files.map(async (file) => {
+      // Extract metadata via the Sogni metadata service
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(METADATA_API_URL, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json() as MetadataResponse;
+      const positivePrompt = data?.sogniDetails?.positivePrompt;
+
+      if (!positivePrompt) {
+        throw new Error('No prompt metadata found');
+      }
+
+      // Convert the image to a data URL for use as preview
+      const previewImageUrl = await fileToDataUrl(file);
+
+      return {
+        fileName: file.name,
+        prompt: positivePrompt,
+        previewImageUrl,
+      };
+    })
+  );
+
+  // Partition results
+  let styleIndex = startIndex;
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i];
+    if (result.status === 'fulfilled') {
+      succeeded.push({
+        name: `Imported Style ${styleIndex++}`,
+        prompt: result.value.prompt,
+        previewImageUrl: result.value.previewImageUrl,
+      });
+    } else {
+      failed.push(files[i].name);
+      console.warn(`[Personalize] Failed to extract prompt from ${files[i].name}:`, result.reason);
+    }
+  }
+
+  return { succeeded, failed };
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
 }

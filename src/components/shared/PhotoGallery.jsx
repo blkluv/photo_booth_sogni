@@ -14,7 +14,7 @@ import { getPreviousPhotoIndex, getNextPhotoIndex } from '../../utils/photoNavig
 import promptsDataRaw from '../../prompts.json';
 import { THEME_GROUPS, getDefaultThemeGroupState, getEnabledPrompts, injectPersonalizedThemeGroup, removePersonalizedThemeGroup } from '../../constants/themeGroups';
 import { fetchCustomPrompts, expandPrompts as expandPromptsAPI, saveCustomPrompts, resetCustomPrompts, getPreviewImageUrl, getPersonalizeAddress } from '../../services/personalizeService';
-import { exportPersonalizeZip, importPersonalizeZip } from '../../utils/personalizeExport';
+import { exportPersonalizeZip, importPersonalizeZip, extractPromptsFromImages } from '../../utils/personalizeExport';
 import { stripTransformationPrefix } from '../../constants/editPrompts';
 import { getThemeGroupPreferences, saveThemeGroupPreferences, getFavoriteImages, toggleFavoriteImage, saveFavoriteImages, getBlockedPrompts, blockPrompt, hasSeenBatchVideoTip, markBatchVideoTipShown, getSimplePickStyles, saveSimplePickStyles, getVibeExplorerMode, saveVibeExplorerMode, getPersonalizeModelType, savePersonalizeModelType } from '../../utils/cookies';
 import { getAttributionText } from '../../config/ugcAttributions';
@@ -7579,15 +7579,30 @@ const PhotoGallery = ({
   }, [personalizeModelType]);
 
   const handlePersonalizeImportSelect = useCallback((e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
     // Reset the input so the same file can be re-selected
     e.target.value = '';
 
-    if (personalizeSavedPromptsRef.current.length > 0) {
-      setPersonalizeImportConfirm(file);
-    } else {
-      handlePersonalizeImportExecute(file);
+    const hasZip = files.some(f => f.name.toLowerCase().endsWith('.zip'));
+    const hasImages = files.some(f => /\.(jpe?g|png)$/i.test(f.name));
+
+    if (hasZip && hasImages) {
+      showToast({ title: 'Invalid Selection', message: 'Please upload either a zip file or images, not both.', type: 'error', timeout: 5000 });
+      return;
+    }
+
+    if (hasZip) {
+      // Existing zip import flow
+      const file = files[0];
+      if (personalizeSavedPromptsRef.current.length > 0) {
+        setPersonalizeImportConfirm(file);
+      } else {
+        handlePersonalizeImportExecute(file);
+      }
+    } else if (hasImages) {
+      const imageFiles = files.filter(f => /\.(jpe?g|png)$/i.test(f.name));
+      handlePersonalizeImageImport(imageFiles);
     }
   }, []);
 
@@ -7675,6 +7690,79 @@ const PhotoGallery = ({
     personalizeMutexRef.current = operation.catch(() => {});
     return operation;
   }, []);
+
+  const handlePersonalizeImageImport = useCallback(async (files) => {
+    const address = getPersonalizeAddress(sogniClientRef.current);
+    if (!address) return;
+
+    setPersonalizeImporting(true);
+
+    const operation = personalizeMutexRef.current.then(async () => {
+      try {
+        const existingCount = personalizeSavedPromptsRef.current.length;
+        const { succeeded, failed } = await extractPromptsFromImages(files, existingCount + 1);
+
+        if (succeeded.length === 0) {
+          showToast({ title: 'Import Failed', message: 'No images contained prompt metadata.', type: 'error', timeout: 5000 });
+          return;
+        }
+
+        // Get current model type for the new prompts
+        const modelType = personalizeModelType || 'image-edit';
+
+        // Append to existing prompts
+        const existingPrompts = personalizeSavedPromptsRef.current;
+        const allPrompts = [
+          ...existingPrompts.map(p => ({ name: p.name, prompt: p.prompt, previewImageUrl: p.previewImageUrl || undefined })),
+          ...succeeded,
+        ];
+
+        // Save all prompts (existing + new) to backend
+        const savedPrompts = await saveCustomPrompts(address, allPrompts, modelType);
+
+        // Assign fresh client-side IDs
+        const withIds = savedPrompts.map(p => ({ ...p, id: `pz_${++personalizeIdCounter.current}` }));
+
+        // Update state
+        setPersonalizeSavedPrompts(withIds);
+        setPersonalizePreviewUrls({});
+
+        // Rebuild theme groups and simple pick styles
+        const customKeys = withIds.map((_, i) => `custom_${i}`);
+        if (withIds.length > 0) {
+          injectPersonalizedThemeGroup(customKeys);
+          setThemeGroupState(prev => {
+            const next = { ...prev, personalized: true };
+            saveThemeGroupPreferences(next);
+            return next;
+          });
+          setSimplePickStyles(prev => {
+            const filtered = prev.filter(k => !k.startsWith('custom_'));
+            const merged = [...filtered, ...customKeys];
+            saveSimplePickStyles(merged);
+            return merged;
+          });
+        }
+
+        // Notify parent to refresh stylePrompts
+        if (onCustomPromptsUpdatedRef.current) onCustomPromptsUpdatedRef.current();
+
+        // Toast with results
+        if (failed.length > 0) {
+          showToast({ title: 'Partial Import', message: `Added ${succeeded.length} of ${files.length} images. ${failed.length} had no prompt metadata.`, type: 'success', timeout: 5000 });
+        } else {
+          showToast({ title: 'Import Complete', message: `Added ${succeeded.length} vibes.`, type: 'success', timeout: 3000 });
+        }
+      } catch (err) {
+        console.error('[Personalize] Image import failed:', err);
+        showToast({ title: 'Import Failed', message: err.message || 'Could not import images.', type: 'error', timeout: 5000 });
+      } finally {
+        setPersonalizeImporting(false);
+      }
+    });
+    personalizeMutexRef.current = operation.catch(() => {});
+    return operation;
+  }, [personalizeModelType]);
 
   const handlePersonalizePreviewSourceChange = useCallback((source) => {
     setPersonalizePreviewSource(source);
@@ -15694,7 +15782,8 @@ const PhotoGallery = ({
                   <input
                     ref={personalizeImportInputRef}
                     type="file"
-                    accept=".zip"
+                    accept=".zip,.jpg,.jpeg,.png"
+                    multiple
                     style={{ display: 'none' }}
                     onChange={handlePersonalizeImportSelect}
                   />
@@ -15728,28 +15817,52 @@ const PhotoGallery = ({
                         margin: 0,
                         fontStyle: 'italic'
                       }}>
-                        Try: &quot;Give me 16 classic photobooth styles with silly hats and signs&quot;
+                        Try: &quot;famous magazine covers with text&quot;<br />or &quot;famous paintings and drawings&quot;<br />or &quot;dress up themes for a 10 year old boy birthday party&quot;
                       </p>
-                      <button
-                        onClick={() => personalizeImportInputRef.current?.click()}
-                        disabled={personalizeImporting}
-                        style={{
-                          marginTop: '16px',
-                          background: 'rgba(100, 200, 255, 0.15)',
-                          color: personalizeImporting ? 'rgba(150, 200, 255, 0.5)' : 'rgba(150, 200, 255, 0.9)',
-                          border: '1px solid rgba(100, 200, 255, 0.3)',
-                          borderRadius: '16px',
-                          padding: '5px 16px',
-                          fontSize: '12px',
-                          fontFamily: '"Permanent Marker", cursive',
-                          cursor: personalizeImporting ? 'not-allowed' : 'pointer',
-                          transition: 'all 0.15s ease'
-                        }}
-                        onMouseEnter={(e) => { if (!personalizeImporting) { e.currentTarget.style.background = 'rgba(100, 200, 255, 0.3)'; e.currentTarget.style.color = 'white'; } }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(100, 200, 255, 0.15)'; e.currentTarget.style.color = 'rgba(150, 200, 255, 0.9)'; }}
-                      >
-                        {personalizeImporting ? 'Importing...' : 'or Import from file'}
-                      </button>
+                      {!isMobile() && (
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '16px' }}>
+                          <button
+                            onClick={() => personalizeImportInputRef.current?.click()}
+                            disabled={personalizeImporting}
+                            style={{
+                              background: 'rgba(100, 200, 255, 0.15)',
+                              color: personalizeImporting ? 'rgba(150, 200, 255, 0.5)' : 'rgba(150, 200, 255, 0.9)',
+                              border: '1px solid rgba(100, 200, 255, 0.3)',
+                              borderRadius: '16px',
+                              padding: '5px 16px',
+                              fontSize: '12px',
+                              fontFamily: '"Permanent Marker", cursive',
+                              cursor: personalizeImporting ? 'not-allowed' : 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                            onMouseEnter={(e) => { if (!personalizeImporting) { e.currentTarget.style.background = 'rgba(100, 200, 255, 0.3)'; e.currentTarget.style.color = 'white'; } }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(100, 200, 255, 0.15)'; e.currentTarget.style.color = 'rgba(150, 200, 255, 0.9)'; }}
+                          >
+                            {personalizeImporting ? 'Importing...' : 'or Import from file'}
+                          </button>
+                          {personalizeImportRestore && (
+                            <button
+                              onClick={() => handlePersonalizeImportExecute(personalizeImportRestore)}
+                              disabled={personalizeImporting}
+                              style={{
+                                background: 'rgba(255, 165, 0, 0.15)',
+                                color: personalizeImporting ? 'rgba(255, 200, 150, 0.5)' : 'rgba(255, 200, 150, 0.9)',
+                                border: '1px solid rgba(255, 165, 0, 0.3)',
+                                borderRadius: '16px',
+                                padding: '5px 16px',
+                                fontSize: '12px',
+                                fontFamily: '"Permanent Marker", cursive',
+                                cursor: personalizeImporting ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.15s ease'
+                              }}
+                              onMouseEnter={(e) => { if (!personalizeImporting) { e.currentTarget.style.background = 'rgba(255, 165, 0, 0.3)'; e.currentTarget.style.color = 'white'; } }}
+                              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255, 165, 0, 0.15)'; e.currentTarget.style.color = 'rgba(255, 200, 150, 0.9)'; }}
+                            >
+                              Reset to Last Import
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -15771,7 +15884,8 @@ const PhotoGallery = ({
                           Your Vibes ({personalizeSavedPrompts.length})
                         </h3>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          {/* Export button */}
+                          {/* Export button - desktop only */}
+                          {!isMobile() && (
                           <button
                             onClick={handlePersonalizeExport}
                             disabled={personalizeExporting || personalizeImporting || personalizeSavedPrompts.length === 0}
@@ -15792,9 +15906,10 @@ const PhotoGallery = ({
                           >
                             {personalizeExporting ? 'Exporting...' : 'Export'}
                           </button>
+                          )}
 
-                          {/* Import button or confirmation */}
-                          {personalizeImportConfirm ? (
+                          {/* Import button or confirmation - desktop only */}
+                          {!isMobile() && (personalizeImportConfirm ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <span style={{ fontSize: '12px', color: 'rgba(255, 200, 150, 0.9)' }}>
                                 Replace {personalizeSavedPrompts.length} vibes?
@@ -15850,10 +15965,10 @@ const PhotoGallery = ({
                             >
                               {personalizeImporting ? 'Importing...' : 'Import'}
                             </button>
-                          )}
+                          ))}
 
-                          {/* Reset to Last Import button */}
-                          {personalizeImportRestore && (
+                          {/* Reset to Last Import button - desktop only */}
+                          {!isMobile() && personalizeImportRestore && (
                             <button
                               onClick={() => handlePersonalizeImportExecute(personalizeImportRestore)}
                               disabled={personalizeImporting}

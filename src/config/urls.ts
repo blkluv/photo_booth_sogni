@@ -68,4 +68,7 @@ export const getURLs = (): EnvironmentURLs => {
 };
 
 // Export default URLs
-export default getURLs(); 
+export default getURLs();
+
+// Sogni Metadata Inspector API (same for all environments)
+export const METADATA_API_URL = 'https://metadata.sogni.ai/api/inspect'; 

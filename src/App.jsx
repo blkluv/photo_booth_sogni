@@ -1783,6 +1783,12 @@ const App = () => {
           // Store for start menu preview images
           setPersonalizePrompts(data.prompts);
           setPersonalizeAddress(address);
+
+          // Reset gallery loaded flag so the gallery reloads with custom prompt cards.
+          // The gallery may have loaded before auth completed (using a generated ID that
+          // returned no custom prompts). The stylePrompts update above triggers the
+          // gallery useEffect, and resetting this flag allows it to actually reload.
+          galleryImagesLoadedThisSession.current = false;
         }
       } catch (err) {
         console.error('[Personalize] Failed to load custom prompts:', err);
