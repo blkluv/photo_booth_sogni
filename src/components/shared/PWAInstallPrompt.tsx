@@ -5,9 +5,10 @@ import { pwaInstaller } from '../../services/pwaInstaller';
 interface PWAInstallPromptProps {
   onClose?: () => void;
   forceShow?: boolean; // For manual testing
+  disabled?: boolean; // Hide prompt (e.g., when custom event theme is active)
 }
 
-const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ onClose, forceShow = false }) => {
+const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ onClose, forceShow = false, disabled = false }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [canInstallNatively, setCanInstallNatively] = useState(false);
@@ -129,7 +130,7 @@ const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ onClose, forceShow 
     }
   };
 
-  if (!isVisible) return null;
+  if (disabled || !isVisible) return null;
 
   return (
     <div className={`pwa-install-overlay ${isClosing ? 'closing' : ''}`} onClick={handleBackgroundClick}>

@@ -6999,6 +6999,10 @@ const PhotoGallery = ({
 
     try {
       const rawExpanded = await expandPromptsAPI(address, personalizeInput.trim(), personalizeModelType);
+
+      // If the user cancelled while the expansion API was in flight, bail out
+      if (personalizeGenerationNonce.current !== currentNonce) return;
+
       // Assign unique IDs to avoid collisions when multiple prompts share the same name/label
       const expanded = rawExpanded.map(p => ({ ...p, id: `pz_${++personalizeIdCounter.current}` }));
       setPersonalizeExpandedPrompts(expanded);
@@ -7182,12 +7186,11 @@ const PhotoGallery = ({
     // Bump nonce to invalidate in-flight handlers
     ++personalizeGenerationNonce.current;
 
-    // Clear local state immediately so the UI unblocks
+    // Keep already-completed prompts and preview URLs intact so the user
+    // can still explore finished results.  Only stop the loading state.
     personalizeProjectRef.current = null;
     setPersonalizeExpanding(false);
     setPersonalizeGeneratingPreviews(false);
-    setPersonalizeExpandedPrompts([]);
-    setPersonalizePreviewUrls({});
 
     // Cancel the SDK project if one was created
     if (projectId && sogniClient?.cancelProject) {
@@ -7199,8 +7202,8 @@ const PhotoGallery = ({
     }
 
     showToast({
-      title: 'cancelled ✨',
-      message: 'Brainstorming cancelled',
+      title: 'stopped ✨',
+      message: 'Remaining images cancelled — completed results are still available',
       type: 'info',
       timeout: 3000
     });

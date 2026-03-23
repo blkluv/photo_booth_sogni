@@ -10459,9 +10459,10 @@ const App = () => {
       ) : null}
       
       {/* PWA Install Prompt - Always rendered, handles its own timing and visibility */}
-      <PWAInstallPrompt 
+      <PWAInstallPrompt
         onClose={() => setShowPWAPromptManually(false)}
         forceShow={showPWAPromptManually}
+        disabled={tezdevTheme !== 'off'}
       />
 
       {/* Twitter Share Modal */}
