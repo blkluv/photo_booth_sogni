@@ -18,8 +18,10 @@ export const getPreviousPhotoIndex = (photos, currentIndex) => {
     iterations++;
     
     const previousPhoto = photos[previousIndex];
-    if (previousPhoto && 
-        ((previousPhoto.images && previousPhoto.images.length > 0) || 
+    if (previousPhoto &&
+        !previousPhoto.hidden &&
+        !previousPhoto.generating &&
+        ((previousPhoto.images && previousPhoto.images.length > 0) ||
           previousPhoto.isOriginal)) {
       // We found a valid photo
       return previousIndex;
@@ -46,8 +48,10 @@ export const getNextPhotoIndex = (photos, currentIndex) => {
     iterations++;
     
     const nextPhoto = photos[nextIndex];
-    if (nextPhoto && 
-        ((nextPhoto.images && nextPhoto.images.length > 0) || 
+    if (nextPhoto &&
+        !nextPhoto.hidden &&
+        !nextPhoto.generating &&
+        ((nextPhoto.images && nextPhoto.images.length > 0) ||
           nextPhoto.isOriginal)) {
       // We found a valid photo
       return nextIndex;
@@ -77,10 +81,12 @@ export const goToPreviousPhoto = (photos, selectedPhotoIndex) => {
     previousIndex = previousIndex === 0 ? photos.length - 1 : previousIndex - 1;
     iterations++;
     
-    // Skip photos that are still loading or have errors
+    // Skip photos that are still loading, have errors, or are hidden
     const previousPhoto = photos[previousIndex];
-    if (previousPhoto && 
-        ((previousPhoto.images && previousPhoto.images.length > 0) || 
+    if (previousPhoto &&
+        !previousPhoto.hidden &&
+        !previousPhoto.generating &&
+        ((previousPhoto.images && previousPhoto.images.length > 0) ||
           previousPhoto.isOriginal)) {
       // We found a valid photo
       break;
@@ -114,10 +120,12 @@ export const goToNextPhoto = (photos, selectedPhotoIndex) => {
     nextIndex = nextIndex === photos.length - 1 ? 0 : nextIndex + 1;
     iterations++;
     
-    // Skip photos that are still loading or have errors
+    // Skip photos that are still loading, have errors, or are hidden
     const nextPhoto = photos[nextIndex];
-    if (nextPhoto && 
-        ((nextPhoto.images && nextPhoto.images.length > 0) || 
+    if (nextPhoto &&
+        !nextPhoto.hidden &&
+        !nextPhoto.generating &&
+        ((nextPhoto.images && nextPhoto.images.length > 0) ||
           nextPhoto.isOriginal)) {
       // We found a valid photo
       break;

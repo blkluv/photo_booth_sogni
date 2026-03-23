@@ -1,12 +1,16 @@
 import promptsDataRaw from '../prompts.json';
+import { IMAGE_EDIT_PROMPTS_CATEGORY } from '../constants/editPrompts';
+import { isContextImageModel } from '../constants/settings';
+import { _customPromptNames } from '../utils/index';
 
 // Extract prompts from the new nested structure
 const promptsData = {};
 Object.values(promptsDataRaw).forEach(themeGroup => {
   Object.assign(promptsData, themeGroup.prompts);
 });
-import { FLUX_KONTEXT_PROMPTS } from '../constants/fluxPrompts';
-import { isFluxKontextModel } from '../constants/settings';
+
+// Get edit prompts from the image-edit-prompts category
+const editPromptsData = promptsDataRaw[IMAGE_EDIT_PROMPTS_CATEGORY]?.prompts || {};
 
 /**
  * Loads style prompts from various sources.
@@ -58,29 +62,23 @@ export const loadPrompts = () => {
 
 /**
  * Initializes and returns an object with all available style prompts.
- * @param {string} modelId - The current model ID to determine which prompts to use
+ * Now returns all prompts (including edit prompts) for all models.
+ * UI components handle filtering based on model type.
+ * @param {string} modelId - The current model ID (optional, kept for backwards compatibility)
  */
 export const initializeStylePrompts = async (modelId = null) => {
   try {
-    let prompts;
+    // Load all prompts (includes edit prompts now)
+    const prompts = await loadPrompts();
     
-    // Use Flux.1 Kontext specific prompts if the model is Flux.1 Kontext
-    if (modelId && isFluxKontextModel(modelId)) {
-      prompts = FLUX_KONTEXT_PROMPTS;
-      console.log('Using Flux.1 Kontext specific prompts');
-    } else {
-      // Use regular prompts for other models
-      prompts = await loadPrompts();
-      
-      if (Object.keys(prompts).length === 0) {
-        console.warn('No prompts loaded, using default empty prompt');
-        return { custom: '' };
-      }
+    if (Object.keys(prompts).length === 0) {
+      console.warn('No prompts loaded, using default empty prompt');
+      return { custom: '' };
     }
     
     // Create sorted object with custom first
     const stylePrompts = {
-      custom: '',
+      custom: '', // Always include custom option
       ...Object.fromEntries(
         Object.entries(prompts)
           .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
@@ -91,6 +89,9 @@ export const initializeStylePrompts = async (modelId = null) => {
     stylePrompts.random = 'RANDOM_SINGLE_STYLE';
     
     console.log('Prompts loaded successfully:', Object.keys(stylePrompts).length);
+    if (modelId && isContextImageModel(modelId)) {
+      console.log('Context image model detected - edit prompts available');
+    }
     
     // Expose to window for debugging
     if (typeof window !== 'undefined') {
@@ -111,7 +112,7 @@ export const initializeStylePrompts = async (modelId = null) => {
 export const generateRandomPrompts = (count, stylePrompts) => {
   // Get all prompts except 'custom' and 'random'
   const availablePrompts = Object.entries(stylePrompts)
-    .filter(([key]) => key !== 'custom' && key !== 'random')
+    .filter(([key]) => key !== 'custom' && key !== 'random' && key !== 'copyImageStyle')
     .map(([key, value]) => ({ key, value }));
   
   // Shuffle array using Fisher-Yates algorithm
@@ -130,7 +131,7 @@ export const generateRandomPrompts = (count, stylePrompts) => {
  */
 export const getRandomStyle = (stylePrompts) => {
   const availableStyles = Object.keys(stylePrompts)
-    .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix' && key !== 'oneOfEach');
+    .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix' && key !== 'oneOfEach' && key !== 'copyImageStyle');
   
   if (availableStyles.length === 0) {
     console.warn('No styles available for random selection');
@@ -145,7 +146,7 @@ export const getRandomStyle = (stylePrompts) => {
  */
 export const getRandomMixPrompts = (count, stylePrompts) => {
   const availableStyles = Object.keys(stylePrompts)
-    .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix' && key !== 'oneOfEach');
+    .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix' && key !== 'oneOfEach' && key !== 'copyImageStyle');
   
   if (availableStyles.length === 0) {
     console.warn('No styles available for random mix');
@@ -175,4 +176,65 @@ export const getRandomMixPrompts = (count, stylePrompts) => {
   }
   
   return `{${selectedPrompts.join('|')}}`;
+};
+
+/**
+ * Gets prompts for user-selected "Simple Pick" styles.
+ * Assembles the selected style keys into pipe-separated format.
+ */
+export const getSimplePickPrompts = (selectedKeys, stylePrompts) => {
+  const prompts = selectedKeys.map(key => stylePrompts[key]).filter(Boolean);
+  return prompts.length > 0 ? `{${prompts.join('|')}}` : '';
+};
+
+/**
+ * Get the list of edit prompt keys from the image-edit-prompts category
+ */
+export const getEditPromptKeys = () => {
+  return Object.keys(editPromptsData);
+};
+
+/**
+ * Check if a prompt key is an edit prompt
+ */
+export const isEditPrompt = (promptKey) => {
+  return promptKey in editPromptsData;
+};
+
+/**
+ * Get all edit prompts as an object
+ */
+export const getEditPrompts = () => {
+  return { ...editPromptsData };
+};
+
+/**
+ * Merge custom personalized prompts into the style prompts object.
+ * Custom prompts get keys like 'custom_0', 'custom_1', etc.
+ * @param {Object} stylePrompts - The existing style prompts object
+ * @param {Array} customPrompts - Array of {name, prompt, negativePrompt, imageFilename}
+ * @returns {Object} - Updated style prompts with custom prompts merged in
+ */
+export const mergeCustomPrompts = (stylePrompts, customPrompts) => {
+  if (!customPrompts || customPrompts.length === 0) return stylePrompts;
+
+  // Update the display name registry (shared with styleIdToDisplay in utils/index.ts)
+  _customPromptNames.clear();
+  const merged = { ...stylePrompts };
+  customPrompts.forEach((cp, i) => {
+    const key = `custom_${i}`;
+    merged[key] = cp.prompt;
+    _customPromptNames.set(key, cp.name);
+  });
+  return merged;
+};
+
+/**
+ * Get prompts for user's custom personalized styles.
+ * Returns pipe-separated format for batch generation.
+ */
+export const getPersonalizedPrompts = (customPrompts) => {
+  if (!customPrompts || customPrompts.length === 0) return '';
+  const prompts = customPrompts.map(cp => cp.prompt).filter(Boolean);
+  return prompts.length > 0 ? `{${prompts.join('|')}}` : '';
 }; 

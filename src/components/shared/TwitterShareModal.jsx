@@ -1,11 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import '../../styles/components/TwitterShareModal.css';
 import { createPolaroidImage } from '../../utils/imageProcessing';
 // import { getPhotoHashtag } from '../../services/TwitterShare'; // Unused import
 import { themeConfigService } from '../../services/themeConfig';
 import { styleIdToDisplay } from '../../utils';
-import { TWITTER_SHARE_CONFIG } from '../../constants/settings';
+import { TWITTER_SHARE_CONFIG, getQRWatermarkConfig } from '../../constants/settings';
 import { useApp } from '../../context/AppContext';
 
 // Helper to ensure Permanent Marker font is loaded
@@ -22,7 +22,8 @@ const TwitterShareModal = ({
   isOpen, 
   onClose, 
   onShare, 
-  imageUrl, 
+  imageUrl,
+  videoUrl = null, // Video URL if sharing a video
   defaultMessage = TWITTER_SHARE_CONFIG.DEFAULT_MESSAGE,
   photoData,
   stylePrompts = {},
@@ -31,6 +32,8 @@ const TwitterShareModal = ({
   aspectRatio = null,
   outputFormat = 'png' // Note: Twitter always uses JPG regardless of this setting
 }) => {
+  // Determine if we're sharing a video
+  const isVideoShare = !!videoUrl;
   const [message, setMessage] = useState('');
   const [isSharing, setIsSharing] = useState(false);
   const [polaroidImageUrl, setPolaroidImageUrl] = useState(null);
@@ -42,42 +45,82 @@ const TwitterShareModal = ({
   const { settings } = useApp();
   
   // Get style display text (spaced format, no hashtags) from photo data if available
-  const styleDisplayText = photoData?.promptDisplay || 
-    (photoData?.stylePrompt && styleIdToDisplay(
-      Object.entries(stylePrompts || {}).find(([, value]) => value === photoData.stylePrompt)?.[0] || ''
-    )) || '';
+  // Priority: customSceneName > promptDisplay > promptKey/selectedStyle > stylePrompt lookup
+  const getStyleDisplayText = () => {
+    if (photoData?.customSceneName) return photoData.customSceneName;
+    if (photoData?.promptDisplay) return photoData.promptDisplay;
+    
+    // Check for promptKey or selectedStyle (most common case)
+    const promptKey = photoData?.promptKey || photoData?.selectedStyle;
+    if (promptKey && promptKey !== 'custom') {
+      return styleIdToDisplay(promptKey);
+    }
+    
+    // Fallback to stylePrompt lookup
+    if (photoData?.stylePrompt) {
+      const foundKey = Object.entries(stylePrompts || {}).find(([, value]) => value === photoData.stylePrompt)?.[0];
+      if (foundKey) return styleIdToDisplay(foundKey);
+    }
+    
+    return '';
+  };
   
-  // Determine photo label - fix duplicate label issue by using statusText directly or just the style
-  // This matches the fix applied in PhotoGallery.jsx
-  const photoNumberLabel = photoData?.statusText?.split('#')[0]?.trim() || '';
-  const photoLabel = photoNumberLabel || styleDisplayText || '';
+  const styleDisplayText = getStyleDisplayText();
+  
+  // Use statusText directly if it's a hashtag (like #SogniPhotobooth), otherwise use styleDisplayText
+  const photoLabel = (photoData?.statusText && photoData.statusText.includes('#')) 
+    ? photoData.statusText 
+    : styleDisplayText || '';
   
   
-  // Initialize message with default and hashtag when modal opens
+  // Helper function to generate message
+  const generateMessage = useCallback(async () => {
+    // Use video-specific message if sharing a video
+    const baseMessage = isVideoShare 
+      ? defaultMessage.replace('my photo', 'my video')
+      : defaultMessage;
+    
+    if (tezdevTheme !== 'off') {
+      // Use dynamic theme-specific message format
+      try {
+        const styleTag = styleDisplayText ? styleDisplayText.toLowerCase().replace(/\s+/g, '') : '';
+        const themeTemplate = await themeConfigService.getTweetTemplate(tezdevTheme, styleTag);
+        // Also replace "photo" with "video" in theme templates if it's a video
+        return isVideoShare ? themeTemplate.replace(/photo/gi, 'video') : themeTemplate;
+      } catch (error) {
+        console.warn('Could not load theme tweet template, using default:', error);
+        return baseMessage;
+      }
+    } else {
+      // For custom prompts (with customSceneName), don't add hashtag or URL params
+      if (photoData?.customSceneName) {
+        return baseMessage;
+      }
+      
+      // For standard prompts, add hashtag and base URL (no deep link)
+      const baseUrl = 'https://photobooth.sogni.ai';
+      const messageWithoutUrl = baseMessage.replace(baseUrl, '').trim();
+      
+      // If the message already contains the URL, don't add it again
+      if (baseMessage.includes(baseUrl)) {
+        return baseMessage;
+      }
+      
+      if (styleDisplayText) {
+        const styleTag = styleDisplayText.toLowerCase().replace(/\s+/g, '');
+        return `${messageWithoutUrl} #${styleTag} ${baseUrl}`;
+      }
+      return `${baseMessage} ${baseUrl}`;
+    }
+  }, [tezdevTheme, styleDisplayText, defaultMessage, photoData, isVideoShare]);
+
+  // Initialize message when modal opens
   useEffect(() => {
     const loadMessage = async () => {
       if (isOpen) {
-        if (tezdevTheme !== 'off') {
-          // Use dynamic theme-specific message format
-          try {
-            const styleTag = styleDisplayText ? styleDisplayText.toLowerCase().replace(/\s+/g, '') : '';
-            const themeTemplate = await themeConfigService.getTweetTemplate(tezdevTheme, styleTag);
-            setMessage(themeTemplate);
-          } catch (error) {
-            console.warn('Could not load theme tweet template, using default:', error);
-            setMessage(defaultMessage);
-          }
-        } else {
-          // Original behavior for non-TezDev themes
-          // get the current page url with deeplink
-          const currentUrl = window.location.href;
-        
-        const initialMessage = styleDisplayText 
-          ? `${defaultMessage} #${styleDisplayText.toLowerCase().replace(/\s+/g, '')} ${currentUrl.split('?')[0]}?prompt=${styleDisplayText.toLowerCase().replace(/\s+/g, '')}`
-          : defaultMessage;
-        
-          setMessage(initialMessage);
-        }
+        // Generate appropriate message
+        const initialMessage = await generateMessage();
+        setMessage(initialMessage);
         
         // Focus the textarea
         setTimeout(() => {
@@ -90,7 +133,7 @@ const TwitterShareModal = ({
     };
 
     loadMessage();
-  }, [isOpen, defaultMessage, styleDisplayText, tezdevTheme]);
+  }, [isOpen, generateMessage]);
 
   // Ensure font is loaded when component mounts
   useEffect(() => {
@@ -122,12 +165,7 @@ const TwitterShareModal = ({
               frameColor: 'transparent', // No polaroid background
               outputFormat: 'jpg', // Always use JPG for Twitter sharing
               // Add QR watermark for Twitter sharing (if enabled)
-              watermarkOptions: settings.sogniWatermark ? {
-                size: 90, // Standardized size for consistency
-                margin: 5, // Closer to edge
-                position: 'top-right',
-                opacity: 0.9
-              } : null
+              watermarkOptions: settings.sogniWatermark ? getQRWatermarkConfig(settings) : null
             });
           } else {
             // For non-TezDev themes, use traditional polaroid frame
@@ -137,12 +175,7 @@ const TwitterShareModal = ({
               aspectRatio,
               outputFormat: 'jpg', // Always use JPG for Twitter sharing
               // Add QR watermark for Twitter sharing - positioned to not overlap label (if enabled)
-              watermarkOptions: settings.sogniWatermark ? {
-                size: 90, // Standardized size for consistency
-                margin: 5, // Closer to edge
-                position: 'top-right',
-                opacity: 0.9
-              } : null
+              watermarkOptions: settings.sogniWatermark ? getQRWatermarkConfig(settings) : null
             });
           }
           
@@ -162,7 +195,7 @@ const TwitterShareModal = ({
       // Cleanup function
       setPolaroidImageUrl(null);
     };
-  }, [isOpen, imageUrl, photoLabel, tezdevTheme, aspectRatio]);
+  }, [isOpen, imageUrl, photoLabel, tezdevTheme, aspectRatio, settings.sogniWatermark]);
 
   // Handle click outside to close
   useEffect(() => {
@@ -186,7 +219,8 @@ const TwitterShareModal = ({
     
     setIsSharing(true);
     try {
-      await onShare(message);
+      // Contest is over, always pass false
+      await onShare(message, false);
       onClose();
     } catch (error) {
       console.error('Error sharing:', error);
@@ -206,7 +240,7 @@ const TwitterShareModal = ({
           <svg className="twitter-logo" fill="#1DA1F2" viewBox="0 0 24 24">
             <path d="M22.46 6c-.77.35-1.6.58-2.46.67.9-.53 1.59-1.37 1.92-2.38-.84.5-1.78.86-2.79 1.07C18.27 4.49 17.01 4 15.63 4c-2.38 0-4.31 1.94-4.31 4.31 0 .34.04.67.11.99C7.83 9.09 4.16 7.19 1.69 4.23-.07 6.29.63 8.43 2.49 9.58c-.71-.02-1.38-.22-1.97-.54v.05c0 2.09 1.49 3.83 3.45 4.23-.36.1-.74.15-1.14.15-.28 0-.55-.03-.81-.08.55 1.71 2.14 2.96 4.03 3-1.48 1.16-3.35 1.85-5.37 1.85-.35 0-.69-.02-1.03-.06 1.92 1.23 4.2 1.95 6.67 1.95 8.01 0 12.38-6.63 12.38-12.38 0-.19 0-.38-.01-.56.85-.61 1.58-1.37 2.16-2.24z"/>
           </svg>
-          <h2>Share to X</h2>
+          <h2>{isVideoShare ? 'Share Video to X' : 'Share to X'}</h2>
         </div>
         
         <div className="twitter-modal-content">
@@ -216,8 +250,11 @@ const TwitterShareModal = ({
               className="twitter-message"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="What would you like to say about this photo?"
+              placeholder={isVideoShare ? "What would you like to say about this video?" : "What would you like to say about this photo?"}
               maxLength={maxLength}
+              autoComplete="off"
+              autoCapitalize="off"
+              data-form-type="other"
             />
             <div className="twitter-char-counter">
               {message.length}/{maxLength}
@@ -225,7 +262,19 @@ const TwitterShareModal = ({
           </div>
           
           <div className="twitter-image-preview">
-            {isLoadingPreview ? (
+            {isVideoShare ? (
+              // Show video preview for video shares
+              <div className="preview-container video-preview">
+                <video 
+                  src={videoUrl} 
+                  autoPlay 
+                  loop 
+                  muted 
+                  playsInline
+                  style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px' }}
+                />
+              </div>
+            ) : isLoadingPreview ? (
               <div className="twitter-image-loading">
                 <span className="loading-spinner"></span>
                 <p>Preparing image...</p>
@@ -266,14 +315,14 @@ const TwitterShareModal = ({
                   <span className="dot"></span>
                   <span className="dot"></span>
                 </span>
-                <span>Sharing your masterpiece...</span>
+                <span>{isVideoShare ? 'Uploading video...' : 'Sharing your masterpiece...'}</span>
               </span>
             ) : (
               <>
                 <svg className="twitter-icon" fill="white" viewBox="0 0 24 24">
                   <path d="M22.46 6c-.77.35-1.6.58-2.46.67.9-.53 1.59-1.37 1.92-2.38-.84.5-1.78.86-2.79 1.07C18.27 4.49 17.01 4 15.63 4c-2.38 0-4.31 1.94-4.31 4.31 0 .34.04.67.11.99C7.83 9.09 4.16 7.19 1.69 4.23-.07 6.29.63 8.43 2.49 9.58c-.71-.02-1.38-.22-1.97-.54v.05c0 2.09 1.49 3.83 3.45 4.23-.36.1-.74.15-1.14.15-.28 0-.55-.03-.81-.08.55 1.71 2.14 2.96 4.03 3-1.48 1.16-3.35 1.85-5.37 1.85-.35 0-.69-.02-1.03-.06 1.92 1.23 4.2 1.95 6.67 1.95 8.01 0 12.38-6.63 12.38-12.38 0-.19 0-.38-.01-.56.85-.61 1.58-1.37 2.16-2.24z"/>
                 </svg>
-                Post
+                {isVideoShare ? 'Post Video' : 'Post'}
               </>
             )}
           </button>
@@ -288,6 +337,7 @@ TwitterShareModal.propTypes = {
   onClose: PropTypes.func.isRequired,
   onShare: PropTypes.func.isRequired,
   imageUrl: PropTypes.string,
+  videoUrl: PropTypes.string,
   defaultMessage: PropTypes.string,
   photoData: PropTypes.object,
   stylePrompts: PropTypes.object,

@@ -1,14 +1,20 @@
 import express from 'express';
-// import cors from 'cors'; // Nginx handles CORS now
+import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 import sogniRoutes from './routes/sogni.js';
 import xAuthRoutes from './routes/xAuthRoutes.js';
 import metricsRoutes from './routes/metricsRoutes.js';
 import mobileShareRoutes from './routes/mobileShare.js';
 import imageHostingRoutes from './routes/imageHosting.js';
+import analyticsRoutes from './routes/analytics.js';
+import contestRoutes from './routes/contestRoutes.js';
+import audioTranscodeRoutes from './routes/audioTranscode.js';
+import faceAnalysisRoutes from './routes/faceAnalysis.js';
+import personalizeRoutes from './routes/personalize.js';
 import process from 'process'; // Added to address linter error
 
 // Load environment variables FIRST
@@ -28,7 +34,6 @@ const port = process.env.PORT || 3001;
 
 // Get allowed origins and determine effective cookie domain for subdomain compatibility
 const COOKIE_DOMAIN_EFFECTIVE = process.env.COOKIE_DOMAIN || (process.env.NODE_ENV === 'production' ? '.sogni.ai' : 'localhost');
-console.log("DEBUG - Effective COOKIE_DOMAIN (after fallback logic):", COOKIE_DOMAIN_EFFECTIVE);
 
 // Add warning for production environments with non-standard domain
 if (process.env.NODE_ENV === 'production' && COOKIE_DOMAIN_EFFECTIVE !== '.sogni.ai') {
@@ -39,29 +44,51 @@ if (process.env.NODE_ENV === 'production' && COOKIE_DOMAIN_EFFECTIVE !== '.sogni
 // 1. Trust proxy (if applicable)
 app.set('trust proxy', 1); // Trust first proxy if deployed behind one (e.g., Nginx, Heroku)
 
-// 2. Cookie Parser (might not be strictly necessary before cookieSession, but doesn't hurt)
+// 2. CORS Configuration
+const allowedOrigins = [
+  'https://photobooth.sogni.ai',
+  'https://mandala.sogni.ai',
+  'https://photobooth-staging.sogni.ai',
+  'https://photobooth-local.sogni.ai',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, Postman, or curl)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.sogni.ai')) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'), false);
+    }
+  },
+  credentials: true, // Important for cookies
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Client-App-ID', 'Accept'],
+  exposedHeaders: ['Set-Cookie']
+}));
+
+// 3. Cookie Parser
 app.use(cookieParser());
 
-// 3. Body Parsers
+// 4. Body Parsers
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Logging middleware - focused on cookie tracking for OAuth debugging
 app.use((req, res, next) => {
   
-  // Log the sogni_session_id specifically, which we're using for Twitter OAuth
-  if (req.cookies?.sogni_session_id) {
-    console.log('DEBUG - Found sogni_session_id:', req.cookies.sogni_session_id);
-  }
 
   // General Set-Cookie logging for all responses
   const originalEnd = res.end;
   res.end = function (...args) {
     const setCookieHeaders = res.getHeaders()['set-cookie'];
-    // Only log if Set-Cookie headers were actually added to this response
-    if (setCookieHeaders && (!Array.isArray(setCookieHeaders) || setCookieHeaders.length > 0)) {
-      console.log(`DEBUG - Response Final Set-Cookie for ${req.method} ${req.path}:`, setCookieHeaders);
-    }
     originalEnd.apply(res, args);
     return this;
   };
@@ -88,6 +115,12 @@ app.use('/auth/x', xAuthRoutes); // Also keep /auth/x for the direct callback fr
 app.use('/api/metrics', metricsRoutes); // Metrics routes
 app.use('/api/mobile-share', mobileShareRoutes); // Mobile sharing routes
 app.use('/api/images', imageHostingRoutes); // Image hosting routes
+app.use('/api/analytics', analyticsRoutes); // Analytics routes
+app.use('/api/contest', contestRoutes); // Contest routes
+app.use('/api/audio', audioTranscodeRoutes); // Audio transcoding routes
+app.use('/api/face-analysis', faceAnalysisRoutes); // Face analysis routes
+app.use('/api/personalize', personalizeRoutes); // Personalize custom prompts routes
+// Note: Stripe payments call Sogni API directly via SDK (no backend proxy needed)
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -126,22 +159,531 @@ Disallow: /api/
 `);
 });
 
-// Static routes for production
-const isDev = process.env.NODE_ENV !== 'production';
-const staticDir = isDev 
-  ? path.join(__dirname, '..', 'dist')
-  : '/var/www/photobooth.sogni.ai';
-  
-app.use(express.static(staticDir));
+// Determine static directory - detect environment based on SOGNI_ENV and CLIENT_ORIGIN
+const isLocalEnv = process.env.SOGNI_ENV === 'local' || 
+                   process.env.CLIENT_ORIGIN?.includes('local') ||
+                   process.env.NODE_ENV !== 'production';
 
-// Mobile sharing page route - must come before catch-all
+let staticDir;
+if (isLocalEnv) {
+  staticDir = path.join(__dirname, '..', 'dist');
+} else {
+  // Determine production path based on environment
+  if (process.env.CLIENT_ORIGIN?.includes('staging')) {
+    staticDir = '/var/www/photobooth-staging.sogni.ai/dist';
+  } else {
+    staticDir = '/var/www/photobooth.sogni.ai';
+  }
+}
+
+console.log('📁 Environment: ' + (isLocalEnv ? 'LOCAL' : 'PRODUCTION'));
+console.log('📁 Static directory:', staticDir);
+
+// IMPORTANT: Define custom routes BEFORE static middleware to ensure they take priority
+// Halloween event route handler (shared logic for both /halloween and /event/halloween)
+const handleHalloweenRoute = (req, res) => {
+  const indexPath = path.join(staticDir, 'index.html');
+  const requestPath = req.path;
+  console.log(`[Halloween Route] Attempting to read: ${indexPath} for path: ${requestPath}`);
+
+  fs.readFile(indexPath, 'utf8', (err, html) => {
+    if (err) {
+      console.error('[Halloween Route] Error reading index.html:', err);
+      console.error('[Halloween Route] Static dir:', staticDir);
+      console.error('[Halloween Route] Index path:', indexPath);
+      return res.status(500).send('Error loading page: ' + err.message);
+    }
+
+    console.log('[Halloween Route] Successfully read index.html, injecting meta tags...');
+
+    // Replace meta tags with Halloween-specific content
+    // Using simple global string replacement - safest approach
+    let modifiedHtml = html;
+
+    const halloweenTitle = '🎃 Sogni Halloween Photobooth Costume Party 👻';
+    const halloweenDesc = 'Create the perfect Halloween costume using AI! Win 40,000 Premium Sparks. Share your creation and enter the contest. Deadline: Oct 27';
+    // Always use /event/halloween as the canonical URL for metadata
+    const halloweenUrl = 'https://photobooth.sogni.ai/event/halloween';
+    const halloweenImage = 'https://photobooth.sogni.ai/halloween_bg.jpg';
+
+    // Simple string replacements - no regex complexity
+    // Do specific replacements BEFORE global ones to avoid conflicts
+    modifiedHtml = modifiedHtml.replace('<title>Sogni AI Photobooth</title>', `<title>${halloweenTitle}</title>`);
+    modifiedHtml = modifiedHtml.replace('content="Sogni AI Photobooth" />', `content="${halloweenTitle}" />`);
+    modifiedHtml = modifiedHtml.replace('content="Sogni-AI/sogni-photobooth: Sogni Photobooth: Capture and transform your photos with AI styles"', `content="${halloweenTitle}"`);
+    // Replace description text globally AFTER specific twitter:title (appears in og:description and twitter:description)
+    modifiedHtml = modifiedHtml.replace(/Sogni Photobooth: Capture and transform your photos with AI styles/g, halloweenDesc);
+    modifiedHtml = modifiedHtml.replace(/content="https:\/\/photobooth\.sogni\.ai\/"/g, `content="${halloweenUrl}"`);
+    // Replace image URL globally (appears in both og:image and twitter:image)
+    modifiedHtml = modifiedHtml.replace(/https:\/\/repository-images\.githubusercontent\.com\/945858402\/db2496be-4fcb-4471-ad36-4eed6ffd4a9e/g, halloweenImage);
+
+    // Set cache headers to prevent stale metadata
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+
+    console.log('[Halloween Route] Successfully injected meta tags and sent response');
+    res.send(modifiedHtml);
+  });
+};
+
+// Winter event route handler (for /event/winter)
+const handleWinterRoute = (req, res) => {
+  const indexPath = path.join(staticDir, 'index.html');
+  const requestPath = req.path;
+  console.log(`[Winter Route] Attempting to read: ${indexPath} for path: ${requestPath}`);
+
+  fs.readFile(indexPath, 'utf8', (err, html) => {
+    if (err) {
+      console.error('[Winter Route] Error reading index.html:', err);
+      console.error('[Winter Route] Static dir:', staticDir);
+      console.error('[Winter Route] Index path:', indexPath);
+      return res.status(500).send('Error loading page: ' + err.message);
+    }
+
+    console.log('[Winter Route] Successfully read index.html, injecting meta tags...');
+
+    // Replace meta tags with Winter-specific content
+    // Using simple global string replacement - same approach as Halloween
+    let modifiedHtml = html;
+
+    // Use the request's host to support both staging and production
+    const host = req.get('host') || 'photobooth.sogni.ai';
+    // Always use https since we're behind nginx with SSL termination
+    const protocol = 'https';
+    const baseUrl = `${protocol}://${host}`;
+
+    const winterTitle = '🍂 Sogni Winter Photobooth ❄️ | AI Christmas & Holiday Photo Generator';
+    const winterDesc = 'Create magical winter and Christmas AI portraits! Transform your photos with festive holiday styles, snowy scenes, and seasonal magic. Perfect for Christmas cards and holiday greetings.';
+    const winterUrl = `${baseUrl}/event/winter`;
+    const winterImage = `${baseUrl}/events/winter-preview.jpg`;
+
+    console.log(`[Winter Route] Using baseUrl: ${baseUrl}`);
+    console.log(`[Winter Route] Winter image URL: ${winterImage}`);
+
+    // Replace title - handle various formats
+    modifiedHtml = modifiedHtml.replace(
+      /<title>Sogni AI Photobooth \| Free AI Headshot Generator & Portrait Maker<\/title>/,
+      `<title>${winterTitle}</title>`
+    );
+    
+    // Replace og:title
+    modifiedHtml = modifiedHtml.replace(
+      /content="Sogni AI Photobooth \| Free AI Headshot Generator & Portrait Maker"/g,
+      `content="${winterTitle}"`
+    );
+    
+    // Replace og:description - match the updated description format (includes video portraits)
+    modifiedHtml = modifiedHtml.replace(
+      /Create stunning AI headshots, portraits, and video portraits with Sogni Photobooth—your free AI portrait generator and anime PFP maker\. Transform your photos with 200\+ AI styles in seconds, or generate AI videos from your portraits!/g,
+      winterDesc
+    );
+    
+    // Replace og:image - the GitHub repository image
+    modifiedHtml = modifiedHtml.replace(
+      /https:\/\/repository-images\.githubusercontent\.com\/945858402\/6ae0abb5-c7cc-42ba-9051-9d644e1f130a/g,
+      winterImage
+    );
+    
+    // Replace og:url and twitter:url
+    modifiedHtml = modifiedHtml.replace(
+      /content="https:\/\/photobooth\.sogni\.ai\/"/g,
+      `content="${winterUrl}"`
+    );
+
+    // Set cache headers to prevent stale metadata
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+
+    console.log('[Winter Route] Successfully injected meta tags and sent response');
+    res.send(modifiedHtml);
+  });
+};
+
+// Bald for Base route handler (for /event/bald-for-base)
+const handleBaldForBaseRoute = (req, res) => {
+  const indexPath = path.join(staticDir, 'index.html');
+  const requestPath = req.path;
+  console.log(`[Bald for Base Route] Attempting to read: ${indexPath} for path: ${requestPath}`);
+
+  fs.readFile(indexPath, 'utf8', (err, html) => {
+    if (err) {
+      console.error('[Bald for Base Route] Error reading index.html:', err);
+      console.error('[Bald for Base Route] Static dir:', staticDir);
+      console.error('[Bald for Base Route] Index path:', indexPath);
+      return res.status(500).send('Error loading page: ' + err.message);
+    }
+
+    console.log('[Bald for Base Route] Successfully read index.html, injecting meta tags...');
+
+    // Replace meta tags with Bald for Base-specific content
+    // Using simple global string replacement - same approach as Winter/Halloween
+    let modifiedHtml = html;
+
+    // Use the request's host to support both staging and production
+    const host = req.get('host') || 'photobooth.sogni.ai';
+    // Always use https since we're behind nginx with SSL termination
+    const protocol = 'https';
+    const baseUrl = `${protocol}://${host}`;
+
+    const baldForBaseTitle = '🟦 Bald for Base Video Generator | Sogni AI Photobooth';
+    const baldForBaseDesc = 'Create your own fun Bald for Base video! Share on X or Base App and tag @Sogni_Protocol for a chance at your share of 100,000 SOGNI tokens. 5 winners selected on Jan 15.';
+    const baldForBaseUrl = `${baseUrl}/event/bald-for-base`;
+
+    console.log(`[Bald for Base Route] Using baseUrl: ${baseUrl}`);
+
+    // Replace title - handle various formats
+    modifiedHtml = modifiedHtml.replace(
+      /<title>Sogni AI Photobooth \| Free AI Headshot Generator & Portrait Maker<\/title>/,
+      `<title>${baldForBaseTitle}</title>`
+    );
+    
+    // Replace og:title
+    modifiedHtml = modifiedHtml.replace(
+      /content="Sogni AI Photobooth \| Free AI Headshot Generator & Portrait Maker"/g,
+      `content="${baldForBaseTitle}"`
+    );
+    
+    // Replace og:description - match the updated description format (includes video portraits)
+    modifiedHtml = modifiedHtml.replace(
+      /Create stunning AI headshots, portraits, and video portraits with Sogni Photobooth—your free AI portrait generator and anime PFP maker\. Transform your photos with 200\+ AI styles in seconds, or generate AI videos from your portraits!/g,
+      baldForBaseDesc
+    );
+    
+    // Note: We keep the default og:image (GitHub repository image) - only title/description change
+    
+    // Replace og:url and twitter:url
+    modifiedHtml = modifiedHtml.replace(
+      /content="https:\/\/photobooth\.sogni\.ai\/"/g,
+      `content="${baldForBaseUrl}"`
+    );
+
+    // Set cache headers to prevent stale metadata
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+
+    console.log('[Bald for Base Route] Successfully injected meta tags and sent response');
+    res.send(modifiedHtml);
+  });
+};
+
+// Contest vote route handler with custom meta tags for social sharing
+const handleContestVoteRoute = (req, res) => {
+  const indexPath = path.join(staticDir, 'index.html');
+  const requestPath = req.path;
+  console.log(`[Contest Vote Route] Attempting to read: ${indexPath} for path: ${requestPath}`);
+
+  fs.readFile(indexPath, 'utf8', (err, html) => {
+    if (err) {
+      console.error('[Contest Vote Route] Error reading index.html:', err);
+      return res.status(500).send('Error loading page: ' + err.message);
+    }
+
+    console.log('[Contest Vote Route] Successfully read index.html, injecting meta tags...');
+
+    let modifiedHtml = html;
+
+    const contestTitle = '🎃 Halloween Contest - Vote Now! | Sogni AI Photobooth';
+    const contestDesc = 'Vote for your favorite AI-generated Halloween photos! Browse amazing AI art created by the community and support your favorites by voting.';
+    const contestOgTitle = '🎃 Vote for Your Favorite Halloween AI Photos!';
+    const contestOgDesc = 'Join the Sogni Halloween Contest! Vote for the most creative AI-generated photos and help choose the winners. Browse unique AI art and cast your vote now!';
+    const contestUrl = 'https://photobooth.sogni.ai/contest/vote';
+    const contestImage = 'https://photobooth.sogni.ai/halloween_bg.jpg';
+
+    // Replace meta tags with contest-specific content
+    modifiedHtml = modifiedHtml.replace('<title>Sogni AI Photobooth</title>', `<title>${contestTitle}</title>`);
+    modifiedHtml = modifiedHtml.replace('content="Sogni AI Photobooth" />', `content="${contestOgTitle}" />`);
+    modifiedHtml = modifiedHtml.replace('content="Sogni-AI/sogni-photobooth: Sogni Photobooth: Capture and transform your photos with AI styles"', `content="${contestOgTitle}"`);
+    modifiedHtml = modifiedHtml.replace(/Sogni Photobooth: Capture and transform your photos with AI styles/g, contestOgDesc);
+    modifiedHtml = modifiedHtml.replace(/content="https:\/\/photobooth\.sogni\.ai\/"/g, `content="${contestUrl}"`);
+    modifiedHtml = modifiedHtml.replace(/https:\/\/repository-images\.githubusercontent\.com\/945858402\/db2496be-4fcb-4471-ad36-4eed6ffd4a9e/g, contestImage);
+
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+
+    console.log('[Contest Vote Route] Successfully injected meta tags and sent response');
+    res.send(modifiedHtml);
+  });
+};
+
+// Admin contest results route handler with custom meta tags
+const handleAdminContestRoute = (req, res) => {
+  const indexPath = path.join(staticDir, 'index.html');
+  const requestPath = req.path;
+  console.log(`[Admin Contest Route] Attempting to read: ${indexPath} for path: ${requestPath}`);
+
+  fs.readFile(indexPath, 'utf8', (err, html) => {
+    if (err) {
+      console.error('[Admin Contest Route] Error reading index.html:', err);
+      return res.status(500).send('Error loading page: ' + err.message);
+    }
+
+    console.log('[Admin Contest Route] Successfully read index.html, injecting meta tags...');
+
+    let modifiedHtml = html;
+
+    const adminTitle = '🛡️ Moderation Panel - Admin Dashboard | Sogni AI Photobooth';
+    const adminDesc = 'Content moderation dashboard for moderating Halloween AI photo contest entries, viewing submissions, and managing contest results.';
+    const adminOgTitle = '🛡️ Content Moderation Dashboard';
+    const adminOgDesc = 'Moderate Halloween AI photo contest entries, review submissions, and manage contest results. View statistics and moderate community submissions.';
+    const adminUrl = 'https://photobooth.sogni.ai/admin/moderate';
+    const adminImage = 'https://photobooth.sogni.ai/halloween_bg.jpg';
+
+    // Replace meta tags with admin-specific content
+    modifiedHtml = modifiedHtml.replace('<title>Sogni AI Photobooth</title>', `<title>${adminTitle}</title>`);
+    modifiedHtml = modifiedHtml.replace('content="Sogni AI Photobooth" />', `content="${adminOgTitle}" />`);
+    modifiedHtml = modifiedHtml.replace('content="Sogni-AI/sogni-photobooth: Sogni Photobooth: Capture and transform your photos with AI styles"', `content="${adminOgTitle}"`);
+    modifiedHtml = modifiedHtml.replace(/Sogni Photobooth: Capture and transform your photos with AI styles/g, adminOgDesc);
+    modifiedHtml = modifiedHtml.replace(/content="https:\/\/photobooth\.sogni\.ai\/"/g, `content="${adminUrl}"`);
+    modifiedHtml = modifiedHtml.replace(/https:\/\/repository-images\.githubusercontent\.com\/945858402\/db2496be-4fcb-4471-ad36-4eed6ffd4a9e/g, adminImage);
+
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+
+    console.log('[Admin Contest Route] Successfully injected meta tags and sent response');
+    res.send(modifiedHtml);
+  });
+};
+
+// Gimi challenge route handler with custom meta tags for social sharing
+const handleGimiChallengeRoute = (req, res) => {
+  const indexPath = path.join(staticDir, 'index.html');
+  const requestPath = req.path;
+  console.log(`[Gimi Challenge Route] Attempting to read: ${indexPath} for path: ${requestPath}`);
+
+  fs.readFile(indexPath, 'utf8', (err, html) => {
+    if (err) {
+      console.error('[Gimi Challenge Route] Error reading index.html:', err);
+      return res.status(500).send('Error loading page: ' + err.message);
+    }
+
+    console.log('[Gimi Challenge Route] Successfully read index.html, injecting meta tags...');
+
+    let modifiedHtml = html;
+
+    const gimiTitle = 'Turn One Photo Into 8 Viral Posts – $1,000 Gimi Challenge | Sogni AI Photobooth';
+    const gimiDesc = 'Join the Sogni x Gimi Creator Challenge! Create 8 viral photo transformations in 60 seconds and compete for $1,000 USDC. Use photobooth.sogni.ai with 200+ AI styles. Sign up free on Gimi.co.';
+    const gimiOgTitle = 'Turn One Photo Into 8 Viral Posts – Win $1,000!';
+    const gimiOgDesc = 'Join the Sogni x Gimi Creator Challenge! Create 8 viral photo transformations in 60 seconds with 200+ AI styles. Compete for $1,000 USDC based on engagement. Sign up free on Gimi.co.';
+    const gimiUrl = 'https://photobooth.sogni.ai/challenge/gimi?3';
+    // Use square image for social sharing (800x800) - better for Facebook/Twitter cropping
+    const gimiImage = 'https://photobooth.sogni.ai/promo/gimi/Sogni_Photobooth_gimi-800x800_v2f_green.png';
+
+    // Replace meta tags with Gimi challenge-specific content
+    modifiedHtml = modifiedHtml.replace('<title>Sogni AI Photobooth</title>', `<title>${gimiTitle}</title>`);
+    modifiedHtml = modifiedHtml.replace('content="Sogni AI Photobooth" />', `content="${gimiOgTitle}" />`);
+    modifiedHtml = modifiedHtml.replace('content="Sogni-AI/sogni-photobooth: Sogni Photobooth: Capture and transform your photos with AI styles"', `content="${gimiOgTitle}"`);
+    modifiedHtml = modifiedHtml.replace(/Sogni Photobooth: Capture and transform your photos with AI styles/g, gimiOgDesc);
+    modifiedHtml = modifiedHtml.replace(/content="https:\/\/photobooth\.sogni\.ai\/"/g, `content="${gimiUrl}"`);
+    
+    // Replace specific image URLs with Gimi banner (targeting known default images)
+    modifiedHtml = modifiedHtml.replace(/content="https:\/\/photobooth\.sogni\.ai\/icons\/icon-512x512\.png"/g, `content="${gimiImage}"`);
+    modifiedHtml = modifiedHtml.replace(/content="https:\/\/repository-images\.githubusercontent\.com\/[^"]+"/g, `content="${gimiImage}"`);
+    
+    // Replace og:image and twitter:image dimension tags for the square format (800x800)
+    modifiedHtml = modifiedHtml.replace(/<meta property="og:image:width" content="\d+"/, `<meta property="og:image:width" content="800"`);
+    modifiedHtml = modifiedHtml.replace(/<meta property="og:image:height" content="\d+"/, `<meta property="og:image:height" content="800"`);
+    modifiedHtml = modifiedHtml.replace(/<meta name="twitter:card" content="[^"]*"/, `<meta name="twitter:card" content="summary_large_image"`);
+
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+
+    console.log('[Gimi Challenge Route] Successfully injected meta tags and sent response');
+    res.send(modifiedHtml);
+  });
+};
+
+// Mandala domain handler - inject branded meta tags when accessed via mandala.sogni.ai
+const handleMandalaRoot = (req, res) => {
+  const indexPath = path.join(staticDir, 'index.html');
+  console.log(`[Mandala Domain] Attempting to read: ${indexPath}`);
+
+  fs.readFile(indexPath, 'utf8', (err, html) => {
+    if (err) {
+      console.error('[Mandala Domain] Error reading index.html:', err);
+      return res.status(500).send('Error loading page: ' + err.message);
+    }
+
+    console.log('[Mandala Domain] Successfully read index.html, injecting meta tags...');
+
+    let modifiedHtml = html;
+
+    const mandalaTitle = 'Mandala Club x Sogni AI Photobooth | AI Portrait Generator';
+    const mandalaDesc = 'Create stunning AI portraits at Mandala Club, powered by Sogni AI. Transform your photos with 200+ AI styles in seconds.';
+    const mandalaUrl = 'https://mandala.sogni.ai/';
+    // Replace with a proper 1200x630 OG card image when available
+    const mandalaImage = 'https://mandala.sogni.ai/events/mandala/og-share.png';
+
+    // Replace title
+    modifiedHtml = modifiedHtml.replace(
+      /<title>Sogni AI Photobooth \| Free AI Headshot Generator & Portrait Maker<\/title>/,
+      `<title>${mandalaTitle}</title>`
+    );
+
+    // Replace og:title and twitter:title
+    modifiedHtml = modifiedHtml.replace(
+      /content="Sogni AI Photobooth \| Free AI Headshot Generator & Portrait Maker"/g,
+      `content="${mandalaTitle}"`
+    );
+    modifiedHtml = modifiedHtml.replace(
+      /content="Sogni AI Photobooth \| Free AI Headshot & Portrait Generator"/g,
+      `content="${mandalaTitle}"`
+    );
+
+    // Replace meta description (longer variant in <meta name="description">)
+    modifiedHtml = modifiedHtml.replace(
+      /Create stunning AI headshots, portraits, and video portraits with Sogni Photobooth—your all-in-one AI headshot generator, free AI portrait generator, and anime PFP maker\. Transform your photos with 200\+ styles in seconds, or generate AI videos from your portraits!/g,
+      mandalaDesc
+    );
+
+    // Replace og:description and twitter:description
+    modifiedHtml = modifiedHtml.replace(
+      /Create stunning AI headshots, portraits, and video portraits with Sogni Photobooth—your free AI portrait generator and anime PFP maker\. Transform your photos with 200\+ AI styles in seconds, or generate AI videos from your portraits!/g,
+      mandalaDesc
+    );
+    modifiedHtml = modifiedHtml.replace(
+      /Create stunning AI headshots, portraits, video portraits, and anime PFPs with our free AI generator\. 200\+ styles, instant results! Generate AI videos from your photos\./g,
+      mandalaDesc
+    );
+
+    // Replace og:image and twitter:image
+    modifiedHtml = modifiedHtml.replace(
+      /https:\/\/repository-images\.githubusercontent\.com\/945858402\/6ae0abb5-c7cc-42ba-9051-9d644e1f130a/g,
+      mandalaImage
+    );
+
+    // Replace og:url, twitter:url, and canonical
+    modifiedHtml = modifiedHtml.replace(
+      /content="https:\/\/photobooth\.sogni\.ai\/"/g,
+      `content="${mandalaUrl}"`
+    );
+    modifiedHtml = modifiedHtml.replace(
+      /href="https:\/\/photobooth\.sogni\.ai\/"/g,
+      `href="${mandalaUrl}"`
+    );
+
+    // Replace twitter:domain
+    modifiedHtml = modifiedHtml.replace(
+      /content="photobooth\.sogni\.ai"/g,
+      `content="mandala.sogni.ai"`
+    );
+
+    // Replace og:site_name
+    modifiedHtml = modifiedHtml.replace(
+      /content="Sogni AI Photobooth"/g,
+      `content="Mandala Club x Sogni AI"`
+    );
+
+    // Inject Mandala brand CSS variables into <head> to prevent flash of default yellow theme
+    const mandalaCssVars = `<style id="mandala-preload">
+:root {
+  --brand-gradient-start: #008C8C;
+  --brand-gradient-end: #006666;
+  --brand-frame-color: #008C8C;
+  --brand-accent-primary: #008C8C;
+  --brand-accent-secondary: #F4F1ED;
+  --brand-accent-tertiary: #6185F2;
+  --brand-accent-tertiary-hover: #4a6fd4;
+  --brand-header-bg: #004D4D;
+  --brand-header-stroke: #F4F1ED;
+  --brand-page-bg: #008C8C;
+  --brand-page-bg-mid: #007A7A;
+  --brand-page-bg-end: #006666;
+  --brand-slider-thumb: #F4F1ED;
+  --brand-glitch-primary: #F4F1ED;
+  --brand-glitch-secondary: #008C8C;
+  --brand-button-primary: #006666;
+  --brand-button-primary-end: #004D4D;
+  --brand-button-secondary: #6185F2;
+  --brand-adjuster-start: #006666;
+  --brand-adjuster-end: #004D4D;
+  --brand-dark-text: #FFFFFF;
+  --brand-dark-border: #FFFFFF;
+  --brand-text-secondary: #F4F1ED;
+  --brand-text-muted: #C8C4BE;
+  --brand-card-bg: #007A7A;
+  --brand-pwa-pink: #DE73BE;
+  --brand-gimi-purple: #6185F2;
+  --brand-cta-start: #6185F2;
+  --brand-cta-end: #4a6fd4;
+}
+</style>`;
+    modifiedHtml = modifiedHtml.replace('</head>', `${mandalaCssVars}\n</head>`);
+
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+
+    console.log('[Mandala Domain] Successfully injected meta tags and sent response');
+    res.send(modifiedHtml);
+  });
+};
+
+// Halloween event routes with custom meta tags for social sharing
+// Only enable on production/staging (local uses Vite dev server for everything)
+if (!isLocalEnv) {
+  // Mandala domain root - Nginx proxies root requests from mandala.sogni.ai here
+  app.get('/', (req, res, next) => {
+    const host = req.get('host') || '';
+    if (host === 'mandala.sogni.ai') {
+      return handleMandalaRoot(req, res);
+    }
+    next();
+  });
+
+  app.get('/halloween', handleHalloweenRoute);
+  app.get('/event/halloween', handleHalloweenRoute);
+  app.get('/event/winter', handleWinterRoute);
+  app.get('/event/bald-for-base', handleBaldForBaseRoute);
+  app.get('/contest/vote', handleContestVoteRoute);
+  app.get('/admin/moderate', handleAdminContestRoute);
+  app.get('/challenge/gimi', handleGimiChallengeRoute);
+}
+
+// Mobile sharing page route
 app.use('/mobile-share', mobileShareRoutes);
 
-// Catch-all route to serve index.html for SPA routing
-app.get('*', (req, res) => {
-  console.log(`[Catch-all] Serving index.html for path: ${req.path}`);
-  res.sendFile(path.join(staticDir, 'index.html'));
-});
+// Static files and catch-all - only for production/staging (local uses Vite)
+if (!isLocalEnv) {
+  // Static files - serve after custom routes so they don't override our meta tag injection
+  app.use(express.static(staticDir));
+
+  // Catch-all route to serve index.html for SPA routing
+  // BUT: Return 404 for missing static assets (images, fonts, etc.) instead of serving index.html
+  app.get('*', (req, res) => {
+    // Check if the request is for a static asset
+    const isStaticAsset = /\.(png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|webp|bmp|tiff)$/i.test(req.path);
+
+    if (isStaticAsset) {
+      // Return 404 for missing static assets
+      console.log(`[Catch-all] Returning 404 for missing static asset: ${req.path}`);
+      return res.status(404).send('Not Found');
+    }
+
+    // Otherwise, serve index.html for SPA routing
+    console.log(`[Catch-all] Serving index.html for path: ${req.path}`);
+    res.sendFile(path.join(staticDir, 'index.html'));
+  });
+}
 
 // Error handling middleware
 app.use((err, req, res, next) => {

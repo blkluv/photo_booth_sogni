@@ -1,16 +1,82 @@
 import { styleIdToDisplay } from './index';
+import urls from '../config/urls';
+import { getPreviewImageUrl } from '../services/personalizeService';
 
 /**
- * Converts camelCase prompt key to lowercase filename (no hyphens)
+ * Converts camelCase prompt key to kebab-case filename
  * @param {string} promptKey - The camelCase prompt key
- * @returns {string} The lowercase filename part
+ * @returns {string} The kebab-case filename part
+ *
+ * Examples:
+ *   darkFantasyBerserker -> dark-fantasy-berserker
+ *   anime1990s -> anime-1990s
+ *   rockPoster70s -> rock-poster-70s
+ *   mallGlamour90s -> mall-glamour-90s
+ *   nftBoredApe -> nft-bored-ape
+ *   celShade3D -> cel-shade-3d
+ *   y2kRaverKid -> y2k-raver-kid
+ *   1990sHouseParty -> 1990s-house-party
+ *   f1Driver -> f-1-driver
+ *   fingers4am -> fingers-4-am
+ *   classicZombieBW -> classic-zombie-b-w
+ *   clubDJ -> club-d-j
+ *   rnBSoulSinger -> rn-b-soul-singer
+ *   retroVHS -> retro-v-h-s
+ *   filmGrainB&W -> film-grain-b&-w
  */
 const promptKeyToFilename = (promptKey) => {
-  return promptKey
-    // Convert to lowercase
-    .toLowerCase()
-    // Remove any special characters
-    .replace(/[^a-z0-9]/g, '');
+  let result = promptKey;
+  
+  // First handle capital D at end (for 3D -> 3d, keep together)
+  result = result.replace(/([0-9])D$/g, '$1d');
+  
+  // Split ALL consecutive uppercase letters (VHS -> V-H-S, DJ -> D-J, BW -> B-W, TV -> T-V, etc.)
+  result = result.replace(/([A-Z])(?=[A-Z])/g, '$1-');
+  
+  // Insert a hyphen before uppercase letters (not at start)
+  result = result.replace(/([a-z])([A-Z])/g, '$1-$2');
+  
+  // Handle special character & followed by uppercase W -> add hyphen after &
+  result = result.replace(/&([A-Z])/g, '&-$1');
+  
+  // Convert to lowercase
+  result = result.toLowerCase();
+  
+  // Insert hyphens at letter-number boundaries (e.g., anime1990s -> anime-1990s)
+  // BUT preserve y2k as special case
+  result = result.replace(/([a-z])([0-9])/g, (match, p1, p2, offset, string) => {
+    // Check if this is the y in y2k
+    if (p1 === 'y' && string.substr(offset, 3) === 'y2k') {
+      return match; // keep y2k together
+    }
+    return p1 + '-' + p2;
+  });
+  
+  // Insert hyphens at number-letter boundaries (e.g., f1driver -> f-1-driver)
+  // BUT preserve y2k, 3d, and number+s patterns (1990s, 70s, etc.)
+  result = result.replace(/([0-9])([a-z])/g, (match, p1, p2, offset, string) => {
+    // Check if this creates y2k pattern (2k)
+    if (offset > 0 && string[offset - 1] === 'y' && p1 === '2' && p2 === 'k') {
+      return match; // keep y2k together
+    }
+    // Check if this is just 's' after a number (1990s, 70s, etc.)
+    if (p2 === 's' && (offset + 2 >= string.length || string[offset + 2] === '-' || /[A-Z]/.test(string[offset + 2]))) {
+      return match; // keep number+s together
+    }
+    // Check if this is 3d pattern
+    if (p1 === '3' && p2 === 'd' && (offset + 2 >= string.length || string[offset + 2] === '-')) {
+      return match; // keep 3d together
+    }
+    return p1 + '-' + p2;
+  });
+  
+  // Remove leading hyphen if present
+  result = result.replace(/^-/, '');
+  
+  // Clean up double hyphens
+  result = result.replace(/--+/g, '-');
+  
+  return result;
 };
 
 /**
@@ -26,32 +92,52 @@ const generateGalleryFilename = (promptKey) => {
 /**
  * Loads all gallery images and converts them to photo objects
  * @param {Object} stylePrompts - The available style prompts
+ * @param {string} portraitType - The type of portrait: 'headshot', 'headshot2', or 'medium'
+ * @param {Object} promptsDataRaw - Optional raw prompts data for fallback logic
  * @returns {Promise<Array>} Array of photo objects for the gallery
  */
-export const loadGalleryImages = async (stylePrompts) => {
+export const loadGalleryImages = async (stylePrompts, portraitType = 'medium', promptsDataRaw = null, customPromptsData = null, walletAddress = null) => {
   try {
     const galleryPhotos = [];
-    
+
     // Create gallery photos for all prompts
     let photoIndex = 0;
-    
+
     Object.keys(stylePrompts).forEach(promptKey => {
       // Skip special prompts
       if (['custom', 'random', 'randomMix', 'oneOfEach'].includes(promptKey)) {
         return;
       }
-      
-      // Generate the expected filename using strict naming convention
-      const expectedFilename = generateGalleryFilename(promptKey);
-      const imagePath = `/gallery/prompts/${expectedFilename}`;
-      
+
+      let imagePath;
+      let expectedFilename = null;
+
+      // Handle custom personalized prompts — use preview image from server
+      if (promptKey.startsWith('custom_')) {
+        const idx = parseInt(promptKey.split('_')[1], 10);
+        const customPrompt = customPromptsData && customPromptsData[idx];
+        if (customPrompt?.imageFilename && walletAddress) {
+          imagePath = getPreviewImageUrl(walletAddress, customPrompt.imageFilename);
+        } else {
+          // Use a 1x1 transparent data URI as placeholder so the photo passes images.length > 0 filters
+          imagePath = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+        }
+      } else {
+        // Generate the expected filename using strict naming convention
+        expectedFilename = generateGalleryFilename(promptKey);
+
+        // Use fallback logic to determine the correct folder
+        const folder = getPortraitFolderWithFallback(portraitType, promptKey, promptsDataRaw);
+        imagePath = `${urls.assetUrl}/gallery/prompts/${folder}/${expectedFilename}`;
+      }
+
       // Create photo object - will show placeholder if file doesn't exist
       const galleryPhoto = {
         id: `gallery-${promptKey}-${Date.now()}-${photoIndex}`,
         generating: false,
         loading: false,
-        images: [imagePath],
-        originalDataUrl: imagePath,
+        images: imagePath ? [imagePath] : [],
+        originalDataUrl: imagePath || '',
         newlyArrived: false,
         isOriginal: false,
         sourceType: 'gallery',
@@ -67,14 +153,14 @@ export const loadGalleryImages = async (stylePrompts) => {
         // Add expected filename for debugging
         expectedFilename: expectedFilename
       };
-      
+
       galleryPhotos.push(galleryPhoto);
       photoIndex++;
     });
 
-    console.log(`Created ${galleryPhotos.length} gallery photo objects using strict naming convention`);
+    console.log(`Created ${galleryPhotos.length} gallery photo objects using strict naming convention for ${portraitType} portraits (with fallback logic)`);
     return galleryPhotos;
-    
+
   } catch (error) {
     console.error('Error loading gallery images:', error);
     return [];
@@ -96,6 +182,32 @@ export const checkImageExists = (imagePath) => {
     img.onerror = () => resolve(false);
     img.src = imagePath;
   });
+};
+
+/**
+ * Gets the appropriate portrait folder with fallback logic
+ * @param {string} portraitType - The requested portrait type ('headshot', 'headshot2', or 'medium')
+ * @param {string} promptKey - Optional prompt key to check if it's a winter style
+ * @param {Object} promptsDataRaw - Optional raw prompts data to check winter category
+ * @returns {string} The folder name to use (with fallback to 'headshot' if 'headshot2' and not a winter style)
+ * 
+ * Fallback logic:
+ * - If portraitType is 'headshot2' and promptKey is NOT a Christmas/Winter style, fallback to 'headshot'
+ * - Otherwise, use portraitType as-is (or 'medium' as default)
+ */
+export const getPortraitFolderWithFallback = (portraitType = 'medium', promptKey = null, promptsDataRaw = null) => {
+  // If headshot2 is requested, check if this is a winter style
+  if (portraitType === 'headshot2' && promptKey && promptsDataRaw) {
+    const winterPrompts = promptsDataRaw['christmas-winter']?.prompts || {};
+    const isWinterStyle = promptKey in winterPrompts;
+    
+    // Only use headshot2 for winter styles, otherwise fallback to headshot
+    if (!isWinterStyle) {
+      return 'headshot';
+    }
+  }
+  
+  return portraitType || 'medium';
 };
 
 // Export the utility functions for use in renaming scripts

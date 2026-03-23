@@ -1,25 +1,46 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 
-import { getModelOptions, defaultStylePrompts as initialStylePrompts, TIMEOUT_CONFIG, isFluxKontextModel, TWITTER_SHARE_CONFIG } from './constants/settings';
+import { getModelOptions, defaultStylePrompts as initialStylePrompts, TIMEOUT_CONFIG, isQwenImageEditModel, isQwenImageEditLightningModel, isContextImageModel, isFluxModel, TWITTER_SHARE_CONFIG, getQRWatermarkConfig, DEFAULT_MODEL_ID, QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID } from './constants/settings';
+import { COPY_IMAGE_STYLE_PROMPT, EDIT_MODEL_TRANSFORMATION_PREFIX, EDIT_MODEL_NEGATIVE_PROMPT_PREFIX, stripTransformationPrefix } from './constants/editPrompts';
 import { photoThoughts, randomThoughts } from './constants/thoughts';
-import { saveSettingsToCookies, shouldShowPromoPopup, markPromoPopupShown } from './utils/cookies';
-import { styleIdToDisplay } from './utils';
+import { saveSettingsToCookies, shouldShowPromoPopup, markPromoPopupShown, hasDoneDemoRender, markDemoRenderDone, clearSessionSettings } from './utils/cookies';
+import { styleIdToDisplay, normalizeSampler, normalizeScheduler } from './utils';
 import { getCustomDimensions } from './utils/imageProcessing';
+import { generateGalleryFilename, getPortraitFolderWithFallback } from './utils/galleryLoader';
 import { goToPreviousPhoto, goToNextPhoto } from './utils/photoNavigation';
-import { initializeStylePrompts, getRandomStyle, getRandomMixPrompts } from './services/prompts';
-import { getDefaultThemeGroupState, getEnabledPrompts, getOneOfEachPrompts } from './constants/themeGroups';
-import { getThemeGroupPreferences } from './utils/cookies';
+import { initializeStylePrompts, getRandomStyle, getRandomMixPrompts, getSimplePickPrompts, isEditPrompt, mergeCustomPrompts } from './services/prompts';
+import { rewritePromptForEditModel } from './services/promptRewriter';
+import { fetchCustomPrompts as fetchPersonalizedPrompts, fetchPersonalizeData, getPersonalizeAddress } from './services/personalizeService';
+import { getDefaultThemeGroupState, getEnabledPrompts, getOneOfEachPrompts, injectPersonalizedThemeGroup, removePersonalizedThemeGroup } from './constants/themeGroups';
+import { getThemeGroupPreferences, saveThemeGroupPreferences, getSimplePickStyles, getPersonalizeModelType, savePersonalizeModelType } from './utils/cookies';
 import { initializeSogniClient } from './services/sogni';
 import { isNetworkError } from './services/api';
+import { AuthStatus } from './components/auth/AuthStatus';
+import { useSogniAuth, sogniAuth } from './services/sogniAuth';
+import { createFrontendClientAdapter } from './services/frontendSogniAdapter';
 import { enhancePhoto, undoEnhancement, redoEnhancement } from './services/PhotoEnhancer';
+import { refreshPhoto } from './services/PhotoRefresher';
 import { shareToTwitter } from './services/TwitterShare';
+import { shareViaWebShare, isWebShareSupported } from './services/WebShare';
 import { themeConfigService } from './services/themeConfig';
-import { trackPageView, initializeGA, trackEvent } from './utils/analytics';
+import { trackPageView, initializeGA, trackEvent, trackBatchGeneration } from './utils/analytics';
+import { getCampaignSource } from './utils/campaignAttribution';
+import { setReferralSource, getReferralSource } from './utils/referralTracking';
 import { ensurePermanentUrl } from './utils/imageUpload.js';
 import { createPolaroidImage } from './utils/imageProcessing.js';
 import { getPhotoHashtag } from './services/TwitterShare.js';
+import { trackShareWithStyle } from './services/analyticsService';
+import { CUSTOM_PROMPT_IMAGE_KEY } from './components/shared/CustomPromptPopup';
+import urls from './config/urls';
 import clickSound from './click.mp3';
-import cameraWindSound from './camera-wind.mp3';
+import { warmUpAudio } from './utils/sonicLogos';
+import { isEventDomain } from './utils/eventDomains';
+import flash1Sound from './flash1.mp3';
+import flash2Sound from './flash2.mp3';
+import flash3Sound from './flash3.mp3';
+import flash4Sound from './flash4.mp3';
+import flash5Sound from './flash5.mp3';
+import flash6Sound from './flash6.mp3';
 // import helloSound from './hello.mp3';
 import light1Image from './light1.png';
 import light2Image from './light2.png';
@@ -44,49 +65,95 @@ Object.values(promptsDataRaw).forEach(themeGroup => {
 });
 import PhotoGallery from './components/shared/PhotoGallery';
 import { useApp } from './context/AppContext.tsx';
+import { useRewards } from './context/RewardsContext';
+import { useWallet } from './hooks/useWallet';
+import { isPremiumBoosted } from './services/walletService';
+import { estimateJobCost } from './hooks/useCostEstimation.ts';
 import TwitterShareModal from './components/shared/TwitterShareModal';
-import StyleDropdown from './components/shared/StyleDropdown';
+import BaldForBaseConfirmationPopup from './components/shared/BaldForBaseConfirmationPopup';
 
 import FriendlyErrorModal from './components/shared/FriendlyErrorModal';
-import SuccessToast from './components/shared/SuccessToast';
+import { useToastContext } from './context/ToastContext';
+import { setupWebSocketErrorHandler, handleSpecificErrors } from './utils/websocketErrorHandler';
+import webSocketErrorTester from './utils/testWebSocketErrors';
 
 import SplashScreen from './components/shared/SplashScreen';
 // Import the ImageAdjuster component
 import ImageAdjuster from './components/shared/ImageAdjuster';
+import ErrorBoundary from './components/shared/ErrorBoundary';
 // Import the UploadProgress component
 import UploadProgress from './components/shared/UploadProgress';
 import PromoPopup from './components/shared/PromoPopup';
+import OutOfCreditsPopup from './components/shared/OutOfCreditsPopup';
+import DailyBoostCelebration from './components/shared/DailyBoostCelebration';
+import LoginUpsellPopup from './components/shared/LoginUpsellPopup';
 import NetworkStatus from './components/shared/NetworkStatus';
 import ConfettiCelebration from './components/shared/ConfettiCelebration';
+// import AnalyticsDashboard from './components/admin/AnalyticsDashboard';
 import { subscribeToConnectionState, getCurrentConnectionState } from './services/api';
+import StripePurchase from './components/stripe/StripePurchase.tsx';
+import { ApiProvider } from './hooks/useSogniApi.ts';
+import { RecentProjects } from './components/projectHistory';
+import { getProjectImages, createImageBlobUrl } from './utils/localProjectsDB.ts';
 
 
 
-// Helper function to update URL with prompt parameter
-const updateUrlWithPrompt = (promptKey) => {
-  if (!promptKey || ['randomMix', 'random', 'custom', 'oneOfEach'].includes(promptKey)) {
-    // Remove the parameter if randomMix or empty
-    const url = new URL(window.location.href);
-    url.searchParams.delete('prompt');
-    window.history.replaceState({}, '', url);
+// Enhanced URL management for deep linking
+const updateUrlParams = (updates, options = {}) => {
+  const { usePushState = false, navigationContext = {} } = options;
+  const url = new URL(window.location.href);
+
+  // Apply all updates
+  Object.entries(updates).forEach(([key, value]) => {
+    if (value === null || value === undefined || value === '') {
+      url.searchParams.delete(key);
+    } else {
+      url.searchParams.set(key, value);
+    }
+  });
+
+  // Use pushState for navigation actions (adds to history), replaceState for state updates
+  if (usePushState) {
+    window.history.pushState({ navigationContext }, '', url);
   } else {
-    // Add/update the parameter
-    const url = new URL(window.location.href);
-    url.searchParams.set('prompt', promptKey);
-    window.history.replaceState({}, '', url);
+    window.history.replaceState({ navigationContext }, '', url);
   }
+};
+
+// Helper function to update URL with prompt parameter (backward compatibility)
+const updateUrlWithPrompt = (promptKey) => {
+  updateUrlParams({ 
+    prompt: (!promptKey || ['randomMix', 'random', 'custom', 'oneOfEach', 'copyImageStyle', 'simplePick'].includes(promptKey)) ? null : promptKey
+  });
 };
 
 // Helper function to get the hashtag for a style
 const getHashtagForStyle = (styleKey) => {
-  if (!styleKey || styleKey === 'custom' || styleKey === 'random' || styleKey === 'randomMix' || styleKey === 'oneOfEach') {
+  if (!styleKey || styleKey === 'random' || styleKey === 'randomMix' || styleKey === 'oneOfEach' || styleKey === 'copyImageStyle' || styleKey === 'simplePick') {
     return null;
+  }
+  // For custom prompts, use #SogniPhotobooth
+  if (styleKey === 'custom') {
+    return 'SogniPhotobooth';
   }
   return styleKey;
 };
 
+// Neutralize credit error messages on event domains
+const getCreditErrorMessage = (defaultMsg) => isEventDomain() ? 'Generation unavailable — please try again later' : defaultMsg;
 
 const App = () => {
+  // --- Authentication Hook ---
+  const authState = useSogniAuth();
+  
+  // --- Toast Context ---
+  const { showToast } = useToastContext();
+  
+  // Initialize WebSocket error tester for development/testing
+  useEffect(() => {
+    webSocketErrorTester.init(showToast);
+  }, [showToast]);
+  
   // --- Immediate URL Check (runs before any useEffect) ---
   const immediateUrl = new URL(window.location.href);
   const immediatePageParam = immediateUrl.searchParams.get('page');
@@ -111,49 +178,99 @@ const App = () => {
   const videoReference = useRef(null);
   const canvasReference = useRef(null);
   const shutterSoundReference = useRef(null);
-  const cameraWindSoundReference = useRef(null);
   // const helloSoundReference = useRef(null);
   const slothicornReference = useRef(null);
   const soundPlayedForPhotos = useRef(new Set()); // Track which photo IDs have already played sound
+  
+  // Pool of pre-unlocked flash sound audio elements for iOS compatibility
+  // Each flash sound has multiple instances to allow concurrent playback
+  const flashSoundPoolRef = useRef({
+    pool: [], // Pool of available audio elements
+    unlocked: false, // Whether audio has been unlocked
+    poolSize: 12 // Number of audio elements in pool (2 per sound for concurrent playback)
+  });
+  
+  const prevWinterContextRef = useRef(false); // Track previous winter context state (initialized to false)
+  const prevModelRef = useRef(null); // Track previous model to detect actual model changes
+  const prevStyleRef = useRef(null); // Track previous style to detect style changes
+  const dreamShaperAutoSelectedRef = useRef(false); // Track if DreamShaper was auto-selected (vs manually selected)
+  const isInitialRenderRef = useRef(true); // Track if this is the initial render
+  const userExplicitlySelectedModelRef = useRef(false); // Track if user explicitly chose a model (disables auto-switching)
+  const manualModelChangeRef = useRef(false); // Track if a manual model change is in progress (prevents auto-switching during reset)
+
+  // Array of flash sound sources for random selection
+  const flashSoundSources = useMemo(() => [
+    flash1Sound,
+    flash2Sound,
+    flash3Sound,
+    flash4Sound,
+    flash5Sound,
+    flash6Sound
+  ], []);
+
+  // Initialize flash sound pool
+  useEffect(() => {
+    const pool = flashSoundPoolRef.current;
+    
+    // Create pool of audio elements (2 instances per flash sound for concurrent playback)
+    // This ensures we have pre-unlocked audio elements ready for each sound
+    for (let soundIndex = 0; soundIndex < 6; soundIndex++) {
+      for (let instance = 0; instance < 2; instance++) {
+        const audio = new Audio(flashSoundSources[soundIndex]);
+        audio.volume = 1.0;
+        audio.preload = 'auto';
+        pool.pool.push({
+          audio,
+          soundIndex,
+          inUse: false
+        });
+      }
+    }
+    
+    return () => {
+      // Cleanup: remove all audio elements
+      pool.pool.forEach(item => {
+        item.audio.remove();
+      });
+      pool.pool = [];
+    };
+  }, [flashSoundSources]);
 
   useEffect(() => {
     const unlockAudio = () => {
+      // Unlock camera wind sound (shutter sound) silently (muted) on first click
       if (shutterSoundReference.current) {
         const audio = shutterSoundReference.current;
         audio.muted = true;
         audio.play().then(() => {
           audio.pause();
           audio.currentTime = 0;
-          audio.muted = false; // Unmute for future real plays
+          audio.muted = false;
         }).catch(err => {
           console.warn('Failed to unlock shutter sound:', err);
         });
       }
     
-      if (cameraWindSoundReference.current) {
-        const audio = cameraWindSoundReference.current;
-        audio.muted = true;
-        audio.play().then(() => {
-          audio.pause();
-          audio.currentTime = 0;
-          audio.muted = false;
-        }).catch(err => {
-          console.warn('Failed to unlock wind sound:', err);
+      // Unlock all flash sound audio elements in the pool silently (muted)
+      const pool = flashSoundPoolRef.current;
+      if (!pool.unlocked) {
+        pool.unlocked = true;
+        pool.pool.forEach((item, index) => {
+          const audio = item.audio;
+          audio.muted = true;
+          audio.play().then(() => {
+            audio.pause();
+            audio.currentTime = 0;
+            audio.muted = false;
+          }).catch(err => {
+            console.warn(`Failed to unlock flash sound ${index + 1}:`, err);
+          });
         });
       }
-      /*
-      if (helloSoundReference.current) {
-        const audio = helloSoundReference.current;
-        audio.muted = true;
-        audio.play().then(() => {
-          audio.pause();
-          audio.currentTime = 0;
-          audio.muted = false;
-        }).catch(err => {
-          console.warn('Failed to unlock hello sound:', err);
-        });
-      }
-      */
+      
+      // Warm up Web Audio API AudioContext for iOS compatibility
+      // This ensures video complete and daily boost sounds work throughout the session
+      warmUpAudio();
   
       window.removeEventListener("touchstart", unlockAudio);
       window.removeEventListener("click", unlockAudio);
@@ -164,7 +281,20 @@ const App = () => {
   }, []);
 
   // --- Use AppContext for settings ---
-  const { settings, updateSetting, switchToModel, resetSettings } = useApp();
+  const { settings, updateSetting: baseUpdateSetting, switchToModel, resetSettings: contextResetSettings, registerCacheClearingCallback } = useApp();
+  
+  // Track auth state in a ref so we always get the current value
+  const authStateRef = useRef(authState);
+  useEffect(() => {
+    authStateRef.current = authState;
+  }, [authState.isAuthenticated, authState.authMode]); // Only primitive dependencies
+  
+  // Wrap updateSetting to pass CURRENT auth state (not captured in closure)
+  const updateSetting = useCallback((key, value) => {
+    // Get current auth state from ref, not closure
+    const isAuth = authStateRef.current.isAuthenticated;
+    baseUpdateSetting(key, value, isAuth);
+  }, [baseUpdateSetting]); // Only depends on baseUpdateSetting, not authState
   const { 
     selectedStyle, 
     selectedModel, 
@@ -173,12 +303,13 @@ const App = () => {
     controlNetStrength, 
     controlNetGuidanceEnd, 
     inferenceSteps,
+    sampler,
     scheduler,
-    timeStepSpacing,
     guidance,
     flashEnabled, 
     keepOriginalPhoto,
     positivePrompt,
+    customSceneName,
     stylePrompt,
     negativePrompt,
     seed,
@@ -189,8 +320,138 @@ const App = () => {
     tezdevTheme,
     outputFormat,
     sensitiveContentFilter,
-    kioskMode
+    kioskMode,
+    showSplashOnInactivity,
+    inactivityTimeout
   } = settings;
+
+  // Helper function to play a random flash sound using pre-unlocked pool (allows concurrent playback)
+  const playRandomFlashSound = useCallback(() => {
+    if (!soundEnabled) {
+      return;
+    }
+    
+    const pool = flashSoundPoolRef.current;
+    
+    // Randomly select one of the 6 flash sounds
+    const randomIndex = Math.floor(Math.random() * 6);
+    
+    // Find an available audio element for this specific sound
+    const availableItem = pool.pool.find(item => 
+      !item.inUse && item.soundIndex === randomIndex
+    );
+    
+    // If no available item for this sound, all instances are in use - skip this play
+    if (!availableItem) {
+      // Could optionally fall back to any available sound, but for now just skip
+      return;
+    }
+    
+    // Mark as in use
+    availableItem.inUse = true;
+    const audio = availableItem.audio;
+    
+    // Reset to beginning to ensure sound plays from start
+    audio.currentTime = 0;
+    
+    // Try to play
+    const playPromise = audio.play();
+    
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          // Successfully playing
+        })
+        .catch(error => {
+          console.warn(`[Flash Sound] Play failed for flash${randomIndex + 1}.mp3:`, error);
+          // Mark as available again on error
+          availableItem.inUse = false;
+        });
+    }
+    
+    // Return to pool when finished
+    const returnToPool = () => {
+      availableItem.inUse = false;
+      audio.currentTime = 0;
+    };
+    
+    audio.addEventListener('ended', returnToPool, { once: true });
+    audio.addEventListener('error', returnToPool, { once: true });
+  }, [soundEnabled]);
+
+  // Add state to store the last used photo blob and data URL for "More" button
+  const [lastPhotoData, setLastPhotoData] = useState({ blob: null, dataUrl: null }); // Keep this
+
+  // Add state for style reference image (for "Copy image style" mode)
+  const [styleReferenceImage, setStyleReferenceImage] = useState(null); // { blob, dataUrl, croppedBlob }
+  const [showStyleReferenceAdjuster, setShowStyleReferenceAdjuster] = useState(false); // Show adjuster for style reference
+
+  // No longer loading Einstein as state - UI handles fallback display directly
+
+  // --- Use wallet for payment method ---
+  const { tokenType: walletTokenType, balances, switchPaymentMethod, onBalanceIncrease } = useWallet();
+  
+  // Track app initialization time to prevent balance update toasts during initial load
+  const appInitTimeRef = useRef(Date.now());
+  
+  // Reset the initialization time when authentication changes
+  useEffect(() => {
+    if (authState.isAuthenticated) {
+      console.log('🔐 Authentication detected, resetting balance notification grace period');
+      appInitTimeRef.current = Date.now();
+    }
+  }, [authState.isAuthenticated]);
+  
+  // Log when payment method changes
+  useEffect(() => {
+    console.log('💳 Payment method updated:', walletTokenType);
+  }, [walletTokenType]);
+
+  // Handle balance increases - show toast and auto-switch to Spark if needed
+  useEffect(() => {
+    if (!onBalanceIncrease) return;
+
+    onBalanceIncrease((tokenType, oldBalance, newBalance) => {
+      const increase = newBalance - oldBalance;
+      console.log(`💰 Balance increased for ${tokenType}: ${oldBalance} -> ${newBalance} (+${increase.toFixed(2)})`);
+
+      // Check if we're within the grace period after app load/login (5 seconds)
+      const timeSinceInit = Date.now() - appInitTimeRef.current;
+      const isWithinGracePeriod = timeSinceInit < 5000;
+      
+      if (isWithinGracePeriod) {
+        console.log(`💰 Skipping balance notification - within grace period (${(timeSinceInit / 1000).toFixed(1)}s since init)`);
+        return;
+      }
+
+      // Only show toast for significant balance increases (minimum credit card purchase is 275)
+      if (increase < 275) {
+        console.log(`💰 Skipping balance notification - increase too small (${increase.toFixed(2)} < 275)`);
+        return;
+      }
+
+      // Show toast notification
+      showToast({
+        type: 'success',
+        title: `${tokenType === 'spark' ? 'Spark' : 'SOGNI'} Credits Added!`,
+        message: `+${increase.toFixed(2)} ${tokenType === 'spark' ? 'Spark Points' : 'SOGNI'} added to your wallet`,
+        timeout: 5000
+      });
+
+      // Auto-switch to Spark if Spark balance increased and current payment method is Sogni
+      // This handles Stripe purchases automatically
+      if (tokenType === 'spark' && walletTokenType === 'sogni') {
+        console.log('💳 Auto-switching payment method from sogni to spark after Spark balance increase');
+        switchPaymentMethod('spark');
+        showToast({
+          type: 'info',
+          title: 'Payment Method Updated',
+          message: 'Switched to Spark Points as your payment method',
+          timeout: 4000
+        });
+      }
+    });
+  }, [onBalanceIncrease, showToast, walletTokenType, switchPaymentMethod]);
 
   // Extract preferredCameraDeviceId for easier access
   const { preferredCameraDeviceId } = settings;
@@ -209,10 +470,18 @@ const App = () => {
     return { ...defaultState, ...saved };
   });
 
-  // Callback to handle theme changes from PromptSelectorPage
-  const handleThemeChange = useCallback((newThemeState) => {
-    setCurrentThemeState(newThemeState);
-  }, []);
+  // Check if only Personalized category is enabled (for label overrides)
+  const isOnlyPersonalizedEnabled = useMemo(() => {
+    const entries = Object.entries(currentThemeState);
+    if (entries.length === 0) return false;
+    return currentThemeState['personalized'] === true &&
+      entries.every(([k, v]) => k === 'personalized' ? v : !v);
+  }, [currentThemeState]);
+
+  // Store personalized prompts data for preview images on start menu
+  const [personalizePrompts, setPersonalizePrompts] = useState(null);
+  const [personalizeAddress, setPersonalizeAddress] = useState(null);
+
 
   // Info modal state - adding back the missing state
   const [showInfoModal, setShowInfoModal] = useState(false);
@@ -222,12 +491,82 @@ const App = () => {
   
   // State for tracking gallery prompt application
   const [pendingGalleryPrompt, setPendingGalleryPrompt] = useState(null);
-  
-  
+
+  // State for portrait type in Style Explorer - read from settings if available
+  const [portraitType, setPortraitType] = useState(() => {
+    return settings.portraitType || 'medium'; // Use saved portrait type or default to 'medium'
+  });
+
   // State for current page routing
-  const [currentPage, setCurrentPage] = useState(
-    immediatePageParam === 'prompts' ? 'prompts' : 'camera'
-  );
+  const [currentPage, setCurrentPage] = useState(() => {
+    return immediatePageParam === 'prompts' ? 'prompts' : 'camera';
+  });
+
+  // Re-read theme preferences when navigating between pages
+  // This ensures theme changes from WinterEvent are reflected
+  useEffect(() => {
+    const saved = getThemeGroupPreferences();
+    if (saved && Object.keys(saved).length > 0) {
+      const defaultState = getDefaultThemeGroupState();
+      const newThemeState = { ...defaultState, ...saved };
+      setCurrentThemeState(newThemeState);
+      console.log('🎨 Re-read theme preferences from localStorage:', newThemeState);
+    }
+
+    // Validate stale simplePick: if selectedStyle is 'simplePick' but no picks exist,
+    // reset to 'randomMix' which properly handles category-aware filtering
+    if (settings.selectedStyle === 'simplePick') {
+      const picks = getSimplePickStyles();
+      if (picks.length === 0) {
+        console.log('🎯 Resetting stale simplePick to randomMix (no picks in storage)');
+        updateSetting('selectedStyle', 'randomMix');
+      }
+    }
+  }, [currentPage]); // Re-read when navigating between pages
+
+  // Callback to handle theme changes from PromptSelectorPage
+  const handleThemeChange = useCallback((newThemeState) => {
+    setCurrentThemeState(newThemeState);
+    
+    // Update URL with theme filters for deep linking
+    if (currentPage === 'prompts') {
+      const enabledThemes = Object.entries(newThemeState)
+        .filter(([, enabled]) => enabled)
+        .map(([groupId]) => groupId);
+      
+      // Only add themes parameter if not all themes are selected
+      const allThemes = Object.keys(getDefaultThemeGroupState());
+      const themesParam = enabledThemes.length === allThemes.length ? null : enabledThemes.join(',');
+      
+      updateUrlParams({ themes: themesParam });
+    }
+  }, [currentPage]);
+
+  // Handler for search term changes
+  const handleSearchChange = useCallback((searchTerm) => {
+    // Update URL with search term for deep linking
+    if (currentPage === 'prompts') {
+      updateUrlParams({ search: searchTerm || null });
+    }
+  }, [currentPage]);
+
+  // Handler for portrait type changes
+  const handlePortraitTypeChange = useCallback((newPortraitType) => {
+    // Only change if it's actually different
+    if (newPortraitType === portraitType) {
+      console.log(`Portrait type ${newPortraitType} already selected, ignoring`);
+      return;
+    }
+    
+    console.log(`Changing portrait type from ${portraitType} to ${newPortraitType}`);
+    setPortraitType(newPortraitType);
+    // Persist portrait type to settings so it's maintained across navigation
+    updateSetting('portraitType', newPortraitType);
+    // Clear gallery photos to force reload with new portrait type
+    setGalleryPhotos([]);
+    // Reset gallery loaded flag to force reload with new portrait type
+    galleryImagesLoadedThisSession.current = false;
+  }, [portraitType, updateSetting]);
   
   // PWA install prompt state - for manual testing only
   const [showPWAPromptManually, setShowPWAPromptManually] = useState(false);
@@ -254,6 +593,40 @@ const App = () => {
   
   // Add state to store framed image cache from PhotoGallery
   const [photoGalleryFramedImageCache, setPhotoGalleryFramedImageCache] = useState({});
+  
+  // Store reference to PhotoGallery's frame cache clearing function
+  const photoGalleryFrameClearRef = useRef(null);
+  
+  // Register cache clearing callbacks with AppContext
+  useEffect(() => {
+    // Register callbacks for clearing various caches
+    const unregisterCallbacks = [
+      // Clear QR code data
+      registerCacheClearingCallback(() => {
+        console.log('Clearing QR code data due to QR settings change');
+        setQrCodeData(null);
+      }),
+      
+      // Clear mobile share cache
+      registerCacheClearingCallback(() => {
+        console.log('Clearing mobile share cache due to QR settings change');
+        setMobileShareCache({});
+      }),
+      
+      // Clear PhotoGallery frame cache if available
+      registerCacheClearingCallback(() => {
+        if (photoGalleryFrameClearRef.current) {
+          console.log('Clearing PhotoGallery frame cache due to QR settings change');
+          photoGalleryFrameClearRef.current();
+        }
+      })
+    ];
+    
+    // Cleanup function
+    return () => {
+      unregisterCallbacks.forEach(unregister => unregister());
+    };
+  }, []);
   
   // Cleanup old mobile share cache entries to prevent memory leaks
   const cleanupMobileShareCache = useCallback(() => {
@@ -287,9 +660,67 @@ const App = () => {
   const [currentUploadedSource, setCurrentUploadedSource] = useState('');
   
 
-  
+
+  // Helper function to clear old photo data from localStorage to prevent quota issues
+  const clearOldPhotoStorage = () => {
+    try {
+      // Clear all photo-related storage items
+      localStorage.removeItem('sogni-lastAdjustedPhoto');
+      localStorage.removeItem('sogni-lastCameraPhoto');
+      localStorage.removeItem('sogni-lastUploadedPhoto');
+      localStorage.removeItem('sogni_styleReferenceImage');
+      localStorage.removeItem(CUSTOM_PROMPT_IMAGE_KEY);
+      console.log('📦 Cleared old photo storage to free up space');
+    } catch (error) {
+      console.warn('Failed to clear old photo storage:', error);
+    }
+  };
+
+  // Helper function to safely store data with quota management
+  const safeLocalStorageSetItem = (key, value, retryWithCleanup = true) => {
+    try {
+      // Check if the value is too large (> 3MB when stringified)
+      // This prevents storing huge images that will likely cause quota issues
+      const sizeInBytes = new Blob([value]).size;
+      const sizeInMB = sizeInBytes / (1024 * 1024);
+
+      if (sizeInMB > 3) {
+        console.warn(`⚠️  Skipping localStorage save for ${key} - size (${sizeInMB.toFixed(2)}MB) exceeds safe limit (3MB)`);
+        return false;
+      }
+
+      localStorage.setItem(key, value);
+      return true;
+    } catch (error) {
+      // Check if it's a quota exceeded error
+      const isQuotaError = error.name === 'QuotaExceededError' ||
+                           error.code === 22 ||
+                           error.code === 1014 ||
+                           error.message?.toLowerCase().includes('quota');
+
+      if (isQuotaError) {
+        console.warn('📦 localStorage quota exceeded');
+
+        // Try to recover by clearing old data
+        if (retryWithCleanup) {
+          console.log('🔄 Clearing old photo data and retrying...');
+          clearOldPhotoStorage();
+
+          // Retry once without cleanup option to prevent infinite loop
+          return safeLocalStorageSetItem(key, value, false);
+        } else {
+          console.warn('⚠️  Still cannot save after cleanup - photo will not persist across sessions');
+          return false;
+        }
+      } else {
+        console.warn(`Failed to save to localStorage (${key}):`, error);
+        return false;
+      }
+    }
+  };
+
   // Helper functions for localStorage persistence
-  const saveLastEditablePhotoToStorage = async (photoData) => {
+  const saveLastAdjustedPhotoToStorage = async (photoData) => {
     try {
       if (photoData.blob) {
         // Convert blob to base64 data URL for storage
@@ -302,53 +733,255 @@ const App = () => {
             // Remove blob since we have dataUrl now
             blob: null
           };
-          localStorage.setItem('sogni-lastEditablePhoto', JSON.stringify(dataToStore));
+          safeLocalStorageSetItem('sogni-lastAdjustedPhoto', JSON.stringify(dataToStore));
         };
         reader.readAsDataURL(photoData.blob);
       } else {
         // No blob, just store what we have
         // eslint-disable-next-line no-unused-vars
         const { blob, ...photoDataWithoutBlob } = photoData;
-        localStorage.setItem('sogni-lastEditablePhoto', JSON.stringify(photoDataWithoutBlob));
+        safeLocalStorageSetItem('sogni-lastAdjustedPhoto', JSON.stringify(photoDataWithoutBlob));
       }
     } catch (error) {
-      console.warn('Failed to save lastEditablePhoto to localStorage:', error);
+      console.warn('Failed to save lastAdjustedPhoto to localStorage:', error);
     }
   };
 
-  const loadLastEditablePhotoFromStorage = () => {
+  const loadLastAdjustedPhotoFromStorage = () => {
     try {
-      const stored = localStorage.getItem('sogni-lastEditablePhoto');
+      const stored = localStorage.getItem('sogni-lastAdjustedPhoto');
       return stored ? JSON.parse(stored) : null;
     } catch (error) {
-      console.warn('Failed to load lastEditablePhoto from localStorage:', error);
+      console.warn('Failed to load lastAdjustedPhoto from localStorage:', error);
       return null;
     }
   };
 
-  // Add state to store the last photo data for re-editing
-  const [lastEditablePhoto, setLastEditablePhotoState] = useState(null);
-  
-  // Custom setter that also saves to localStorage
-  const setLastEditablePhoto = (photoData) => {
-    setLastEditablePhotoState(photoData);
-    if (photoData) {
-      saveLastEditablePhotoToStorage(photoData);
-    } else {
-      localStorage.removeItem('sogni-lastEditablePhoto');
+  // Helper functions for lastCameraPhoto persistence
+  const saveLastCameraPhotoToStorage = async (photoData) => {
+    try {
+      if (photoData.blob) {
+        // Convert blob to base64 data URL for storage
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = reader.result;
+          const dataToStore = {
+            ...photoData,
+            dataUrl: dataUrl,
+            blob: null // Remove blob since we have dataUrl now
+          };
+          safeLocalStorageSetItem('sogni-lastCameraPhoto', JSON.stringify(dataToStore));
+        };
+        reader.readAsDataURL(photoData.blob);
+      } else {
+        // No blob, just store what we have
+        // eslint-disable-next-line no-unused-vars
+        const { blob, ...photoDataWithoutBlob } = photoData;
+        safeLocalStorageSetItem('sogni-lastCameraPhoto', JSON.stringify(photoDataWithoutBlob));
+      }
+    } catch (error) {
+      console.warn('Failed to save lastCameraPhoto to localStorage:', error);
     }
   };
 
-
-
-  // Load lastEditablePhoto from localStorage on app mount
-  useEffect(() => {
-    const storedPhotoData = loadLastEditablePhotoFromStorage();
-
-    if (storedPhotoData) {
-      // We don't have the blob anymore, but we have the adjustments
-      setLastEditablePhotoState(storedPhotoData);
+  const loadLastCameraPhotoFromStorage = () => {
+    try {
+      const stored = localStorage.getItem('sogni-lastCameraPhoto');
+      return stored ? JSON.parse(stored) : null;
+    } catch (error) {
+      console.warn('Failed to load lastCameraPhoto from localStorage:', error);
+      return null;
     }
+  };
+
+  // Helper functions for lastUploadedPhoto persistence
+  const saveLastUploadedPhotoToStorage = async (photoData) => {
+    try {
+      if (photoData.blob) {
+        // Convert blob to base64 data URL for storage
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = reader.result;
+          const dataToStore = {
+            ...photoData,
+            dataUrl: dataUrl,
+            blob: null // Remove blob since we have dataUrl now
+          };
+          safeLocalStorageSetItem('sogni-lastUploadedPhoto', JSON.stringify(dataToStore));
+        };
+        reader.readAsDataURL(photoData.blob);
+      } else {
+        // No blob, just store what we have
+        // eslint-disable-next-line no-unused-vars
+        const { blob, ...photoDataWithoutBlob } = photoData;
+        safeLocalStorageSetItem('sogni-lastUploadedPhoto', JSON.stringify(photoDataWithoutBlob));
+      }
+    } catch (error) {
+      console.warn('Failed to save lastUploadedPhoto to localStorage:', error);
+    }
+  };
+
+  const loadLastUploadedPhotoFromStorage = () => {
+    try {
+      const stored = localStorage.getItem('sogni-lastUploadedPhoto');
+      return stored ? JSON.parse(stored) : null;
+    } catch (error) {
+      console.warn('Failed to load lastUploadedPhoto from localStorage:', error);
+      return null;
+    }
+  };
+
+  // Add state to store the last adjusted photo data for re-editing
+  const [lastAdjustedPhoto, setLastAdjustedPhotoState] = useState(null);
+  
+  // Add separate state for uploaded photos (separate from camera photos)
+  const [lastUploadedPhoto, setLastUploadedPhotoState] = useState(null);
+  
+  // Add separate state for camera photos (separate from uploaded photos)
+  const [lastCameraPhoto, setLastCameraPhotoState] = useState(null);
+  
+  // Custom setter that also saves to localStorage
+  const setLastAdjustedPhoto = (photoData) => {
+    setLastAdjustedPhotoState(photoData);
+    if (photoData) {
+      saveLastAdjustedPhotoToStorage(photoData);
+    } else {
+      localStorage.removeItem('sogni-lastAdjustedPhoto');
+    }
+  };
+
+  // Custom setter for lastCameraPhoto that also saves to localStorage
+  const setLastCameraPhoto = (photoData) => {
+    setLastCameraPhotoState(photoData);
+    if (photoData) {
+      saveLastCameraPhotoToStorage(photoData);
+    } else {
+      localStorage.removeItem('sogni-lastCameraPhoto');
+    }
+  };
+
+  // Custom setter for lastUploadedPhoto that also saves to localStorage
+  const setLastUploadedPhoto = (photoData) => {
+    setLastUploadedPhotoState(photoData);
+    if (photoData) {
+      saveLastUploadedPhotoToStorage(photoData);
+    } else {
+      localStorage.removeItem('sogni-lastUploadedPhoto');
+    }
+  };
+
+  // No longer loading Einstein as state - UI handles fallback display directly
+
+  // No longer loading Einstein as state - UI handles fallback display directly
+
+  // Wrapper function to reset settings and lastPhotoData
+  const resetSettings = useCallback(async () => {
+    console.log('🔄 Resetting all settings to defaults');
+    
+    // Mark this as a manual model change to prevent automatic switching
+    manualModelChangeRef.current = true;
+    
+    // Reset user explicit model selection flag - allow auto-switching after reset
+    userExplicitlySelectedModelRef.current = false;
+    
+    // First reset the context settings
+    contextResetSettings();
+    
+    // Explicitly clear winter context
+    updateSetting('winterContext', false);
+
+    // Clear any saved photo data from localStorage to ensure clean reset
+    localStorage.removeItem('sogni-lastAdjustedPhoto');
+    localStorage.removeItem('sogni-lastCameraPhoto');
+    console.log('🗑️ Cleared saved photo data from localStorage');
+
+    // Clear blocked prompts
+    localStorage.removeItem('sogni_blocked_prompts');
+    console.log('🗑️ Cleared blocked prompts from localStorage');
+
+    // Reset theme group preferences to defaults
+    const defaultThemeState = getDefaultThemeGroupState();
+    saveThemeGroupPreferences(defaultThemeState);
+    setCurrentThemeState(defaultThemeState);
+    console.log('🎨 Reset theme group preferences to defaults');
+
+    // Clear all photo states - UI will show Einstein fallback automatically
+    setLastPhotoData({ blob: null, dataUrl: null });
+    setLastAdjustedPhotoState(null);
+    setLastCameraPhotoState(null);
+    
+    // Reset the manual change flag after effects run
+    setTimeout(() => {
+      manualModelChangeRef.current = false;
+    }, 100);
+  }, [contextResetSettings, updateSetting]);
+
+
+
+  // Load lastAdjustedPhoto from localStorage on app mount
+  useEffect(() => {
+    const loadAdjustedPhoto = () => {
+      const storedPhotoData = loadLastAdjustedPhotoFromStorage();
+
+      // Only use stored photo if it's a real user photo (has imageUrl or valid source + data)
+      // Einstein fallback photos lack imageUrl and should never be persisted
+      const isRealUserPhoto = storedPhotoData && (
+        storedPhotoData.imageUrl || // Real photos have imageUrl
+        (storedPhotoData.source && storedPhotoData.dataUrl && storedPhotoData.dataUrl.startsWith('data:image'))
+      );
+
+      if (isRealUserPhoto) {
+        // We don't have the blob anymore, but we have the adjustments
+        setLastAdjustedPhotoState(storedPhotoData);
+      } else {
+        // Clear any invalid/Einstein photos from localStorage
+        if (storedPhotoData) {
+          console.log('🗑️ Clearing Einstein fallback photo from localStorage (not a real user photo)');
+          localStorage.removeItem('sogni-lastAdjustedPhoto');
+        }
+        // Don't set any state - UI will show Einstein fallback automatically when null
+      }
+    };
+
+    loadAdjustedPhoto();
+  }, []);
+
+  // Load lastCameraPhoto from localStorage on app mount
+  useEffect(() => {
+    const loadCameraPhoto = () => {
+      const storedCameraPhoto = loadLastCameraPhotoFromStorage();
+      // Only use stored photo if it's a real user photo (has imageUrl or has valid source + data)
+      // Einstein fallback photos lack imageUrl and should never be persisted
+      const isRealUserPhoto = storedCameraPhoto && (
+        storedCameraPhoto.imageUrl || // Real camera photos have imageUrl
+        (storedCameraPhoto.source === 'camera' && storedCameraPhoto.dataUrl && storedCameraPhoto.dataUrl.startsWith('data:image'))
+      );
+      
+      if (isRealUserPhoto) {
+        setLastCameraPhotoState(storedCameraPhoto);
+        console.log('✅ Loaded lastCameraPhoto from localStorage');
+      } else {
+        // Clear any invalid/Einstein photos from localStorage
+        if (storedCameraPhoto) {
+          console.log('🗑️ Clearing Einstein fallback photo from localStorage (not a real user photo)');
+          localStorage.removeItem('sogni-lastCameraPhoto');
+        }
+        // Don't set any state - UI will show Einstein fallback automatically when null
+      }
+    };
+    loadCameraPhoto();
+  }, []);
+
+  // Load lastUploadedPhoto from localStorage on app mount
+  useEffect(() => {
+    const loadUploadedPhoto = () => {
+      const storedUploadedPhoto = loadLastUploadedPhotoFromStorage();
+      if (storedUploadedPhoto) {
+        setLastUploadedPhotoState(storedUploadedPhoto);
+        console.log('✅ Loaded lastUploadedPhoto from localStorage');
+      }
+    };
+    loadUploadedPhoto();
   }, []);
 
   
@@ -363,7 +996,35 @@ const App = () => {
   
   // Add state for promotional popup
   const [showPromoPopup, setShowPromoPopup] = useState(false);
+
+  // Add state for out of credits popup
+  const [showOutOfCreditsPopup, setShowOutOfCreditsPopup] = useState(false);
+  const [lastJobCostEstimate, setLastJobCostEstimate] = useState(null);
+
+  // Daily boost from out-of-credits flow (bypasses event/kiosk mode suppression)
+  const [showDailyBoostFromCredits, setShowDailyBoostFromCredits] = useState(false);
+  const { rewards, claimRewardWithToken, claimInProgress, lastClaimSuccess, resetClaimState, error: dailyBoostClaimError } = useRewards();
+  const dailyBoostReward = rewards.find(r => r.id === '2');
+  const canClaimDailyBoost = dailyBoostReward?.canClaim &&
+    (!dailyBoostReward?.nextClaim || dailyBoostReward.nextClaim.getTime() <= Date.now());
   
+  // Bald for Base popup state - rendered in App.jsx so it works independently of PhotoGallery
+  const [showBaldForBasePopup, setShowBaldForBasePopup] = useState(false);
+
+  // Stripe purchase modal state
+  const [showStripePurchase, setShowStripePurchase] = useState(false);
+
+  // Recent Projects panel state
+  const [showRecentProjects, setShowRecentProjects] = useState(false);
+
+  // Add state for login upsell popup (for non-authenticated users who've used their demo render)
+  const [showLoginUpsellPopup, setShowLoginUpsellPopup] = useState(false);
+
+  // Ref to AuthStatus component to trigger login modal
+  const authStatusRef = useRef(null);
+
+  const referralAutoOpenDone = useRef(false);
+
   // Connection state management
   const [connectionState, setConnectionState] = useState(getCurrentConnectionState());
   const [isGenerating, setIsGenerating] = useState(false);
@@ -384,11 +1045,25 @@ const App = () => {
   
   // Helper function to trigger promotional popup after batch completion
   const triggerPromoPopupIfNeeded = () => {
+    // Don't show promo popup if user is already logged in
+    if (authState.isAuthenticated) {
+      return;
+    }
+    
     if (shouldShowPromoPopup()) {
       // Add a small delay to let the UI settle after batch completion
       setTimeout(() => {
         setShowPromoPopup(true);
       }, 20000);
+    }
+  };
+
+  // Helper function to track demo render completion for non-authenticated users
+  const trackDemoRenderCompletion = () => {
+    // Only track for non-authenticated users
+    if (!authState.isAuthenticated && !hasDoneDemoRender()) {
+      console.log('✅ Marking demo render as complete for non-authenticated user');
+      markDemoRenderDone();
     }
   };
 
@@ -402,6 +1077,19 @@ const App = () => {
       // Reset confetti state first, then trigger new animation
       setShowConfetti(false);
       // Small delay to let the final photos settle in and ensure state reset
+      setTimeout(() => {
+        setShowConfetti(true);
+      }, 600);
+    }
+  };
+
+  // Helper function to trigger confetti celebration when account is created
+  const triggerSignupCelebration = () => {
+    // Show confetti if background animations are enabled (no session limit for signup)
+    if (backgroundAnimationsEnabled) {
+      // Reset confetti state first, then trigger new animation
+      setShowConfetti(false);
+      // Small delay to ensure state reset
       setTimeout(() => {
         setShowConfetti(true);
       }, 600);
@@ -435,11 +1123,57 @@ const App = () => {
     console.log('🎊 Confetti session reset! Next batch completion will show confetti.');
   };
   
+  // Add testing function for signup confetti celebration
+  window.testSignupConfetti = () => {
+    if (!backgroundAnimationsEnabled) {
+      console.log('🎊 Confetti is disabled. Enable "Background Animations" in settings to see confetti.');
+      return;
+    }
+    
+    console.log('🎉 Testing signup confetti celebration!');
+    triggerSignupCelebration();
+  };
+  
   // Handle promotional popup close
   const handlePromoPopupClose = () => {
     setShowPromoPopup(false);
     markPromoPopupShown();
   };
+
+  const handleOutOfCreditsPopupClose = () => {
+    setShowOutOfCreditsPopup(false);
+  };
+
+  // When out-of-credits popup opens, check if daily boost is available and offer it instead
+  const handleOutOfCreditsShow = useCallback(() => {
+    if (isEventDomain()) {
+      showToast({ type: 'warning', title: 'Out of credits', message: 'Please try again later', timeout: 5000 });
+      return;
+    }
+    if (canClaimDailyBoost && authState.isAuthenticated) {
+      // Show daily boost celebration instead of the regular popup
+      setShowDailyBoostFromCredits(true);
+    } else {
+      setShowOutOfCreditsPopup(true);
+    }
+  }, [canClaimDailyBoost, authState.isAuthenticated]);
+
+  // Handle daily boost claim from the out-of-credits flow
+  const handleDailyBoostFromCreditsClaim = useCallback((turnstileToken) => {
+    if (dailyBoostReward) {
+      claimRewardWithToken(dailyBoostReward.id, turnstileToken);
+    }
+  }, [dailyBoostReward, claimRewardWithToken]);
+
+  // Handle daily boost dismissal from the out-of-credits flow — fall through to regular popup
+  const handleDailyBoostFromCreditsDismiss = useCallback(() => {
+    setShowDailyBoostFromCredits(false);
+    if (!lastClaimSuccess && !isEventDomain()) {
+      // User declined the boost — show the regular out-of-credits popup
+      setShowOutOfCreditsPopup(true);
+    }
+    resetClaimState();
+  }, [lastClaimSuccess, resetClaimState]);
 
   // Photos array - this will hold either regular photos or gallery photos depending on mode
   const [photos, setPhotos] = useState([]);
@@ -508,11 +1242,15 @@ const App = () => {
   // Sogni
   const [sogniClient, setSogniClient] = useState(null);
   const [isSogniReady, setIsSogniReady] = useState(false);
+  const subjectAnalysisRef = useRef(null); // Subject analysis from ImageAdjuster for prompt rewriting
 
   // Camera devices
   const [cameraDevices, setCameraDevices] = useState([]);
   const [selectedCameraDeviceId, setSelectedCameraDeviceId] = useState(preferredCameraDeviceId || null); // Initialize from settings
   const [isFrontCamera, setIsFrontCamera] = useState(true); // Keep this local state
+  const [waitingForCameraPermission, setWaitingForCameraPermission] = useState(false); // Track camera permission request
+  const [showPermissionMessage, setShowPermissionMessage] = useState(false); // Show message after delay
+  const [cameraPermissionDenied, setCameraPermissionDenied] = useState(false); // Track if permission was denied
 
   // State for orientation handler cleanup
   const [orientationHandler, setOrientationHandler] = useState(null);
@@ -523,8 +1261,7 @@ const App = () => {
   // Drag-and-drop state
   const [dragActive, setDragActive] = useState(false); // Keep this
 
-  // Add state to store the last used photo blob and data URL for "More" button
-  const [lastPhotoData, setLastPhotoData] = useState({ blob: null, dataUrl: null }); // Keep this
+  // No longer loading Einstein into state - UI handles fallback display directly
 
   // Add cleanup for orientation handler when component unmounts
   useEffect(() => {
@@ -535,15 +1272,37 @@ const App = () => {
     };
   }, [orientationHandler]);
 
+  // Handle delayed display of camera permission message (2 second delay)
+  useEffect(() => {
+    let timer;
+    
+    if (waitingForCameraPermission) {
+      // Start a timer to show the message after 2 seconds
+      timer = setTimeout(() => {
+        setShowPermissionMessage(true);
+      }, 2000);
+    } else {
+      // Clear the message immediately when permission is no longer being waited on
+      setShowPermissionMessage(false);
+    }
+    
+    // Cleanup timer on unmount or when waitingForCameraPermission changes
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [waitingForCameraPermission]);
+
   // When entering Style Explorer (prompt selector), ensure we have a usable
-  // reference photo in lastPhotoData by hydrating it from lastEditablePhoto
+  // reference photo in lastPhotoData by hydrating it from lastAdjustedPhoto
   // if needed. This enables showing the Generate button based on prior photos.
   useEffect(() => {
     let isCancelled = false;
     const ensureReferencePhotoForStyleExplorer = async () => {
       if (currentPage !== 'prompts') return;
       if (lastPhotoData && lastPhotoData.blob) return;
-      const editable = lastEditablePhoto;
+      const editable = lastAdjustedPhoto;
       if (!editable) return;
       try {
         const sourceType = editable.source === 'camera' ? 'camera' : 'upload';
@@ -572,22 +1331,84 @@ const App = () => {
     };
     ensureReferencePhotoForStyleExplorer();
     return () => { isCancelled = true; };
-  }, [currentPage, lastEditablePhoto, lastPhotoData]);
+  }, [currentPage, lastAdjustedPhoto, lastPhotoData]);
+
+  // State for URL-based search parameters
+  const [urlSearchTerm, setUrlSearchTerm] = useState('');
 
   // --- Handle URL parameters for deeplinks ---
   useEffect(() => {
-    // Check for prompt parameter in URL
+    // Check for all URL parameters
     const url = new URL(window.location.href);
     const promptParam = url.searchParams.get('prompt');
     const pageParam = url.searchParams.get('page');
     const extensionParam = url.searchParams.get('extension');
     const skipWelcomeParam = url.searchParams.get('skipWelcome');
+    const themesParam = url.searchParams.get('themes');
+    const searchParam = url.searchParams.get('search');
+    const referralParam = url.searchParams.get('referral') || url.searchParams.get('code');
+    const galleryParam = url.searchParams.get('gallery');
+    const baldForBaseParam = url.searchParams.get('baldForBase');
+    
+    // Handle Bald for Base deep link - check both route and querystring for backwards compatibility
+    const isBaldForBaseRoute = url.pathname === '/event/bald-for-base';
+    if (isBaldForBaseRoute || baldForBaseParam === 'true') {
+      // Skip welcome screen if it's showing
+      setShowSplashScreen(false);
+      
+      // Show the popup directly (rendered in App.jsx, independent of PhotoGallery)
+      setShowBaldForBasePopup(true);
+      
+      // If using querystring, remove parameter from URL to prevent re-triggering
+      if (baldForBaseParam === 'true') {
+        url.searchParams.delete('baldForBase');
+        const newUrl = url.pathname + (url.search ? url.search : '');
+        window.history.replaceState(window.history.state || {}, '', newUrl);
+      }
+    }
+    
+    // Handle referral parameter - track the referring user
+    if (referralParam) {
+      console.log(`[Referral] Referral parameter detected: ${referralParam}`);
+      setReferralSource(referralParam);
+      trackEvent('Referral', 'visit', `Referred by: ${referralParam}`);
+    }
     
     // Skip welcome screen if requested (e.g., from browser extension)
     if (skipWelcomeParam === 'true') {
       setShowSplashScreen(false);
+      
+      // Remove skipWelcome parameter from URL to prevent it from persisting
+      url.searchParams.delete('skipWelcome');
+      const newUrl = url.pathname + url.search;
+      const currentState = window.history.state || {};
+      window.history.replaceState(currentState, '', newUrl);
     }
     
+    // Handle page=camera parameter to skip start menu and go to camera
+    if (pageParam === 'camera') {
+      console.log('🎃 Halloween: page=camera detected, skipping start menu');
+      setShowStartMenu(false);
+      setCurrentPage('camera');
+      setShowPhotoGrid(false); // Ensure we're not showing photo grid
+      
+      // Start camera immediately
+      const initCamera = async () => {
+        await listCameras();
+        const preferredDeviceId = preferredCameraDeviceId || selectedCameraDeviceId;
+        console.log('📹 Starting camera from Halloween redirect:', preferredDeviceId || 'auto-select');
+        await startCamera(preferredDeviceId);
+        setCameraManuallyStarted(true);
+      };
+      initCamera();
+    }
+    
+    // Initialize history state on first load if not already set
+    if (!window.history.state || !window.history.state.navigationContext) {
+      const initialContext = { from: 'initial', timestamp: Date.now() };
+      window.history.replaceState({ navigationContext: initialContext }, '', window.location.href);
+    }
+
     // Handle page parameter for direct navigation
     if (pageParam === 'prompts') {
       setCurrentPage('prompts');
@@ -610,61 +1431,242 @@ const App = () => {
       }
     }
     
-    if (promptParam && stylePrompts && promptParam !== selectedStyle) {
-      // If the prompt exists in our style prompts, select it
-      if (stylePrompts[promptParam] || Object.keys(promptsData).includes(promptParam)) {
-        console.log(`Setting style from URL parameter: ${promptParam}`);
-        updateSetting('selectedStyle', promptParam);
-        // If we have the prompt value, set it too
-        if (stylePrompts[promptParam]) {
-          updateSetting('positivePrompt', stylePrompts[promptParam]);
-        }
-        // Update current hashtag
-        setCurrentHashtag(promptParam);
+    // Handle theme filters parameter
+    if (themesParam && currentPage === 'prompts') {
+      try {
+        const themeIds = themesParam.split(',');
+        const defaultState = getDefaultThemeGroupState();
+        const newThemeState = Object.fromEntries(
+          Object.keys(defaultState).map(groupId => [
+            groupId, 
+            themeIds.includes(groupId)
+          ])
+        );
+        setCurrentThemeState(newThemeState);
+        saveThemeGroupPreferences(newThemeState);
+      } catch (error) {
+        console.warn('Invalid themes parameter:', themesParam);
       }
     }
-  }, [stylePrompts, updateSetting, selectedStyle, promptsData, currentPage]);
+    
+    // Handle search parameter
+    if (searchParam && currentPage === 'prompts') {
+      setUrlSearchTerm(searchParam);
+    }
+    
+    // IMPORTANT: Only apply URL prompt parameter on initial load or when navigating via URL
+    // Don't override user's explicit style selections
+    const userHasExplicitlySelectedStyle = localStorage.getItem('sogni_style_explicitly_selected') === 'true';
+    
+    // Only process URL prompt parameter if:
+    // 1. User hasn't explicitly selected a style yet (first visit or fresh session)
+    // 2. There's a prompt parameter in the URL
+    // 3. We're not in copyImageStyle mode (which should never be overridden)
+    if (promptParam && stylePrompts && !userHasExplicitlySelectedStyle && selectedStyle !== 'copyImageStyle') {
+        // If the prompt exists in our style prompts, select it
+        if (stylePrompts[promptParam] || Object.keys(promptsData).includes(promptParam)) {
+        console.log(`Setting style from URL parameter (initial load): ${promptParam}`);
+          updateSetting('selectedStyle', promptParam);
+          // If we have the prompt value, set it too
+          if (stylePrompts[promptParam]) {
+            updateSetting('positivePrompt', stylePrompts[promptParam]);
+          }
+          // Update current hashtag
+          setCurrentHashtag(promptParam);
+        }
+    } else if (selectedStyle === 'copyImageStyle' && promptParam) {
+      // We're in copyImageStyle mode - clear any URL prompt parameters
+      console.log(`⚠️ selectedStyle is copyImageStyle - ensuring URL prompt parameter is cleared`);
+        updateUrlWithPrompt('copyImageStyle');
+      }
+  }, [stylePrompts, promptsData, currentPage]); // Removed selectedStyle from dependencies to prevent circular loop
+
+  // Handle /signup route - auto-open signup modal when navigated from share page
+  useEffect(() => {
+    if (isEventDomain()) return;
+    const pendingSignup = sessionStorage.getItem('pendingSignup');
+    if (pendingSignup === 'true') {
+      sessionStorage.removeItem('pendingSignup');
+      // Small delay to let AuthStatus mount and expose openSignupModal
+      setTimeout(() => {
+        authStatusRef.current?.openSignupModal();
+      }, 500);
+    }
+  }, []);
+
+  // Auto-open signup modal when arriving with a referral code and not logged in
+  useEffect(() => {
+    if (isEventDomain()) return;
+    if (authState.isLoading || authState.isAuthenticated) return;
+    if (referralAutoOpenDone.current) return;
+    const url = new URL(window.location.href);
+    const hasReferralCode = url.searchParams.get('code') || url.searchParams.get('referral');
+    if (hasReferralCode) {
+      referralAutoOpenDone.current = true;
+      setTimeout(() => {
+        authStatusRef.current?.openSignupModal();
+      }, 500);
+    }
+  }, [authState.isLoading, authState.isAuthenticated]);
+
+  // Handle browser navigation (back/forward) - allow URL prompt parameter to apply
+  useEffect(() => {
+    const handlePopState = () => {
+      const url = new URL(window.location.href);
+      const promptParam = url.searchParams.get('prompt');
+      
+      // When user navigates back/forward, clear the explicit selection flag
+      // so URL parameter can take effect
+      if (promptParam && stylePrompts) {
+        console.log(`📍 Navigation detected, allowing URL parameter to apply: ${promptParam}`);
+        localStorage.removeItem('sogni_style_explicitly_selected');
+        
+        // Apply the URL parameter
+        if (stylePrompts[promptParam] || Object.keys(promptsData).includes(promptParam)) {
+          updateSetting('selectedStyle', promptParam);
+          if (stylePrompts[promptParam]) {
+            updateSetting('positivePrompt', stylePrompts[promptParam]);
+          }
+          setCurrentHashtag(promptParam);
+        }
+      }
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [stylePrompts, promptsData]);
+  
+  // Track if we've already handled the gallery deep link for this session
+  const galleryDeepLinkHandled = useRef(false);
+  
+  // Handle view=projects URL parameter for deep linking to Recent Projects
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const viewParam = url.searchParams.get('view');
+    
+    if (viewParam === 'projects' && authState.isAuthenticated && authState.authMode === 'frontend') {
+      setShowRecentProjects(true);
+    }
+  }, [authState.isAuthenticated, authState.authMode]);
+  
+  // Handle gallery URL parameter for deep linking to Community Gallery
+  // This should only run ONCE on initial load, not when galleryPhotos changes due to user interaction
+  useEffect(() => {
+    // Skip if we've already handled a deep link this session
+    if (galleryDeepLinkHandled.current) {
+      return;
+    }
+    
+    const url = new URL(window.location.href);
+    const galleryParam = url.searchParams.get('gallery');
+    
+    if (galleryParam && currentPage === 'prompts' && galleryPhotos.length > 0) {
+      console.log('🖼️ Gallery deep link detected:', galleryParam);
+      
+      // Find the photo with this promptKey in galleryPhotos
+      const photoIndex = galleryPhotos.findIndex(p => 
+        p.promptKey === galleryParam || p.selectedStyle === galleryParam
+      );
+      
+      if (photoIndex !== -1) {
+        console.log('🖼️ Found gallery photo at index:', photoIndex);
+        // Mark as handled BEFORE the timeout to prevent race conditions
+        galleryDeepLinkHandled.current = true;
+        // Small delay to ensure everything is rendered
+        setTimeout(() => {
+          setSelectedPhotoIndex(photoIndex);
+          // Note: wantsFullscreen state is managed by PhotoGallery component
+          // We just need to navigate to the photo
+        }, 300);
+      } else {
+        console.warn('🖼️ Gallery prompt not found:', galleryParam);
+      }
+    }
+  }, [currentPage, galleryPhotos]);
+
+
 
 
   // Load gallery images when entering prompt selector mode
   useEffect(() => {
     const loadGalleryForPromptSelector = async () => {
       if (currentPage === 'prompts' && stylePrompts && Object.keys(stylePrompts).length > 0) {
-        // Prevent loading more than once per session
-        if (galleryImagesLoadedThisSession.current) {
-          console.log('Gallery images already loaded this session, skipping reload');
+        const promptCount = Object.keys(stylePrompts).length;
+        
+        // Validate that stylePrompts is fully loaded (should have 200+ styles)
+        // If we have fewer than 50 prompts, it's likely still loading/filtering
+        if (promptCount < 50) {
+          console.log(`StylePrompts not fully loaded yet (${promptCount} prompts), waiting...`);
           return;
         }
         
-        // Also check if we already have gallery images loaded
-        if (galleryPhotos.length > 0 && galleryPhotos[0]?.isGalleryImage) {
-          console.log('Gallery images already loaded in state, skipping reload');
-          galleryImagesLoadedThisSession.current = true;
+        // Prevent loading more than once per session - check this FIRST before any async operations
+        if (galleryImagesLoadedThisSession.current) {
+          console.log('Gallery images already loaded this session (ref check), skipping reload');
           return;
+        }
+        
+        // Set the flag immediately to prevent race conditions from multiple renders
+        console.log(`Setting galleryImagesLoadedThisSession flag with ${promptCount} prompts loaded`);
+        galleryImagesLoadedThisSession.current = true;
+        
+        // Check if all theme groups are deselected and auto-reselect them
+        const currentThemePrefs = getThemeGroupPreferences();
+        const allDeselected = Object.keys(currentThemePrefs).length > 0 && 
+          Object.values(currentThemePrefs).every(value => value === false);
+        
+        if (allDeselected) {
+          console.log('All theme groups are deselected, auto-reselecting all styles for Style Explorer');
+          const allSelected = getDefaultThemeGroupState();
+          saveThemeGroupPreferences(allSelected);
+          // Update the current theme state to reflect the change
+          setCurrentThemeState(allSelected);
         }
         
         try {
-          console.log('Loading gallery images for prompt selector...');
-          
+          console.log(`Loading gallery images for prompt selector with ${promptCount} prompts...`);
+
           // Import the loadGalleryImages function
           const { loadGalleryImages } = await import('./utils/galleryLoader');
-          const loadedGalleryPhotos = await loadGalleryImages(stylePrompts);
-          
+          // Pass custom prompts data and wallet address for personalized preview images
+          let customPromptsData = null;
+          const client = authState.getSogniClient ? authState.getSogniClient() : null;
+          const walletAddress = getPersonalizeAddress(client);
+          let promptsForGallery = stylePrompts;
+          try {
+            if (walletAddress) {
+              customPromptsData = await fetchPersonalizedPrompts(walletAddress);
+              // Merge custom prompts and populate display name registry
+              // before gallery loads (mergeCustomPrompts also populates _customPromptNames)
+              if (customPromptsData.length > 0) {
+                promptsForGallery = mergeCustomPrompts(stylePrompts, customPromptsData);
+              }
+            }
+          } catch { /* custom prompts optional */ }
+          const loadedGalleryPhotos = await loadGalleryImages(promptsForGallery, portraitType, promptsDataRaw, customPromptsData, walletAddress);
+
           if (loadedGalleryPhotos.length > 0) {
             console.log(`Loaded ${loadedGalleryPhotos.length} gallery images for prompt selector`);
             setGalleryPhotos(loadedGalleryPhotos);
-            galleryImagesLoadedThisSession.current = true; // Mark as loaded
+            // Also immediately update the photos state since we're in prompt selector mode
+            // This prevents a race condition where photos might be empty when PhotoGallery renders
+            setPhotos(loadedGalleryPhotos);
+            console.log(`Updated photos state with ${loadedGalleryPhotos.length} gallery images to prevent race condition`);
           } else {
             console.warn('No gallery images found for prompt selector');
+            // Reset the flag if loading failed so it can be retried
+            galleryImagesLoadedThisSession.current = false;
           }
         } catch (error) {
           console.error('Error loading gallery images for prompt selector:', error);
+          // Reset the flag if loading failed so it can be retried
+          galleryImagesLoadedThisSession.current = false;
         }
       }
     };
 
     loadGalleryForPromptSelector();
-  }, [currentPage, stylePrompts]);
+  }, [currentPage, stylePrompts, portraitType]);
 
   // Manage polaroid border CSS variables for sample gallery mode
   useEffect(() => {
@@ -705,7 +1707,22 @@ const App = () => {
   // Function to load prompts based on current model
   const loadPromptsForModel = async (modelId) => {
     try {
-      const prompts = await initializeStylePrompts(modelId);
+      let prompts = await initializeStylePrompts(modelId);
+      // Re-merge personalized prompts if user is authenticated
+      if (authState.isAuthenticated) {
+        try {
+          const client = authState.getSogniClient ? authState.getSogniClient() : null;
+          const address = getPersonalizeAddress(client);
+          if (address) {
+            const customPrompts = await fetchPersonalizedPrompts(address);
+            if (customPrompts.length > 0) {
+              prompts = mergeCustomPrompts(prompts, customPrompts);
+            }
+          }
+        } catch (err) {
+          console.error('[Personalize] Failed to re-merge custom prompts on model change:', err);
+        }
+      }
       setStylePrompts(prompts);
       console.log(`Loaded prompts for model ${modelId}:`, Object.keys(prompts).length);
     } catch (error) {
@@ -718,12 +1735,90 @@ const App = () => {
     loadPromptsForModel(selectedModel);
   }, [selectedModel]);
 
+  // Load personalized prompts and model type when authenticated
+  useEffect(() => {
+    if (!authState.isAuthenticated) return;
+    const client = authState.getSogniClient ? authState.getSogniClient() : null;
+    const address = getPersonalizeAddress(client);
+    if (!address) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await fetchPersonalizeData(address);
+        if (cancelled) return;
+
+        // Sync server-side model type to localStorage so it persists across kiosks
+        if (data.modelType) {
+          const localType = getPersonalizeModelType();
+          if (localType !== data.modelType) {
+            console.log(`🎨 [Personalize] Syncing model type from server: ${localType} → ${data.modelType}`);
+            savePersonalizeModelType(data.modelType);
+          }
+
+          // If only the Personalized category is active, ensure the model matches
+          // This handles fresh kiosks where localStorage had no model type yet
+          const themePrefs = getThemeGroupPreferences();
+          const themeEntries = Object.entries(themePrefs);
+          const isPersonalizedOnly = themeEntries.length > 0 &&
+            themePrefs['personalized'] === true &&
+            themeEntries.every(([k, v]) => k === 'personalized' ? v : !v);
+          if (isPersonalizedOnly && data.prompts.length > 0) {
+            const targetModel = data.modelType === 'image-edit'
+              ? QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID
+              : DEFAULT_MODEL_ID;
+            if (selectedModel !== targetModel) {
+              console.log(`🎨 [Personalize] Switching model to ${targetModel} (personalized-only, synced from server)`);
+              switchToModel(targetModel);
+            }
+          }
+        }
+
+        if (data.prompts.length > 0) {
+          // Merge custom prompts into stylePrompts
+          setStylePrompts(prev => mergeCustomPrompts(prev, data.prompts));
+          // Inject into theme groups for Advanced mode filtering
+          const keys = data.prompts.map((_, i) => `custom_${i}`);
+          injectPersonalizedThemeGroup(keys);
+          // Store for start menu preview images
+          setPersonalizePrompts(data.prompts);
+          setPersonalizeAddress(address);
+
+          // Reset gallery loaded flag so the gallery reloads with custom prompt cards.
+          // The gallery may have loaded before auth completed (using a generated ID that
+          // returned no custom prompts). The stylePrompts update above triggers the
+          // gallery useEffect, and resetting this flag allows it to actually reload.
+          galleryImagesLoadedThisSession.current = false;
+        }
+      } catch (err) {
+        console.error('[Personalize] Failed to load custom prompts:', err);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [authState.isAuthenticated]);
+
   // Load themes on startup and set default theme if needed
   useEffect(() => {
     const loadDefaultTheme = async () => {
       try {
         // Pre-load theme configuration
         await themeConfigService.loadConfig();
+        
+        // Validate that the current theme exists in the config
+        if (tezdevTheme !== 'off') {
+          const theme = await themeConfigService.getTheme(tezdevTheme);
+          if (!theme) {
+            // Theme no longer exists - reset to 'off' and clear from storage
+            console.warn(`Theme '${tezdevTheme}' not found in config, resetting to 'off'`);
+            updateSetting('tezdevTheme', 'off');
+            saveSettingsToCookies({ tezdevTheme: 'off' });
+            // Note: No need to return here, we'll check for default theme below
+          } else {
+            // Theme exists and is valid, no action needed
+            return;
+          }
+        }
         
         // Set default theme if current theme is 'off' and there's a default configured
         if (tezdevTheme === 'off') {
@@ -749,23 +1844,145 @@ const App = () => {
     loadDefaultTheme();
   }, []); // Only run on mount
 
+  // Note: Model/style/prompt resets now happen in AppContext initialization
+  // This ensures they happen before any useEffect runs, preventing race conditions
+
+  // Load style reference image from localStorage on app initialization
+  useEffect(() => {
+    const loadStyleReference = async () => {
+      try {
+        const savedStyleRef = localStorage.getItem('sogni_styleReferenceImage');
+        if (savedStyleRef) {
+          const { croppedDataUrl, originalDataUrl } = JSON.parse(savedStyleRef);
+          console.log('💾 Loading style reference from localStorage');
+          
+          // Convert data URLs back to blobs
+          const croppedResponse = await fetch(croppedDataUrl);
+          const croppedBlob = await croppedResponse.blob();
+          
+          const originalResponse = await fetch(originalDataUrl);
+          const originalBlob = await originalResponse.blob();
+          
+          // Recreate the style reference object
+          // Use the croppedDataUrl for display since it's a persistent data URL
+          setStyleReferenceImage({
+            blob: originalBlob,
+            dataUrl: croppedDataUrl, // Use croppedDataUrl for display (it's a persistent data URL)
+            croppedBlob: croppedBlob,
+            croppedDataUrl: croppedDataUrl
+          });
+          
+          // Note: We don't auto-restore copyImageStyle mode on page refresh
+          // The user needs to manually select it again after refresh
+          // This is because we reset the model to Sogni Turbo on refresh
+          console.log('💾 Style reference loaded from localStorage (mode not auto-restored)');
+        }
+      } catch (error) {
+        console.warn('Failed to load style reference from localStorage:', error);
+        // Clear corrupted data
+        localStorage.removeItem('sogni_styleReferenceImage');
+      }
+    };
+
+    loadStyleReference();
+  }, []); // Only run on mount
+
   // Update CSS variables when theme changes
   useEffect(() => {
-    const updatePolaroidBorders = () => {
+    const updateThemeStyles = async () => {
       const root = document.documentElement;
+
+      // In Style Explorer (prompts mode), always show default polaroid borders regardless of theme
+      if (currentPage === 'prompts') {
+        // Don't modify borders here - let the prompts mode effect handle it
+        return;
+      }
+
       if (tezdevTheme !== 'off') {
         // Theme frame is active - remove polaroid borders since theme provides its own
         root.style.setProperty('--polaroid-side-border', '0px');
         root.style.setProperty('--polaroid-bottom-border', '0px');
+
+        // Apply brand title, logo, background image, and colors if the theme defines them
+        const title = await themeConfigService.getBrandTitle(tezdevTheme);
+        setBrandTitle(title);
+        const logo = await themeConfigService.getBrandLogo(tezdevTheme);
+        setBrandLogo(logo);
+        const bgImage = await themeConfigService.getBrandBackgroundImage(tezdevTheme);
+        setBrandBackgroundImage(bgImage);
+        const brandColors = await themeConfigService.getBrandColors(tezdevTheme);
+        if (brandColors) {
+          const colorMap = {
+            gradientStart: '--brand-gradient-start',
+            gradientEnd: '--brand-gradient-end',
+            frameColor: '--brand-frame-color',
+            accentPrimary: '--brand-accent-primary',
+            accentSecondary: '--brand-accent-secondary',
+            accentTertiary: '--brand-accent-tertiary',
+            accentTertiaryHover: '--brand-accent-tertiary-hover',
+            headerBg: '--brand-header-bg',
+            headerStroke: '--brand-header-stroke',
+            pageBg: '--brand-page-bg',
+            pageBgMid: '--brand-page-bg-mid',
+            pageBgEnd: '--brand-page-bg-end',
+            sliderThumb: '--brand-slider-thumb',
+            glitchPrimary: '--brand-glitch-primary',
+            glitchSecondary: '--brand-glitch-secondary',
+            buttonPrimary: '--brand-button-primary',
+            buttonPrimaryEnd: '--brand-button-primary-end',
+            buttonSecondary: '--brand-button-secondary',
+            adjusterStart: '--brand-adjuster-start',
+            adjusterEnd: '--brand-adjuster-end',
+            darkText: '--brand-dark-text',
+            darkBorder: '--brand-dark-border',
+            textSecondary: '--brand-text-secondary',
+            textMuted: '--brand-text-muted',
+            cardBg: '--brand-card-bg',
+            pwaPink: '--brand-pwa-pink',
+            gimiPurple: '--brand-gimi-purple',
+            ctaStart: '--brand-cta-start',
+            ctaEnd: '--brand-cta-end',
+          };
+          for (const [key, cssVar] of Object.entries(colorMap)) {
+            if (brandColors[key]) {
+              root.style.setProperty(cssVar, brandColors[key]);
+            }
+          }
+        } else {
+          // Theme has no brand colors - remove any overrides
+          removeBrandColors(root);
+        }
       } else {
-        // No theme frame - remove any inline styles to let CSS media queries control the borders
+        // No theme frame - remove any inline styles to let CSS defaults apply
         root.style.removeProperty('--polaroid-side-border');
         root.style.removeProperty('--polaroid-bottom-border');
+        removeBrandColors(root);
+        setBrandTitle(null);
+        setBrandLogo(null);
+        setBrandBackgroundImage(null);
       }
     };
 
-    updatePolaroidBorders();
-  }, [tezdevTheme]);
+    const removeBrandColors = (root) => {
+      const brandVars = [
+        '--brand-gradient-start', '--brand-gradient-end', '--brand-frame-color',
+        '--brand-accent-primary', '--brand-accent-secondary', '--brand-accent-tertiary',
+        '--brand-accent-tertiary-hover', '--brand-header-bg', '--brand-header-stroke',
+        '--brand-page-bg', '--brand-page-bg-mid', '--brand-page-bg-end',
+        '--brand-slider-thumb', '--brand-glitch-primary', '--brand-glitch-secondary',
+        '--brand-button-primary', '--brand-button-primary-end', '--brand-button-secondary',
+        '--brand-adjuster-start', '--brand-adjuster-end',
+        '--brand-dark-text', '--brand-dark-border', '--brand-text-secondary', '--brand-text-muted',
+        '--brand-card-bg', '--brand-pwa-pink', '--brand-gimi-purple',
+        '--brand-cta-start', '--brand-cta-end',
+      ];
+      for (const v of brandVars) {
+        root.style.removeProperty(v);
+      }
+    };
+
+    updateThemeStyles();
+  }, [tezdevTheme, currentPage]);
 
   // At the top of App component, add a new ref for tracking project state
   const projectStateReference = useRef({
@@ -784,8 +2001,13 @@ const App = () => {
 
   // Add new state for button cooldown
   const [isPhotoButtonCooldown, setIsPhotoButtonCooldown] = useState(false); // Keep this
+  const photoCaptureLockRef = useRef(false); // Synchronous guard against double-fire
+  const [brandTitle, setBrandTitle] = useState(null);
+  const [brandLogo, setBrandLogo] = useState(null);
+  const [brandBackgroundImage, setBrandBackgroundImage] = useState(null);
   // Ref to track current project
-  const activeProjectReference = useRef(null); // Keep this
+  const activeProjectReference = useRef(null);
+  const activeProjectObjectReference = useRef(null); // Keep this
   
   // Ref to track project timeouts and job state
   const projectTimeoutRef = useRef({
@@ -805,22 +2027,142 @@ const App = () => {
   // Add state for Twitter share modal
   const [showTwitterModal, setShowTwitterModal] = useState(false);
   const [twitterPhotoIndex, setTwitterPhotoIndex] = useState(null);
+  const [twitterPhotoData, setTwitterPhotoData] = useState(null); // Store actual photo object for sharing
   const [lastTwitterMessage, setLastTwitterMessage] = useState(null);
-  const [showSuccessToast, setShowSuccessToast] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
 
   // Add state for QR code modal (Kiosk Mode)
   const [qrCodeData, setQrCodeData] = useState(null);
 
-  // Add state for splash screen
-  const [showSplashScreen, setShowSplashScreen] = useState(true);
+  // Add state for splash screen (DISABLED - CameraStartMenu is now the splash screen)
+  const [showSplashScreen, setShowSplashScreen] = useState(false);
+  const [splashTriggeredByInactivity, setSplashTriggeredByInactivity] = useState(false);
+  
+  // Debug: Log when splash screen state changes
+  useEffect(() => {
+    console.log('🎬 Splash screen state changed:', showSplashScreen ? 'SHOWING' : 'HIDDEN');
+  }, [showSplashScreen]);
+
+  // Debug: Log current inactivity settings
+  // Effect: Debug logging for inactivity settings
+  useEffect(() => {
+    console.log('⚙️ Inactivity settings:', {
+      showSplashOnInactivity,
+      inactivityTimeout,
+      settingsObject: settings // OK to use whole object in logging, not in logic
+    });
+    
+    // Check what's actually in localStorage
+    const storedValue = localStorage.getItem('sogni_showSplashOnInactivity');
+    console.log('💾 Value in localStorage:', storedValue);
+  }, [showSplashOnInactivity, inactivityTimeout]); // Removed settings - it's only for logging, not logic
+  
+  // Inactivity timer for splash screen
+  const inactivityTimerRef = useRef(null);
+  const lastActivityRef = useRef(Date.now());
 
   // Cleanup timeouts when component unmounts
   useEffect(() => {
     return () => {
       clearAllTimeouts();
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
     };
   }, []);
+
+  // Function to reset inactivity timer
+  const resetInactivityTimer = useCallback(() => {
+    console.log('🔄 Resetting inactivity timer', {
+      showSplashOnInactivity,
+      showSplashScreen,
+      inactivityTimeout,
+      timestamp: new Date().toLocaleTimeString()
+    });
+    
+    lastActivityRef.current = Date.now();
+    
+    if (inactivityTimerRef.current) {
+      console.log('⏹️ Clearing existing timer');
+      clearTimeout(inactivityTimerRef.current);
+    }
+    
+    // DISABLED: Old splash screen inactivity trigger (CameraStartMenu is now the splash screen)
+    // if (showSplashOnInactivity && !showSplashScreen) {
+    //   console.log(`⏰ Setting new timer for ${inactivityTimeout} seconds`);
+    //   inactivityTimerRef.current = setTimeout(() => {
+    //     console.log('🚀 Inactivity timeout reached - showing splash screen');
+    //     setSplashTriggeredByInactivity(true);
+    //     setShowSplashScreen(true);
+    //   }, inactivityTimeout * 1000);
+    // } else {
+    //   console.log('❌ Not setting timer:', {
+    //     showSplashOnInactivity: showSplashOnInactivity ? 'enabled' : 'disabled',
+    //     showSplashScreen: showSplashScreen ? 'already showing' : 'hidden'
+    //   });
+    // }
+  }, [showSplashOnInactivity, inactivityTimeout, showSplashScreen]);
+
+  // Set up inactivity detection
+  useEffect(() => {
+
+    if (!showSplashOnInactivity) {
+      console.log('🚫 Inactivity detection disabled - clearing timer');
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+        inactivityTimerRef.current = null;
+      }
+      return;
+    }
+
+    const events = ['mousedown', 'keypress', 'scroll', 'touchstart', 'click'];
+    
+    // Throttle mousemove to avoid excessive logging and timer resets
+    let mouseMoveThrottle = null;
+    const handleMouseMove = () => {
+      if (mouseMoveThrottle) return;
+      console.log('👆 User activity detected: mousemove (throttled)');
+      resetInactivityTimer();
+      mouseMoveThrottle = setTimeout(() => {
+        mouseMoveThrottle = null;
+      }, 1000); // Throttle to once per second
+    };
+    
+    const handleActivity = (event) => {
+      console.log('👆 User activity detected:', event.type);
+      resetInactivityTimer();
+    };
+
+    console.log('📡 Adding event listeners for:', [...events, 'mousemove (throttled)']);
+    // Add event listeners
+    events.forEach(event => {
+      document.addEventListener(event, handleActivity, true);
+    });
+    // Add throttled mousemove listener
+    document.addEventListener('mousemove', handleMouseMove, true);
+
+    // Start the timer if splash screen is not currently showing
+    if (!showSplashScreen) {
+      console.log('🎬 Splash screen not showing - starting inactivity timer');
+      resetInactivityTimer();
+    } else {
+      console.log('🎬 Splash screen already showing - not starting timer');
+    }
+
+    return () => {
+      console.log('🧹 Cleaning up inactivity detection');
+      // Cleanup event listeners
+      events.forEach(event => {
+        document.removeEventListener(event, handleActivity, true);
+      });
+      document.removeEventListener('mousemove', handleMouseMove, true);
+      if (mouseMoveThrottle) {
+        clearTimeout(mouseMoveThrottle);
+      }
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+    };
+  }, [showSplashOnInactivity, inactivityTimeout, showSplashScreen, resetInactivityTimer]);
 
   // Track page views when view changes
   useEffect(() => {
@@ -846,6 +2188,15 @@ const App = () => {
   }, [selectedPhotoIndex, showPhotoGrid, showStartMenu]);
 
   // --- Ensure handlers are defined here, before any JSX or usage ---
+  // Helper function to check if a style is from the Christmas/Winter category
+  const isWinterStyle = (styleKey) => {
+    if (!styleKey || styleKey === 'custom' || styleKey === 'random' || styleKey === 'randomMix' || styleKey === 'oneOfEach' || styleKey === 'browseGallery' || styleKey === 'simplePick') {
+      return false;
+    }
+    const winterPrompts = promptsDataRaw['christmas-winter']?.prompts || {};
+    return styleKey in winterPrompts;
+  };
+
   // Update handleUpdateStyle to use updateSetting and update URL
   const handleUpdateStyle = (style) => {
     // Handle special case for browseGallery
@@ -854,23 +2205,72 @@ const App = () => {
       updateSetting('positivePrompt', ''); // No prompt for gallery browsing
       updateUrlWithPrompt(null); // Clear URL parameter
       setCurrentHashtag(null); // Clear hashtag
+      updateSetting('halloweenContext', false); // Clear Halloween context
+      updateSetting('winterContext', false); // Clear Winter context
+      // Clear manual overrides when explicitly selecting a style
+      updateSetting('seed', '');
+      updateSetting('negativePrompt', '');
+      updateSetting('stylePrompt', '');
+      // Mark that user has explicitly selected a style
+      localStorage.setItem('sogni_style_explicitly_selected', 'true');
       return;
     }
     
+    // Determine if this is a winter style (for model switching)
+    const shouldSwitchToWinterModel = isWinterStyle(style);
     
+    // Set non-model settings first
     updateSetting('selectedStyle', style); 
     if (style === 'custom') {
-      updateSetting('positivePrompt', ''); 
+      // Don't clear the prompt when switching to custom style
+      // The user may have already entered a custom prompt, or may want to keep
+      // the previous prompt to edit it. This preserves custom prompts after generation.
     } else {
       const prompt = stylePrompts[style] || '';
       updateSetting('positivePrompt', prompt); 
+      // Clear Halloween context when switching away from custom style
+      updateSetting('halloweenContext', false);
     }
+    
+    // Set winter context
+    if (shouldSwitchToWinterModel) {
+      updateSetting('winterContext', true);
+    } else {
+      updateSetting('winterContext', false);
+    }
+    
+    // Clear manual overrides when explicitly selecting a style
+    // This ensures fresh generation with the new style's defaults
+    updateSetting('seed', '');
+    updateSetting('negativePrompt', '');
+    updateSetting('stylePrompt', '');
     
     // Update the URL with the prompt parameter
     updateUrlWithPrompt(style);
     
     // Update current hashtag for sharing
     setCurrentHashtag(getHashtagForStyle(style));
+    
+    // Mark that user has explicitly selected a style
+    localStorage.setItem('sogni_style_explicitly_selected', 'true');
+    
+    // Set model LAST so all pending settings are captured
+    if (shouldSwitchToWinterModel) {
+      console.log('❄️ Christmas/Winter style detected, auto-switching to DreamShaper model');
+      dreamShaperAutoSelectedRef.current = true; // Mark as auto-selected
+      const wasAlreadyDreamShaper = selectedModel === 'coreml-dreamshaperXL_v21TurboDPMSDE';
+      updateSetting('selectedModel', 'coreml-dreamshaperXL_v21TurboDPMSDE');
+      
+      // Show toast notification ONLY if model is actually changing
+      if (!wasAlreadyDreamShaper) {
+        showToast({
+          type: 'info',
+          title: 'Model Changed',
+          message: 'Switched to DreamShaper for winter theme',
+          timeout: 4000
+        });
+      }
+    }
   };
 
 
@@ -944,85 +2344,132 @@ const App = () => {
     }
   };
 
-  // State for top-left style dropdown
-  const [showTopLeftStyleDropdown, setShowTopLeftStyleDropdown] = useState(false);
 
-  // Intelligent style selector handler - shows dropdown for Flux Kontext, gallery for others
-  const handleStyleSelectorClick = () => {
-    const isFluxKontext = isFluxKontextModel(selectedModel);
-    
-    if (isFluxKontext) {
-      // For Flux Kontext, show the dropdown
-      setShowTopLeftStyleDropdown(true);
-    } else {
-      // For other models, navigate to the full gallery
-      handleNavigateToPromptSelector();
-    }
-  };
+  // Track navigation source for proper back button behavior
+  const navigationSourceRef = useRef('startMenu');
 
   // Navigation handlers for prompt selector page
   const handleNavigateToPromptSelector = () => {
     // Clear selected photo state when entering Sample Gallery mode
     setSelectedPhotoIndex(null);
-    
+
+    // Close ImageAdjuster if it's open
+    setShowImageAdjuster(false);
+    setShowStyleReferenceAdjuster(false);
+    if (currentUploadedImageUrl) {
+      URL.revokeObjectURL(currentUploadedImageUrl);
+      setCurrentUploadedImageUrl('');
+    }
+
     // Stop camera when entering Sample Gallery mode
     stopCamera();
+
+    // Store where we're coming from for back button navigation
+    navigationSourceRef.current = showPhotoGrid && photos.length > 0 ? 'photoGrid' : 'startMenu';
     
+    // Store navigation context to know where we came from
+    const navigationContext = {
+      from: navigationSourceRef.current,
+      timestamp: Date.now()
+    };
+
     // Set page to prompts (Sample Gallery mode)
     setCurrentPage('prompts');
-    
+
+    // Update URL to reflect prompts page (use pushState to add to history)
+    updateUrlParams({ page: 'prompts' }, { usePushState: true, navigationContext });
+
     // Ensure photo grid is shown in Sample Gallery mode
     setShowPhotoGrid(true);
   };
 
-  const handleBackToCameraFromPromptSelector = () => {
+  const handleBackToCameraFromPromptSelector = (fromPopStateOrEvent = false) => {
+    // Check if first argument is a React event object (has nativeEvent property)
+    // If so, treat as false; otherwise use the actual boolean value
+    const fromPopState = fromPopStateOrEvent?.nativeEvent !== undefined ? false : fromPopStateOrEvent;
+    
+    console.log('📸 Navigating from Style Explorer to start menu, fromPopState:', fromPopState);
+    console.log('📸 Current selectedStyle:', selectedStyle);
+    console.log('📸 Has styleReferenceImage:', !!styleReferenceImage?.croppedBlob);
+    console.log('📸 Current model:', selectedModel);
+    
+    // FAILSAFE: If we have a style reference image and model is context image model (Qwen/Flux), ensure copyImageStyle is set
+    if (styleReferenceImage?.croppedBlob && isContextImageModel(selectedModel) && selectedStyle !== 'copyImageStyle') {
+      console.warn('🚨 FAILSAFE: Style reference exists and model is context image model but style is not copyImageStyle!');
+      console.warn('🚨 Forcing selectedStyle to copyImageStyle');
+      updateSetting('selectedStyle', 'copyImageStyle');
+      saveSettingsToCookies({ selectedStyle: 'copyImageStyle' });
+    }
+    
+    // Update URL FIRST before changing state
+    // Use replaceState (not pushState) to avoid creating redundant history entries
+    if (!fromPopState) {
+      // Clear page, prompt, and gallery parameters
+      updateUrlParams({ page: null, prompt: null, gallery: null }, { usePushState: false });
+      console.log('📸 URL updated, removed page, prompt, and gallery params. New URL:', window.location.href);
+    }
+
     // Clear selected photo state when leaving Sample Gallery mode
     setSelectedPhotoIndex(null);
-    
+
     // Close any open overlays to prevent white overlay bug
     setShowControlOverlay(false);
     setAutoFocusPositivePrompt(false);
-    
+
     // Hide photo grid to prevent film-strip-container from rendering
     setShowPhotoGrid(false);
-    
+
     // Set page back to camera
     setCurrentPage('camera');
-    
-    // Navigate to start menu instead of directly starting camera
-    // This prevents unwanted camera permission requests on mobile/iPad
-    console.log('📸 Navigating from Style Explorer to start menu');
-    
+    console.log('📸 Set currentPage to camera');
+
     // Scroll to top smoothly
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    
+
     // Hide slothicorn if visible
     if (slothicornReference.current) {
       slothicornReference.current.style.setProperty('bottom', '-360px', 'important');
       slothicornReference.current.classList.remove('animating');
     }
-    
-    // Show the start menu so user can choose camera or upload
-    setShowStartMenu(true);
+
+    // In kiosk mode, skip the start menu and go directly to camera/adjuster
+    if (showSplashOnInactivity) {
+      // handleShowExistingCameraPhoto will show ImageAdjuster if there's a previous
+      // camera photo, or start the camera if there isn't one
+      handleShowExistingCameraPhoto();
+    } else {
+      // Show the start menu so user can choose camera or upload
+      setShowStartMenu(true);
+    }
   };
 
-  const handleBackToPhotosFromPromptSelector = () => {
+  const handleBackToPhotosFromPromptSelector = (fromPopStateOrEvent = false) => {
+    // Check if first argument is a React event object (has nativeEvent property)
+    // If so, treat as false; otherwise use the actual boolean value
+    const fromPopState = fromPopStateOrEvent?.nativeEvent !== undefined ? false : fromPopStateOrEvent;
+    
     // Clear selected photo state when leaving Sample Gallery mode
     setSelectedPhotoIndex(null);
-    
+
     // Close any open overlays to prevent white overlay bug
     setShowControlOverlay(false);
     setAutoFocusPositivePrompt(false);
-    
+
     // Set page back to camera (this exits Sample Gallery mode)
     setCurrentPage('camera');
-    
+
+    // Update URL to reflect camera page and clear gallery param
+    // Use replaceState (not pushState) to avoid creating redundant history entries
+    if (!fromPopState) {
+      updateUrlParams({ page: null, gallery: null }, { usePushState: false });
+    }
+
     // Show photo grid to display user's photos
     setShowPhotoGrid(true);
-    
+
     // Don't restart camera - user wants to see their photos, not take new ones
     console.log('📸 Navigating from Style Explorer to user photo grid');
-    
+
     // Small delay to ensure state updates properly
     setTimeout(() => {
       // Scroll to top for smooth transition
@@ -1031,7 +2478,7 @@ const App = () => {
   };
 
   // Prompt selection handlers for the new page
-  const handlePromptSelectFromPage = (promptKey) => {
+  const handlePromptSelectFromPage = (promptKey, gallerySeed = undefined, galleryMetadata = undefined) => {
     // Check if we're in extension mode
     if (window.extensionMode && window.parent !== window) {
       console.log('🚀 Extension mode: posting styleSelected message to parent window');
@@ -1053,68 +2500,213 @@ const App = () => {
       return;
     }
     
-    // Update style without URL changes to avoid navigation issues
+    console.log('🎨 [handlePromptSelectFromPage] Selecting style:', promptKey);
+    console.log('🎨 [handlePromptSelectFromPage] Current selectedStyle before update:', selectedStyle);
+    
+    // Track if we need to switch models (do this LAST to capture all pending settings)
+    const shouldSwitchModel = galleryMetadata?.model || (isWinterStyle(promptKey) && 'coreml-dreamshaperXL_v21TurboDPMSDE');
+    
+    // Update style and URL for deep linking
     updateSetting('selectedStyle', promptKey);
     if (promptKey === 'custom') {
-      updateSetting('positivePrompt', ''); 
+      // Don't clear the prompt when switching to custom - preserve any existing custom prompt
     } else {
       const prompt = stylePrompts[promptKey] || '';
-      updateSetting('positivePrompt', prompt); 
+      updateSetting('positivePrompt', prompt);
+      // Clear Halloween context when switching to a preset style
+      updateSetting('halloweenContext', false);
+      // Set winter context if it's a winter style
+      if (isWinterStyle(promptKey)) {
+        updateSetting('winterContext', true);
+      } else {
+        updateSetting('winterContext', false);
+      }
     }
+    
+    // If a gallery variation is selected, use its seed
+    if (gallerySeed !== undefined) {
+      console.log('🎲 Using gallery variation seed:', gallerySeed);
+      updateSetting('seed', String(gallerySeed));
+    } else {
+      // Clear manual overrides when explicitly selecting a fresh style
+      // (but not when selecting a gallery variation with a specific seed)
+      updateSetting('seed', '');
+      updateSetting('negativePrompt', '');
+      updateSetting('stylePrompt', '');
+    }
+    
     // Update current hashtag for sharing
     setCurrentHashtag(getHashtagForStyle(promptKey));
-    // Don't call updateUrlWithPrompt to avoid URL navigation issues
-    // Don't automatically redirect - let user choose to navigate with camera/photos buttons
+    // Update URL with selected prompt for deep linking
+    updateUrlWithPrompt(promptKey);
+    
+    // Mark that user has explicitly selected a style
+    localStorage.setItem('sogni_style_explicitly_selected', 'true');
+    
+    // Switch model LAST so all pending settings are captured
+    if (shouldSwitchModel) {
+      if (galleryMetadata?.model) {
+        console.log('🤖 [App] Switching to gallery entry model:', galleryMetadata.model);
+        switchToModel(galleryMetadata.model);
+      } else if (isWinterStyle(promptKey)) {
+        console.log('❄️ Christmas/Winter style detected from gallery, auto-switching to DreamShaper model');
+        dreamShaperAutoSelectedRef.current = true; // Mark as auto-selected
+        const wasAlreadyDreamShaper = selectedModel === 'coreml-dreamshaperXL_v21TurboDPMSDE';
+        updateSetting('selectedModel', 'coreml-dreamshaperXL_v21TurboDPMSDE');
+        
+        // Show toast notification ONLY if model is actually changing
+        if (!wasAlreadyDreamShaper) {
+          showToast({
+            type: 'info',
+            title: 'Model Changed',
+            message: 'Switched to DreamShaper for winter theme',
+            timeout: 4000
+          });
+        }
+      }
+    }
     
     // Close the photo popup to provide visual feedback that the style was selected
     setSelectedPhotoIndex(null);
+    
+    console.log('🎨 [handlePromptSelectFromPage] Style selection complete, promptKey:', promptKey);
   };
 
   const handleRandomMixFromPage = () => {
-    // Update style without URL changes to avoid navigation issues
+    // Update style and URL for deep linking
     updateSetting('selectedStyle', 'randomMix');
     updateSetting('positivePrompt', '');
     setCurrentHashtag(null);
+    updateSetting('halloweenContext', false); // Clear Halloween context
+    // Update URL (randomMix will clear the prompt parameter)
+    updateUrlWithPrompt('randomMix');
+    // Mark that user has explicitly selected a style
+    localStorage.setItem('sogni_style_explicitly_selected', 'true');
     // Don't automatically redirect - let user choose to navigate with camera/photos buttons
   };
 
   const handleRandomSingleFromPage = () => {
-    // Update style without URL changes to avoid navigation issues
+    // Update style and URL for deep linking
     updateSetting('selectedStyle', 'random');
     updateSetting('positivePrompt', '');
     setCurrentHashtag(null);
+    updateSetting('halloweenContext', false); // Clear Halloween context
+    // Update URL (random will clear the prompt parameter)
+    updateUrlWithPrompt('random');
+    // Mark that user has explicitly selected a style
+    localStorage.setItem('sogni_style_explicitly_selected', 'true');
     // Don't automatically redirect - let user choose to navigate with camera/photos buttons
   };
 
   const handleOneOfEachFromPage = () => {
-    // Update style without URL changes to avoid navigation issues
+    // Update style and URL for deep linking
     updateSetting('selectedStyle', 'oneOfEach');
     updateSetting('positivePrompt', '');
     setCurrentHashtag(null);
+    updateSetting('halloweenContext', false); // Clear Halloween context
+    // Update URL (oneOfEach will clear the prompt parameter)
+    updateUrlWithPrompt('oneOfEach');
+    // Mark that user has explicitly selected a style
+    localStorage.setItem('sogni_style_explicitly_selected', 'true');
     // Don't automatically redirect - let user choose to navigate with camera/photos buttons
   };
 
-  const handleCustomFromSampleGallery = () => {
-    // For Sample Gallery mode - just open settings without leaving the page
-    updateSetting('selectedStyle', 'custom');
+  const handleSimplePickFromPage = (selectedStyles) => {
+    updateSetting('selectedStyle', 'simplePick');
     updateSetting('positivePrompt', '');
+    updateSetting('numImages', selectedStyles.length);
     setCurrentHashtag(null);
-    // Show control overlay for custom prompt editing - stay in Sample Gallery mode
-    setShowControlOverlay(true);
-    // Set flag to auto-focus positive prompt
-    setAutoFocusPositivePrompt(true);
+    updateSetting('halloweenContext', false);
+    updateUrlWithPrompt('simplePick');
+    localStorage.setItem('sogni_style_explicitly_selected', 'true');
+
+    // If any selected styles are personalized, switch to the personalize model
+    const hasCustomStyles = selectedStyles.some(k => k.startsWith('custom_'));
+    if (hasCustomStyles) {
+      const personalizeModel = getPersonalizeModelType();
+      const targetModel = personalizeModel === 'image-edit'
+        ? QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID
+        : DEFAULT_MODEL_ID;
+      if (selectedModel !== targetModel) {
+        switchToModel(targetModel);
+      }
+    }
   };
+
+  const handleCustomFromSampleGallery = () => {
+    // For Sample Gallery mode - just switch to custom style
+    // Don't clear the prompt - preserve any existing custom prompt
+    updateSetting('selectedStyle', 'custom');
+    setCurrentHashtag('SogniPhotobooth'); // Use #SogniPhotobooth for custom prompts
+    updateSetting('halloweenContext', false); // Clear Halloween context (user is manually entering custom mode)
+    // Update URL (custom will clear the prompt parameter)
+    updateUrlWithPrompt('custom');
+    // Note: User can now edit custom prompt via the Vibe Explorer
+    // or through the settings overlay if they choose to open it manually
+  };
+
+  // Callback to refresh stylePrompts after personalized prompts are saved/removed
+  const handleCustomPromptsUpdated = useCallback(async () => {
+    const client = authState.getSogniClient ? authState.getSogniClient() : null;
+    const address = getPersonalizeAddress(client);
+    if (!address) return;
+
+    try {
+      const customPrompts = await fetchPersonalizedPrompts(address);
+      if (customPrompts.length > 0) {
+        // Re-initialize base prompts then merge custom
+        const basePrompts = await initializeStylePrompts(settings.selectedModel);
+        const updatedPrompts = mergeCustomPrompts(basePrompts, customPrompts);
+        setStylePrompts(updatedPrompts);
+        const keys = customPrompts.map((_, i) => `custom_${i}`);
+        injectPersonalizedThemeGroup(keys);
+        // Update stored personalize data for start menu
+        setPersonalizePrompts(customPrompts);
+        setPersonalizeAddress(address);
+
+        // Reload gallery images so Simple mode picks up custom prompt cards
+        try {
+          const { loadGalleryImages } = await import('./utils/galleryLoader');
+          const promptsDataRaw = (await import('./prompts.json')).default;
+          const loadedGalleryPhotos = await loadGalleryImages(updatedPrompts, portraitType, promptsDataRaw, customPrompts, address);
+          if (loadedGalleryPhotos.length > 0) {
+            setGalleryPhotos(loadedGalleryPhotos);
+            if (currentPage === 'prompts') setPhotos(loadedGalleryPhotos);
+          }
+        } catch { /* gallery reload optional */ }
+      } else {
+        // Reset to base prompts
+        const basePrompts = await initializeStylePrompts(settings.selectedModel);
+        setStylePrompts(basePrompts);
+        removePersonalizedThemeGroup();
+      }
+    } catch (err) {
+      console.error('[Personalize] Failed to refresh custom prompts:', err);
+    }
+  }, [settings.selectedModel, portraitType, currentPage]);
 
   // Update handlePositivePromptChange to use updateSetting
   const handlePositivePromptChange = (value) => {
-    updateSetting('positivePrompt', value); 
-    if (selectedStyle !== 'custom') {
-      const currentPrompt = stylePrompts[selectedStyle] || '';
-      if (value !== currentPrompt) {
-        updateSetting('selectedStyle', 'custom'); 
+    updateSetting('positivePrompt', value);
+    
+    // Auto-switch style based on positive prompt content
+    // If user types any text, switch to 'custom'
+    // If user deletes all text, switch to 'randomMix' (Random All)
+    if (value && value.trim().length > 0) {
+      // User has entered text - switch to custom if not already
+      if (selectedStyle !== 'custom') {
+        updateSetting('selectedStyle', 'custom');
         // Clear the URL parameter when switching to custom
         updateUrlWithPrompt(null);
-        setCurrentHashtag(null);
+        setCurrentHashtag('SogniPhotobooth'); // Use #SogniPhotobooth for custom prompts
+      }
+    } else {
+      // User has cleared all text - switch to randomMix (Random All) if not already
+      if (selectedStyle !== 'randomMix') {
+        updateSetting('selectedStyle', 'randomMix');
+        // Clear the URL parameter when switching to randomMix
+        updateUrlWithPrompt(null);
+        setCurrentHashtag('SogniPhotobooth');
       }
     }
   };
@@ -1189,15 +2781,12 @@ const App = () => {
   useEffect(() => {
     // Initial delay between 5-15 seconds
     const initialDelay = 5000 + Math.random() * 10000;
-    console.log(`🤔 Setting up optimized thought system: first check in ${Math.round(initialDelay/1000)}s`);
     
     const firstThought = setTimeout(() => {
-      console.log('🤔 Starting thought scheduling system');
       scheduleNextThought();
     }, initialDelay);
 
     return () => {
-      console.log('🤔 Cleaning up thought system');
       clearTimeout(firstThought);
       if (thoughtTimeoutRef.current) {
         clearTimeout(thoughtTimeoutRef.current);
@@ -1323,22 +2912,62 @@ const App = () => {
   const [backendError, setBackendError] = useState(null);
 
   // Update the handler for initiating Twitter share
-  const handleShareToX = async (photoIndex) => {
-    // Check if Kiosk Mode is enabled
-    if (kioskMode) {
-      // Generate QR code for mobile sharing
-      await handleKioskModeShare(photoIndex);
-    } else {
-      // Set the photo index and open the modal
-      setTwitterPhotoIndex(photoIndex);
-      setShowTwitterModal(true);
+  // Can accept either (photoIndex) or (photoIndex, photoObject) for filtered scenarios
+  const handleShareToX = async (photoIndex, photoObject = null) => {
+    // Set the photo index and open the modal
+    setTwitterPhotoIndex(photoIndex);
+    // Store the actual photo object if provided, otherwise use from photos array
+    const photoData = photoObject || photos[photoIndex] || null;
+    setTwitterPhotoData(photoData);
+    setShowTwitterModal(true);
+  };
+
+  // Handle generic Web Share API share
+  const handleShareViaWebShare = async (photoIndex) => {
+    console.log('📤 Web Share - Starting share process');
+    
+    if (!photos[photoIndex] || !photos[photoIndex].images || !photos[photoIndex].images[0]) {
+      console.error('No image selected for Web Share');
+      setBackendError({
+        type: 'no_image',
+        title: '📷 No Image Selected',
+        message: 'Please select a photo from your gallery before sharing.',
+        canRetry: false
+      });
+      return;
     }
+
+    // Call the Web Share service
+    await shareViaWebShare({
+      photoIndex,
+      photos,
+      setBackendError,
+      tezdevTheme,
+      aspectRatio,
+      outputFormat,
+      sogniWatermark: settings.sogniWatermark,
+      sogniWatermarkSize: settings.sogniWatermarkSize,
+      sogniWatermarkMargin: settings.sogniWatermarkMargin,
+    });
+
+    // Track analytics for Web Share
+    await trackShareWithStyle(selectedStyle, stylePrompts, 'webshare', {
+      photoIndex,
+      tezdevTheme,
+      aspectRatio,
+      outputFormat,
+      hasWatermark: settings.sogniWatermark,
+    });
   };
 
   // Handle Kiosk Mode sharing with QR code
   const handleKioskModeShare = async (photoIndex) => {
-    console.log('Kiosk Mode Share - Photo Index:', photoIndex);
-    console.log('Kiosk Mode Share - Photo Data:', photos[photoIndex]);
+    console.log('🔗 Kiosk Mode Share - Starting QR code generation');
+    console.log('🔗 Photo Index:', photoIndex);
+    console.log('🔗 Photo Data:', photos[photoIndex]);
+    console.log('🔗 Settings - kioskMode:', kioskMode);
+    console.log('🔗 Settings - tezdevTheme:', tezdevTheme);
+    console.log('🔗 Settings - outputFormat:', outputFormat);
     
     if (!photos[photoIndex] || !photos[photoIndex].images || !photos[photoIndex].images[0]) {
       console.error('No image selected for QR sharing');
@@ -1362,10 +2991,77 @@ const App = () => {
     });
 
     try {
+      console.log('🔗 Starting mobile share creation process...');
       // Utilities are now pre-imported at the top of the file for better performance
       
-      // Get the original image URL (handle enhanced images like Twitter sharing does)
+      // Get the media URL - prioritize video over image
       const photo = photos[photoIndex];
+      const isVideo = !!photo.videoUrl;
+      
+      // If video exists, use it directly; otherwise process image
+      if (isVideo) {
+        console.log('🔗 Creating QR code for video share');
+
+        // Convert the thumbnail blob URL to a permanent URL
+        // This is required because blob URLs are only accessible in the browser that created them
+        const thumbnailBlobUrl = photo.images[selectedSubIndex || 0];
+        console.log('🔗 Converting thumbnail blob URL to permanent URL...');
+        const permanentThumbnailUrl = await ensurePermanentUrl(thumbnailBlobUrl);
+        console.log('🔗 Thumbnail uploaded, permanent URL:', permanentThumbnailUrl);
+
+        // Generate a unique sharing ID
+        const shareId = `share-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const currentUrl = new URL(window.location.href);
+        const baseUrl = currentUrl.origin;
+        const mobileShareUrl = `${baseUrl}/mobile-share/${shareId}`;
+
+        // Extract style name from photo for filename
+        const styleName = photo.statusText?.replace('#', '') || 
+                         photo.promptKey || 
+                         photo.selectedStyle || 
+                         'sogni';
+        const cleanStyleName = styleName.toLowerCase().replace(/\s+/g, '-');
+
+        // Create share data for video
+        const shareData = {
+          shareId,
+          photoIndex,
+          videoUrl: photo.videoUrl,
+          imageUrl: permanentThumbnailUrl, // Permanent URL for thumbnail (required for verification)
+          isVideo: true,
+          tezdevTheme,
+          aspectRatio,
+          timestamp: Date.now(),
+          twitterMessage: TWITTER_SHARE_CONFIG.DEFAULT_MESSAGE,
+          // Add metadata for proper filename generation
+          styleName: cleanStyleName,
+          videoDuration: photo.videoDuration || settings.videoDuration || 5,
+          videoResolution: photo.videoResolution || settings.videoResolution || '480p',
+          videoFramerate: photo.videoFramerate || settings.videoFramerate || 16
+        };
+
+        // Send to backend
+        const response = await fetch('/api/mobile-share/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(shareData),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to create video mobile share');
+        }
+
+        // Set QR code data
+        setQrCodeData({
+          shareUrl: mobileShareUrl,
+          photoIndex: photoIndex,
+          isLoading: false
+        });
+
+        return; // Success, exit early
+      }
+      
+      // Continue with image processing...
       const currentSubIndex = photo.enhanced && photo.enhancedImageUrl 
         ? -1 // Special case for enhanced images
         : (selectedSubIndex || 0);
@@ -1392,6 +3088,13 @@ const App = () => {
           const baseUrl = currentUrl.origin;
           const mobileShareUrl = `${baseUrl}/mobile-share/${shareId}`;
 
+          // Extract style name from photo for filename
+          const styleName = photo.statusText?.replace('#', '') || 
+                           photo.promptKey || 
+                           photo.selectedStyle || 
+                           'sogni';
+          const cleanStyleName = styleName.toLowerCase().replace(/\s+/g, '-');
+
           const shareData = {
             shareId,
             photoIndex,
@@ -1401,9 +3104,11 @@ const App = () => {
             outputFormat: 'jpg',
             timestamp: Date.now(),
             isFramed: true,
-            twitterMessage: cachedMobileShare.twitterMessage || TWITTER_SHARE_CONFIG.DEFAULT_MESSAGE
+            twitterMessage: cachedMobileShare.twitterMessage || TWITTER_SHARE_CONFIG.DEFAULT_MESSAGE,
+            styleName: cleanStyleName
           };
 
+          console.log('🔗 Sending cached mobile share data to backend...');
           const response = await fetch('/api/mobile-share/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1411,8 +3116,10 @@ const App = () => {
           });
 
           if (!response.ok) {
-            throw new Error('Failed to create mobile share from cache');
+            console.error('🔗 Backend response not OK:', response.status, response.statusText);
+            throw new Error(`Failed to create mobile share from cache: ${response.status} ${response.statusText}`);
           }
+          console.log('🔗 Cached mobile share created successfully');
 
           // Present the fresh link in the QR overlay
           setQrCodeData({
@@ -1459,6 +3166,13 @@ const App = () => {
           const baseUrl = currentUrl.origin;
           const mobileShareUrl = `${baseUrl}/mobile-share/${shareId}`;
           
+          // Extract style name from photo for filename
+          const styleName = photo.statusText?.replace('#', '') || 
+                           photo.promptKey || 
+                           photo.selectedStyle || 
+                           'sogni';
+          const cleanStyleName = styleName.toLowerCase().replace(/\s+/g, '-');
+          
           // Create share data
           const shareData = {
             shareId,
@@ -1469,7 +3183,8 @@ const App = () => {
             outputFormat: outputFormat, // Use original format instead of forcing JPG
             timestamp: Date.now(),
             isFramed: true,
-            twitterMessage: twitterMessage
+            twitterMessage: twitterMessage,
+            styleName: cleanStyleName
           };
           
           // Send to backend
@@ -1542,30 +3257,26 @@ const App = () => {
           // For Taipei theme, pass the current frame number to ensure consistency
           taipeiFrameNumber: tezdevTheme === 'taipeiblockchain' ? currentTaipeiFrameNumber : undefined,
           // Add QR watermark for mobile sharing (if enabled)
-          watermarkOptions: settings.sogniWatermark ? {
-            size: 80, // Smaller for mobile sharing
-            margin: 5, // Closer to edge
-            position: 'top-right',
-            opacity: 1.0
-          } : null
+          watermarkOptions: settings.sogniWatermark ? getQRWatermarkConfig(settings) : null
         });
       } else {
         // For non-TezDev themes, use traditional polaroid frame
         const hashtag = getPhotoHashtag(photo);
         const label = hashtag || photo.label || photo.style || '';
         
-        console.log('Creating polaroid image for mobile sharing');
+        console.log('Creating polaroid image for mobile sharing', {
+          photoStatusText: photo.statusText,
+          extractedHashtag: hashtag,
+          finalLabel: label,
+          photoStyle: photo.style,
+          photoLabel: photo.label
+        });
         framedImageDataUrl = await createPolaroidImage(originalImageUrl, label, {
           tezdevTheme,
           aspectRatio,
           outputFormat: 'jpg', // Use JPG for mobile sharing
           // Add QR watermark for mobile sharing (if enabled)
-          watermarkOptions: settings.sogniWatermark ? {
-            size: 80, // Smaller for mobile sharing
-            margin: 5, // Closer to edge
-            position: 'top-right',
-            opacity: 1.0
-          } : null
+          watermarkOptions: settings.sogniWatermark ? getQRWatermarkConfig(settings) : null
         });
       }
       
@@ -1583,30 +3294,32 @@ const App = () => {
           // Extract style hashtag using the same logic as PhotoGallery component
           let styleTag = 'vaporwave'; // Default fallback
           
-          // Try stylePrompt first
+          // Try stylePrompt first (strip transformation prefix for matching)
           if (photo.stylePrompt && stylePrompts) {
+            const strippedStylePrompt = stripTransformationPrefix(photo.stylePrompt);
             const foundStyleKey = Object.entries(stylePrompts).find(
-              ([, value]) => value === photo.stylePrompt
+              ([, value]) => value === strippedStylePrompt
             )?.[0];
-            
-            if (foundStyleKey && foundStyleKey !== 'custom' && foundStyleKey !== 'random' && foundStyleKey !== 'randomMix') {
+
+            if (foundStyleKey && foundStyleKey !== 'custom' && foundStyleKey !== 'random' && foundStyleKey !== 'randomMix' && foundStyleKey !== 'simplePick') {
               styleTag = foundStyleKey;
             }
           }
-          
-          // Try positivePrompt next if stylePrompt didn't work
+
+          // Try positivePrompt next if stylePrompt didn't work (strip transformation prefix for matching)
           if (styleTag === 'vaporwave' && photo.positivePrompt && stylePrompts) {
+            const strippedPositivePrompt = stripTransformationPrefix(photo.positivePrompt);
             const foundStyleKey = Object.entries(stylePrompts).find(
-              ([, value]) => value === photo.positivePrompt
+              ([, value]) => value === strippedPositivePrompt
             )?.[0];
-            
-            if (foundStyleKey && foundStyleKey !== 'custom' && foundStyleKey !== 'random' && foundStyleKey !== 'randomMix') {
+
+            if (foundStyleKey && foundStyleKey !== 'custom' && foundStyleKey !== 'random' && foundStyleKey !== 'randomMix' && foundStyleKey !== 'simplePick') {
               styleTag = foundStyleKey;
             }
           }
-          
+
           // Fall back to selectedStyle if available
-          if (styleTag === 'vaporwave' && selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix') {
+          if (styleTag === 'vaporwave' && selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix' && selectedStyle !== 'simplePick') {
             styleTag = selectedStyle;
           }
           
@@ -1636,6 +3349,13 @@ const App = () => {
       // Create the mobile sharing URL
       const mobileShareUrl = `${baseUrl}/mobile-share/${shareId}`;
       
+      // Extract style name from photo for filename
+      const styleName = photo.statusText?.replace('#', '') || 
+                       photo.promptKey || 
+                       photo.selectedStyle || 
+                       'sogni';
+      const cleanStyleName = styleName.toLowerCase().replace(/\s+/g, '-');
+      
       // Store the sharing data with permanent framed image URL
       const shareData = {
         shareId,
@@ -1646,12 +3366,14 @@ const App = () => {
         outputFormat,
         timestamp: Date.now(),
         isFramed: true, // Flag to indicate this image already includes the frame
-        twitterMessage: twitterMessage // Include the generated Twitter message
+        twitterMessage: twitterMessage, // Include the generated Twitter message
+        styleName: cleanStyleName
       };
 
       console.log('Creating mobile share with framed data:', shareData);
 
       // Send the share data to the backend for storage
+      console.log('🔗 Sending new mobile share data to backend...');
       const response = await fetch('/api/mobile-share/create', {
         method: 'POST',
         headers: {
@@ -1661,8 +3383,12 @@ const App = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create mobile share');
+        console.error('🔗 Backend response not OK:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('🔗 Backend error response:', errorText);
+        throw new Error(`Failed to create mobile share: ${response.status} ${response.statusText}`);
       }
+      console.log('🔗 New mobile share created successfully');
 
       // Cache the mobile share data for future use
       setMobileShareCache(prev => ({
@@ -1684,30 +3410,206 @@ const App = () => {
 
     } catch (error) {
       console.error('Error creating mobile share:', error);
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+      
       // Clear loading state on error
       setQrCodeData(null);
-      // Fallback to regular Twitter sharing
-      setShowTwitterModal(true);
+      
+      // Show a more informative error message with fallback option
+      setBackendError({
+        type: 'kiosk_mode_error',
+        title: '🔗 QR Code Generation Failed',
+        message: 'Unable to generate QR code for sharing. You can try again or use regular Twitter sharing instead.',
+        details: error.message,
+        canRetry: true,
+        fallbackAction: () => {
+          // Clear the error and show Twitter modal as fallback
+          setBackendError(null);
+          setTwitterPhotoIndex(photoIndex);
+          setShowTwitterModal(true);
+        },
+        fallbackLabel: 'Use Twitter Sharing'
+      });
+    }
+  };
+
+  // Handle Stitched Video QR Code sharing
+  const handleStitchedVideoQRShare = async (videoBlob, thumbnailUrl) => {
+    console.log('🔗 Stitched Video QR Share - Starting QR code generation');
+
+    if (!videoBlob) {
+      console.error('No video blob provided for QR sharing');
+      return;
+    }
+
+    // Show QR code immediately with loading state for better UX
+    setQrCodeData({
+      shareUrl: 'loading',
+      photoIndex: 'stitched', // Special marker for stitched videos
+      isLoading: true,
+      isStitchedVideo: true
+    });
+
+    try {
+      console.log('🔗 Starting stitched video share creation process...');
+
+      // Convert video blob to data URL for upload
+      let videoDataUrl;
+      try {
+        videoDataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(videoBlob);
+        });
+      } catch (err) {
+        throw new Error('Failed to prepare video for upload');
+      }
+
+      // Convert thumbnail to permanent URL
+      let permanentThumbnailUrl = thumbnailUrl;
+      if (thumbnailUrl && thumbnailUrl.startsWith('blob:')) {
+        console.log('🔗 Converting thumbnail blob URL to permanent URL...');
+        permanentThumbnailUrl = await ensurePermanentUrl(thumbnailUrl);
+        console.log('🔗 Thumbnail uploaded, permanent URL:', permanentThumbnailUrl);
+      }
+
+      // Generate a unique sharing ID
+      const shareId = `share-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const currentUrl = new URL(window.location.href);
+      const baseUrl = currentUrl.origin;
+      const mobileShareUrl = `${baseUrl}/mobile-share/${shareId}`;
+
+      // Create share data for stitched video
+      const shareData = {
+        shareId,
+        photoIndex: -1, // Special marker for stitched video
+        videoUrl: videoDataUrl, // Send the video as data URL
+        imageUrl: permanentThumbnailUrl,
+        isVideo: true,
+        isStitchedVideo: true,
+        tezdevTheme,
+        aspectRatio,
+        timestamp: Date.now(),
+        twitterMessage: 'Just created this video with @sogni_protocol AI photobooth. Pretty sweet.',
+        styleName: 'stitched-video',
+        videoDuration: 0, // Unknown for stitched
+        videoResolution: settings.videoResolution || '480p',
+        videoFramerate: settings.videoFramerate || 16
+      };
+
+      console.log('🔗 Sending stitched video share data to backend...');
+      const response = await fetch('/api/mobile-share/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(shareData),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('🔗 Backend error response:', errorText);
+        throw new Error(`Failed to create stitched video mobile share: ${response.status}`);
+      }
+
+      console.log('🔗 Stitched video mobile share created successfully');
+
+      // Set QR code data
+      setQrCodeData({
+        shareUrl: mobileShareUrl,
+        photoIndex: 'stitched',
+        isLoading: false,
+        isStitchedVideo: true
+      });
+
+    } catch (error) {
+      console.error('Error creating stitched video mobile share:', error);
+
+      // Clear loading state on error
+      setQrCodeData(null);
+
+      // Show error
+      setBackendError({
+        type: 'kiosk_mode_error',
+        title: '🔗 QR Code Generation Failed',
+        message: 'Unable to generate QR code for stitched video sharing. Please try using the "Share..." option instead.',
+        details: error.message,
+        canRetry: false
+      });
     }
   };
   
   // Add a handler for the actual sharing with custom message
-  const handleTwitterShare = async (customMessage) => {
+  const handleTwitterShare = async (customMessage, submitToContest = false) => {
     // Store the message for potential retry
     setLastTwitterMessage(customMessage);
     
-    // Get the current URL with any hashtag parameter
-    const shareUrl = new URL(window.location.href);
+    // CRITICAL: The stored twitterPhotoData may be stale if:
+    // 1. User opened share modal before video generation completed
+    // 2. Photos array was updated after modal opened (React creates new object references)
+    // We need to find the latest version of this photo in the photos array
+    const storedPhoto = twitterPhotoData;
     
-    // If we have a hashtag and it's not from a custom prompt, add it to the URL
+    // Try to find the live version of this photo by matching ID or promptKey
+    let livePhoto = null;
+    if (storedPhoto?.id) {
+      livePhoto = photos.find(p => p.id === storedPhoto.id);
+    } else if (storedPhoto?.promptKey) {
+      livePhoto = photos.find(p => p.promptKey === storedPhoto.promptKey);
+    }
+    
+    // Fallback: try index-based lookup (may be wrong in filtered mode but worth trying)
+    if (!livePhoto && twitterPhotoIndex !== null && twitterPhotoIndex < photos.length) {
+      livePhoto = photos[twitterPhotoIndex];
+    }
+    
+    // Determine which photo to use
+    // Priority: 
+    // 1. If livePhoto has videoUrl that storedPhoto doesn't -> use livePhoto (data was updated)
+    // 2. If storedPhoto has all the data we need -> use storedPhoto (handles filtered scenarios)
+    // 3. Fall back to livePhoto
+    let photoToShare;
+    
+    if (livePhoto?.videoUrl && !storedPhoto?.videoUrl) {
+      // Live data has video that stored data is missing - use live data
+      photoToShare = livePhoto;
+    } else if (storedPhoto?.videoUrl) {
+      // Stored data has video - use it
+      photoToShare = storedPhoto;
+    } else if (livePhoto?.videoUrl) {
+      // Live data has video - use it
+      photoToShare = livePhoto;
+    } else if (storedPhoto) {
+      // No video anywhere, use stored data
+      photoToShare = storedPhoto;
+    } else {
+      // Last resort - use live photo
+      photoToShare = livePhoto;
+    }
+    
+    // Create a clean URL - use /event path if user came from an event
+    const shareUrl = new URL(window.location.origin);
+    if (settings.halloweenContext) {
+      shareUrl.pathname = '/event/halloween';
+    } else if (settings.winterContext) {
+      shareUrl.pathname = '/event/winter';
+    } else if (window.location.pathname === '/event/bald-for-base') {
+      shareUrl.pathname = '/event/bald-for-base';
+    }
+    
+    // Only add the prompt parameter if we have a hashtag and it's not from a custom prompt
     if (currentHashtag && selectedStyle !== 'custom') {
       shareUrl.searchParams.set('prompt', currentHashtag);
     }
     
     // Call the extracted Twitter sharing service with custom message and URL
+    // Pass the actual photo to share (using stored photo data to handle filtered scenarios)
     await shareToTwitter({
-      photoIndex: twitterPhotoIndex,
-      photos,
+      photoIndex: 0, // Always 0 since we're passing a single-element array
+      photos: [photoToShare], // Pass array with the specific photo to share
       setBackendError,
       customMessage,
       shareUrl: shareUrl.toString(), // Pass the full URL with parameters
@@ -1715,10 +3617,52 @@ const App = () => {
       aspectRatio,
       outputFormat,
       sogniWatermark: settings.sogniWatermark,
-      onSuccess: () => {
-        setSuccessMessage('Your photo has been shared to X/Twitter!');
-        setShowSuccessToast(true);
+      sogniWatermarkSize: settings.sogniWatermarkSize,
+      sogniWatermarkMargin: settings.sogniWatermarkMargin,
+      halloweenContext: settings.halloweenContext || false,
+      submitToContest, // Pass the explicit contest submission flag
+      prompt: settings.positivePrompt || null,
+      username: authState.user?.username || null,
+      address: authState.user?.email || null, // Using email as identifier for now
+      metadata: {
+        model: selectedModel,
+        inferenceSteps,
+        seed: photoToShare?.seed || null,
+        guidance: isContextImageModel(selectedModel) ? guidance : promptGuidance,
+        aspectRatio
+      },
+      onSuccess: async () => {
+        // Show success toast using the new toast system - special message for Halloween contest
+        if (submitToContest) {
+          showToast({
+            title: '🎃 Contest Entry Submitted!',
+            message: 'Your Halloween creation has been shared and entered into the contest!',
+            type: 'success',
+            timeout: 5000
+          });
+        } else {
+          const hasVideo = photoToShare?.videoUrl;
+          showToast({
+            title: 'Success!',
+            message: `Your ${hasVideo ? 'video' : 'photo'} has been shared to X/Twitter!`,
+            type: 'success',
+            timeout: 4000
+          });
+        }
         setShowTwitterModal(false);
+        
+        // Track analytics for successful Twitter share
+        await trackShareWithStyle(selectedStyle, stylePrompts, 'twitter', {
+          photoIndex: twitterPhotoIndex,
+          customMessage,
+          shareUrl: shareUrl.toString(),
+          tezdevTheme,
+          aspectRatio,
+          outputFormat,
+          hasWatermark: settings.sogniWatermark,
+          halloweenContext: settings.halloweenContext || false,
+          submitToContest
+        });
       }
     });
   };
@@ -1766,6 +3710,121 @@ const App = () => {
   }, [photos, isGenerating]); // Include isGenerating to compare previous state
 
   // -------------------------
+  //   Monitor winter context changes (backup/safety check only)
+  // -------------------------
+  useEffect(() => {
+    // Just track winter context state - the style-based effect handles model switching
+    const winterContextActive = settings.winterContext;
+    prevWinterContextRef.current = winterContextActive;
+  }, [settings.winterContext]);
+
+  // -------------------------
+  //   Auto-switch model based on style selection
+  // -------------------------
+  useEffect(() => {
+    const currentStyle = settings.selectedStyle;
+    const currentModel = settings.selectedModel;
+    
+    // Initialize refs on first run
+    if (prevModelRef.current === null) {
+      prevModelRef.current = currentModel;
+    }
+    if (prevStyleRef.current === null) {
+      prevStyleRef.current = currentStyle;
+      return; // Skip on first render
+    }
+    
+    // CRITICAL: Only auto-switch when STYLE changes, not when model changes manually
+    const styleChanged = prevStyleRef.current !== currentStyle;
+    
+    if (!styleChanged) {
+      console.log('⏭️ Style unchanged, skipping automatic model switch');
+      prevModelRef.current = currentModel;
+      return;
+    }
+    
+    console.log(`🎨 Style changed: ${prevStyleRef.current} → ${currentStyle}`);
+    
+    // If user explicitly selected a model, respect their choice and don't auto-switch
+    if (userExplicitlySelectedModelRef.current) {
+      console.log('🙋 User explicitly selected a model, respecting choice - no auto-switching');
+      prevStyleRef.current = currentStyle;
+      prevModelRef.current = currentModel;
+      return;
+    }
+    
+    // Check if previous and current styles are winter styles
+    const wasPreviousStyleWinter = isWinterStyle(prevStyleRef.current);
+    const isCurrentStyleWinter = isWinterStyle(currentStyle);
+    
+    prevStyleRef.current = currentStyle;
+    
+    // Skip special styles that don't need model switching
+    if (['random', 'randomMix', 'oneOfEach', 'browseGallery', 'copyImageStyle', 'simplePick'].includes(currentStyle)) {
+      return;
+    }
+    
+    // If switching TO a winter style and NOT on DreamShaper, switch to it
+    if (isCurrentStyleWinter && currentModel !== 'coreml-dreamshaperXL_v21TurboDPMSDE') {
+      console.log('❄️ Winter style selected, auto-switching to DreamShaper model');
+      dreamShaperAutoSelectedRef.current = true; // Mark as auto-selected
+      updateSetting('winterContext', true);
+      switchToModel('coreml-dreamshaperXL_v21TurboDPMSDE');
+      
+      // Show toast notification ONLY if model is actually changing
+      if (prevModelRef.current !== 'coreml-dreamshaperXL_v21TurboDPMSDE') {
+        showToast({
+          type: 'info',
+          title: 'Model Changed',
+          message: 'Switched to DreamShaper for winter theme',
+          timeout: 4000
+        });
+      }
+      
+      prevModelRef.current = 'coreml-dreamshaperXL_v21TurboDPMSDE';
+      
+      // Reset the explicit selection flag since we auto-switched
+      // This allows future auto-switches to work
+      userExplicitlySelectedModelRef.current = false;
+    }
+    // ONLY switch away from DreamShaper if:
+    // 1. Transitioning FROM winter TO non-winter style
+    // 2. Currently on DreamShaper
+    // 3. DreamShaper was AUTO-selected (not manually selected by user)
+    else if (wasPreviousStyleWinter && !isCurrentStyleWinter && 
+             currentModel === 'coreml-dreamshaperXL_v21TurboDPMSDE' &&
+             dreamShaperAutoSelectedRef.current === true) {
+      console.log('❄️ Leaving winter style, auto-switching from DreamShaper to default model');
+      console.log('❄️ About to show toast and switch model');
+      dreamShaperAutoSelectedRef.current = false; // Reset flag
+      updateSetting('winterContext', false);
+      
+      // Show toast BEFORE switching model
+      showToast({
+        type: 'info',
+        title: 'Model Changed',
+        message: 'Switched back to Sogni Turbo (default model)',
+        timeout: 4000
+      });
+      console.log('❄️ Toast shown');
+      
+      switchToModel(DEFAULT_MODEL_ID);
+      prevModelRef.current = DEFAULT_MODEL_ID;
+      
+      // Reset the explicit selection flag since we auto-switched
+      // This allows future auto-switches to work
+      userExplicitlySelectedModelRef.current = false;
+    } else {
+      // Log why we're not switching
+      if (wasPreviousStyleWinter && !isCurrentStyleWinter && currentModel === 'coreml-dreamshaperXL_v21TurboDPMSDE') {
+        console.log(`❄️ Not switching away from DreamShaper: dreamShaperAutoSelected=${dreamShaperAutoSelectedRef.current}`);
+      }
+      // Update prevModelRef if we're not switching
+      prevModelRef.current = currentModel;
+    }
+  }, [settings.selectedStyle, settings.selectedModel, updateSetting, switchToModel, showToast]);
+
+  // -------------------------
   //   Sogni initialization
   // -------------------------
   const [isInitializingSogni, setIsInitializingSogni] = useState(false);
@@ -1777,28 +3836,157 @@ const App = () => {
       return;
     }
     
+    // CRITICAL FIX: If we already have a working client, don't reinitialize
+    // This prevents the backend client from overwriting the frontend client
+    // that was set by the auth state change effect
+    if (sogniClient && isSogniReady) {
+      console.log('✅ Sogni client already initialized and ready, skipping reinitialization');
+      return;
+    }
+    
     setIsInitializingSogni(true);
+    
+    console.log('🔵🔵🔵 INITIALIZING SOGNI CLIENT - START');
+    console.log('Current auth state:', {
+      isAuthenticated: authState.isAuthenticated,
+      authMode: authState.authMode,
+      isLoading: authState.isLoading,
+      hasGetSogniClient: typeof authState.getSogniClient === 'function'
+    });
     
     try {
       // Reset any previous errors
       setBackendError(null);
       
-      const client = await initializeSogniClient();
-      setSogniClient(client);
-      setIsSogniReady(true);
+      let client;
+      
+      if (authState.isAuthenticated && authState.authMode === 'frontend') {
+        // Use the frontend Sogni client with adapter for personal account credits
+        console.log('🟢 Using frontend authentication mode - direct SDK connection for personal credits');
 
-      client.projects.on('swarmModels', (event) => {
-        console.log('Swarm models event payload:', event);
-      });
+        // Use ensureClient() to recreate the SDK client if it's temporarily unavailable
+        // This is important for recovery after WebSocket errors (4015)
+        let realClient = authState.getSogniClient();
 
-      client.projects.on('project', (event) => {
-        console.log('Project event full payload:', event);
-      });
+        if (!realClient) {
+          // Try to recreate the client instead of falling back to backend
+          console.warn('⚠️ Frontend client temporarily unavailable, attempting to recreate...');
+          try {
+            realClient = await authState.ensureClient();
+            console.log('✅ Frontend client recreated successfully');
+          } catch (ensureError) {
+            console.error('❌ Failed to recreate frontend client:', ensureError);
+            // Only fall back to backend if we truly can't get a frontend client
+            console.warn('⚠️ Falling back to backend mode after frontend client recreation failed');
+            client = await initializeSogniClient();
+            setSogniClient(client);
+            setIsSogniReady(true);
+            console.log('✅ Backend Sogni client initialized successfully (fallback from frontend)');
+          }
+        }
 
-      client.projects.on('job', (event) => {
-        console.log('Job event full payload:', event);
-        // Only keep this for logging or other job events if needed
-      });
+        if (realClient) {
+          // Wrap the real client with our adapter to ensure compatibility with photobooth UI
+          client = createFrontendClientAdapter(realClient);
+
+          setSogniClient(client);
+          setIsSogniReady(true);
+
+          console.log('✅✅✅ Frontend Sogni client initialized successfully with adapter - using personal account credits');
+          console.log('Client supportsVideo:', client.supportsVideo);
+        }
+        
+      } else {
+        // Use the backend client (demo mode - shared demo account credits)
+        console.log('🔴 Using backend authentication (demo mode - shared demo credits)');
+        console.log('Why backend? isAuthenticated:', authState.isAuthenticated, 'authMode:', authState.authMode);
+        client = await initializeSogniClient();
+        setSogniClient(client);
+        setIsSogniReady(true);
+        
+        console.log('✅ Backend Sogni client initialized successfully - using demo credits');
+        console.log('Client supportsVideo:', client.supportsVideo);
+      }
+
+      // Set up event listeners if we have a client
+      if (client && client.projects) {
+        client.projects.on('swarmModels', () => {
+          //console.log('Swarm models event payload:', event);
+        });
+
+        client.projects.on('project', () => {
+          // console.log('Project event full payload:', event);
+        });
+
+        client.projects.on('job', (event) => {
+          //console.log('Job event full payload:', event);
+          
+          // For frontend clients, capture individual job prompts and pass them to the active project adapter
+          if (authState.authMode === 'frontend' && activeProjectObjectReference.current && event.positivePrompt) {
+            const project = activeProjectObjectReference.current;
+            
+            // If the project is our adapter, store the individual job prompt
+            if (project && typeof project.setJobPrompt === 'function') {
+              project.setJobPrompt(event.jobId, event.positivePrompt);
+            }
+          }
+        });
+      }
+
+
+      // Set up socket error handling for frontend clients
+      if (client && authState.authMode === 'frontend' && client.apiClient) {
+        client.apiClient.on('error', (error) => {
+          console.error('Socket error:', error);
+          
+          // Check for email verification error (code 4052)
+          if (error && typeof error === 'object' && 
+              (error.code === 4052 || (error.reason && error.reason.includes('verify your email')))) {
+            console.error('❌ Email verification required from socket error');
+            
+            // Show toast notification for email verification
+            handleSpecificErrors.emailVerification(showToast);
+            
+            setBackendError({
+              type: 'auth_error',
+              title: '📧 Email Verification Required',
+              message: 'Your Sogni account email needs to be verified to generate images.',
+              details: 'Please check your email and click the verification link, then try again. You can also verify your email at app.sogni.ai.',
+              canRetry: true,
+              fallbackUrl: 'https://app.sogni.ai/profile',
+              fallbackText: 'Verify Email',
+              fallbackLabel: 'Go to Profile'
+            });
+            
+            // Clear any active generation
+            clearAllTimeouts();
+            activeProjectReference.current = null;
+            
+            // Mark all generating photos as failed
+            const markEmailVerificationRequired = (prevPhotos) => {
+              return prevPhotos.map(photo => {
+                if (photo.generating) {
+                  return {
+                    ...photo,
+                    generating: false,
+                    loading: false,
+                    error: 'EMAIL VERIFICATION REQUIRED',
+                    permanentError: true,
+                    statusText: 'Verify Email'
+                  };
+                }
+                return photo;
+              });
+            };
+            
+            setRegularPhotos(markEmailVerificationRequired);
+            setPhotos(markEmailVerificationRequired);
+          }
+        });
+      }
+      
+      // WebSocket error handling is now set up in a separate useEffect
+      
     } catch (error) {
       console.error('Failed initializing Sogni client:', error);
       
@@ -1836,7 +4024,7 @@ const App = () => {
     } finally {
       setIsInitializingSogni(false);
     }
-  }, []); // Removed sogniClient dependency to prevent callback recreation loops
+  }, []); // Removed dependencies to prevent loops
 
   /**
    * Stop the camera stream and clean up resources
@@ -1873,7 +4061,6 @@ const App = () => {
     setIosQuirkDetected(false);
     setActualCameraDimensions(null);
     setQuirkDetectionComplete(false);
-    console.log('🔄 Starting new camera session - reset iOS quirk detection state');
     
     // Determine resolution based on aspect ratio
     let requestWidth, requestHeight;
@@ -1936,8 +4123,15 @@ const App = () => {
         }
       }
 
+      // Set waiting state before requesting camera access
+      setWaitingForCameraPermission(true);
+
       // Request camera access
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      
+      // Clear waiting and denied states after successful access
+      setWaitingForCameraPermission(false);
+      setCameraPermissionDenied(false);
       
       console.log(`✅ Camera stream acquired - requested ${requestWidth}×${requestHeight} for ${aspectRatio} aspect ratio`);
       
@@ -2006,24 +4200,11 @@ const App = () => {
         const userAgent = navigator.userAgent;
         const isMobileOrTablet = /iphone|ipad|ipod|android/i.test(userAgent) || 
                                 (navigator.maxTouchPoints > 1 && /safari/i.test(userAgent) && !/chrome/i.test(userAgent));
-        console.log('🔍 Re-enumeration check:', { 
-          isMobileOrTablet, 
-          cameraDevicesLength: cameraDevices.length, 
-          shouldReEnumerate: isMobileOrTablet && cameraDevices.length <= 1,
-          userAgent: userAgent,
-          maxTouchPoints: navigator.maxTouchPoints,
-          isSafari: /safari/i.test(userAgent) && !/chrome/i.test(userAgent)
-        });
         if (isMobileOrTablet && cameraDevices.length <= 1) {
-          console.log('📱 Re-enumerating cameras after stream start to get proper device labels');
           setTimeout(async () => {
             try {
               const devices = await navigator.mediaDevices.enumerateDevices();
               const videoDevices = devices.filter(d => d.kind === 'videoinput');
-              console.log('📱 Re-enumeration found:', videoDevices.length, 'cameras:', videoDevices.map(d => ({ 
-                id: d.deviceId, 
-                label: d.label || 'Unnamed Camera' 
-              })));
               if (videoDevices.length > cameraDevices.length) {
                 setCameraDevices(videoDevices);
               }
@@ -2056,6 +4237,16 @@ const App = () => {
     } catch (error) {
       console.error('Failed to get camera access:', error);
       
+      // Clear waiting state on error
+      setWaitingForCameraPermission(false);
+      
+      // Check if permission was denied by the user
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        console.error('Camera permission denied by user');
+        setCameraPermissionDenied(true);
+        return; // Don't try fallback for permission errors
+      }
+      
       // If we failed with a specific device ID, try falling back to auto-select
       if (deviceId && (error.name === 'OverconstrainedError' || error.name === 'NotFoundError')) {
         console.warn('📹 Specific camera device failed, trying auto-select fallback...');
@@ -2075,6 +4266,10 @@ const App = () => {
           
           const fallbackStream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
           console.log('✅ Fallback camera stream acquired');
+          
+          // Clear waiting and denied states after successful fallback
+          setWaitingForCameraPermission(false);
+          setCameraPermissionDenied(false);
           
           if (videoReference.current) {
             videoReference.current.srcObject = fallbackStream;
@@ -2193,7 +4388,7 @@ const App = () => {
     }, 100); // 100ms debounce
     
     return () => clearTimeout(timeoutId);
-  }, [cameraDevices, settings.preferredCameraDeviceId, updateSetting]);
+  }, [cameraDevices, settings.preferredCameraDeviceId]); // updateSetting is stable, doesn't need to be a dependency
 
   // Modified useEffect for app initialization - no camera enumeration on startup
   useEffect(() => {
@@ -2208,17 +4403,224 @@ const App = () => {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
-      // Initialize Sogni only - cameras will be loaded when needed
-      try {
-        await initializeSogni();
-        console.log('✅ App initialization completed');
-      } catch (error) {
-        console.warn('🔗 Sogni initialization failed:', error);
+      // CRITICAL FIX: Wait for auth state initialization, then DON'T call initializeSogni
+      // The issue is that initializeSogni() uses authState from its closure, which is STALE.
+      // Even after waitForInitialization(), the captured React state authState is still the OLD value.
+      // 
+      // Instead, we let the auth state change effect (below) handle client initialization.
+      // That effect has authState in its dependency array, so it sees the CORRECT values.
+      // 
+      // We only initialize backend client here if there's no auth (demo mode).
+      console.log('⏳ Waiting for auth state initialization to complete...');
+      await authState.waitForInitialization?.();
+      
+      // IMPORTANT: Get FRESH state from the singleton, not the stale closure value
+      const currentAuthState = sogniAuth.getAuthState();
+      console.log('✅ Auth state initialization complete (from singleton):', {
+        isAuthenticated: currentAuthState.isAuthenticated,
+        authMode: currentAuthState.authMode,
+        isLoading: currentAuthState.isLoading
+      });
+      
+      // Initialize backend client if NOT authenticated, or if authenticated in demo mode
+      // (event domains are auto-demo — they use backend proxy, not frontend SDK)
+      // If authenticated with frontend mode, the auth state change effect handles it
+      if (!currentAuthState.isAuthenticated || currentAuthState.authMode === 'demo') {
+        console.log('🔵 Initializing backend client for demo mode');
+        try {
+          await initializeSogni();
+          console.log('✅ Backend client initialized for demo mode');
+        } catch (error) {
+          console.warn('🔗 Sogni initialization failed:', error);
+        }
+      } else {
+        console.log('🟢 Already authenticated with frontend mode, letting auth state change effect initialize frontend client');
       }
     };
     
     initializeAppOnMount();
   }, []); // Empty dependency array - only run on mount
+
+  // Track previous auth state to detect actual logout transitions
+  const prevAuthRef = useRef({ isAuthenticated: false, authMode: null });
+  
+  // Effect: Handle auth state changes (login/logout)
+  // Triggers when: User authentication status or auth mode changes
+  useEffect(() => {
+    const wasAuthenticated = prevAuthRef.current.isAuthenticated;
+    const isNowAuthenticated = authState.isAuthenticated;
+    
+    // DEBUG: Log auth state changes
+    console.log('🔍 Auth state change detected:', {
+      wasAuthenticated,
+      isNowAuthenticated,
+      authMode: authState.authMode,
+      sessionTransferred: authState.sessionTransferred,
+      authStateKeys: Object.keys(authState)
+    });
+    
+    // Update the ref for next time
+    prevAuthRef.current = { isAuthenticated: authState.isAuthenticated, authMode: authState.authMode };
+    
+    if (isNowAuthenticated && authState.authMode === 'frontend') {
+      const realClient = authState.getSogniClient();
+      console.log(`🔐 Auth state shows frontend auth, getSogniClient returned:`, realClient ? 'client exists' : 'NULL');
+      
+      if (realClient) {
+        console.log(`🟢 Setting up frontend client adapter for video support`);
+        // CRITICAL FIX: Use the adapter instead of raw client
+        const adapterClient = createFrontendClientAdapter(realClient);
+        
+        setSogniClient(adapterClient);
+        setIsSogniReady(true);
+        
+        console.log('✅✅✅ Frontend client with adapter SET - supportsVideo:', adapterClient.supportsVideo);
+      } else {
+        console.error('❌❌❌ CRITICAL: authState.getSogniClient() returned null despite being authenticated!');
+        // Try to get client from singleton directly as fallback
+        const singletonClient = sogniAuth.getSogniClient();
+        console.log('Trying singleton fallback, got:', singletonClient ? 'client exists' : 'NULL');
+        if (singletonClient) {
+          const adapterClient = createFrontendClientAdapter(singletonClient);
+          setSogniClient(adapterClient);
+          setIsSogniReady(true);
+          console.log('✅ Frontend client set via singleton fallback - supportsVideo:', adapterClient.supportsVideo);
+        }
+      }
+      
+      // Note: We do NOT clear demo render status on login
+      // The free demo render is a one-time offer that should persist across login/logout
+      
+      // DO NOT SET DEFAULTS HERE!
+      // Settings are already loaded from localStorage during AppContext initialization
+      // Changing them here would override user preferences on every page refresh
+    } else if (!isNowAuthenticated && authState.authMode === null && wasAuthenticated) {
+      // User logged out - ONLY trigger if they were previously authenticated
+      console.log('🔐 User logged out, switching back to demo mode (backend client)');
+      
+      // Clear the current client
+      setSogniClient(null);
+      setIsSogniReady(false);
+      
+      // Reinitialize with backend client (called directly, not in dependencies)
+      initializeSogni();
+      
+      // Clear session storage on logout
+      clearSessionSettings();
+      
+      // DO NOT SET DEFAULTS HERE!
+      // Let AppContext initialization handle loading defaults
+      // Settings will be loaded from defaults on next page refresh when logged out
+    }
+  }, [authState.isAuthenticated, authState.authMode]); // Only auth-related primitives - no functions!
+
+  // Create batch cancellation function for WebSocket errors
+  const cancelBatchOnError = useCallback((error) => {
+    if (!activeProjectReference.current) {
+      return; // No active project to cancel
+    }
+
+    console.log('Cancelling batch due to WebSocket error:', error);
+    
+    // Clear all timeouts
+    clearAllTimeouts();
+    
+    // Try to cancel the project on the backend
+    if (sogniClient && activeProjectReference.current) {
+      sogniClient.cancelProject?.(activeProjectReference.current)
+        .catch(err => console.warn('Failed to cancel project on backend:', err));
+    }
+    
+    // Mark all generating photos as failed due to the error
+    setRegularPhotos(prev => {
+      const updated = [...prev];
+      
+      updated.forEach((photo, index) => {
+        if (photo.generating) {
+          updated[index] = {
+            ...photo,
+            generating: false,
+            loading: false,
+            error: 'BATCH CANCELLED',
+            permanentError: true,
+            statusText: 'Cancelled',
+            cancelled: true
+          };
+        }
+      });
+      
+      return updated;
+    });
+    
+    // Clear the active project reference
+    activeProjectReference.current = null;
+  }, [sogniClient]);
+
+  // Set up WebSocket error handling when sogniClient changes
+  useEffect(() => {
+    if (!sogniClient || !showToast) {
+      return;
+    }
+    
+    const cleanupWebSocketHandler = setupWebSocketErrorHandler(
+      sogniClient, 
+      showToast, 
+      {
+        showDisconnectionToasts: true,
+        showReconnectionToasts: true,
+        showGeneralErrors: true,
+        autoCloseTimeout: 5000
+      },
+      cancelBatchOnError // Pass the batch cancellation function
+    );
+
+    // Return cleanup function
+    return cleanupWebSocketHandler;
+  }, [sogniClient, showToast, cancelBatchOnError]);
+
+  // Listen for email verification errors from frontend client
+  useEffect(() => {
+    const handleEmailVerificationRequired = () => {
+      console.error('❌ Email verification required event received');
+      setBackendError({
+        type: 'auth_error',
+        title: '📧 Email Verification Required',
+        message: 'Your Sogni account email needs to be verified to generate images.',
+        details: 'Please check your email and click the verification link, then try again. You can also verify your email at app.sogni.ai.',
+        canRetry: true,
+        fallbackUrl: 'https://app.sogni.ai/profile',
+        fallbackText: 'Verify Email',
+        fallbackLabel: 'Go to Profile'
+      });
+      
+      // Clear any active generation
+      clearAllTimeouts();
+      activeProjectReference.current = null;
+      
+      // Mark all generating photos as failed
+      setRegularPhotos(prevPhotos => {
+        return prevPhotos.map(photo => {
+          if (photo.generating) {
+            return {
+              ...photo,
+              generating: false,
+              loading: false,
+              error: 'EMAIL VERIFICATION REQUIRED',
+              permanentError: true,
+              statusText: 'Verify Email'
+            };
+          }
+          return photo;
+        });
+      });
+    };
+
+    window.addEventListener('sogni-email-verification-required', handleEmailVerificationRequired);
+    
+    return () => {
+      window.removeEventListener('sogni-email-verification-required', handleEmailVerificationRequired);
+    };
+  }, []);
 
   // Sync selectedCameraDeviceId with settings - ONLY when preferredCameraDeviceId changes
   useEffect(() => {
@@ -2393,14 +4795,22 @@ const App = () => {
     preGenerateFrameRef.current = preGenerateFunction;
   }, []);
 
+  // Ref to store the video intro trigger function from PhotoGallery
+  const videoIntroTriggerRef = useRef(null);
+
+  // Callback to receive the video intro trigger function from PhotoGallery
+  const handleRegisterVideoIntroTrigger = useCallback((triggerFunction) => {
+    videoIntroTriggerRef.current = triggerFunction;
+  }, []);
+
   // Callback to receive framed image cache updates from PhotoGallery
   const handleFramedImageCacheUpdate = useCallback((framedImageCache) => {
     setPhotoGalleryFramedImageCache(framedImageCache);
   }, []);
 
-  // Clear QR code when navigating between photos
+  // Clear QR code when navigating between photos (but not for stitched video QR codes)
   useEffect(() => {
-    if (qrCodeData && qrCodeData.photoIndex !== selectedPhotoIndex) {
+    if (qrCodeData && qrCodeData.photoIndex !== selectedPhotoIndex && !qrCodeData.isStitchedVideo) {
       console.log('Clearing QR code due to photo navigation');
       setQrCodeData(null);
     }
@@ -2766,7 +5176,7 @@ const App = () => {
     timeouts.jobTimers.set(jobId, timer);
     
     // Update photo with job start time
-    setRegularPhotos(prev => {
+    const updateJobStartTime = (prev) => {
       const updated = [...prev];
       if (updated[photoIndex]) {
         updated[photoIndex] = {
@@ -2776,7 +5186,11 @@ const App = () => {
         };
       }
       return updated;
-    });
+    };
+    
+    // Update BOTH state arrays
+    setRegularPhotos(updateJobStartTime);
+    setPhotos(updateJobStartTime);
   };
 
   const clearJobTimeout = (jobId) => {
@@ -2795,7 +5209,7 @@ const App = () => {
     clearJobTimeout(jobId);
     
     // Mark the photo as timed out
-    setRegularPhotos(prev => {
+    const markPhotoTimedOut = (prev) => {
       const updated = [...prev];
       if (updated[photoIndex]) {
         updated[photoIndex] = {
@@ -2809,11 +5223,15 @@ const App = () => {
         };
       }
       return updated;
-    });
+    };
+    
+    // Update BOTH state arrays
+    setRegularPhotos(markPhotoTimedOut);
+    setPhotos(markPhotoTimedOut);
     
     // Check if all jobs are done (completed, failed, or timed out)
     setTimeout(() => {
-      setRegularPhotos(prev => {
+      const checkAllJobsDone = (prev) => {
         const stillGenerating = prev.some(photo => photo.generating);
         if (!stillGenerating && activeProjectReference.current) {
           console.log('All jobs finished (including timeouts), clearing active project');
@@ -2821,7 +5239,10 @@ const App = () => {
           clearAllTimeouts();
         }
         return prev;
-      });
+      };
+      
+      setRegularPhotos(checkAllJobsDone);
+      setPhotos(checkAllJobsDone);
     }, 100);
   };
 
@@ -2832,7 +5253,7 @@ const App = () => {
     clearAllTimeouts();
     
     // Mark all generating photos as timed out
-    setRegularPhotos(prev => {
+    const markAllTimedOut = (prev) => {
       const updated = [...prev];
       let hasChanges = false;
       
@@ -2842,8 +5263,9 @@ const App = () => {
             ...photo,
             generating: false,
             loading: false,
-            error: `PROJECT TIMEOUT: ${reason}`,
-            permanentError: true,
+            error: `PROJECT TIMEOUT`,
+            permanentError: false, // Make timeout errors retryable
+            retryable: true, // Allow retry for timeout errors
             statusText: 'Timed Out',
             timedOut: true
           };
@@ -2862,7 +5284,11 @@ const App = () => {
       }
       
       return updated;
-    });
+    };
+    
+    // Update BOTH state arrays
+    setRegularPhotos(markAllTimedOut);
+    setPhotos(markAllTimedOut);
   };
 
   // -------------------------
@@ -2870,25 +5296,81 @@ const App = () => {
   // -------------------------
   const generateFromBlob = async (photoBlob, newPhotoIndex, dataUrl, isMoreOperation = false, sourceType = 'upload') => {
     try {
+      // Check if user has Premium Spark (used multiple times in this function)
+      const hasPremiumSpark = isPremiumBoosted(balances, walletTokenType);
+      
+      // Ensure we have a working client (should already be initialized)
+      if (!sogniClient) {
+        console.error('🔐 No Sogni client available for generation');
+        setBackendError('Sogni client not initialized. Please refresh the page.');
+        return;
+      }
+
       // Clear any existing timeouts before starting new generation
       if (!isMoreOperation) {
         clearAllTimeouts();
+        
+        // Clear QR codes and mobile share cache when starting a new batch since photo indices will change
+        if (qrCodeData) {
+          console.log('Clearing QR code due to new batch generation from fresh photo');
+          setQrCodeData(null);
+        }
+        
+        // Clear mobile share cache since photo indices will point to different images
+        console.log('Clearing mobile share cache due to new batch generation from fresh photo');
+        setMobileShareCache({});
       }
       
       setLastPhotoData({ blob: photoBlob, dataUrl, sourceType });
       const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
       // Get theme-filtered prompts for random selection
+      // Read latest theme state from localStorage to avoid stale closure values
       const getFilteredPromptsForRandom = () => {
-        // For Flux models, use all available prompts without theme filtering
-        const isFluxKontext = isFluxKontextModel(selectedModel);
-        return isFluxKontext ? stylePrompts : getEnabledPrompts(currentThemeState, stylePrompts);
+        // For context image models (Qwen, Flux), use all available prompts without theme filtering
+        const usesContextImages = isContextImageModel(selectedModel);
+        if (usesContextImages) {
+          return stylePrompts;
+        }
+        // Read latest theme preferences from localStorage to ensure we use the most current settings
+        const saved = getThemeGroupPreferences();
+        const defaultState = getDefaultThemeGroupState();
+        const latestThemeState = { ...defaultState, ...saved };
+        return getEnabledPrompts(latestThemeState, stylePrompts);
       };
 
+      // Get blocked prompts from localStorage to filter them out
+      let blockedPrompts = [];
+      try {
+        const blocked = localStorage.getItem('sogni_blocked_prompts');
+        if (blocked) {
+          blockedPrompts = JSON.parse(blocked);
+        }
+      } catch (e) {
+        console.warn('Error reading blocked prompts:', e);
+      }
+
       // Prompt logic: use context state
+      console.log('🎨 [generateFromBlob] Using custom prompt:', { 
+        selectedStyle, 
+        positivePrompt,
+        customSceneName,
+        positivePromptLength: positivePrompt?.length 
+      });
       let finalPositivePrompt = positivePrompt.trim();
       
       // Handle special style modes (these override any existing prompt text)
-      if (selectedStyle === 'custom') {
+      if (selectedStyle === 'copyImageStyle') {
+        // Validate that we have a style reference image
+        if (!styleReferenceImage?.croppedBlob) {
+          console.error('❌ copyImageStyle mode is active but no style reference image is available');
+          setBackendError('No style reference image found. Please upload a style reference by clicking "Copy Image Style".');
+          return;
+        }
+        
+        // Special prompt for style reference mode
+        finalPositivePrompt = COPY_IMAGE_STYLE_PROMPT;
+        console.log('🎨 Using Copy Image Style mode with special prompt');
+      } else if (selectedStyle === 'custom') {
         finalPositivePrompt = finalPositivePrompt || '';
       } else if (selectedStyle === 'random') {
         // Pick one random style and use it for all images in the batch
@@ -2901,31 +5383,136 @@ const App = () => {
         finalPositivePrompt = getRandomMixPrompts(numImages, filteredPrompts); 
       } else if (selectedStyle === 'oneOfEach') {
         // Use one prompt from each enabled theme group in order
-        finalPositivePrompt = getOneOfEachPrompts(currentThemeState, stylePrompts, numImages);
+        // Read latest theme state from localStorage to avoid stale closure values
+        const saved = getThemeGroupPreferences();
+        const defaultState = getDefaultThemeGroupState();
+        const latestThemeState = { ...defaultState, ...saved };
+        console.log('🎨 Generating with "One of each" - latest theme state from localStorage:', latestThemeState);
+        // Also log favorites to verify they're up to date
+        try {
+          const favorites = localStorage.getItem('sogni_favorite_images');
+          if (favorites) {
+            const favoriteIds = JSON.parse(favorites);
+            console.log('⭐ Current favorites count:', favoriteIds.length, 'favorites:', favoriteIds);
+          }
+        } catch (e) {
+          console.warn('Error reading favorites for logging:', e);
+        }
+        finalPositivePrompt = getOneOfEachPrompts(latestThemeState, stylePrompts, numImages);
+      } else if (selectedStyle === 'simplePick') {
+        const selectedKeys = getSimplePickStyles();
+        if (selectedKeys.length === 0) {
+          // No explicit picks — check if personalized prompts exist in stylePrompts
+          // and use them directly if only the Personalized category is enabled
+          const customKeys = Object.keys(stylePrompts).filter(k => k.startsWith('custom_'));
+          if (customKeys.length > 0) {
+            console.log('🎯 simplePick has no stored picks, using personalized prompts directly:', customKeys);
+            finalPositivePrompt = getSimplePickPrompts(customKeys, stylePrompts);
+          } else {
+            const filteredPrompts = getFilteredPromptsForRandom();
+            finalPositivePrompt = getRandomMixPrompts(numImages, filteredPrompts);
+          }
+        } else {
+          finalPositivePrompt = getSimplePickPrompts(selectedKeys, stylePrompts);
+        }
       } else {
-        // Use the selected style prompt, or fallback to user's custom text
-        finalPositivePrompt = stylePrompts[selectedStyle] || finalPositivePrompt || '';
+        // Use the selected style prompt, but skip if it's blocked
+        if (blockedPrompts.includes(selectedStyle)) {
+          console.log(`🚫 Selected style "${selectedStyle}" is blocked, falling back to random style`);
+          // Fall back to random style from enabled prompts
+          const filteredPrompts = getFilteredPromptsForRandom();
+          const randomStyle = getRandomStyle(filteredPrompts);
+          finalPositivePrompt = filteredPrompts[randomStyle] || finalPositivePrompt || '';
+        } else {
+          // Use the selected style prompt, or fallback to user's custom text
+          finalPositivePrompt = stylePrompts[selectedStyle] || finalPositivePrompt || '';
+        }
       }
 
       // Inject worker preferences into the prompt
+      // Worker preferences are a Premium Spark feature - only add them if:
+      // 1. Using SOGNI tokens, OR
+      // 2. Using Spark with Premium status
+      // For backend/demo mode: server will enforce its own preferences
+      // For frontend auth mode: use user-configured preferences (if premium)
       const workerPreferences = [];
-      if (settings.requiredWorkers && Array.isArray(settings.requiredWorkers) && settings.requiredWorkers.length > 0) {
-        workerPreferences.push(`--workers=${settings.requiredWorkers.join(',')}`);
+      
+      // Check if user has Premium Spark to determine if worker preferences are allowed
+      const canUseWorkerPreferences = walletTokenType !== 'spark' || hasPremiumSpark;
+      
+      if (canUseWorkerPreferences) {
+        if (authState.authMode !== 'frontend') {
+          // Backend/demo mode - use hardcoded server preferences (kept for backward compatibility)
+          if (settings.requiredWorkers && Array.isArray(settings.requiredWorkers) && settings.requiredWorkers.length > 0) {
+            workerPreferences.push(`--workers=${settings.requiredWorkers.join(',')}`);
+          }
+          if (settings.preferWorkers && settings.preferWorkers.length > 0) {
+            workerPreferences.push(`--preferred-workers=${settings.preferWorkers.join(',')}`);
+          }
+          if (settings.skipWorkers && settings.skipWorkers.length > 0) {
+            workerPreferences.push(`--skip-workers=${settings.skipWorkers.join(',')}`);
+          }
+        } else {
+          // Frontend auth mode - use user-configured preferences
+          if (settings.requiredWorkers && Array.isArray(settings.requiredWorkers) && settings.requiredWorkers.length > 0) {
+            workerPreferences.push(`--workers=${settings.requiredWorkers.join(',')}`);
+          }
+          if (settings.preferWorkers && settings.preferWorkers.length > 0) {
+            workerPreferences.push(`--preferred-workers=${settings.preferWorkers.join(',')}`);
+          }
+          if (settings.skipWorkers && settings.skipWorkers.length > 0) {
+            workerPreferences.push(`--skip-workers=${settings.skipWorkers.join(',')}`);
+          }
+        }
+        if (workerPreferences.length > 0) {
+          finalPositivePrompt = `${finalPositivePrompt}${workerPreferences.join(' ')}`;
+        }
+      } else {
+        console.log('⚠️ Worker preferences SKIPPED in frontend - Premium Spark required');
       }
-      if (settings.preferWorkers && settings.preferWorkers.length > 0) {
-        workerPreferences.push(`--preferred-workers=${settings.preferWorkers.join(',')}`);
-      }
-      if (settings.skipWorkers && settings.skipWorkers.length > 0) {
-        workerPreferences.push(`--skip-workers=${settings.skipWorkers.join(',')}`);
-      }
-      if (workerPreferences.length > 0) {
-        finalPositivePrompt = `${finalPositivePrompt}${workerPreferences.join(' ')}`;
+
+      // When using an edit model, rewrite prompts with subject context for identity preservation
+      const usesEditModel = isContextImageModel(selectedModel);
+      const isUsingEditPromptStyle = selectedStyle === 'copyImageStyle' || isEditPrompt(selectedStyle);
+      const isCopyImageStylePrompt = finalPositivePrompt === COPY_IMAGE_STYLE_PROMPT;
+
+      if (usesEditModel && !isCopyImageStylePrompt && finalPositivePrompt && selectedStyle !== 'custom') {
+        // Get subject analysis (pre-warmed from ImageAdjuster, or use fallback)
+        const subjectAnalysis = subjectAnalysisRef.current || { faceCount: 1, subjectDescription: 'the person' };
+        const { subjectDescription, faceCount } = subjectAnalysis;
+
+        console.log('✏️ Edit model detected - rewriting prompt with subject context:', { subjectDescription, faceCount, isEditPrompt: isUsingEditPromptStyle });
+
+        // Check if prompt uses pipe-separated syntax (randomMix, oneOfEach)
+        if (finalPositivePrompt.startsWith('{') && finalPositivePrompt.includes('|') && finalPositivePrompt.endsWith('}')) {
+          const inner = finalPositivePrompt.slice(1, -1);
+          const rewritten = inner.split('|').map(p =>
+            rewritePromptForEditModel(p.trim(), { subjectDescription, faceCount, isEditPrompt: false })
+          );
+          finalPositivePrompt = `{${rewritten.join('|')}}`;
+        } else {
+          finalPositivePrompt = rewritePromptForEditModel(finalPositivePrompt, {
+            subjectDescription,
+            faceCount,
+            isEditPrompt: isUsingEditPromptStyle && !isCopyImageStylePrompt
+          });
+        }
+
+        // Legacy static prefix fallback removed — rewritePromptForEditModel now always rewrites,
+        // even when subjectDescription is "the person" (provides transformation context anchors)
       }
 
       // Style prompt logic: use context state
-      let finalStylePrompt = stylePrompt.trim() || ''; 
+      let finalStylePrompt = stylePrompt.trim() || '';
       // Negative prompt logic: use context state
-      let finalNegativePrompt = negativePrompt.trim() || 'lowres, worst quality, low quality'; 
+      let finalNegativePrompt = negativePrompt.trim() || 'lowres, worst quality, low quality';
+
+      // When using an edit model, prepend "black bars, " to negative prompt
+      // This helps prevent black bars/letterboxing artifacts common in edit model outputs
+      if (usesEditModel && finalNegativePrompt) {
+        console.log('✏️ Edit model detected - prepending "black bars, " to negative prompt');
+        finalNegativePrompt = `${EDIT_MODEL_NEGATIVE_PROMPT_PREFIX}${finalNegativePrompt}`;
+      } 
       // Seed logic: use context state
       let seedValue = seed.trim();
       let seedParam = undefined;
@@ -2945,29 +5532,22 @@ const App = () => {
         pendingCompletions: new Map(),
         jobMap: new Map() // Store jobMap in projectState
       };
+      // Capture a local reference to this project's jobMap so that event handlers
+      // in this closure keep working even if projectStateReference.current is
+      // overwritten by a newer project (e.g., user takes another photo quickly).
+      const projectJobMap = projectStateReference.current.jobMap;
 
       // Skip setting up photos state if this is a "more" operation
       if (!isMoreOperation) {
-        setRegularPhotos(previous => {
-          // Clean up blob URLs from previous photos to prevent memory leaks
-          previous.forEach(photo => {
-            if (photo.images) {
-              photo.images.forEach(imageUrl => {
-                if (imageUrl && imageUrl.startsWith('blob:')) {
-                  URL.revokeObjectURL(imageUrl);
-                }
-              });
-            }
-          });
-          
-          const existingProcessingPhotos = previous.filter(photo => 
-            photo.generating && photo.jobId && photo.progress
-          );
-          
+        // Capture timestamp once to ensure consistent IDs across both state updates
+        const baseTimestamp = Date.now();
+        
+        // Create the new photos array once (not as a function) to ensure identical state
+        const createNewPhotosArray = () => {
           const newPhotos = [];
           if (keepOriginalPhoto) { // Use context state
             newPhotos.push({
-              id: Date.now(),
+              id: baseTimestamp,
               generating: false,
               loading: false,
               images: [dataUrl],
@@ -2980,36 +5560,50 @@ const App = () => {
           
           // Use numImages from context state
           for (let index = 0; index < numImages; index++) { 
-            const existingPhoto = existingProcessingPhotos[index];
+            // Calculate the global photo index for frame assignment
+            const globalPhotoIndex = (keepOriginalPhoto ? 1 : 0) + index;
             
-            if (existingPhoto && existingPhoto.jobId) {
-              newPhotos.push({
-                ...existingPhoto,
-                originalDataUrl: existingPhoto.originalDataUrl || dataUrl
-              });
-            } else {
-              // Calculate the global photo index for frame assignment
-              const globalPhotoIndex = (keepOriginalPhoto ? 1 : 0) + index;
-              
-              newPhotos.push({
-                id: Date.now() + index + 1,
-                generating: true,
-                loading: true,
-                progress: 0,
-                images: [],
-                error: null,
-                originalDataUrl: dataUrl, // Use reference photo as placeholder
-                newlyArrived: false,
-                statusText: 'Calling Art Robot...',
-                sourceType, // Include sourceType in generated photos
-                // Assign Taipei frame number based on photo index for equal distribution (1-6)
-                taipeiFrameNumber: (globalPhotoIndex % 6) + 1,
-                framePadding: 0 // Will be updated by migration effect in PhotoGallery
-              });
-            }
+            newPhotos.push({
+              id: baseTimestamp + index + 1,
+              generating: true,
+              loading: true,
+              progress: 0,
+              images: [],
+              error: null,
+              originalDataUrl: dataUrl, // Use reference photo as placeholder
+              newlyArrived: false,
+              statusText: 'Calling Art Robot',
+              sourceType, // Include sourceType in generated photos
+              promptKey: (selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix' && selectedStyle !== 'oneOfEach' && selectedStyle !== 'simplePick') ? selectedStyle : undefined, // Track which style is being used
+              originalStyleMode: selectedStyle, // Store the original style mode (including randomMix) for proper refresh behavior
+              customSceneName: selectedStyle === 'custom' && customSceneName ? customSceneName : undefined, // Store custom scene name at creation time
+              // Assign Taipei frame number based on photo index for equal distribution (1-6)
+              taipeiFrameNumber: (globalPhotoIndex % 6) + 1,
+              framePadding: 0 // Will be updated by migration effect in PhotoGallery
+            });
           }
           return newPhotos;
+        };
+        
+        const newPhotos = createNewPhotosArray();
+        
+        // Clean up blob URLs from previous photos to prevent memory leaks
+        // Do this in a separate effect to avoid blocking the state update
+        setRegularPhotos(previous => {
+          previous.forEach(photo => {
+            if (photo.images) {
+              photo.images.forEach(imageUrl => {
+                if (imageUrl && imageUrl.startsWith('blob:')) {
+                  URL.revokeObjectURL(imageUrl);
+                }
+              });
+            }
+          });
+          return newPhotos;
         });
+        
+        // Set photos to the same array reference
+        setPhotos(newPhotos);
       }
 
       if (!isMoreOperation) {
@@ -3026,16 +5620,21 @@ const App = () => {
       
       const blobArrayBuffer = await processedBlob.arrayBuffer();
       
-      // Show upload progress
-      setShowUploadProgress(true);
-      setUploadProgress(0);
-      setUploadStatusText('Uploading your image...');
+      // Show upload progress (only for backend clients)
+      if (authState.authMode !== 'frontend') {
+        setShowUploadProgress(true);
+        setUploadProgress(0);
+        setUploadStatusText('Uploading your image...');
+      }
       
       // Create project using context state for settings
-      const isFluxKontext = isFluxKontextModel(selectedModel);
-      const projectConfig = { 
+      const usesContextImages = isContextImageModel(selectedModel);
+      
+      const projectConfig = {
+        type: 'image', // Required in SDK v4.x.x
         testnet: false,
-        tokenType: 'spark',
+        tokenType: walletTokenType, // Use selected payment method from wallet
+        isPremiumSpark: hasPremiumSpark, // Pass premium status to backend
         modelId: selectedModel,
         positivePrompt: finalPositivePrompt,
         negativePrompt: finalNegativePrompt,
@@ -3044,22 +5643,44 @@ const App = () => {
         width: getCustomDimensions(aspectRatio).width,  // Use aspectRatio here
         height: getCustomDimensions(aspectRatio).height, // Use aspectRatio here
         steps: inferenceSteps,
-        guidance: isFluxKontext ? guidance : promptGuidance, // Use guidance for Flux.1 Kontext, promptGuidance for others
-        numberOfImages: numImages, // Use context state
-        scheduler: scheduler,
-        timeStepSpacing: timeStepSpacing,
+        guidance: usesContextImages ? guidance : promptGuidance, // Use guidance for context image models, promptGuidance for others
+        numberOfMedia: numImages, // Use context state
+        numberOfPreviews: authState.authMode === 'frontend' && usesContextImages ? 5 : 10, // Frontend context image models get 5 previews, backend gets 10
+        // Only skip sampler and scheduler for Qwen Image Edit Lightning (server provides defaults)
+        ...(isQwenImageEditLightningModel(selectedModel) ? {} : {
+          sampler: normalizeSampler(sampler),
+          scheduler: normalizeScheduler(scheduler)
+        }),
         outputFormat: outputFormat, // Add output format setting
-        sensitiveContentFilter: sensitiveContentFilter, // Add sensitive content filter setting
+        sensitiveContentFilter: sensitiveContentFilter, // Adapters will convert to disableNSFWFilter for SDK
         sourceType: sourceType, // Add sourceType for analytics tracking
         ...(seedParam !== undefined ? { seed: seedParam } : {})
       };
       
       // Add image configuration based on model type
-      if (isFluxKontext) {
-        // For Flux.1 Kontext, use contextImages array (SDK expects array)
-        projectConfig.contextImages = [new Uint8Array(blobArrayBuffer)];
+      if (usesContextImages) {
+        // For context image models (Qwen, Flux), use contextImages array (SDK expects array)
+        // Check if we're in Copy Image Style mode
+        if (selectedStyle === 'copyImageStyle') {
+          if (!styleReferenceImage?.croppedBlob) {
+            console.error('❌ Copy Image Style mode active but no style reference blob available');
+            throw new Error('Please select a style reference image first by clicking "Copy Image Style"');
+          }
+          
+          // In style reference mode, use both images: [styleReference, userPhoto]
+          const styleRefArrayBuffer = await styleReferenceImage.croppedBlob.arrayBuffer();
+          projectConfig.contextImages = [
+            new Uint8Array(styleRefArrayBuffer),  // First image: style reference
+            new Uint8Array(blobArrayBuffer)       // Second image: user's photo (subject)
+          ];
+          console.log('🎨 Using both style reference and user photo for context image model');
+          console.log(`📊 Context images: Style ref (${styleRefArrayBuffer.byteLength} bytes) + User photo (${blobArrayBuffer.byteLength} bytes)`);
+        } else {
+          // Normal mode - just use the user's photo
+          projectConfig.contextImages = [new Uint8Array(blobArrayBuffer)];
+        }
       } else {
-        // For other models, use controlNet
+        // For SDXL models, use controlNet
         projectConfig.controlNet = {
           name: 'instantid',
           image: new Uint8Array(blobArrayBuffer),
@@ -3069,12 +5690,169 @@ const App = () => {
           guidanceEnd: controlNetGuidanceEnd,
         };
       }
+
+      // Estimate job cost before creating project (for smart wallet switching)
+      // Only do cost estimation for authenticated users - demo mode doesn't need it
+      let estimatedCost = null;
+      if (authState.isAuthenticated && authState.authMode === 'frontend') {
+        try {
+          estimatedCost = await estimateJobCost(sogniClient, {
+            model: selectedModel,
+            imageCount: numImages,
+            stepCount: inferenceSteps,
+            guidance: usesContextImages ? guidance : promptGuidance,
+            scheduler: scheduler,
+            network: 'fast',
+            previewCount: usesContextImages ? 5 : 10, // Frontend context image models get 5 previews
+            contextImages: usesContextImages ? (selectedStyle === 'copyImageStyle' && styleReferenceImage ? 2 : 1) : 0,
+            cnEnabled: !usesContextImages,
+            tokenType: walletTokenType
+          });
+          if (estimatedCost !== null) {
+            setLastJobCostEstimate(estimatedCost);
+            console.log('💰 Estimated job cost:', estimatedCost, walletTokenType);
+          }
+        } catch (costError) {
+          console.warn('Failed to estimate cost:', costError);
+          // Continue even if cost estimation fails
+        }
+      } else {
+        console.log('⏭️ Skipping cost estimation for demo mode (not authenticated)');
+      }
+
+      // Check if current wallet has sufficient balance before submitting
+      if (balances && estimatedCost !== null) {
+        const currentBalance = parseFloat(balances[walletTokenType]?.net || '0');
+        if (currentBalance < estimatedCost) {
+          console.log(`❌ Insufficient ${walletTokenType} balance: ${currentBalance} < ${estimatedCost}`);
+          
+          // Check if alternative wallet has enough balance
+          const alternativeTokenType = walletTokenType === 'spark' ? 'sogni' : 'spark';
+          const alternativeBalance = parseFloat(balances[alternativeTokenType]?.net || '0');
+          
+          if (alternativeBalance >= estimatedCost) {
+            // Alternative wallet has enough - auto-switch with notification
+            console.log(`✅ Switching to ${alternativeTokenType} wallet (has ${alternativeBalance}, need ${estimatedCost})`);
+            
+            showToast({
+              type: 'warning',
+              title: 'Insufficient Balance - Auto-Switching',
+              message: `Not enough ${walletTokenType === 'spark' ? 'Spark Points' : 'SOGNI'}. Switching to ${alternativeTokenType === 'spark' ? 'Spark Points' : 'SOGNI'} wallet (${alternativeBalance.toFixed(2)} available)`,
+              timeout: 6000
+            });
+            
+            // Switch the payment method
+            switchPaymentMethod(alternativeTokenType);
+            
+            // Update the projectConfig with the new tokenType
+            projectConfig.tokenType = alternativeTokenType;
+            
+            // Continue with project creation using the alternative wallet
+          } else {
+            // Neither wallet has enough balance
+            console.log(`❌ Neither wallet has sufficient balance. ${walletTokenType}: ${currentBalance}, ${alternativeTokenType}: ${alternativeBalance}, need: ${estimatedCost}`);
+            
+            // Clear all timeouts when preventing submission
+            clearAllTimeouts();
+            activeProjectReference.current = null;
+
+            // Mark all generating photos as cancelled with insufficient credits error
+            setRegularPhotos(prevPhotos => {
+              return prevPhotos.map(photo => {
+                if (photo.generating) {
+                  return {
+                    ...photo,
+                    generating: false,
+                    loading: false,
+                    error: getCreditErrorMessage('INSUFFICIENT CREDITS'),
+                    permanentError: true,
+                    statusText: 'Out of Credits',
+                    cancelled: true
+                  };
+                }
+                return photo;
+              });
+            });
+
+            // Show daily boost if available, otherwise out of credits popup
+            handleOutOfCreditsShow();
+
+            return;
+          }
+        }
+      }
       
-      const project = await sogniClient.projects.create(projectConfig);
+      let project;
+      try {
+        project = await sogniClient.projects.create(projectConfig);
+        console.log('Project created:', project.id, 'with jobs:', project.jobs);
+      } catch (createError) {
+        console.error(`[GENERATE] Project creation failed:`, createError);
+        
+        // Extract error message from various error formats
+        let errorMessage = 'Failed to create project';
+        if (createError instanceof Error) {
+          errorMessage = createError.message;
+        } else if (typeof createError === 'object' && createError !== null) {
+          if (createError.message) {
+            errorMessage = createError.message;
+          } else if (createError.error) {
+            errorMessage = createError.error;
+          } else if (createError.payload?.message) {
+            errorMessage = createError.payload.message;
+          } else if (createError.payload?.error) {
+            errorMessage = createError.payload.error;
+          }
+        }
+        
+        // Log the full error for debugging
+        console.error(`[GENERATE] Full error details:`, {
+          error: createError,
+          message: errorMessage,
+          type: typeof createError,
+          keys: createError && typeof createError === 'object' ? Object.keys(createError) : []
+        });
+        
+        // Clear all timeouts when project creation fails
+        clearAllTimeouts();
+        activeProjectReference.current = null;
+        
+        // Mark all generating photos as failed
+        setRegularPhotos(prevPhotos => {
+          return prevPhotos.map(photo => {
+            if (photo.generating) {
+              return {
+                ...photo,
+                generating: false,
+                loading: false,
+                error: errorMessage,
+                permanentError: true,
+                statusText: 'Creation Failed'
+              };
+            }
+            return photo;
+          });
+        });
+        
+        return; // Exit early - don't continue with event setup
+      }
 
       activeProjectReference.current = project.id;
-      console.log('Project created:', project.id, 'with jobs:', project.jobs);
-      console.log('Initializing job map for project', project.id);
+      activeProjectObjectReference.current = project;
+      
+      // Track batch generation in Google Analytics
+      try {
+        trackBatchGeneration({
+          batch_size: numImages,
+          style_id: selectedStyle || 'unknown',
+          model: selectedModel,
+          source: sourceType,
+          is_regeneration: isMoreOperation
+        });
+      } catch (analyticsError) {
+        console.warn('Analytics tracking failed:', analyticsError);
+        // Don't block generation if analytics fails
+      }
       
       // Start project timeout management
       clearAllTimeouts(); // Clear any existing timeouts
@@ -3107,20 +5885,26 @@ const App = () => {
       });
 
       // Set up handlers for any jobs that exist immediately
-
-      
       if (project.jobs && project.jobs.length > 0) {
         project.jobs.forEach((job, index) => {
-          projectStateReference.current.jobMap.set(job.id, index);
-
+          projectJobMap.set(job.id, index);
         });
       }
+
+      // For frontend clients, jobs are created dynamically - map them when they start
+      project.on('jobStarted', (job) => {
+        if (!projectJobMap.has(job.id)) {
+          const nextIndex = projectJobMap.size;
+          projectJobMap.set(job.id, nextIndex);
+          // console.log(`Mapped frontend job ${job.id} to index ${nextIndex}`);
+        }
+      });
       
 
 
-      // Attach a single project-level job event handler with throttling
-      let progressUpdateTimeout = null;
-      let nonProgressUpdateTimeout = null;
+      // Attach a single project-level job event handler with per-job throttling
+      const progressUpdateTimeouts = new Map();
+      const nonProgressUpdateTimeouts = new Map();
       
       project.on('job', (event) => {
         const { type, jobId, workerName, queuePosition, jobIndex, positivePrompt, progress } = event;
@@ -3128,8 +5912,8 @@ const App = () => {
 
         
         // Find the photo associated with this job
-        const photoIndex = projectStateReference.current.jobMap.has(jobId)
-          ? projectStateReference.current.jobMap.get(jobId) + (keepOriginalPhoto ? 1 : 0)
+        const photoIndex = projectJobMap.has(jobId)
+          ? projectJobMap.get(jobId) + (keepOriginalPhoto ? 1 : 0)
           : -1; // Handle cases where job ID might not be in the map yet
           
         if (photoIndex === -1) {
@@ -3137,39 +5921,61 @@ const App = () => {
             return;
         }
 
-        // Throttle progress updates to reduce excessive re-renders
+        // Throttle progress updates to reduce excessive re-renders (per-job)
         if (type === 'progress') {
           // Update watchdog timer for progress events (but throttled)
-          if (progressUpdateTimeout) {
-            clearTimeout(progressUpdateTimeout);
+          if (progressUpdateTimeouts.has(jobId)) {
+            clearTimeout(progressUpdateTimeouts.get(jobId));
           }
-          progressUpdateTimeout = setTimeout(() => {
+          progressUpdateTimeouts.set(jobId, setTimeout(() => {
+            progressUpdateTimeouts.delete(jobId);
             // Update watchdog timer along with progress to batch the operations
             updateWatchdogTimer();
-            setRegularPhotos(prev => {
+            
+            const updateProgress = (prev) => {
               const updated = [...prev];
               if (updated[photoIndex] && !updated[photoIndex].permanentError) {
-                // Use workerName from current event if available and not "unknown", otherwise fall back to cached value
-                const cachedWorkerName = updated[photoIndex].workerName || 'unknown';
-                const currentWorkerName = (workerName && workerName !== 'unknown') ? workerName : cachedWorkerName;
+                // Use workerName from current event if available and not "Worker", otherwise fall back to cached value
+                const cachedWorkerName = updated[photoIndex].workerName || 'Worker';
+                const currentWorkerName = (workerName && workerName !== 'Worker') ? workerName : cachedWorkerName;
                 const displayProgress = Math.round((progress ?? 0) * 100);
+                
+                // Preserve ETA if available
+                const currentETA = updated[photoIndex].eta;
+                let etaText = '';
+                if (currentETA > 0) {
+                  if (currentETA >= 60) {
+                    const minutes = Math.floor(currentETA / 60);
+                    const seconds = currentETA % 60;
+                    etaText = ` - ${minutes}:${seconds.toString().padStart(2, '0')}`;
+                  } else {
+                    etaText = ` - ${currentETA}`;
+                  }
+                }
                 
                 updated[photoIndex] = {
                   ...updated[photoIndex],
                   generating: true,
                   loading: true,
                   progress: displayProgress,
-                  statusText: displayProgress > 0 
-                    ? `${currentWorkerName} makin' art... ${displayProgress}%`
-                    : `${currentWorkerName} makin' art...`,
+                  // Only show percentage if no ETA is available
+                  statusText: etaText 
+                    ? `${currentWorkerName} makin art${etaText}`
+                    : (displayProgress > 0 
+                      ? `${currentWorkerName} makin art ${displayProgress}%`
+                      : `${currentWorkerName} makin art`),
                   workerName: currentWorkerName, // Update the cached worker name
                   jobId,
                   lastProgressTime: Date.now()
                 };
               }
               return updated;
-            });
-          }, 200); // Throttle to max 5 updates per second (reduced from 10 to minimize flickering on high-res displays)
+            };
+            
+            // Update BOTH state arrays
+            setRegularPhotos(updateProgress);
+            setPhotos(updateProgress);
+          }, 200)); // Throttle to max 5 updates per second (reduced from 10 to minimize flickering on high-res displays)
           return; // Don't process immediately
         }
 
@@ -3178,33 +5984,103 @@ const App = () => {
           updateWatchdogTimer();
         }
 
-        // Throttle non-progress events to reduce cascade renders
+        // Handle ETA events separately (not throttled, but less frequent)
+        if (type === 'eta') {
+          const eta = event.eta;
+          
+          const updateETA = (prev) => {
+            const updated = [...prev];
+            if (updated[photoIndex] && !updated[photoIndex].permanentError) {
+              const cachedWorkerName = updated[photoIndex].workerName || workerName || 'Worker';
+              const displayProgress = updated[photoIndex].progress || 0;
+              
+              // Format ETA for display (eta is in seconds)
+              let etaText = '';
+              if (eta > 0) {
+                if (eta >= 60) {
+                  const minutes = Math.floor(eta / 60);
+                  const seconds = eta % 60;
+                  etaText = ` - ${minutes}:${seconds.toString().padStart(2, '0')}`;
+                } else {
+                  etaText = ` - ${eta}`;
+                }
+              }
+              
+              updated[photoIndex] = {
+                ...updated[photoIndex],
+                eta: eta,
+                // Only show percentage if no ETA is available
+                statusText: etaText 
+                  ? `${cachedWorkerName} makin art${etaText}`
+                  : (displayProgress > 0 
+                    ? `${cachedWorkerName} makin art ${displayProgress}%`
+                    : `${cachedWorkerName} makin art`),
+              };
+            }
+            return updated;
+          };
+          
+          setRegularPhotos(updateETA);
+          setPhotos(updateETA);
+          return;
+        }
+
+        // Throttle non-progress events to reduce cascade renders (per-job)
         if (['queued', 'initiating', 'started'].includes(type)) {
-          if (nonProgressUpdateTimeout) {
-            clearTimeout(nonProgressUpdateTimeout);
+          if (nonProgressUpdateTimeouts.has(jobId)) {
+            clearTimeout(nonProgressUpdateTimeouts.get(jobId));
           }
-          nonProgressUpdateTimeout = setTimeout(() => {
-            setRegularPhotos(prev => {
+          nonProgressUpdateTimeouts.set(jobId, setTimeout(() => {
+            nonProgressUpdateTimeouts.delete(jobId);
+            const updateNonProgress = (prev) => {
               const updated = [...prev];
               if (photoIndex >= updated.length) return prev;
               // Process the event type
-              if (type === 'initiating' || type === 'started') {
-                // Try to find a hashtag for the style prompt
+              if (type === 'initiating') {
+                // 'initiating' means worker assigned, model is being initialized
+                // This is the 'initiatingModel' event from the SDK
                 let hashtag = '';
                 const stylePromptValue = updated[photoIndex].stylePrompt;
                 if (stylePromptValue) {
-                  const foundKey = Object.entries(stylePrompts).find(([, value]) => value === stylePromptValue)?.[0];
+                  // Strip transformation prefix for matching
+                  const strippedStylePrompt = stripTransformationPrefix(stylePromptValue);
+                  const foundKey = Object.entries(stylePrompts).find(([, value]) => value === strippedStylePrompt)?.[0];
                   if (foundKey) {
                     hashtag = `#${foundKey}`;
                   }
                 }
-                
+
                 updated[photoIndex] = {
                   ...updated[photoIndex],
                   generating: true,
                   loading: true,
-                  statusText: workerName ? `${workerName} starting...` : 'Art Robot starting...',
-                  workerName: workerName || 'unknown',
+                  statusText: workerName ? `${workerName} initing model` : 'Initializing model...',
+                  workerName: workerName || 'Worker',
+                  jobId,
+                  jobIndex,
+                  positivePrompt,
+                  stylePrompt: stylePromptValue?.trim() || '',
+                  hashtag
+                };
+              } else if (type === 'started') {
+                // 'started' means model is loaded and generation has begun
+                let hashtag = '';
+                const stylePromptValue = updated[photoIndex].stylePrompt;
+                if (stylePromptValue) {
+                  // Strip transformation prefix for matching
+                  const strippedStylePrompt = stripTransformationPrefix(stylePromptValue);
+                  const foundKey = Object.entries(stylePrompts).find(([, value]) => value === strippedStylePrompt)?.[0];
+                  if (foundKey) {
+                    hashtag = `#${foundKey}`;
+                  }
+                }
+
+                updated[photoIndex] = {
+                  ...updated[photoIndex],
+                  generating: true,
+                  loading: true,
+                  statusText: workerName ? `${workerName} starting...` : 'Starting...',
+                  workerName: workerName || 'Worker',
                   jobId,
                   jobIndex,
                   positivePrompt,
@@ -3226,8 +6102,12 @@ const App = () => {
                 }
               }
               return updated;
-            });
-          }, 50); // Very short throttle for non-progress events
+            };
+            
+            // Update BOTH state arrays
+            setRegularPhotos(updateNonProgress);
+            setPhotos(updateNonProgress);
+          }, 50)); // Very short throttle for non-progress events
           return; // Don't process immediately
         }
 
@@ -3243,16 +6123,20 @@ const App = () => {
       project.on('progress', (progressEvent) => {
         console.log(`Progress event for project ${project.id}:`, progressEvent);
         
+        // Note: Individual job progress is now handled by the adapter for frontend clients
+        // The adapter converts project-level progress to individual job events
+        
         // Check if there's a mismatch between event project ID and current project ID
         if (progressEvent.projectId && progressEvent.projectId !== project.id) {
           console.warn(`Project ID mismatch! Event: ${progressEvent.projectId}, Current: ${project.id}`);
         }
-        
-        // Rest of progress handling
       });
 
       project.on('completed', () => {
         console.log('Project completed');
+        
+        // Note: Event processing is now handled by the adapter for frontend clients
+        // The adapter ensures all necessary events are emitted properly
         
         // Check if there are any outstanding jobs still generating (check both photos state and project jobs)
         const outstandingPhotoJobs = photos.filter(photo => 
@@ -3322,15 +6206,91 @@ const App = () => {
                 // Proceed with completion regardless
                 clearAllTimeouts();
                 activeProjectReference.current = null;
+                
+                // Safety net: Force-clear any photos still marked as generating despite having errors
+                const clearGeneratingFlagsExtended = (prevPhotos) => {
+                  const generatingWithErrors = prevPhotos.filter(photo => 
+                    photo.generating && photo.error && 
+                    (photo.projectId === project.id || photo.projectId === undefined));
+                  
+                  if (generatingWithErrors.length > 0) {
+                    return prevPhotos.map(photo => {
+                      if (photo.generating && photo.error && 
+                          (photo.projectId === project.id || photo.projectId === undefined)) {
+                        return { ...photo, generating: false, loading: false };
+                      }
+                      return photo;
+                    });
+                  }
+                  return prevPhotos;
+                };
+                
+                setRegularPhotos(clearGeneratingFlagsExtended);
+                setPhotos(clearGeneratingFlagsExtended);
+                
+                // Track demo render completion for non-authenticated users
+                trackDemoRenderCompletion();
+                
+                // Track generation with campaign attribution
+                const campaignSource = getCampaignSource();
                 trackEvent('Generation', 'complete', selectedStyle);
+                if (campaignSource) {
+                  trackEvent('Gimi Challenge', 'conversion_batch_complete', `Source: ${campaignSource}`);
+                }
+                
                 triggerBatchCelebration();
+
+                // Trigger video intro popup 5 seconds after first successful batch render
+                if (videoIntroTriggerRef.current) {
+                  setTimeout(() => {
+                    videoIntroTriggerRef.current();
+                  }, 5000);
+                }
               }, 7000); // Additional 7 second delay (10 total)
             } else {
               console.log('All jobs completed after delay, proceeding with project completion.');
               clearAllTimeouts();
               activeProjectReference.current = null;
+              
+              // Safety net: Force-clear any photos still marked as generating despite having errors
+              const clearGeneratingFlagsDelayed = (prevPhotos) => {
+                const generatingWithErrors = prevPhotos.filter(photo => 
+                  photo.generating && photo.error && 
+                  (photo.projectId === project.id || photo.projectId === undefined));
+                
+                if (generatingWithErrors.length > 0) {
+                  return prevPhotos.map(photo => {
+                    if (photo.generating && photo.error && 
+                        (photo.projectId === project.id || photo.projectId === undefined)) {
+                      return { ...photo, generating: false, loading: false };
+                    }
+                    return photo;
+                  });
+                }
+                return prevPhotos;
+              };
+              
+              setRegularPhotos(clearGeneratingFlagsDelayed);
+              setPhotos(clearGeneratingFlagsDelayed);
+              
+              // Track demo render completion for non-authenticated users
+              trackDemoRenderCompletion();
+              
+              // Track generation with campaign attribution
+              const campaignSource = getCampaignSource();
               trackEvent('Generation', 'complete', selectedStyle);
+              if (campaignSource) {
+                trackEvent('Gimi Challenge', 'conversion_batch_complete', `Source: ${campaignSource}`);
+              }
+              
               triggerBatchCelebration();
+
+              // Trigger video intro popup 5 seconds after first successful batch render
+              if (videoIntroTriggerRef.current) {
+                setTimeout(() => {
+                  videoIntroTriggerRef.current();
+                }, 5000);
+              }
             }
           }, 3000); // Initial 3 second delay
         } else {
@@ -3341,16 +6301,185 @@ const App = () => {
           
           activeProjectReference.current = null; // Clear active project reference when complete
           
-          // Track successful generation completion
+          // Safety net: Force-clear any photos still marked as generating despite having errors
+          // This handles edge case race conditions in React state updates
+          const clearGeneratingFlags = (prevPhotos) => {
+            const generatingWithErrors = prevPhotos.filter(photo => 
+              photo.generating && photo.error && 
+              (photo.projectId === project.id || photo.projectId === undefined));
+            
+            if (generatingWithErrors.length > 0) {
+              return prevPhotos.map(photo => {
+                if (photo.generating && photo.error && 
+                    (photo.projectId === project.id || photo.projectId === undefined)) {
+                  return {
+                    ...photo,
+                    generating: false,
+                    loading: false
+                  };
+                }
+                return photo;
+              });
+            }
+            return prevPhotos;
+          };
+          
+          // Update both state arrays
+          setRegularPhotos(clearGeneratingFlags);
+          setPhotos(clearGeneratingFlags);
+          
+          // Track demo render completion for non-authenticated users
+          trackDemoRenderCompletion();
+          
+          // Track successful generation completion with campaign attribution
+          const campaignSource = getCampaignSource();
           trackEvent('Generation', 'complete', selectedStyle);
+          if (campaignSource) {
+            trackEvent('Gimi Challenge', 'conversion_batch_complete', `Source: ${campaignSource}`);
+          }
           
           // Trigger celebration for successful batch completion
           triggerBatchCelebration();
+
+          // Trigger video intro popup 5 seconds after first successful batch render
+          if (videoIntroTriggerRef.current) {
+            setTimeout(() => {
+              videoIntroTriggerRef.current();
+            }, 5000);
+          }
         }
       });
 
       project.on('failed', (error) => {
         console.error('Project failed:', error);
+        
+        // Check for email verification error (code 4052)
+        if (error && typeof error === 'object' && 
+            (error.code === 4052 || (error.message && error.message.includes('verify your email')))) {
+          console.error('❌ Email verification required');
+          setBackendError({
+            type: 'auth_error',
+            title: '📧 Email Verification Required',
+            message: 'Your Sogni account email needs to be verified to generate images.',
+            details: 'Please check your email and click the verification link, then try again. You can also verify your email at app.sogni.ai.',
+            canRetry: true,
+            fallbackUrl: 'https://app.sogni.ai/profile',
+            fallbackText: 'Verify Email',
+            fallbackLabel: 'Go to Profile'
+          });
+          
+          // Clear all timeouts when project fails
+          clearAllTimeouts();
+          activeProjectReference.current = null;
+          
+          // Mark all generating photos as failed
+          setRegularPhotos(prevPhotos => {
+            return prevPhotos.map(photo => {
+              if (photo.generating) {
+                return {
+                  ...photo,
+                  generating: false,
+                  loading: false,
+                  error: 'EMAIL VERIFICATION REQUIRED',
+                  permanentError: true,
+                  statusText: 'Verify Email'
+                };
+              }
+              return photo;
+            });
+          });
+          
+          return;
+        }
+
+        // Check for insufficient funds error (code 4024)
+        if (error && typeof error === 'object' &&
+            (error.code === 4024 || (error.message && error.message.toLowerCase().includes('insufficient funds')))) {
+          console.error('❌ Insufficient funds - user is out of credits');
+
+          // Clear all timeouts when project fails
+          clearAllTimeouts();
+          activeProjectReference.current = null;
+
+          // Mark all generating photos as cancelled
+          setRegularPhotos(prevPhotos => {
+            return prevPhotos.map(photo => {
+              if (photo.generating) {
+                return {
+                  ...photo,
+                  generating: false,
+                  loading: false,
+                  error: getCreditErrorMessage('INSUFFICIENT CREDITS'),
+                  permanentError: true,
+                  statusText: 'Out of Credits',
+                  cancelled: true
+                };
+              }
+              return photo;
+            });
+          });
+
+          // Show daily boost if available, otherwise out of credits popup
+          handleOutOfCreditsShow();
+
+          return;
+        }
+
+        // Check if this is a batch-cancelling error (like code 4007)
+        if (error && typeof error === 'object') {
+          // Import the shouldCancelBatchForError function logic here
+          const shouldCancel = (
+            (error.code && [4007, 4008, 4009, 4010, 4011, 4012, 4013, 4014, 4016, 4017, 4018, 4019, 4020].includes(error.code)) ||
+            (error.message && (
+              error.message.toLowerCase().includes('internal error') ||
+              error.message.toLowerCase().includes('service unavailable') ||
+              error.message.toLowerCase().includes('processing failed') ||
+              error.message.toLowerCase().includes('system error') ||
+              error.message.toLowerCase().includes('server error') ||
+              error.message.toLowerCase().includes('failed due to an internal error')
+            ))
+          );
+
+          if (shouldCancel) {
+            console.log('Project failed with batch-cancelling error, showing toast and cancelling batch');
+            
+            // Show appropriate toast notification
+            const errorMessage = error.code === 4007 ? 
+              'Image generation failed due to an internal error. Your batch has been cancelled.' :
+              `Processing failed: ${error.message || 'Unknown error'}. Your batch has been cancelled.`;
+            
+            showToast({
+              title: 'Processing Failed',
+              message: errorMessage,
+              type: 'error',
+              timeout: 8000
+            });
+            
+            // Cancel the batch using the same logic as cancelBatchOnError
+            clearAllTimeouts();
+            activeProjectReference.current = null;
+            
+            // Mark all generating photos as cancelled
+            setRegularPhotos(prevPhotos => {
+              return prevPhotos.map(photo => {
+                if (photo.generating) {
+                  return {
+                    ...photo,
+                    generating: false,
+                    loading: false,
+                    error: 'BATCH CANCELLED',
+                    permanentError: true,
+                    statusText: 'Cancelled',
+                    cancelled: true
+                  };
+                }
+                return photo;
+              });
+            });
+            
+            return; // Exit early for batch-cancelling errors
+          }
+        }
         
         // Clear all timeouts when project fails
         clearAllTimeouts();
@@ -3365,7 +6494,8 @@ const App = () => {
         const effectiveProjectId = errorProjectId || failedProjectId;
         
         // Only clear active project reference if it matches the failed project
-        if (activeProjectReference.current && activeProjectReference.current.id === effectiveProjectId) {
+        // Note: activeProjectReference.current stores the project ID string directly (not an object)
+        if (activeProjectReference.current && activeProjectReference.current === effectiveProjectId) {
           console.log(`Project failed with ID ${effectiveProjectId}`);
           console.log(`Clearing active project reference for failed project ${effectiveProjectId}`);
           activeProjectReference.current = null;
@@ -3388,7 +6518,7 @@ const App = () => {
               
               if (error && typeof error === 'object') {
                 if (error.isInsufficientFunds || error.errorCode === 'insufficient_funds') {
-                  errorMessage = 'GENERATION FAILED: replenish tokens';
+                  errorMessage = getCreditErrorMessage('GENERATION FAILED: replenish tokens');
                 } else if (error.isAuthError || error.errorCode === 'auth_error') {
                   errorMessage = 'GENERATION FAILED: authentication failed';
                 } else if (error.isOffline || error.name === 'NetworkError' || 
@@ -3401,7 +6531,7 @@ const App = () => {
                 } else if (error.message) {
                   // Extract key info from error message
                   if (error.message.includes('Insufficient') || error.message.includes('credits')) {
-                    errorMessage = 'GENERATION FAILED: replenish tokens';
+                    errorMessage = getCreditErrorMessage('GENERATION FAILED: replenish tokens');
                   } else if (error.message.includes('auth') || error.message.includes('token')) {
                     errorMessage = 'GENERATION FAILED: authentication failed';
                   } else {
@@ -3410,7 +6540,7 @@ const App = () => {
                 }
               } else if (typeof error === 'string') {
                 if (error.includes('Insufficient') || error.includes('credits')) {
-                  errorMessage = 'GENERATION FAILED: replenish tokens';
+                  errorMessage = getCreditErrorMessage('GENERATION FAILED: replenish tokens');
                 } else if (error.includes('auth') || error.includes('token')) {
                   errorMessage = 'GENERATION FAILED: authentication failed';
                 } else if (error.includes('network') || error.includes('connection') || 
@@ -3444,81 +6574,142 @@ const App = () => {
       project.on('jobCompleted', (job) => {
         const isPreview = job.isPreview === true;
         
-        // Clear job timeout when it completes (only for final, not previews)
+        // Clear job timeout and pending throttled progress updates (only for final, not previews)
         if (!isPreview) {
           clearJobTimeout(job.id);
+          // Clear pending throttled progress updates so they don't re-set generating:true
+          if (progressUpdateTimeouts.has(job.id)) {
+            clearTimeout(progressUpdateTimeouts.get(job.id));
+            progressUpdateTimeouts.delete(job.id);
+          }
+          if (nonProgressUpdateTimeouts.has(job.id)) {
+            clearTimeout(nonProgressUpdateTimeouts.get(job.id));
+            nonProgressUpdateTimeouts.delete(job.id);
+          }
         }
         
+        // FAILSAFE ERROR HANDLING: Check for missing resultUrl
+        // Note: The frontend adapter should now emit jobFailed for these cases,
+        // but we keep this as a defensive failsafe for edge cases
         if (!job.resultUrl) {
-          console.error('Missing resultUrl for job:', job.id);
-          return;
+          console.error('Missing resultUrl for job (failsafe handler):', job.id);
+          
+          // Get job index for error handling
+          const jobIndex = projectJobMap.get(job.id);
+          if (jobIndex === undefined) {
+            console.error('Unknown job completed with missing resultUrl:', job.id);
+            console.error('jobMap contents:', Array.from(projectJobMap.entries()));
+            console.error('Job details:', job);
+            return;
+          }
+
+          const offset = keepOriginalPhoto ? 1 : 0;
+          const photoIndex = jobIndex + offset;
+
+          // Determine error type
+          let errorMessage = 'GENERATION FAILED: result missing';
+          let errorType = 'missing_result';
+          
+          // Check for NSFW filtering (should be handled by jobFailed now, but keep as failsafe)
+          if (job.isNSFW === true) {
+            console.warn(`Job ${job.id} was flagged as NSFW (failsafe handler)`);
+            errorMessage = 'CONTENT FILTERED: NSFW detected';
+            errorType = 'nsfw_filtered';
+          }
+          
+          // Update photo state with error (update BOTH state arrays)
+          const markJobMissingResult = (previous) => {
+            const updated = [...previous];
+            if (!updated[photoIndex]) {
+              console.error(`No photo box found at index ${photoIndex}`);
+              return previous;
+            }
+            
+            updated[photoIndex] = {
+              ...updated[photoIndex],
+              generating: false,
+              loading: false,
+              error: errorMessage,
+              permanentError: true,
+              statusText: 'Failed',
+              errorType: errorType
+            };
+            
+            // Check if all photos are done generating
+            const stillGenerating = updated.some(photo => photo.generating);
+            const successfulPhotos = updated.filter(p => !p.error && p.images && p.images.length > 0).length;
+            const allDone = updated.every(p => !p.loading && !p.generating);
+            
+            console.log(`Failsafe: Updated photo ${photoIndex} with error. AllDone: ${allDone}, Successful: ${successfulPhotos}/${updated.length}`);
+            
+            if (!stillGenerating && activeProjectReference.current) {
+              clearAllTimeouts();
+              activeProjectReference.current = null;
+              trackDemoRenderCompletion();
+              triggerPromoPopupIfNeeded();
+            }
+            
+            return updated;
+          };
+          
+          setRegularPhotos(markJobMissingResult);
+          setPhotos(markJobMissingResult);
+          
+          return; // Don't process further
         }
         
-        const jobIndex = projectStateReference.current.jobMap.get(job.id);
+        const jobIndex = projectJobMap.get(job.id);
         const offset = keepOriginalPhoto ? 1 : 0;
         const photoIndex = jobIndex + offset;
         const positivePrompt = job.positivePrompt;
         
         // Handle preview vs final image loading
         if (isPreview) {
-          console.log(`[PREVIEW DEBUG] Processing preview for photo ${photoIndex}:`, {
-            jobId: job.id,
-            resultUrl: job.resultUrl,
-            previewUrl: job.previewUrl,
-            isPreview,
-            jobKeys: Object.keys(job)
-          });
-          
           // PREVIEW IMAGE - load immediately without affecting status text
           fetch(job.resultUrl)
             .then(response => {
-              console.log(`[PREVIEW DEBUG] Fetch response for photo ${photoIndex}:`, {
-                status: response.status,
-                statusText: response.statusText,
-                headers: Object.fromEntries(response.headers.entries()),
-                url: response.url
-              });
-              
               if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
               }
-              
               return response.blob();
             })
             .then(blob => {
-              console.log(`[PREVIEW DEBUG] Blob created for photo ${photoIndex}:`, {
-                size: blob.size,
-                type: blob.type
-              });
-              
               const objectUrl = URL.createObjectURL(blob);
               
               setRegularPhotos(previous => {
                 const updated = [...previous];
                 if (updated[photoIndex] && !updated[photoIndex].permanentError) {
-                  // Clean up previous preview image URL to prevent memory leaks with frequent previews
+                  // Save the current image as previousPreviewUrl for crossfade effect
+                  // This allows the new image to fade in over the old one instead of white
                   const currentImages = updated[photoIndex].images;
+                  const previousPreviewUrl = (currentImages && currentImages.length > 0) 
+                    ? currentImages[0] 
+                    : updated[photoIndex].originalDataUrl; // Fall back to original photo
+                  
+                  // Schedule cleanup of old blob URLs after the fade transition completes (2.5 seconds)
                   if (currentImages && currentImages.length > 0 && updated[photoIndex].isPreview) {
-                    currentImages.forEach(imageUrl => {
-                      if (imageUrl && imageUrl.startsWith('blob:')) {
-                        URL.revokeObjectURL(imageUrl);
-                      }
-                    });
+                    const urlsToCleanup = [...currentImages];
+                    setTimeout(() => {
+                      urlsToCleanup.forEach(imageUrl => {
+                        if (imageUrl && imageUrl.startsWith('blob:')) {
+                          URL.revokeObjectURL(imageUrl);
+                        }
+                      });
+                    }, 2500); // Clean up after fade transition completes
                   }
                   
                   const newPreviewCount = (updated[photoIndex].previewUpdateCount || 0) + 1;
                   
                   updated[photoIndex] = {
                     ...updated[photoIndex],
-                    images: [objectUrl], // Show preview
-                    newlyArrived: true,
+                    images: [objectUrl], // Show new preview
+                    previousPreviewUrl, // Store previous image for crossfade background
+                    newlyArrived: false, // Don't trigger pop-in animation for previews
                     isPreview: true, // Mark as preview for styling
                     previewUpdateCount: newPreviewCount // Track preview updates
                     // Keep existing generating: true and progress from generation events
                     // Don't override loading or statusText
                   };
-                  
-
                 }
                 return updated;
               });
@@ -3533,44 +6724,39 @@ const App = () => {
         // FINAL IMAGE - handle hashtags and completion
         // Handle hashtag generation for final jobs
         let hashtag = '';
-        
-        // Debug logging to understand what we're working with
-        console.log('📸 Hashtag debug:', { 
-          positivePrompt, 
-          stylePrompt: stylePrompt?.trim(), 
-          selectedStyle,
-          jobIndex
-        });
-        
-        // Strategy 1: Try to match positivePrompt from job
-        if (positivePrompt && !hashtag) {
+
+        // Strip transformation prefix for matching (edit models prepend this to non-edit prompts)
+        const strippedPositivePrompt = stripTransformationPrefix(positivePrompt);
+
+        // Strategy 1: Try to match positivePrompt from job (with prefix stripped)
+        if (strippedPositivePrompt && !hashtag) {
           // First check current stylePrompts (which includes Flux prompts when appropriate)
-          const foundKey = Object.entries(stylePrompts).find(([, value]) => value === positivePrompt)?.[0];
+          const foundKey = Object.entries(stylePrompts).find(([, value]) => value === strippedPositivePrompt)?.[0];
           if (foundKey && foundKey !== 'custom' && foundKey !== 'random' && foundKey !== 'randomMix') {
             hashtag = `#${foundKey}`;
-            console.log('📸 Found hashtag for completed job via positivePrompt:', { positivePrompt, hashtag, foundKey });
+            console.log('📸 Found hashtag for completed job via positivePrompt:', { positivePrompt: strippedPositivePrompt, hashtag, foundKey });
           }
-          
+
           // Fallback to promptsData for backward compatibility
           if (!hashtag) {
-            const fallbackKey = Object.entries(promptsData).find(([, value]) => value === positivePrompt)?.[0];
+            const fallbackKey = Object.entries(promptsData).find(([, value]) => value === strippedPositivePrompt)?.[0];
             if (fallbackKey && fallbackKey !== 'custom' && fallbackKey !== 'random' && fallbackKey !== 'randomMix') {
               hashtag = `#${fallbackKey}`;
-              console.log('📸 Found hashtag from promptsData fallback via positivePrompt:', { positivePrompt, hashtag, fallbackKey });
+              console.log('📸 Found hashtag from promptsData fallback via positivePrompt:', { positivePrompt: strippedPositivePrompt, hashtag, fallbackKey });
             }
           }
         }
-        
+
         // Strategy 2: If we have a valid stylePrompt, use that to help with hashtag lookup
         if (!hashtag && stylePrompt && stylePrompt.trim()) {
-          const trimmedStylePrompt = stylePrompt.trim();
+          const trimmedStylePrompt = stripTransformationPrefix(stylePrompt.trim());
           // First check current stylePrompts
           const styleKey = Object.entries(stylePrompts).find(([, value]) => value === trimmedStylePrompt)?.[0];
           if (styleKey && styleKey !== 'custom' && styleKey !== 'random' && styleKey !== 'randomMix') {
             console.log('📸 Found hashtag from stylePrompt:', styleKey);
             hashtag = `#${styleKey}`;
           }
-          
+
           // Fallback to promptsData
           if (!hashtag) {
             const fallbackStyleKey = Object.entries(promptsData).find(([, value]) => value === trimmedStylePrompt)?.[0];
@@ -3580,26 +6766,37 @@ const App = () => {
             }
           }
         }
-        
+
         // Strategy 3: Fall back to selectedStyle if it's a valid style
-        if (!hashtag && selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix' && selectedStyle !== 'oneOfEach') {
+        if (!hashtag && selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix' && selectedStyle !== 'oneOfEach' && selectedStyle !== 'simplePick') {
           console.log('📸 Using selectedStyle for hashtag:', selectedStyle);
           hashtag = `#${selectedStyle}`;
         }
-        
+
+        // Strategy 3.5: For custom prompts, use custom scene name if available, otherwise empty string
+        if (!hashtag && selectedStyle === 'custom') {
+          if (customSceneName && customSceneName.trim()) {
+            console.log('📸 Using custom scene name for hashtag:', customSceneName);
+            hashtag = customSceneName; // Use scene name directly without # for custom prompts
+          } else {
+            console.log('📸 Using empty string for custom prompt (no placeholder)');
+            hashtag = ''; // No placeholder text
+          }
+        }
+
         // Strategy 4: Final fallback - try to find ANY matching prompt in our style library
-        if (!hashtag && positivePrompt) {
+        if (!hashtag && strippedPositivePrompt) {
           // Check if the positive prompt contains any known style keywords
           const allStyleKeys = [...Object.keys(stylePrompts), ...Object.keys(promptsData)];
           const matchingKey = allStyleKeys.find(key => {
             const promptValue = stylePrompts[key] || promptsData[key];
             return promptValue && (
-              promptValue === positivePrompt ||
-              positivePrompt.includes(promptValue) ||
-              promptValue.includes(positivePrompt)
+              promptValue === strippedPositivePrompt ||
+              strippedPositivePrompt.includes(promptValue) ||
+              promptValue.includes(strippedPositivePrompt)
             );
           });
-          
+
           if (matchingKey && matchingKey !== 'custom' && matchingKey !== 'random' && matchingKey !== 'randomMix') {
             hashtag = `#${matchingKey}`;
             console.log('📸 Found hashtag via fuzzy matching:', { matchingKey, hashtag });
@@ -3613,20 +6810,43 @@ const App = () => {
             if (updated[photoIndex] && !updated[photoIndex].permanentError) {
               const photoId = updated[photoIndex].id;
               
-              // Play camera wind sound for this final image if we haven't already
-              if (soundEnabled && !soundPlayedForPhotos.current.has(photoId) && cameraWindSoundReference.current) {
+              // Play random flash sound for this final image if we haven't already
+              // Using pre-unlocked audio pool allows concurrent playback and iOS compatibility
+              if (soundEnabled && !soundPlayedForPhotos.current.has(photoId)) {
                 soundPlayedForPhotos.current.add(photoId);
-                
-                // Reset to beginning to ensure sound plays every time
-                cameraWindSoundReference.current.currentTime = 0;
-                
+                playRandomFlashSound();
+              }
+              
+              // Extract promptKey from hashtag or selectedStyle
+              const extractedPromptKey = hashtag ? hashtag.replace('#', '') :
+                (selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix' && selectedStyle !== 'oneOfEach' && selectedStyle !== 'simplePick') ? selectedStyle : undefined;
+              
+              // Determine statusText - use empty string for custom prompts (no placeholder)
+              let statusText;
+              if (hashtag) {
+                statusText = styleIdToDisplay(hashtag.replace('#', ''));
+              } else if (selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix' && selectedStyle !== 'simplePick') {
+                statusText = styleIdToDisplay(selectedStyle);
+              } else {
+                statusText = ''; // No placeholder text
+              }
+              
+              // Save first custom prompt image to localStorage for display in UI
+              if (selectedStyle === 'custom' && positivePrompt) {
                 try {
-                  cameraWindSoundReference.current.play();
-                } catch (error) {
-                  console.warn("Initial camera wind play attempt failed, trying promise-based approach:", error);
-                  cameraWindSoundReference.current.play().catch(error => {
-                    console.warn("Error playing camera wind sound:", error);
-                  });
+                  const existingImage = localStorage.getItem(CUSTOM_PROMPT_IMAGE_KEY);
+                  if (!existingImage) {
+                    // Only save the first image for this custom prompt
+                    const imageData = {
+                      url: loadedImageUrl,
+                      prompt: positivePrompt,
+                      timestamp: Date.now()
+                    };
+                    safeLocalStorageSetItem(CUSTOM_PROMPT_IMAGE_KEY, JSON.stringify(imageData));
+                    console.log('Saved custom prompt image:', imageData);
+                  }
+                } catch (e) {
+                  console.warn('Failed to save custom prompt image:', e);
                 }
               }
               
@@ -3639,8 +6859,14 @@ const App = () => {
                 newlyArrived: true,
                 isPreview: false, // Clear preview flag so final image shows at full opacity
                 positivePrompt,
+                // customSceneName is already set when photo is created, preserve it
+                customSceneName: updated[photoIndex].customSceneName,
                 stylePrompt: positivePrompt, // Use the actual prompt that was used for generation
-                statusText: hashtag ? styleIdToDisplay(hashtag.replace('#', '')) : (selectedStyle && selectedStyle !== 'custom' && selectedStyle !== 'random' && selectedStyle !== 'randomMix' ? styleIdToDisplay(selectedStyle) : `#${(jobIndex || 0) + 1}`)
+                promptKey: extractedPromptKey, // Track which style was used for favoriting
+                statusText,
+                seed: job.seed, // Capture the actual seed used for generation
+                model: job.model || selectedModel, // Capture model used
+                steps: job.steps || inferenceSteps // Capture steps used
               };
             }
             return updated;
@@ -3657,6 +6883,9 @@ const App = () => {
               clearAllTimeouts();
               activeProjectReference.current = null;
               
+              // Track demo render completion for non-authenticated users
+              trackDemoRenderCompletion();
+              
               // Trigger promotional popup after batch completion
               triggerPromoPopupIfNeeded();
             }
@@ -3666,13 +6895,23 @@ const App = () => {
       });
 
       project.on('jobFailed', (job) => {
+        // CRITICAL: Clear pending throttled progress updates for this job
+        // Otherwise they'll re-set generating: true after we clear it
+        if (progressUpdateTimeouts.has(job.id)) {
+          clearTimeout(progressUpdateTimeouts.get(job.id));
+          progressUpdateTimeouts.delete(job.id);
+        }
+        if (nonProgressUpdateTimeouts.has(job.id)) {
+          clearTimeout(nonProgressUpdateTimeouts.get(job.id));
+          nonProgressUpdateTimeouts.delete(job.id);
+        }
+        
         // Clear job timeout when it fails
         clearJobTimeout(job.id);
         
         console.error('Job failed:', job.id, job.error);
         
-        const jobIndex = projectStateReference.current.jobMap.get(job.id);
-        console.log('Looking up job index for failed job:', job.id, 'found:', jobIndex, 'in map:', projectStateReference.current.jobMap);
+        const jobIndex = projectJobMap.get(job.id);
         if (jobIndex === undefined) {
           console.error('Unknown job failed:', job.id);
           return;
@@ -3680,9 +6919,9 @@ const App = () => {
         
         const offset = keepOriginalPhoto ? 1 : 0;
         const photoIndex = jobIndex + offset;
-        console.log(`Marking failed job ${job.id} for box ${photoIndex}`);
         
-        setRegularPhotos(previous => {
+        // Update function that we'll use for both regularPhotos and photos
+        const updatePhotoWithError = (previous) => {
           const updated = [...previous];
           if (!updated[photoIndex]) {
             console.error(`No photo box found at index ${photoIndex}`);
@@ -3695,36 +6934,45 @@ const App = () => {
           if (job.error) {
             if (typeof job.error === 'object') {
               // Handle error object case
-              if (job.error.isInsufficientFunds || job.error.errorCode === 'insufficient_funds') {
-                errorMessage = 'GENERATION FAILED: replenish tokens';
+              // Check for NSFW filtering first (new error scenario)
+              if (job.error.isNSFW || job.error.nsfwFiltered) {
+                errorMessage = 'CONTENT FILTERED: NSFW detected';
+              } else if (job.error.missingResult) {
+                errorMessage = 'GENERATION FAILED: result missing';
+              } else if (job.error.isInsufficientFunds || job.error.errorCode === 'insufficient_funds') {
+                errorMessage = getCreditErrorMessage('INSUFFICIENT FUNDS: replenish tokens');
               } else if (job.error.isAuthError || job.error.errorCode === 'auth_error') {
-                errorMessage = 'GENERATION FAILED: authentication failed';
+                errorMessage = 'AUTH FAILED: login required';
               } else if (job.error.message) {
                 // Extract key info from error message
                 if (job.error.message.includes('Insufficient') || job.error.message.includes('credits') || job.error.message.includes('funds')) {
-                  errorMessage = 'GENERATION FAILED: replenish tokens';
-                } else if (job.error.message.includes('NSFW') || job.error.message.includes('filtered')) {
-                  errorMessage = 'GENERATION FAILED: content filtered';
+                  errorMessage = getCreditErrorMessage('INSUFFICIENT FUNDS: replenish tokens');
+                } else if (job.error.message.includes('NSFW') || job.error.message.includes('filtered') || job.error.message.includes('CONTENT FILTERED')) {
+                  errorMessage = 'CONTENT FILTERED: NSFW detected';
+                } else if (job.error.message.includes('missing') || job.error.message.includes('result')) {
+                  errorMessage = 'GENERATION FAILED: result missing';
                 } else if (job.error.message.includes('timeout') || job.error.message.includes('worker')) {
-                  errorMessage = 'GENERATION FAILED: processing timeout';
+                  errorMessage = 'GENERATION FAILED: timeout';
                 } else if (job.error.message.includes('network') || job.error.message.includes('connection')) {
-                  errorMessage = 'GENERATION FAILED: connection error';
+                  errorMessage = 'NETWORK ERROR: check connection';
                 } else {
-                  errorMessage = 'GENERATION FAILED: processing error';
+                  errorMessage = 'GENERATION FAILED: unknown error';
                 }
               } else {
-                errorMessage = 'GENERATION FAILED: processing error';
+                errorMessage = 'GENERATION FAILED: unknown error';
               }
             } else if (typeof job.error === 'string') {
               // Handle string error case
               if (job.error.includes('Insufficient') || job.error.includes('credits') || job.error.includes('funds')) {
-                errorMessage = 'GENERATION FAILED: replenish tokens';
-              } else if (job.error.includes('NSFW') || job.error.includes('filtered')) {
-                errorMessage = 'GENERATION FAILED: content filtered';
+                errorMessage = getCreditErrorMessage('INSUFFICIENT FUNDS: replenish tokens');
+              } else if (job.error.includes('NSFW') || job.error.includes('filtered') || job.error.includes('CONTENT FILTERED')) {
+                errorMessage = 'CONTENT FILTERED: NSFW detected';
+              } else if (job.error.includes('missing') || job.error.includes('result')) {
+                errorMessage = 'GENERATION FAILED: result missing';
               } else if (job.error.includes('timeout') || job.error.includes('worker')) {
-                errorMessage = 'GENERATION FAILED: processing timeout';
+                errorMessage = 'GENERATION FAILED: timeout';
               } else if (job.error.includes('network') || job.error.includes('connection')) {
-                errorMessage = 'GENERATION FAILED: connection error';
+                errorMessage = 'NETWORK ERROR: check connection';
               } else {
                 errorMessage = 'GENERATION FAILED: processing error';
               }
@@ -3748,12 +6996,19 @@ const App = () => {
             clearAllTimeouts();
             activeProjectReference.current = null;
             
-            // Trigger promotional popup after batch completion
-            triggerPromoPopupIfNeeded();
+            // Track demo render completion for non-authenticated users
+            trackDemoRenderCompletion();
+            
+          // Trigger promotional popup after batch completion
+          triggerPromoPopupIfNeeded();
           }
           
           return updated;
-        });
+        };
+        
+        // Update BOTH regularPhotos and photos so isGenerating recalculates correctly
+        setRegularPhotos(updatePhotoWithError);
+        setPhotos(updatePhotoWithError);
       });
 
     } catch (error) {
@@ -3763,8 +7018,31 @@ const App = () => {
       setShowUploadProgress(false);
       setUploadProgress(0);
       
+      // Handle WebSocket connection errors for frontend clients
+      if (error && error.message && error.message.includes('WebSocket not connected') && authState.authMode === 'frontend') {
+        console.error('Frontend client WebSocket disconnected - likely email verification required');
+        
+        // Show toast notification for WebSocket disconnection
+        handleSpecificErrors.emailVerification(showToast);
+        
+        setBackendError({
+          type: 'auth_error',
+          title: '📧 Email Verification Required',
+          message: 'Your Sogni account email needs to be verified to generate images.',
+          details: 'Please check your email and click the verification link, then try again. You can also verify your email at app.sogni.ai.',
+          canRetry: true,
+          fallbackUrl: 'https://app.sogni.ai/profile',
+          fallbackText: 'Verify Email',
+          fallbackLabel: 'Go to Profile'
+        });
+      }
+      
       if (error && error.code === 4015) {
         console.warn("Socket error (4015). Re-initializing Sogni.");
+        
+        // Show toast notification for connection switch
+        handleSpecificErrors.connectionSwitched(showToast);
+        
         setIsSogniReady(false);
         initializeSogni();
       }
@@ -3802,7 +7080,7 @@ const App = () => {
           } else if (error) {
             const errorText = error.message || error.toString();
             if (errorText.includes('Insufficient') || errorText.includes('credits') || errorText.includes('funds')) {
-              errorMessage = 'GENERATION FAILED: replenish tokens';
+              errorMessage = getCreditErrorMessage('GENERATION FAILED: replenish tokens');
             } else if (errorText.includes('auth') || errorText.includes('token') || errorText.includes('401')) {
               errorMessage = 'GENERATION FAILED: authentication failed';
             } else if (errorText.includes('network') || errorText.includes('connection') || errorText.includes('fetch')) {
@@ -3883,6 +7161,32 @@ const App = () => {
     setCurrentUploadedImageUrl(tempUrl);
     setCurrentUploadedSource('upload');
     
+    // Store photo data immediately with tempUrl
+    const initialPhotoData = {
+      imageUrl: tempUrl,
+      source: 'upload',
+      blob: file
+    };
+    
+    setLastAdjustedPhoto(initialPhotoData);
+    setLastUploadedPhoto(initialPhotoData); // Set immediately so preview works
+    
+    // Convert blob to data URL for persistent storage (asynchronously)
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      
+      // Update with data URL when ready
+      const updatedPhotoData = {
+        ...initialPhotoData,
+        dataUrl: dataUrl // Add persistent data URL
+      };
+
+      setLastAdjustedPhoto(updatedPhotoData);
+      setLastUploadedPhoto(updatedPhotoData);
+    };
+    reader.readAsDataURL(file);
+    
     // Show the image adjuster
     setShowImageAdjuster(true);
   };
@@ -3891,9 +7195,11 @@ const App = () => {
   //   Capture (webcam)
   // -------------------------
   const handleTakePhoto = async (e) => {
-    if (!isSogniReady || isPhotoButtonCooldown) {
+    if (!isSogniReady || isPhotoButtonCooldown || photoCaptureLockRef.current) {
       return;
     }
+    // Lock immediately (synchronous) to prevent double-fire from rapid keypresses
+    photoCaptureLockRef.current = true;
 
     // Cancel any existing project
     if (activeProjectReference.current) {
@@ -3912,6 +7218,7 @@ const App = () => {
     setIsPhotoButtonCooldown(true);
     setTimeout(() => {
       setIsPhotoButtonCooldown(false);
+      photoCaptureLockRef.current = false;
     }, 5000);
 
     console.log('handleTakePhoto called - device type:', /iphone|ipad|ipod|android/i.test(navigator.userAgent) ? 'mobile' : 'desktop');
@@ -3941,8 +7248,10 @@ const App = () => {
           
           // After a small delay, start the upward animation
           setTimeout(() => {
-            slothicornReference.current.style.transition = 'bottom 0.8s cubic-bezier(0.34, 1.2, 0.64, 1)';
-            slothicornReference.current.style.setProperty('bottom', '0px', 'important');
+            if (slothicornReference.current) {
+              slothicornReference.current.style.transition = 'bottom 0.8s cubic-bezier(0.34, 1.2, 0.64, 1)';
+              slothicornReference.current.style.setProperty('bottom', '0px', 'important');
+            }
           }, 50);
         }
         
@@ -3962,13 +7271,16 @@ const App = () => {
           
           // Wait for animation to complete, then clean up
           setTimeout(() => {
-            slothicornReference.current.style.transition = 'none';
-            slothicornReference.current.classList.remove('animating');
-            // Reset z-index after animation completes
-            slothicornReference.current.style.zIndex = '5000';
+            // Re-check ref since this is a delayed callback
+            if (slothicornReference.current) {
+              slothicornReference.current.style.transition = 'none';
+              slothicornReference.current.classList.remove('animating');
+              // Reset z-index after animation completes
+              slothicornReference.current.style.zIndex = '5000';
+            }
           }, 1500);
         }
-      }, 1200);
+      }, 300);
     }
 
     // Custom canvas size and aspect ratio to match the model's expectations
@@ -4107,7 +7419,7 @@ const App = () => {
       blob: finalBlob
     };
 
-    setLastEditablePhoto(photoData);
+    setLastAdjustedPhoto(photoData);
     
     // Show the image adjuster
     setShowImageAdjuster(true);
@@ -4284,17 +7596,36 @@ const App = () => {
     setCurrentUploadedImageUrl(tempUrl);
     setCurrentUploadedSource('camera');
     
-    // Store this photo data for potential re-editing
-    const photoData = {
+    // Store photo data immediately with tempUrl
+    const initialPhotoData = {
       imageUrl: tempUrl,
       source: 'camera',
       blob: finalBlob
     };
-
-    setLastEditablePhoto(photoData);
     
-    // Show the image adjuster
-    setShowImageAdjuster(true);
+    setLastAdjustedPhoto(initialPhotoData);
+    setLastCameraPhoto(initialPhotoData); // Set immediately so preview works
+    
+    // Convert blob to data URL for persistent storage (asynchronously)
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      
+      // Update with data URL when ready
+      const updatedPhotoData = {
+        ...initialPhotoData,
+        dataUrl: dataUrl // Add persistent data URL
+      };
+
+      setLastAdjustedPhoto(updatedPhotoData);
+      setLastCameraPhoto(updatedPhotoData);
+    };
+    reader.readAsDataURL(finalBlob);
+    
+    // Show the image adjuster after a 1s delay to allow flash and sloth animations to finish
+    setTimeout(() => {
+      setShowImageAdjuster(true);
+    }, 1000);
   };
 
   /**
@@ -4354,6 +7685,40 @@ const App = () => {
     setCameraManuallyStarted(true); // User explicitly selected a camera
   };
 
+  // Handle browser back/forward button navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const url = new URL(window.location.href);
+      const pageParam = url.searchParams.get('page');
+
+      console.log('🔙 Browser back/forward button pressed, page param:', pageParam, 'navigationSource:', navigationSourceRef.current);
+
+      if (pageParam === 'prompts') {
+        // Navigating forward to prompts page (or direct access)
+        setCurrentPage('prompts');
+        setShowPhotoGrid(true);
+        setSelectedPhotoIndex(null);
+        stopCamera();
+      } else {
+        // Navigating back from prompts to camera/start menu
+        // Use the stored navigation source to determine where to go
+        if (navigationSourceRef.current === 'photoGrid') {
+          // User came from photo grid, so go back to photo grid
+          handleBackToPhotosFromPromptSelector(true);
+        } else {
+          // User came from start menu, so go back to start menu
+          handleBackToCameraFromPromptSelector(true);
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [stopCamera, handleBackToPhotosFromPromptSelector, handleBackToCameraFromPromptSelector]);
+
   // -------------------------
   //   Main area (video)
   // -------------------------
@@ -4368,55 +7733,7 @@ const App = () => {
       overflow: 'hidden',
       background: window.extensionMode ? 'transparent' : undefined, // Make transparent in extension mode
     }}>
-      {/* Style selector in top left - shown on photo grid page when not in Style Explorer */}
-      {showPhotoGrid && currentPage !== 'prompts' && (
-        <div className="top-left-style-selector" style={{
-          position: 'fixed',
-          top: '24px',
-          left: '20px',
-          zIndex: 9999,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-start',
-        }}>
-        <button
-          className="header-style-select global-style-btn"
-          onClick={handleStyleSelectorClick}
-          style={{
-            all: 'unset',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontFamily: '"Permanent Marker", cursive',
-            fontSize: '14px',
-            color: '#333',
-            cursor: 'pointer',
-            padding: '8px 16px',
-            paddingRight: '24px',
-            borderRadius: '20px',
-            background: window.extensionMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(255, 255, 255, 0.9)',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-            transition: 'all 0.2s',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis'
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.background = 'white';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)';
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
-          }}
-        >
-          <span className="style-text" style={{ maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {selectedStyle === 'custom' ? 'STYLE: Custom...' : selectedStyle ? `STYLE: ${styleIdToDisplay(selectedStyle)}` : 'Select Style'}
-          </span>
-        </button>
-          
-        </div>
-      )}
+      {/* Auth Status is now rendered globally below - removed duplicate */}
 
       {/* Upload Progress Modal */}
       <UploadProgress
@@ -4437,12 +7754,125 @@ const App = () => {
         }}
       />
 
-      {/* Success Toast */}
-      <SuccessToast
-        message={successMessage}
-        isVisible={showSuccessToast}
-        onClose={() => setShowSuccessToast(false)}
-      />
+      {/* Session Transfer Modal - Non-dismissable full-screen overlay */}
+      {authState.sessionTransferred && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.85)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 999999,
+          padding: '20px',
+          backdropFilter: 'blur(8px)'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+            borderRadius: '16px',
+            maxWidth: '90%',
+            width: '500px',
+            padding: '0',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            overflow: 'hidden'
+          }}>
+            {/* Header with orange accent for session transfer */}
+            <div style={{
+              background: 'linear-gradient(135deg, #ff9800 0%, #ff9800dd 100%)',
+              padding: '24px 32px 20px 32px',
+              color: 'white',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '3rem', marginBottom: '8px' }}>
+                🔄
+              </div>
+              <h3 style={{ 
+                margin: '0', 
+                fontSize: '1.4rem',
+                fontWeight: '600',
+                textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+              }}>
+                Session Transferred
+              </h3>
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: '24px 32px' }}>
+              <p style={{
+                fontSize: '1rem',
+                color: '#2c3e50',
+                lineHeight: '1.6',
+                margin: '0 0 24px 0'
+              }}>
+                {authState.error}
+              </p>
+
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                justifyContent: 'center'
+              }}>
+                <button
+                  onClick={() => authState.checkExistingSession()}
+                  style={{
+                    flex: 1,
+                    background: 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '12px 24px',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(76, 175, 80, 0.4)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(76, 175, 80, 0.3)';
+                  }}
+                >
+                  Resume Here
+                </button>
+                <button
+                  onClick={() => window.location.reload()}
+                  style={{
+                    flex: 1,
+                    background: 'transparent',
+                    color: '#666',
+                    border: '1px solid #ddd',
+                    borderRadius: '8px',
+                    padding: '10px 24px',
+                    fontSize: '0.9rem',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.background = '#f5f5f5';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  Refresh Browser
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast notifications are now handled by ToastProvider */}
 
       {currentPage === 'prompts' ? (
         <>
@@ -4456,12 +7886,12 @@ const App = () => {
                 selectedPhotoIndex={selectedPhotoIndex}
                 setSelectedPhotoIndex={setSelectedPhotoIndex}
                 showPhotoGrid={true}
-                handleBackToCamera={handleBackToCameraFromPromptSelector}
-                handlePreviousPhoto={handlePreviousPhoto}
-                handleNextPhoto={handleNextPhoto}
-                handlePhotoViewerClick={handlePhotoViewerClick}
+          handleBackToCamera={handleBackToCameraFromPromptSelector}
+          handlePhotoViewerClick={handlePhotoViewerClick}
                 handleGenerateMorePhotos={handleGenerateMorePhotos}
+                handleOpenImageAdjusterForNextBatch={handleOpenImageAdjusterForNextBatch}
                 handleShowControlOverlay={() => setShowControlOverlay(!showControlOverlay)}
+                numImages={numImages}
                 isGenerating={photos.some(photo => photo.generating)}
                 keepOriginalPhoto={keepOriginalPhoto}
                 lastPhotoData={lastPhotoData}
@@ -4481,26 +7911,44 @@ const App = () => {
                 outputFormat={outputFormat}
                 sensitiveContentFilter={sensitiveContentFilter}
                 handleShareToX={handleShareToX}
+                handleShareViaWebShare={handleShareViaWebShare}
+                handleShareQRCode={handleKioskModeShare}
+                handleStitchedVideoQRShare={handleStitchedVideoQRShare}
                 slothicornAnimationEnabled={slothicornAnimationEnabled}
                 backgroundAnimationsEnabled={backgroundAnimationsEnabled}
                 tezdevTheme={tezdevTheme}
+                brandLogo={brandLogo}
+                brandTitle={brandTitle}
                 aspectRatio={aspectRatio}
                 handleRetryPhoto={handleRetryPhoto}
+                handleRefreshPhoto={handleRefreshPhoto}
                 onUseGalleryPrompt={handleUseGalleryPrompt}
                 onPreGenerateFrame={handlePreGenerateFrameCallback}
                 onFramedImageCacheUpdate={handleFramedImageCacheUpdate}
                 onClearQrCode={() => {
                   if (qrCodeData) {
                     console.log('Clearing QR code due to image enhancement');
-                    setQrCodeData(null);
                   }
+                  setQrCodeData(null);
                 }}
                 onClearMobileShareCache={() => {
                   console.log('Clearing mobile share cache due to PhotoGallery request');
                   setMobileShareCache({});
                 }}
+                onRegisterFrameCacheClear={(clearFunction) => {
+                  photoGalleryFrameClearRef.current = clearFunction;
+                }}
+                onCopyImageStyleSelect={handleStyleReferenceUpload}
+                styleReferenceImage={styleReferenceImage}
+                onRemoveStyleReference={handleRemoveStyleReference}
+                onEditStyleReference={handleEditStyleReference}
                 qrCodeData={qrCodeData}
                 onCloseQR={() => setQrCodeData(null)}
+                onOutOfCredits={() => {
+                  console.log('[ENHANCE] Triggering out of credits popup from PhotoGallery (prompt selector)');
+                  handleOutOfCreditsShow();
+                }}
+                onOpenLoginModal={isEventDomain() ? undefined : () => authStatusRef.current?.openLoginModal()}
                 // New props for prompt selector mode
                 isPromptSelectorMode={true}
                 selectedModel={selectedModel}
@@ -4508,9 +7956,16 @@ const App = () => {
                 onRandomMixSelect={handleRandomMixFromPage}
                 onRandomSingleSelect={handleRandomSingleFromPage}
                 onOneOfEachSelect={handleOneOfEachFromPage}
+                onSimplePickSelect={handleSimplePickFromPage}
                 onCustomSelect={handleCustomFromSampleGallery}
                 onThemeChange={handleThemeChange}
-                onBackToPhotos={handleBackToPhotosFromPromptSelector}
+                initialThemeGroupState={currentThemeState}
+                onSearchChange={handleSearchChange}
+                initialSearchTerm={urlSearchTerm}
+                portraitType={portraitType}
+                onPortraitTypeChange={handlePortraitTypeChange}
+                authState={authState}
+                onCustomPromptsUpdated={handleCustomPromptsUpdated}
               />
             </div>
           )}
@@ -4518,25 +7973,64 @@ const App = () => {
       ) : showStartMenu ? (
         <>
           <CameraStartMenu
-            onTakePhoto={handleTakePhotoOption}
+            brandTitle={brandTitle}
+            brandLogo={brandLogo}
+            brandBackgroundImage={brandBackgroundImage}
+            onTakePhoto={handleShowExistingCameraPhoto}
             onBrowsePhoto={handleBrowsePhotoOption}
             onDragPhoto={handleDragPhotoOption}
             isProcessing={!!activeProjectReference.current || isPhotoButtonCooldown}
-            hasPhotos={photos.length > 0}
             onViewPhotos={null} // Remove the onViewPhotos prop as we're moving the button out
             // Style selector props
             selectedStyle={selectedStyle}
             onStyleSelect={handleUpdateStyle}
             stylePrompts={stylePrompts}
-            selectedModel={selectedModel}
             onNavigateToGallery={handleNavigateToPromptSelector}
-            onShowControlOverlay={() => setShowControlOverlay(true)}
-            onThemeChange={handleThemeChange}
+            portraitType={portraitType}
+            styleReferenceImage={styleReferenceImage}
+            // Photo tracking props
+            originalPhotoUrl={
+              // Show lastCameraPhoto for camera preview
+              (lastCameraPhoto?.dataUrl || lastCameraPhoto?.imageUrl)
+                ? (lastCameraPhoto.dataUrl || lastCameraPhoto.imageUrl)
+                : photos.find(p => p.isOriginal)?.originalDataUrl || null
+            }
+            photoSourceType={
+              // Show camera source type if we have a camera photo
+              (lastCameraPhoto?.dataUrl || lastCameraPhoto?.imageUrl)
+                ? 'camera'
+                : photos.find(p => p.isOriginal)?.sourceType || null
+            }
+            reusablePhotoUrl={
+              // Show lastUploadedPhoto for upload preview - ONLY use lastUploadedPhoto
+              (lastUploadedPhoto?.dataUrl || lastUploadedPhoto?.imageUrl)
+                ? (lastUploadedPhoto.dataUrl || lastUploadedPhoto.imageUrl)
+                : null
+            }
+            reusablePhotoSourceType={
+              // Check lastUploadedPhoto - ONLY use lastUploadedPhoto
+              (lastUploadedPhoto?.dataUrl || lastUploadedPhoto?.imageUrl)
+                ? 'upload'
+                : null
+            }
+            // Handler to show existing upload in adjuster
+            onShowExistingUpload={handleShowExistingUpload}
+            hasExistingUpload={
+              // Check if there's a stored upload - ONLY check lastUploadedPhoto
+              !!(lastUploadedPhoto && (lastUploadedPhoto.blob || lastUploadedPhoto.dataUrl))
+            }
+            // Reset handlers for camera and upload photos
+            onResetCameraPhoto={handleResetCameraPhoto}
+            onResetUploadedPhoto={handleResetUploadedPhoto}
+            // Theme + personalize data for preview
+            currentThemes={currentThemeState}
+            personalizePrompts={personalizePrompts}
+            personalizeAddress={personalizeAddress}
           />
           
 
           
-          {/* Move the corner button outside of CameraStartMenu */}
+          {/* Photos button - show when user has photos */}
           {showStartMenu && photos.length > 0 && !showPhotoGrid && (
             <button 
               className="corner-btn photos-corner-btn"
@@ -4558,10 +8052,12 @@ const App = () => {
         <>
           {/* Show camera view only when start menu is not shown */}
           <CameraView
+            brandTitle={(showSplashOnInactivity || isEventDomain()) ? brandTitle : null}
+            brandLogo={(showSplashOnInactivity || isEventDomain()) ? brandLogo : null}
             videoRef={videoReference}
             isReady={isSogniReady && !isPhotoButtonCooldown}
             countdown={countdown}
-            isDisabled={isPhotoButtonCooldown}
+            isDisabled={isPhotoButtonCooldown || showImageAdjuster}
             buttonLabel={isPhotoButtonCooldown ? "Get Ready!" : "Take Photo"}
             onTakePhoto={handleTakePhoto}
             showPhotoGrid={showPhotoGrid}
@@ -4584,7 +8080,25 @@ const App = () => {
             modelOptions={getModelOptions()}
             selectedModel={selectedModel}
             onModelSelect={(value) => {
-              console.log(`Model selected: ${value}`);
+              console.log(`🔧 Manual model change: ${selectedModel} → ${value}`);
+              
+              // Mark that user explicitly selected a model - disable auto-switching
+              userExplicitlySelectedModelRef.current = true;
+              console.log('🙋 User explicitly selected a model - auto-switching disabled');
+              
+              // Track if user manually selected DreamShaper
+              if (value === 'coreml-dreamshaperXL_v21TurboDPMSDE') {
+                dreamShaperAutoSelectedRef.current = false; // User manually selected it
+                console.log('🔧 User manually selected DreamShaper - will not auto-switch away');
+              }
+              
+              // If switching away from DreamShaper, clear winter context
+              if (selectedModel === 'coreml-dreamshaperXL_v21TurboDPMSDE' && value !== 'coreml-dreamshaperXL_v21TurboDPMSDE') {
+                console.log('🔧 Clearing winter context (leaving DreamShaper)');
+                updateSetting('winterContext', false);
+                dreamShaperAutoSelectedRef.current = false; // Reset the flag
+              }
+              
               switchToModel(value);
             }}
             numImages={numImages}
@@ -4613,13 +8127,13 @@ const App = () => {
             onInferenceStepsChange={(value) => {
               updateSetting('inferenceSteps', value);
             }}
+            sampler={sampler}
+            onSamplerChange={(value) => {
+              updateSetting('sampler', value);
+            }}
             scheduler={scheduler}
             onSchedulerChange={(value) => {
               updateSetting('scheduler', value);
-            }}
-            timeStepSpacing={timeStepSpacing}
-            onTimeStepSpacingChange={(value) => {
-              updateSetting('timeStepSpacing', value);
             }}
             flashEnabled={flashEnabled}
             onFlashEnabledChange={(value) => {
@@ -4648,16 +8162,25 @@ const App = () => {
             }}
             onResetSettings={resetSettings}
             onBackToMenu={handleBackToMenu}
-            lastPhotoData={lastEditablePhoto}
+            lastPhotoData={lastCameraPhoto}
             onThumbnailClick={handleThumbnailClick}
           />
           
           {/* Other UI elements like canvas, flash effect, etc. */}
           <canvas ref={canvasReference} style={{ display: 'none' }} />
           
+          {/* Brand title overlay - top left corner of camera view (only when auth status is hidden to avoid overlap) */}
+          {!showStartMenu && !showPhotoGrid && brandLogo && (showSplashOnInactivity || isEventDomain()) && (
+            <div style={{ position: 'fixed', top: 24, left: 24, zIndex: 1100, display: 'flex', alignItems: 'center', gap: 7 }}>
+              <img src={brandLogo} alt="" style={{ height: '1.6rem', width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))' }} />
+              <span style={{ fontFamily: "'Permanent Marker', cursive", fontSize: '0.8rem', color: 'var(--brand-dark-text)', opacity: 0.5 }}>x</span>
+              <span style={{ fontFamily: "'Permanent Marker', cursive", fontSize: '0.93rem', color: 'var(--brand-dark-text)', textShadow: '2px 2px 4px rgba(0, 0, 0, 0.1)', lineHeight: 1.15, textAlign: 'center' }}>Sogni<br />Photobooth</span>
+            </div>
+          )}
+
           {/* Back to Menu Button - moved outside of CameraView */}
           {!showStartMenu && !showPhotoGrid && (
-            <button 
+            <button
               className="corner-btn back-to-menu-btn"
               onClick={handleBackToMenu}
               aria-label="Back to Main Menu"
@@ -4686,6 +8209,8 @@ const App = () => {
       console.log('Clearing QR code when returning to camera');
       setQrCodeData(null);
     }
+    
+    // UI handles Einstein fallback automatically when lastCameraPhoto is null/empty
     
     // Mark the photo grid as hiding with a clean fade-out
     const filmStrip = document.querySelector('.film-strip-container');
@@ -4778,6 +8303,14 @@ const App = () => {
   // The start menu state was moved to the top
   // Handler for the "Take Photo" option in start menu
   const handleTakePhotoOption = async () => {
+    // Clear any previous permission denied state
+    setCameraPermissionDenied(false);
+    
+    // Set waiting state before starting the camera permission flow
+    setWaitingForCameraPermission(true);
+    
+    // UI handles Einstein fallback automatically when lastCameraPhoto is null/empty
+    
     // Add exit animation class
     const startMenuElement = document.querySelector('.camera-start-menu');
     if (startMenuElement) {
@@ -4797,6 +8330,267 @@ const App = () => {
     console.log('📹 Starting camera with preferred device:', preferredDeviceId || 'auto-select');
     await startCamera(preferredDeviceId);
     setCameraManuallyStarted(true); // User explicitly chose to take a photo
+  };
+
+  // Helper function to pre-load an image from a blob URL before showing ImageAdjuster
+  // This prevents race conditions on mobile Safari where canvas.toBlob() is called
+  // before the image fully decodes, causing React error #310
+  const preloadImageBeforeAdjuster = async (blobUrl, context = 'unknown') => {
+    console.log(`[PRELOAD START] Context: ${context}, BlobURL: ${blobUrl.substring(0, 50)}...`);
+    const startTime = Date.now();
+    
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      
+      img.onload = () => {
+        const loadTime = Date.now() - startTime;
+        console.log(`[PRELOAD SUCCESS] Context: ${context}, Time: ${loadTime}ms`);
+        console.log(`[PRELOAD SUCCESS] Image dimensions: ${img.naturalWidth}x${img.naturalHeight}`);
+        console.log(`[PRELOAD SUCCESS] Image complete: ${img.complete}`);
+        console.log(`[PRELOAD SUCCESS] Image src: ${img.src.substring(0, 50)}...`);
+        
+        // Keep the image reference alive until adjuster loads it
+        // by attaching it to window temporarily (mobile Safari workaround)
+        window.__preloadImg = img;
+        window.__preloadContext = context;
+        window.__preloadTime = Date.now();
+        
+        resolve();
+      };
+      
+      img.onerror = (error) => {
+        const errorTime = Date.now() - startTime;
+        console.error(`[PRELOAD FAILED] Context: ${context}, Time: ${errorTime}ms`, error);
+        console.error(`[PRELOAD FAILED] BlobURL: ${blobUrl.substring(0, 50)}...`);
+        reject(error);
+      };
+      
+      console.log(`[PRELOAD SETTING SRC] Context: ${context}`);
+      img.src = blobUrl;
+    });
+  };
+
+  // Handler to show existing camera photo in ImageAdjuster
+  const handleShowExistingCameraPhoto = async () => {
+    if (!lastCameraPhoto) {
+      console.warn('No lastCameraPhoto available to show');
+      // No existing camera photo, go to camera
+      await handleTakePhotoOption();
+      return;
+    }
+
+    // Add exit animation class
+    const startMenuElement = document.querySelector('.camera-start-menu');
+    if (startMenuElement) {
+      startMenuElement.classList.add('exiting');
+      
+      // Wait for animation to complete before hiding
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    setShowStartMenu(false);
+
+    // Check if Sogni is ready
+    if (!isSogniReady) {
+      alert('Sogni is not ready yet. Please try again in a moment.');
+      setShowStartMenu(true);
+      return;
+    }
+
+    if (lastCameraPhoto.blob) {
+      // We have the blob - can reopen the adjuster
+      const newTempUrl = URL.createObjectURL(lastCameraPhoto.blob);
+      
+      // Pre-load the image before showing adjuster to prevent race conditions on mobile
+      console.log('[HANDLE_SHOW_EXISTING_CAMERA] Starting preload for blob');
+      try {
+        await preloadImageBeforeAdjuster(newTempUrl, 'handleShowExistingCameraPhoto-blob');
+        console.log('[HANDLE_SHOW_EXISTING_CAMERA] Preload complete, setting state');
+      } catch (error) {
+        console.error('[HANDLE_SHOW_EXISTING_CAMERA] Preload failed:', error);
+        URL.revokeObjectURL(newTempUrl);
+        alert('Failed to load previous photo. Please take a new photo.');
+        return;
+      }
+      
+      console.log('[HANDLE_SHOW_EXISTING_CAMERA] Setting currentUploadedImageUrl and showing adjuster');
+      console.log('[HANDLE_SHOW_EXISTING_CAMERA] BlobURL being set:', newTempUrl.substring(0, 50) + '...');
+      setCurrentUploadedImageUrl(newTempUrl);
+      setCurrentUploadedSource('camera');
+      setLastAdjustedPhoto(lastCameraPhoto); // Also update lastAdjustedPhoto
+      console.log('[HANDLE_SHOW_EXISTING_CAMERA] About to call setShowImageAdjuster(true)');
+      setShowImageAdjuster(true);
+      console.log('[HANDLE_SHOW_EXISTING_CAMERA] ImageAdjuster should now be visible');
+      console.log('[HANDLE_SHOW_EXISTING_CAMERA] Preload image still exists:', !!window.__preloadImg);
+      
+      // Clean up the preload reference after a short delay
+      setTimeout(() => {
+        console.log('[HANDLE_SHOW_EXISTING_CAMERA] Cleaning up preload reference');
+        delete window.__preloadImg;
+        delete window.__preloadContext;
+        delete window.__preloadTime;
+      }, 2000);
+    } else if (lastCameraPhoto.dataUrl || lastCameraPhoto.imageUrl) {
+      // We have the dataUrl/imageUrl from state - convert back to blob
+      try {
+        const urlToFetch = lastCameraPhoto.dataUrl || lastCameraPhoto.imageUrl;
+        const response = await fetch(urlToFetch);
+        const blob = await response.blob();
+        const newTempUrl = URL.createObjectURL(blob);
+        
+        // Update both camera states with the new blob for future use
+        const updatedPhotoData = {
+          ...lastCameraPhoto,
+          blob: blob,
+          imageUrl: newTempUrl
+        };
+        
+        setLastCameraPhoto(updatedPhotoData);
+        setLastAdjustedPhoto(updatedPhotoData);
+        
+        // Pre-load the image before showing adjuster to prevent race conditions on mobile
+        try {
+          await preloadImageBeforeAdjuster(newTempUrl);
+        } catch (error) {
+          console.error('Failed to pre-load camera photo from dataUrl:', error);
+          URL.revokeObjectURL(newTempUrl);
+          alert('Failed to restore previous camera photo. Taking a new photo...');
+          setLastCameraPhoto(null);
+          await handleTakePhotoOption();
+          return;
+        }
+        
+        setCurrentUploadedImageUrl(newTempUrl);
+        setCurrentUploadedSource('camera');
+        setShowImageAdjuster(true);
+        
+        // Clean up the preload reference after a short delay
+        setTimeout(() => {
+          delete window.__preloadImg;
+        }, 2000);
+      } catch (error) {
+        console.error('Failed to restore camera photo from dataUrl:', error);
+        alert('Failed to restore previous camera photo. Taking a new photo...');
+        setLastCameraPhoto(null);
+        await handleTakePhotoOption();
+      }
+    } else {
+      // No usable image data, go to camera
+      console.warn('No usable camera photo data found');
+      setLastCameraPhoto(null);
+      await handleTakePhotoOption();
+    }
+  };
+
+  // Handler to show existing upload in ImageAdjuster
+  const handleShowExistingUpload = async () => {
+    // ONLY use lastUploadedPhoto - do not mix with camera photos or adjusted photos
+    if (!lastUploadedPhoto || (!lastUploadedPhoto.blob && !lastUploadedPhoto.dataUrl)) {
+      console.warn('No lastUploadedPhoto available to show');
+      return;
+    }
+
+    // Add exit animation class
+    const startMenuElement = document.querySelector('.camera-start-menu');
+    if (startMenuElement) {
+      startMenuElement.classList.add('exiting');
+      
+      // Wait for animation to complete before hiding
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    setShowStartMenu(false);
+
+    // Check if Sogni is ready
+    if (!isSogniReady) {
+      alert('Sogni is not ready yet. Please try again in a moment.');
+      setShowStartMenu(true);
+      return;
+    }
+
+    if (lastUploadedPhoto.blob) {
+      // We have the blob - can reopen the adjuster
+      const newTempUrl = URL.createObjectURL(lastUploadedPhoto.blob);
+      
+      // Pre-load the image before showing adjuster to prevent race conditions on mobile
+      try {
+        await preloadImageBeforeAdjuster(newTempUrl);
+      } catch (error) {
+        console.error('Failed to pre-load uploaded photo:', error);
+        URL.revokeObjectURL(newTempUrl);
+        alert('Failed to load previous photo. Please upload a new photo.');
+        return;
+      }
+      
+      setCurrentUploadedImageUrl(newTempUrl);
+      setCurrentUploadedSource('upload');
+      setLastAdjustedPhoto(lastUploadedPhoto); // Also update lastAdjustedPhoto with current adjustments
+      setShowImageAdjuster(true);
+      
+      // Clean up the preload reference after a short delay
+      setTimeout(() => {
+        delete window.__preloadImg;
+      }, 2000);
+    } else if (lastUploadedPhoto.dataUrl) {
+      // We have the dataUrl from localStorage - convert back to blob
+      try {
+        const response = await fetch(lastUploadedPhoto.dataUrl);
+        const blob = await response.blob();
+        const newTempUrl = URL.createObjectURL(blob);
+        
+        // Update both upload states with the new blob for future use
+        const updatedPhotoData = {
+          ...lastUploadedPhoto,
+          blob: blob,
+          imageUrl: newTempUrl
+        };
+        
+        setLastUploadedPhoto(updatedPhotoData);
+        setLastAdjustedPhoto(updatedPhotoData);
+        
+        // Pre-load the image before showing adjuster to prevent race conditions on mobile
+        try {
+          await preloadImageBeforeAdjuster(newTempUrl);
+        } catch (error) {
+          console.error('Failed to pre-load uploaded photo from dataUrl:', error);
+          URL.revokeObjectURL(newTempUrl);
+          alert('Failed to restore previous upload. Please upload a new photo.');
+          setLastUploadedPhoto(null);
+          return;
+        }
+        
+        setCurrentUploadedImageUrl(newTempUrl);
+        setCurrentUploadedSource('upload');
+        setShowImageAdjuster(true);
+        
+        // Clean up the preload reference after a short delay
+        setTimeout(() => {
+          delete window.__preloadImg;
+        }, 2000);
+      } catch (error) {
+        console.error('Failed to restore image from dataUrl:', error);
+        alert('Failed to restore previous photo. Please upload a new photo.');
+        setLastUploadedPhoto(null);
+        setShowStartMenu(true);
+      }
+    } else {
+      // No usable image data
+      console.warn('No usable image data found');
+      setLastUploadedPhoto(null);
+      setShowStartMenu(true);
+    }
+  };
+
+  // Handler to reset camera photo
+  const handleResetCameraPhoto = () => {
+    setLastCameraPhoto(null);
+    console.log('🗑️ Reset camera photo');
+  };
+
+  // Handler to reset uploaded photo
+  const handleResetUploadedPhoto = () => {
+    setLastUploadedPhoto(null);
+    console.log('🗑️ Reset uploaded photo');
   };
 
   // Handler for the "Browse Photo" option in start menu
@@ -4827,14 +8621,31 @@ const App = () => {
     setCurrentUploadedImageUrl(tempUrl);
     setCurrentUploadedSource('upload');
     
-    // Store this photo data for potential re-editing
-    const photoData = {
+    // Store photo data immediately with tempUrl
+    const initialPhotoData = {
       imageUrl: tempUrl,
       source: 'upload',
       blob: file
     };
+    
+    setLastAdjustedPhoto(initialPhotoData);
+    setLastUploadedPhoto(initialPhotoData); // Set immediately so preview works
+    
+    // Convert blob to data URL for persistent storage (asynchronously)
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      
+      // Update with data URL when ready
+      const updatedPhotoData = {
+        ...initialPhotoData,
+        dataUrl: dataUrl // Add persistent data URL
+      };
 
-    setLastEditablePhoto(photoData);
+      setLastAdjustedPhoto(updatedPhotoData);
+      setLastUploadedPhoto(updatedPhotoData);
+    };
+    reader.readAsDataURL(file);
     
     // Show the image adjuster
     setShowImageAdjuster(true);
@@ -4857,6 +8668,165 @@ const App = () => {
     // This will use the existing drag and drop handlers which now use the image adjuster
   };
 
+  // Handler for uploading a style reference image (for "Copy image style" mode)
+  const handleStyleReferenceUpload = async (file) => {
+    console.log('📸 Style reference image upload started');
+    
+    // Make sure we have a valid file
+    if (!file) return;
+    
+    // Create a temporary URL for the file
+    const tempUrl = URL.createObjectURL(file);
+    
+    // Store the original file
+    setStyleReferenceImage({
+      blob: file,
+      dataUrl: tempUrl,
+      croppedBlob: null // Will be set after cropping
+    });
+    
+    // Set the uploaded image URL for the adjuster
+    setCurrentUploadedImageUrl(tempUrl);
+    setCurrentUploadedSource('style-reference');
+    
+    // Show the style reference adjuster
+    setShowStyleReferenceAdjuster(true);
+  };
+
+  // Handler for when style reference image is cropped and confirmed in ImageAdjuster
+  const handleStyleReferenceConfirm = async (croppedBlob) => {
+    console.log('✅ Style reference image cropped and confirmed');
+    
+    // Convert both original and cropped blobs to data URLs for persistent storage
+    const croppedReader = new FileReader();
+    const originalReader = new FileReader();
+    
+    // Wait for both conversions to complete
+    const croppedDataUrlPromise = new Promise((resolve) => {
+      croppedReader.onloadend = () => resolve(croppedReader.result);
+      croppedReader.readAsDataURL(croppedBlob);
+    });
+    
+    const originalDataUrlPromise = new Promise((resolve) => {
+      originalReader.onloadend = () => resolve(originalReader.result);
+      originalReader.readAsDataURL(styleReferenceImage.blob);
+    });
+    
+    const [croppedDataUrl, originalDataUrl] = await Promise.all([
+      croppedDataUrlPromise,
+      originalDataUrlPromise
+    ]);
+    
+    // Update the style reference with the cropped version
+    const updatedStyleRef = {
+      blob: styleReferenceImage.blob,
+      dataUrl: croppedDataUrl, // Use cropped data URL for display
+      croppedBlob: croppedBlob,
+      croppedDataUrl: croppedDataUrl
+    };
+    
+    setStyleReferenceImage(updatedStyleRef);
+    
+    // Save to localStorage for persistence (both as data URLs, not blob URLs)
+    try {
+      const success = safeLocalStorageSetItem('sogni_styleReferenceImage', JSON.stringify({
+        croppedDataUrl: croppedDataUrl,
+        originalDataUrl: originalDataUrl // Now saving as data URL, not blob URL
+      }));
+      if (success) {
+        console.log('💾 Saved style reference to localStorage');
+      }
+    } catch (e) {
+      console.warn('Failed to save style reference to localStorage:', e);
+    }
+    
+    // Hide the adjuster
+    setShowStyleReferenceAdjuster(false);
+    
+    // Check if we need to switch models
+    const isAlreadyEditModel = isContextImageModel(selectedModel);
+    const needsModelSwitch = !isAlreadyEditModel;
+    
+    // IMPORTANT: Switch model FIRST (if needed), then set style
+    // This prevents race conditions where switchToModel might use old settings
+    if (needsModelSwitch) {
+      console.log('🔄 Switching to Qwen Image Edit 2511 Lightning for image style copy mode');
+      switchToModel(QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID);
+    } else {
+      console.log('✅ Already using edit model, no switch needed');
+    }
+    
+    // Then set the selected style to 'copyImageStyle' 
+    // Use setTimeout to ensure model switch state update completes first
+    setTimeout(() => {
+      updateSetting('selectedStyle', 'copyImageStyle');
+      saveSettingsToCookies({ selectedStyle: 'copyImageStyle' });
+      console.log('💾 Explicitly saved copyImageStyle to cookies');
+      
+      // Clear any URL prompt parameter that might override our selection
+      updateUrlWithPrompt('copyImageStyle');
+      console.log('🔗 Cleared URL prompt parameter');
+      
+      // Only inform user about the model switch if we actually switched
+      if (needsModelSwitch) {
+        showToast({
+          type: 'info',
+          title: 'Model Switched',
+          message: 'Automatically switched to Qwen Image Edit 2511 Lightning for Copy Image Style. You can change the model in Photobooth Settings.',
+          timeout: 5000
+        });
+      }
+    }, 0);
+  };
+
+  // Handler to remove style reference image
+  const handleRemoveStyleReference = () => {
+    console.log('🗑️ Removing style reference image');
+    
+    // Clean up blob URLs
+    if (styleReferenceImage?.dataUrl) {
+      URL.revokeObjectURL(styleReferenceImage.dataUrl);
+    }
+    
+    // Clear the style reference
+    setStyleReferenceImage(null);
+    
+    // Clear from localStorage
+    try {
+      localStorage.removeItem('sogni_styleReferenceImage');
+      console.log('💾 Removed style reference from localStorage');
+    } catch (e) {
+      console.warn('Failed to remove style reference from localStorage:', e);
+    }
+    
+    // Reset to default style
+    updateSetting('selectedStyle', 'randomMix');
+    
+    // Switch back to Sogni Turbo
+    console.log('🔄 Switching back to Sogni Turbo');
+    switchToModel(DEFAULT_MODEL_ID);
+  };
+
+  // Handler to open existing style reference in adjuster for editing
+  const handleEditStyleReference = () => {
+    if (!styleReferenceImage?.dataUrl) {
+      console.warn('No style reference image to edit');
+      return;
+    }
+    
+    console.log('📝 Opening style reference in adjuster for editing');
+    
+    // Make sure regular image adjuster is closed
+    setShowImageAdjuster(false);
+    
+    // Set the uploaded image URL for the adjuster
+    setCurrentUploadedImageUrl(styleReferenceImage.dataUrl);
+    setCurrentUploadedSource('style-reference');
+    
+    // Show the style reference adjuster
+    setShowStyleReferenceAdjuster(true);
+  };
+
   // Handle toggling between front and rear camera
   const handleToggleCamera = () => {
     setIsFrontCamera(prev => !prev);
@@ -4877,6 +8847,26 @@ const App = () => {
     // Scroll to top smoothly
     window.scrollTo({ top: 0, behavior: 'smooth' });
     
+    // Clear QR code when going back to menu
+    if (qrCodeData) {
+      console.log('Clearing QR code when returning to menu');
+      setQrCodeData(null);
+    }
+    
+    // Hide photo grid if it's visible
+    if (showPhotoGrid) {
+      const filmStrip = document.querySelector('.film-strip-container');
+      if (filmStrip) {
+        filmStrip.classList.remove('visible');
+        filmStrip.classList.add('hiding');
+      }
+      
+      setTimeout(() => {
+        setShowPhotoGrid(false);
+        setSelectedPhotoIndex(null);
+      }, 300);
+    }
+    
     // Hide slothicorn if visible
     if (slothicornReference.current) {
       slothicornReference.current.style.setProperty('bottom', '-360px', 'important');
@@ -4887,10 +8877,410 @@ const App = () => {
     setShowStartMenu(true);
   };
 
+  // Helper to download image as blob URL (to avoid CORS issues with S3 signed URLs)
+  const downloadImageAsBlob = (url) => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', url);
+      xhr.responseType = 'blob';
+
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          const blob = xhr.response;
+          const blobUrl = URL.createObjectURL(blob);
+          resolve(blobUrl);
+        } else {
+          reject(new Error(`Download failed: ${xhr.status}`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send();
+    });
+  };
+
+  // Handle reusing a project from Recent Projects - loads images into Photo Gallery
+  const handleReuseProject = useCallback(async (projectId) => {
+    if (!sogniClient) return;
+
+    console.log(`[Reuse Project] Starting to load project: ${projectId}`);
+
+    try {
+      // Fetch the project details directly using the projects endpoint
+      const response = await sogniClient.apiClient.rest.get(`/v1/projects/${projectId}`);
+
+      const project = response.data?.project;
+
+      console.log('[Reuse Project] Fetched project data:', {
+        hasProject: !!project,
+        projectId: project?.id,
+        workerJobsCount: project?.workerJobs?.length || 0,
+        completedWorkerJobsCount: project?.completedWorkerJobs?.length || 0
+      });
+
+      if (!project) {
+        showToast({
+          title: 'Project Not Found',
+          message: 'Could not load project data.',
+          type: 'error'
+        });
+        return;
+      }
+
+      // Get all jobs from both workerJobs and completedWorkerJobs arrays
+      const allJobs = [...(project.workerJobs || []), ...(project.completedWorkerJobs || [])];
+
+      console.log('[Reuse Project] All jobs:', allJobs.length);
+
+      if (allJobs.length === 0) {
+        showToast({
+          title: 'Project Not Found',
+          message: 'Could not load project images.',
+          type: 'error'
+        });
+        return;
+      }
+
+      // Filter to completed jobs (API returns 'jobCompleted' status)
+      const completedJobs = allJobs.filter(job =>
+        job.status === 'jobCompleted' && !job.triggeredNSFWFilter
+      );
+
+      console.log('[Reuse Project] Completed jobs:', {
+        total: completedJobs.length,
+        jobIds: completedJobs.map(j => j.imgID)
+      });
+
+      if (completedJobs.length === 0) {
+        showToast({
+          title: 'No Completed Images',
+          message: 'This project has no completed images available.',
+          type: 'error'
+        });
+        return;
+      }
+
+      // Convert jobs to photo objects - download images as blobs to avoid CORS issues
+      const loadedPhotos = await Promise.all(
+        completedJobs.map(async (job, index) => {
+          try {
+            // Get the signed S3 URL
+            const s3Url = await sogniClient.projects.downloadUrl({
+              jobId: projectId,
+              imageId: job.imgID,
+              type: 'complete'
+            });
+
+            console.log(`[Reuse Project] Got S3 URL for job ${job.imgID}:`, s3Url ? 'success' : 'null');
+
+            if (!s3Url) {
+              console.error(`[Reuse Project] No S3 URL returned for job ${job.imgID}`);
+              return null;
+            }
+
+            // Download image as blob and create blob URL
+            const blobUrl = await downloadImageAsBlob(s3Url);
+
+            console.log(`[Reuse Project] Downloaded blob for job ${job.imgID}:`, blobUrl ? 'success' : 'failed');
+
+            if (!blobUrl) {
+              console.error(`[Reuse Project] Failed to download blob for job ${job.imgID}`);
+              return null;
+            }
+
+            return {
+              id: job.imgID,
+              generating: false,
+              loading: false,
+              images: [blobUrl],
+              originalDataUrl: blobUrl,
+              newlyArrived: false,
+              isOriginal: false,
+              hidden: false,
+              sourceType: 'history',
+              // Assign frame numbers for equal distribution (1-6)
+              taipeiFrameNumber: (index % 6) + 1,
+              framePadding: 0
+            };
+          } catch (error) {
+            console.error(`[Reuse Project] Failed to load job ${job.imgID}:`, error);
+            return null;
+          }
+        })
+      );
+
+      // Filter out any failed loads
+      const validPhotos = loadedPhotos.filter(photo => photo !== null);
+
+      console.log('[Reuse Project] Loaded photos:', {
+        attempted: completedJobs.length,
+        successful: validPhotos.length,
+        failed: completedJobs.length - validPhotos.length
+      });
+
+      if (validPhotos.length === 0) {
+        showToast({
+          title: 'No Images Available',
+          message: 'Could not load any images from this project. The images may have expired.',
+          type: 'error'
+        });
+        return;
+      }
+
+      console.log('[Reuse Project] Setting photos and showing gallery');
+
+      // Load photos into the gallery
+      setPhotos(validPhotos);
+      setRegularPhotos(validPhotos);
+
+      // Show photo grid
+      setShowPhotoGrid(true);
+      setShowStartMenu(false);
+      stopCamera();
+
+    } catch (error) {
+      console.error('[Reuse Project] Failed to load project:', error);
+      showToast({
+        title: 'Error',
+        message: 'Failed to load project. Please try again.',
+        type: 'error'
+      });
+    }
+  }, [sogniClient, showToast, stopCamera]);
+
+  // Handle reusing a LOCAL project - loads images from IndexedDB into Photo Gallery
+  const handleReuseLocalProject = useCallback(async (projectId) => {
+    console.log(`[Reuse Local Project] Starting to load project: ${projectId}`);
+
+    try {
+      // Get all images from IndexedDB
+      const images = await getProjectImages(projectId);
+
+      console.log('[Reuse Local Project] Loaded images:', images.length);
+
+      if (images.length === 0) {
+        showToast({
+          title: 'No Images',
+          message: 'This local project has no images. Add some images first!',
+          type: 'error'
+        });
+        return;
+      }
+
+      // Auto-detect the best aspect ratio from the first image
+      const firstImage = images[0];
+      if (firstImage && firstImage.width && firstImage.height) {
+        const imageRatio = firstImage.width / firstImage.height;
+
+        // Aspect ratio options with their ratios
+        const aspectRatios = [
+          { key: 'ultranarrow', ratio: 768 / 1344 },  // ~0.571
+          { key: 'narrow', ratio: 832 / 1216 },       // ~0.684
+          { key: 'portrait', ratio: 896 / 1152 },    // ~0.778
+          { key: 'square', ratio: 1 },                // 1.0
+          { key: 'landscape', ratio: 1152 / 896 },   // ~1.286
+          { key: 'wide', ratio: 1216 / 832 },        // ~1.462
+          { key: 'ultrawide', ratio: 1344 / 768 }    // ~1.75
+        ];
+
+        // Find the closest aspect ratio
+        let closestRatio = aspectRatios[0];
+        let minDiff = Math.abs(imageRatio - closestRatio.ratio);
+
+        for (const ar of aspectRatios) {
+          const diff = Math.abs(imageRatio - ar.ratio);
+          if (diff < minDiff) {
+            minDiff = diff;
+            closestRatio = ar;
+          }
+        }
+
+        console.log(`[Reuse Local Project] Detected aspect ratio: ${closestRatio.key} (image: ${imageRatio.toFixed(3)}, preset: ${closestRatio.ratio.toFixed(3)})`);
+
+        // Update aspect ratio setting
+        updateSetting('aspectRatio', closestRatio.key);
+      }
+
+      // Convert images to photo objects with blob URLs
+      const loadedPhotos = images.map((image, index) => {
+        const blobUrl = createImageBlobUrl(image);
+
+        return {
+          id: image.id,
+          generating: false,
+          loading: false,
+          images: [blobUrl],
+          originalDataUrl: blobUrl,
+          newlyArrived: false,
+          isOriginal: false,
+          hidden: false,
+          sourceType: 'local-project',
+          // Assign frame numbers for equal distribution (1-6)
+          taipeiFrameNumber: (index % 6) + 1,
+          framePadding: 0,
+          // Store image dimensions
+          width: image.width,
+          height: image.height,
+          // Store original filename for reference
+          filename: image.filename
+        };
+      });
+
+      console.log('[Reuse Local Project] Created photo objects:', loadedPhotos.length);
+
+      // Load photos into the gallery
+      setPhotos(loadedPhotos);
+      setRegularPhotos(loadedPhotos);
+
+      // Show photo grid
+      setShowPhotoGrid(true);
+      setShowStartMenu(false);
+      stopCamera();
+
+    } catch (error) {
+      console.error('[Reuse Local Project] Failed to load project:', error);
+      showToast({
+        title: 'Error',
+        message: 'Failed to load local project. Please try again.',
+        type: 'error'
+      });
+    }
+  }, [showToast, stopCamera, updateSetting]);
+
+  // Handle starting a new project (redirect to main screen)
+  const handleStartNewProject = useCallback(() => {
+    // Clear current photos and go to start menu
+    setPhotos([]);
+    setRegularPhotos([]);
+    setShowPhotoGrid(false);
+    setShowStartMenu(true);
+    stopCamera();
+  }, [stopCamera]);
+
+  // Handle remixing a single image from the slideshow
+  const handleRemixSingleImage = useCallback(async (imageUrl) => {
+    console.log('[Remix Single Image] Loading image:', imageUrl);
+
+    try {
+      // Fetch the image to get its dimensions
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = imageUrl;
+      });
+
+      const imageWidth = img.naturalWidth;
+      const imageHeight = img.naturalHeight;
+      const imageRatio = imageWidth / imageHeight;
+
+      // Auto-detect the best aspect ratio
+      const aspectRatios = [
+        { key: 'ultranarrow', ratio: 768 / 1344 },
+        { key: 'narrow', ratio: 832 / 1216 },
+        { key: 'portrait', ratio: 896 / 1152 },
+        { key: 'square', ratio: 1 },
+        { key: 'landscape', ratio: 1152 / 896 },
+        { key: 'wide', ratio: 1216 / 832 },
+        { key: 'ultrawide', ratio: 1344 / 768 }
+      ];
+
+      let closestRatio = aspectRatios[0];
+      let minDiff = Math.abs(imageRatio - closestRatio.ratio);
+
+      for (const ar of aspectRatios) {
+        const diff = Math.abs(imageRatio - ar.ratio);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestRatio = ar;
+        }
+      }
+
+      console.log(`[Remix Single Image] Detected aspect ratio: ${closestRatio.key}`);
+      updateSetting('aspectRatio', closestRatio.key);
+
+      // Create photo object
+      const photoId = `remix-${Date.now()}`;
+      const newPhoto = {
+        id: photoId,
+        generating: false,
+        loading: false,
+        images: [imageUrl],
+        originalDataUrl: imageUrl,
+        newlyArrived: false,
+        isOriginal: false,
+        hidden: false,
+        sourceType: 'remix',
+        taipeiFrameNumber: 1,
+        framePadding: 0,
+        width: imageWidth,
+        height: imageHeight
+      };
+
+      // Load the single photo into the gallery
+      setPhotos([newPhoto]);
+      setRegularPhotos([newPhoto]);
+
+      // Show photo grid and close recent projects
+      setShowPhotoGrid(true);
+      setShowStartMenu(false);
+      setShowRecentProjects(false);
+      stopCamera();
+
+    } catch (error) {
+      console.error('[Remix Single Image] Failed to load image:', error);
+      showToast({
+        title: 'Error',
+        message: 'Failed to load image for remix. Please try again.',
+        type: 'error'
+      });
+    }
+  }, [showToast, stopCamera, updateSetting]);
+
+  // Handle Bald for Base popup generate button
+  const handleBaldForBaseGenerate = useCallback(() => {
+    setShowBaldForBasePopup(false);
+    
+    // Check if user has photos
+    const loadedPhotos = photos.filter(
+      photo => !photo.hidden && !photo.loading && !photo.generating && !photo.error && photo.images && photo.images.length > 0 && !photo.isOriginal
+    );
+    
+    if (loadedPhotos.length === 0) {
+      // No photos - show toast and navigate to start menu
+      showToast({
+        title: '📸 Photos Needed',
+        message: 'Please generate some photos first. We\'ll automatically create your Bald for Base videos after!',
+        type: 'info',
+        timeout: 5000
+      });
+      // Set flag in sessionStorage so PhotoGallery can pick it up
+      sessionStorage.setItem('baldForBaseAutoTrigger', 'true');
+      // Navigate to start menu using handleBackToMenu
+      handleBackToMenu();
+      return;
+    }
+    
+    // User has photos - PhotoGallery will handle the actual generation
+    // For now, just show the photo grid and let PhotoGallery handle it
+    setShowPhotoGrid(true);
+    // The PhotoGallery component will detect photos and show its own Bald for Base popup
+  }, [photos, showToast, handleBackToMenu]);
+
   // -------------------------
   //   Generate more photos with the same settings
   // -------------------------
   const handleGenerateMorePhotos = async () => {
+    // Check if user is not authenticated and has already used their demo render
+    if (!authState.isAuthenticated && !isEventDomain() && hasDoneDemoRender()) {
+      console.log('🚫 Non-authenticated user has already used their demo render - showing login upsell');
+      setShowLoginUpsellPopup(true);
+      setShowStartMenu(true); // Return to main yellow screen
+      return;
+    }
+
     // Scroll the film-strip-content element to the top first thing
     const filmStripContent = document.querySelector('.film-strip-container div');
     if (filmStripContent) {
@@ -4949,33 +9339,39 @@ const App = () => {
     
     console.log(`Using sourceType '${sourceType}' for generating more photos`);
     
-    setRegularPhotos(() => {
-      const newPhotos = existingOriginalPhoto ? [existingOriginalPhoto] : [];
+    // Capture timestamp once to ensure consistent IDs across both state updates
+    const baseTimestamp = Date.now();
+    
+    // Create the new photos array once to ensure identical state
+    const newPhotos = existingOriginalPhoto ? [existingOriginalPhoto] : [];
+    
+    for (let i = 0; i < numToGenerate; i++) {
+      // Calculate the global photo index for frame assignment based on existing photos
+      const globalPhotoIndex = (existingOriginalPhoto ? 1 : 0) + i;
       
-      for (let i = 0; i < numToGenerate; i++) {
-        // Calculate the global photo index for frame assignment based on existing photos
-        const globalPhotoIndex = (existingOriginalPhoto ? 1 : 0) + i;
-        
-        newPhotos.push({
-          id: Date.now() + i,
-          generating: true,
-          loading: true,
-          progress: 0,
-          images: [],
-          error: null,
-          originalDataUrl: lastPhotoData.dataUrl,
-          newlyArrived: false,
-          statusText: 'Calling Art Robot...',
-          stylePrompt: '', // Use context stylePrompt here? Or keep empty?
-          sourceType: sourceType, // Store sourceType in photo object for reference
-          // Assign Taipei frame number based on photo index for equal distribution (1-6)
-          taipeiFrameNumber: (globalPhotoIndex % 6) + 1,
-          framePadding: 0 // Will be updated by migration effect in PhotoGallery
-        });
-      }
-      
-      return newPhotos;
-    });
+      newPhotos.push({
+        id: baseTimestamp + i,
+        generating: true,
+        loading: true,
+        progress: 0,
+        images: [],
+        error: null,
+        originalDataUrl: lastPhotoData.dataUrl,
+        newlyArrived: false,
+        statusText: 'Calling Art Robot',
+        stylePrompt: '', // Use context stylePrompt here? Or keep empty?
+        originalStyleMode: selectedStyle, // Store the original style mode (including randomMix) for proper refresh behavior
+        customSceneName: selectedStyle === 'custom' && customSceneName ? customSceneName : undefined, // Store custom scene name for "More" photos
+        sourceType: sourceType, // Store sourceType in photo object for reference
+        // Assign Taipei frame number based on photo index for equal distribution (1-6)
+        taipeiFrameNumber: (globalPhotoIndex % 6) + 1,
+        framePadding: 0 // Will be updated by migration effect in PhotoGallery
+      });
+    }
+    
+    // Update BOTH state arrays immediately so cancel button appears right away
+    setRegularPhotos(newPhotos);
+    setPhotos(newPhotos);
     
     try {
       const { blob, dataUrl } = lastPhotoData;
@@ -5110,6 +9506,51 @@ const App = () => {
     }
   };
 
+  // Handle refreshing a photo - regenerate a single photo with its original prompt
+  const handleRefreshPhoto = async (photoIndex, authState, refreshingPhotos) => {
+    console.log(`Refreshing photo at index ${photoIndex}`);
+    
+    const photo = photos[photoIndex];
+    if (!photo || photo.isOriginal || photo.isGalleryImage) {
+      console.error('Cannot refresh: invalid photo type');
+      return;
+    }
+    
+    // Check if user is manually logged in
+    const isManualAuth = authState && authState.authMode === 'frontend';
+    
+    // Check concurrent refresh limit for manual auth users
+    if (isManualAuth && refreshingPhotos.size >= 2) {
+      console.log('Maximum concurrent refreshes reached (2 for manual auth users)');
+      return;
+    }
+    
+    // Check if user has Premium Spark (for frontend auth payment)
+    const hasPremiumSpark = isPremiumBoosted(balances, walletTokenType);
+    
+    try {
+      // Use the refreshPhoto service (similar to enhancePhoto)
+      await refreshPhoto({
+        photo,
+        photoIndex,
+        sogniClient,
+        setPhotos: setRegularPhotos,
+        settings,
+        lastPhotoData,
+        stylePrompts,
+        tokenType: walletTokenType, // Pass payment method for frontend auth
+        isPremiumSpark: hasPremiumSpark, // Pass premium status for frontend auth
+        onOutOfCredits: () => {
+          console.log('[REFRESH] Triggering out of credits popup from handleRefreshPhoto');
+          handleOutOfCreditsShow();
+        }
+      });
+    } catch (error) {
+      console.error('Refresh failed:', error);
+      // Error handling is done inside refreshPhoto service
+    }
+  };
+
   // Handle gallery prompt application - trigger generation when selectedStyle updates
   useEffect(() => {
     if (pendingGalleryPrompt && selectedStyle === pendingGalleryPrompt) {
@@ -5122,6 +9563,307 @@ const App = () => {
       }, 100);
     }
   }, [selectedStyle, pendingGalleryPrompt, handleGenerateMorePhotos]);
+
+  // Add a dedicated useEffect for the aspect ratio CSS
+  useEffect(() => {
+    // Add our CSS fixes (all 5 issues at once)
+    const styleElement = document.createElement('style');
+    styleElement.textContent = `
+      /* ------- FIX 1: Style dropdown ------- */
+      .style-dropdown {
+        animation: dropdownAppear 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards;
+      }
+      
+      /* Position variations */
+      .style-dropdown.top-position {
+        bottom: 100%;
+        top: auto !important;
+        margin-bottom: 10px;
+        transform-origin: center bottom !important;
+        animation: dropdownAppearTop 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards;
+      }
+      
+      .style-dropdown.bottom-position {
+        top: 100%;
+        bottom: auto !important;
+        margin-top: 10px;
+        transform-origin: center top !important;
+        animation: dropdownAppearBottom 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards;
+      }
+      
+      @keyframes dropdownAppearTop {
+        from {
+          opacity: 0;
+          transform: translateX(-50%) translateY(10px);
+        }
+        to {
+          opacity: 1; 
+          transform: translateX(-50%) translateY(0);
+        }
+      }
+      
+      @keyframes dropdownAppearBottom {
+        from {
+          opacity: 0;
+          transform: translateX(-50%) translateY(-10px);
+        }
+        to {
+          opacity: 1; 
+          transform: translateX(-50%) translateY(0);
+        }
+      }
+      
+      .style-section.featured {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        padding-bottom: 8px;
+        margin-bottom: 8px;
+      }
+      
+      .style-option {
+        display: flex;
+        align-items: center;
+        padding: 10px 12px;
+        margin: 2px 0;
+        border-radius: 4px;
+        cursor: pointer;
+        color: #333;
+        transition: background-color 0.2s;
+      }
+
+      .style-option:hover {
+        background-color: #f5f5f5;
+      }
+      
+      .style-option:hover:before {
+        display: none !important; /* Remove the carat */
+      }
+      
+      .style-option.selected {
+        background-color: transparent !important;
+        position: relative;
+      }
+      
+      .style-option.selected span:last-of-type {
+        text-decoration: underline;
+        text-decoration-color: #000;
+      }
+      
+      .style-option.selected::after {
+        content: '✓';
+        margin-left: auto;
+        font-size: 18px;
+        font-weight: bold;
+        color: #ff5252;
+      }
+      
+      .style-icon {
+        margin-right: 10px;
+        z-index: 2;
+      }
+      
+      /* ------- FIX 2: Camera widget Polaroid style ------- */
+      .photobooth-frame {
+        background: white;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+        border-radius: 4px;
+        width: auto;
+        max-width: 70%;
+        margin: 20px auto;
+        padding: 8px 8px 60px 8px;
+        position: relative;
+      }
+      
+      .photobooth-header {
+        margin-bottom: 8px;
+      }
+      
+      /* Move Take Photo button to bottom */
+      .header-take-photo-btn {
+        position: absolute !important;
+        bottom: 15px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        background: #ff5252 !important;
+        color: white !important;
+        font-weight: bold !important;
+        padding: 10px 20px !important;
+        border-radius: 25px !important;
+        border: none !important;
+        cursor: pointer !important;
+        z-index: 10 !important;
+      }
+      
+      .header-take-photo-btn:hover {
+        background: #ff7272 !important;
+      }
+
+      /* ------- FIX 4: Loading image fade effect ------- */
+      .film-frame.loading {
+        position: relative;
+      }
+      
+      .film-frame.loading img {
+        transition: opacity 5s;
+      }
+                
+      /* Fallback image styling */
+      .film-frame[data-error="true"] img,
+      .film-frame img.fallback {
+        filter: grayscale(20%) !important;
+      }
+      
+      /* Set aspect ratio CSS variable based on selected aspect ratio */
+      :root {
+        --current-aspect-ratio: ${
+          aspectRatio === 'ultranarrow' ? '768/1344' :
+          aspectRatio === 'narrow' ? '832/1216' :
+          aspectRatio === 'portrait' ? '896/1152' : 
+          aspectRatio === 'square' ? '1024/1024' : 
+          aspectRatio === 'landscape' ? '1152/896' :
+          aspectRatio === 'wide' ? '1216/832' :
+          aspectRatio === 'ultrawide' ? '1344/768' :
+          window.innerHeight > window.innerWidth ? '896/1152' : '1152/896'
+        };
+      }
+      
+      /* Ensure images display properly */
+      #webcam {
+        object-fit: cover;
+        width: 100%;
+        height: auto;
+        border-radius: 0 !important;
+      }
+      
+      /* Update film frame images */
+      .film-frame img {
+        object-fit: cover;
+        width: 100%;
+      }
+      .fade-in {
+        transition: opacity 0.5s !important;
+      }
+
+      /* ------- UPDATED: Improve Film Frame Hover Effects ------- */
+      .film-frame:not(.loading) {
+        transform-origin: center center !important;
+        transform: scale(1) translateZ(0) !important;
+        will-change: transform, box-shadow !important;
+        /* Remove the default transition to prevent background animations */
+      }
+      
+      /* Allow loading animations to work - but not in selected/popup view */
+      .film-frame.loading:not(.selected) {
+        transform-origin: center center !important;
+        will-change: transform, box-shadow !important;
+        /* Don't override transform for loading frames - let animation handle it */
+      }
+      
+      /* Only apply transitions on hover/active for deliberate interaction, but not on loading frames */
+      /* Only apply hover effects on devices that support hover (not touch devices) */
+      @media (hover: hover) and (pointer: fine) {
+        .film-frame:not(.selected):not(.loading):hover {
+          transform: scale(1.05) translateZ(0) !important;
+          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25) !important;
+          transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), 
+                      box-shadow 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+        }
+        
+        .film-frame:not(.selected):not(.loading):active {
+          transform: scale(0.98) translateZ(0) !important;
+          box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2) !important;
+          transition: all 0.1s ease-out !important;
+        }
+      }
+      
+      /* Ensure only the deliberately selected photo animates */
+      .film-frame.selected {
+        transform: scale(1) !important;
+      }
+      
+      /* Add transition only for the specific photo being selected/deselected */
+      .film-frame.animating-selection {
+        transition: transform 0.5s cubic-bezier(0.2, 0, 0.2, 1) !important;
+      }
+            
+      /* ------- ADD: Psychedelic animation ------- */
+      @keyframes psychedelic-shift {
+        0% {
+          background-position: 0% 0%, 0 0, 0 0;
+        }
+        25% {
+          background-position: 100% 0%, 10px 10px, -10px -10px;
+        }
+        50% {
+          background-position: 100% 100%, 20px 20px, -20px -20px;
+        }
+        75% {
+          background-position: 0% 100%, 10px 30px, -10px -30px;
+        }
+        100% {
+          background-position: 0% 0%, 0 0, 0 0;
+        }
+      }
+    `;
+    
+    document.head.append(styleElement);
+    
+    // Update aspect ratio when orientation changes
+    const updateAspectRatio = () => {
+      // Only update if aspect ratio is not explicitly set by user
+      if (!aspectRatio || aspectRatio === 'auto') {
+        const isPortrait = window.innerHeight > window.innerWidth;
+        document.documentElement.style.setProperty(
+          '--current-aspect-ratio', 
+          isPortrait ? '896/1152' : '1152/896'
+        );
+      }
+    };
+    
+    // Set initial aspect ratio based on user selection or orientation
+    switch (aspectRatio) {
+      case 'ultranarrow':
+        document.documentElement.style.setProperty('--current-aspect-ratio', '768/1344');
+        break;
+      case 'narrow':
+        document.documentElement.style.setProperty('--current-aspect-ratio', '832/1216');
+        break;
+      case 'portrait':
+        document.documentElement.style.setProperty('--current-aspect-ratio', '896/1152');
+        break;
+      case 'square':
+        document.documentElement.style.setProperty('--current-aspect-ratio', '1024/1024');
+        break;
+      case 'landscape':
+        document.documentElement.style.setProperty('--current-aspect-ratio', '1152/896');
+        break;
+      case 'wide':
+        document.documentElement.style.setProperty('--current-aspect-ratio', '1216/832');
+        break;
+      case 'ultrawide':
+        document.documentElement.style.setProperty('--current-aspect-ratio', '1344/768');
+        break;
+      default:
+        // Default to orientation-based
+        updateAspectRatio();
+        break;
+    }
+    
+    // Update on resize only if not using explicit aspect ratio
+    window.addEventListener('resize', updateAspectRatio);
+    
+    return () => {
+      window.removeEventListener('resize', updateAspectRatio);
+      if (styleElement && document.head.contains(styleElement)) {
+        styleElement.remove();
+      }
+    };
+  }, [aspectRatio]);
+
+  // -------------------------
+  //   Early Returns (after all hooks)
+  // -------------------------
+  
+  // Note: Analytics dashboard routing is now handled by AppRouter component
 
   // Add retry all function for network issues
   const handleRetryAllPhotos = async () => {
@@ -5212,8 +9954,28 @@ const App = () => {
 
   // Add this new function to handle the adjusted image after confirmation
   const handleAdjustedImage = (adjustedBlob, adjustments) => {
-    // Hide the adjuster
+    // Check if user is not authenticated and has already used their demo render
+    if (!authState.isAuthenticated && !isEventDomain() && hasDoneDemoRender()) {
+      console.log('🚫 Non-authenticated user has already used their demo render - showing login upsell');
+      setShowLoginUpsellPopup(true);
+      // Hide the adjuster and clean up
+      setShowImageAdjuster(false);
+      if (currentUploadedImageUrl) {
+        URL.revokeObjectURL(currentUploadedImageUrl);
+      }
+      setCurrentUploadedImageUrl('');
+      setShowStartMenu(true); // Return to main yellow screen
+      return;
+    }
+
+    // Hide the adjuster first
     setShowImageAdjuster(false);
+
+    // If we're in Style Explorer mode, navigate back to photo gallery view
+    if (currentPage === 'prompts') {
+      console.log('🔄 Navigating from Style Explorer to photo gallery for batch generation');
+      handleBackToPhotosFromPromptSelector();
+    }
     
     // Clean up the URL object to prevent memory leaks
     if (currentUploadedImageUrl) {
@@ -5223,15 +9985,34 @@ const App = () => {
     // Reset the current image state
     setCurrentUploadedImageUrl('');
     
-    // Update lastEditablePhoto with the adjustments so user can return to resizer from photo gallery
-    if (lastEditablePhoto && adjustments) {
-  
-      setLastEditablePhoto({
-        ...lastEditablePhoto,
+    // Update lastAdjustedPhoto with the adjustments so user can return to resizer from photo gallery
+    if (lastAdjustedPhoto && adjustments) {
+
+      setLastAdjustedPhoto({
+        ...lastAdjustedPhoto,
         adjustments: adjustments
       });
     }
-    
+
+    // Capture subject analysis from ImageAdjuster for prompt rewriting
+    if (adjustments?.subjectAnalysis) {
+      subjectAnalysisRef.current = adjustments.subjectAnalysis;
+    }
+
+    // Validate adjustedBlob before proceeding
+    if (!adjustedBlob || !(adjustedBlob instanceof Blob)) {
+      console.error('❌ Invalid blob received from ImageAdjuster:', adjustedBlob);
+      alert('Failed to process image. Please try again.');
+      setShowStartMenu(true);
+      return;
+    }
+
+    console.log('📸 Processing adjusted blob:', {
+      size: adjustedBlob.size,
+      type: adjustedBlob.type,
+      source: currentUploadedSource
+    });
+
     // Create a new photo item with temporary placeholder
     const newPhoto = {
       id: Date.now().toString(),
@@ -5250,10 +10031,44 @@ const App = () => {
     setRegularPhotos((previous) => [...previous, newPhoto]);
     const newPhotoIndex = regularPhotos.length;
 
-    // Create data URL from the adjusted blob
+    // Create data URL from the adjusted blob with error handling
     const reader = new FileReader();
+    
+    reader.addEventListener('error', (error) => {
+      console.error('❌ FileReader error when processing adjusted blob:', error);
+      setRegularPhotos(prev => {
+        const updated = [...prev];
+        if (updated[newPhotoIndex]) {
+          updated[newPhotoIndex] = {
+            ...updated[newPhotoIndex],
+            generating: false,
+            error: 'Failed to process image'
+          };
+        }
+        return updated;
+      });
+    });
+    
     reader.addEventListener('load', async (event) => {
       const adjustedDataUrl = event.target.result;
+      
+      if (!adjustedDataUrl) {
+        console.error('❌ FileReader produced empty dataUrl');
+        setRegularPhotos(prev => {
+          const updated = [...prev];
+          if (updated[newPhotoIndex]) {
+            updated[newPhotoIndex] = {
+              ...updated[newPhotoIndex],
+              generating: false,
+              error: 'Failed to process image'
+            };
+          }
+          return updated;
+        });
+        return;
+      }
+      
+      console.log('✅ Successfully created dataUrl from adjusted blob');
       
       // Update the photo with the adjusted data URL as placeholder
       setRegularPhotos(prev => {
@@ -5270,6 +10085,7 @@ const App = () => {
       // Use the adjusted blob for generation
       generateFromBlob(adjustedBlob, newPhotoIndex, adjustedDataUrl, false, currentUploadedSource === 'camera' ? 'camera' : 'upload');
     });
+    
     reader.readAsDataURL(adjustedBlob);
   };
 
@@ -5289,44 +10105,328 @@ const App = () => {
     setShowStartMenu(true);
   };
 
+  // Handle using raw image without AI generation
+  // This allows users to use the source image as-is for video workflows
+  const handleUseRawImage = (rawBlob) => {
+    console.log('📸 Using raw image without AI generation');
+    
+    // Hide the adjuster first
+    setShowImageAdjuster(false);
+    
+    // Clean up the URL object to prevent memory leaks
+    if (currentUploadedImageUrl) {
+      URL.revokeObjectURL(currentUploadedImageUrl);
+    }
+    
+    // Reset the current image state
+    setCurrentUploadedImageUrl('');
+    
+    // Validate rawBlob before proceeding
+    if (!rawBlob || !(rawBlob instanceof Blob)) {
+      console.error('❌ Invalid blob received for raw image:', rawBlob);
+      alert('Failed to process image. Please try again.');
+      setShowStartMenu(true);
+      return;
+    }
+    
+    // Create data URL from the raw blob
+    const reader = new FileReader();
+    
+    reader.addEventListener('error', (error) => {
+      console.error('❌ FileReader error when processing raw blob:', error);
+      alert('Failed to process image. Please try again.');
+      setShowStartMenu(true);
+    });
+    
+    reader.addEventListener('load', (event) => {
+      const rawDataUrl = event.target.result;
+      
+      if (!rawDataUrl) {
+        console.error('❌ FileReader produced empty dataUrl');
+        alert('Failed to process image. Please try again.');
+        setShowStartMenu(true);
+        return;
+      }
+      
+      console.log('✅ Successfully loaded raw image, creating batch of', numImages);
+      
+      // IMPORTANT: Hide the photo grid first to prevent PhotoGallery from rendering
+      // during the state transition. This avoids React hook order issues.
+      setShowPhotoGrid(false);
+      
+      // Create the new photos batch
+      const newPhotos = [];
+      const sourceType = currentUploadedSource === 'camera' ? 'camera' : 'upload';
+      
+      for (let i = 0; i < numImages; i++) {
+        newPhotos.push({
+          id: `${Date.now()}-${i}`,
+          generating: false,
+          loading: false,
+          images: [rawDataUrl], // The raw image is the "result"
+          originalDataUrl: rawDataUrl,
+          error: null,
+          newlyArrived: true,
+          isRawImage: true, // Mark as raw image for reference
+          sourceType,
+          taipeiFrameNumber: (i % 6) + 1,
+          framePadding: 0
+        });
+      }
+      
+      // Replace photos while gallery is hidden
+      setRegularPhotos(newPhotos);
+      
+      // Use requestAnimationFrame to ensure state updates are processed
+      // before showing the gallery again
+      requestAnimationFrame(() => {
+        setShowPhotoGrid(true);
+      });
+    });
+    
+    reader.readAsDataURL(rawBlob);
+  };
+
   // Add this to the component state declarations at the top
 
   // Handle thumbnail click to reopen the image adjuster
   const handleThumbnailClick = async () => {
-    if (!lastEditablePhoto) return;
+    // If no lastCameraPhoto, load Einstein fallback
+    if (!lastCameraPhoto || (!lastCameraPhoto.blob && !lastCameraPhoto.dataUrl)) {
+      try {
+        console.log('📷 Loading Einstein fallback for thumbnail click');
+        const response = await fetch('/albert-einstein-sticks-out-his-tongue.jpg');
+        if (!response.ok) throw new Error('Failed to load Einstein fallback');
+        
+        const blob = await response.blob();
+        
+        // Create the blob URL first - we'll reuse it for both pre-load and adjuster
+        const tempUrl = URL.createObjectURL(blob);
+        
+        // Pre-load the image before showing adjuster to prevent race conditions on mobile
+        try {
+          await preloadImageBeforeAdjuster(tempUrl);
+        } catch (error) {
+          console.error('Failed to pre-load Einstein fallback:', error);
+          URL.revokeObjectURL(tempUrl);
+          return;
+        }
+        
+        // Einstein is just a fallback - don't save it to state
+        // Only the adjusted version will be saved when user confirms
+        setCurrentUploadedImageUrl(tempUrl);
+        setCurrentUploadedSource('camera'); // Treat as camera source for UI
+        setShowImageAdjuster(true);
+        
+        // Clean up the preload reference after a short delay
+        setTimeout(() => {
+          delete window.__preloadImg;
+        }, 2000);
+        
+        return;
+      } catch (error) {
+        console.error('Failed to load Einstein fallback:', error);
+        return;
+      }
+    }
     
-    if (lastEditablePhoto.blob) {
+    if (lastCameraPhoto.blob) {
       // We have the blob - can reopen the adjuster
-      const newTempUrl = URL.createObjectURL(lastEditablePhoto.blob);
+      const newTempUrl = URL.createObjectURL(lastCameraPhoto.blob);
+      
+      // Pre-load the image before showing adjuster to prevent race conditions on mobile
+      try {
+        await preloadImageBeforeAdjuster(newTempUrl);
+      } catch (error) {
+        console.error('Failed to pre-load camera photo in thumbnail click:', error);
+        URL.revokeObjectURL(newTempUrl);
+        alert('Failed to load previous photo. Please take a new photo.');
+        return;
+      }
+      
       setCurrentUploadedImageUrl(newTempUrl);
-      setCurrentUploadedSource(lastEditablePhoto.source);
+      setCurrentUploadedSource(lastCameraPhoto.source);
       setShowImageAdjuster(true);
-    } else if (lastEditablePhoto.dataUrl) {
+      
+      // Clean up the preload reference after a short delay
+      setTimeout(() => {
+        delete window.__preloadImg;
+      }, 2000);
+    } else if (lastCameraPhoto.dataUrl) {
       // We have the dataUrl from localStorage - convert back to blob
       try {
-        const response = await fetch(lastEditablePhoto.dataUrl);
+        const response = await fetch(lastCameraPhoto.dataUrl);
         const blob = await response.blob();
         const newTempUrl = URL.createObjectURL(blob);
         
-        // Update the lastEditablePhoto with the new blob for future use
-        setLastEditablePhoto({
-          ...lastEditablePhoto,
+        // Update the lastCameraPhoto with the new blob for future use
+        setLastCameraPhoto({
+          ...lastCameraPhoto,
           blob: blob,
           imageUrl: newTempUrl
         });
         
+        // Pre-load the image before showing adjuster to prevent race conditions on mobile
+        try {
+          await preloadImageBeforeAdjuster(newTempUrl);
+        } catch (error) {
+          console.error('Failed to pre-load camera photo from dataUrl in thumbnail click:', error);
+          URL.revokeObjectURL(newTempUrl);
+          alert('Failed to restore previous photo. Please take a new photo.');
+          setLastCameraPhoto(null);
+          return;
+        }
+        
         setCurrentUploadedImageUrl(newTempUrl);
-        setCurrentUploadedSource(lastEditablePhoto.source);
+        setCurrentUploadedSource(lastCameraPhoto.source);
         setShowImageAdjuster(true);
+        
+        // Clean up the preload reference after a short delay
+        setTimeout(() => {
+          delete window.__preloadImg;
+        }, 2000);
       } catch (error) {
         console.error('Failed to restore image from dataUrl:', error);
         alert('Failed to restore previous photo. Please take a new photo.');
-        setLastEditablePhoto(null);
+        setLastCameraPhoto(null);
       }
     } else {
       // No usable image data
       console.warn('No usable image data found');
-      setLastEditablePhoto(null);
+      setLastCameraPhoto(null);
+    }
+  };
+
+  // Handle opening ImageAdjuster for next batch generation from PhotoGallery
+  const handleOpenImageAdjusterForNextBatch = async () => {
+    // Refresh theme state from localStorage to ensure we have the latest selections
+    // This is important when user modifies selections in Vibe Explorer and then clicks "New Batch"
+    const saved = getThemeGroupPreferences();
+    const defaultState = getDefaultThemeGroupState();
+    const latestThemeState = { ...defaultState, ...saved };
+    setCurrentThemeState(latestThemeState);
+    console.log('🔄 Refreshed theme state from localStorage for new batch:', latestThemeState);
+    
+    if (!lastAdjustedPhoto) {
+      console.warn('No lastAdjustedPhoto available for next batch - loading Einstein fallback');
+      // Load Einstein fallback just like handleThumbnailClick does
+      try {
+        console.log('📷 Loading Einstein fallback for next batch');
+        const response = await fetch('/albert-einstein-sticks-out-his-tongue.jpg');
+        if (!response.ok) throw new Error('Failed to load Einstein fallback');
+        
+        const blob = await response.blob();
+        
+        // Create the blob URL first - we'll reuse it for both pre-load and adjuster
+        const tempUrl = URL.createObjectURL(blob);
+        
+        // Pre-load the image before showing adjuster to prevent race conditions on mobile
+        try {
+          await preloadImageBeforeAdjuster(tempUrl);
+        } catch (error) {
+          console.error('Failed to pre-load Einstein fallback:', error);
+          URL.revokeObjectURL(tempUrl);
+          alert('Failed to load photo. Please take a new photo.');
+          return;
+        }
+        
+        // Einstein is just a fallback - don't save it to state
+        // Only the adjusted version will be saved when user confirms
+        setCurrentUploadedImageUrl(tempUrl);
+        setCurrentUploadedSource('camera'); // Treat as camera source for UI
+        setShowImageAdjuster(true);
+        
+        // Clean up the preload reference after a short delay
+        setTimeout(() => {
+          delete window.__preloadImg;
+        }, 2000);
+        
+        return;
+      } catch (error) {
+        console.error('Failed to load Einstein fallback:', error);
+        alert('Failed to load photo. Please take a new photo.');
+        return;
+      }
+    }
+    
+    if (lastAdjustedPhoto.blob) {
+      // We have the blob - can reopen the adjuster
+      const newTempUrl = URL.createObjectURL(lastAdjustedPhoto.blob);
+      
+      // Pre-load the image before showing adjuster to prevent race conditions on mobile
+      // This is critical - without pre-loading, mobile Safari may call canvas.toBlob()
+      // before the image fully decodes, causing React error #310
+      console.log('[HANDLE_OPEN_IMAGE_ADJUSTER_FOR_NEXT_BATCH] Starting preload for blob');
+      try {
+        await preloadImageBeforeAdjuster(newTempUrl, 'handleOpenImageAdjusterForNextBatch-blob');
+        console.log('[HANDLE_OPEN_IMAGE_ADJUSTER_FOR_NEXT_BATCH] Preload complete, setting state');
+      } catch (error) {
+        console.error('[HANDLE_OPEN_IMAGE_ADJUSTER_FOR_NEXT_BATCH] Preload failed:', error);
+        URL.revokeObjectURL(newTempUrl);
+        alert('Failed to load previous photo. Please take a new photo.');
+        return;
+      }
+      
+      console.log('[HANDLE_OPEN_IMAGE_ADJUSTER_FOR_NEXT_BATCH] Setting currentUploadedImageUrl and showing adjuster');
+      console.log('[HANDLE_OPEN_IMAGE_ADJUSTER_FOR_NEXT_BATCH] BlobURL being set:', newTempUrl.substring(0, 50) + '...');
+      setCurrentUploadedImageUrl(newTempUrl);
+      setCurrentUploadedSource(lastAdjustedPhoto.source);
+      console.log('[HANDLE_OPEN_IMAGE_ADJUSTER_FOR_NEXT_BATCH] About to call setShowImageAdjuster(true)');
+      setShowImageAdjuster(true);
+      console.log('[HANDLE_OPEN_IMAGE_ADJUSTER_FOR_NEXT_BATCH] ImageAdjuster should now be visible');
+      console.log('[HANDLE_OPEN_IMAGE_ADJUSTER_FOR_NEXT_BATCH] Preload image still exists:', !!window.__preloadImg);
+      
+      // Clean up the preload reference after a short delay
+      setTimeout(() => {
+        console.log('[HANDLE_OPEN_IMAGE_ADJUSTER_FOR_NEXT_BATCH] Cleaning up preload reference');
+        delete window.__preloadImg;
+        delete window.__preloadContext;
+        delete window.__preloadTime;
+      }, 2000);
+    } else if (lastAdjustedPhoto.dataUrl) {
+      // We have the dataUrl from localStorage - convert back to blob
+      try {
+        const response = await fetch(lastAdjustedPhoto.dataUrl);
+        const blob = await response.blob();
+        const newTempUrl = URL.createObjectURL(blob);
+        
+        // Update the lastAdjustedPhoto with the new blob for future use
+        setLastAdjustedPhoto({
+          ...lastAdjustedPhoto,
+          blob: blob,
+          imageUrl: newTempUrl
+        });
+        
+        // Pre-load the image before showing adjuster to prevent race conditions on mobile
+        // This is critical - without pre-loading, mobile Safari may call canvas.toBlob()
+        // before the image fully decodes, causing React error #310
+        try {
+          await preloadImageBeforeAdjuster(newTempUrl);
+        } catch (error) {
+          console.error('Failed to pre-load adjusted photo from dataUrl:', error);
+          URL.revokeObjectURL(newTempUrl);
+          alert('Failed to restore previous photo. Please take a new photo.');
+          setLastAdjustedPhoto(null);
+          return;
+        }
+        
+        setCurrentUploadedImageUrl(newTempUrl);
+        setCurrentUploadedSource(lastAdjustedPhoto.source);
+        setShowImageAdjuster(true);
+        
+        // Clean up the preload reference after a short delay
+        setTimeout(() => {
+          delete window.__preloadImg;
+        }, 2000);
+      } catch (error) {
+        console.error('Failed to restore image from dataUrl:', error);
+        alert('Failed to restore previous photo. Please take a new photo.');
+        setLastAdjustedPhoto(null);
+      }
+    } else {
+      // No usable image data
+      console.warn('No usable image data found');
+      setLastAdjustedPhoto(null);
     }
   };
 
@@ -5337,17 +10437,32 @@ const App = () => {
   // -------------------------
   //   Render
   // -------------------------
+
   return (
     <>
       {/* Splash Screen */}
-      {showSplashScreen && (
-        <SplashScreen onDismiss={() => setShowSplashScreen(false)} />
-      )}
+      {showSplashScreen ? (
+        <>
+          {console.log('🎬 RENDERING SplashScreen component')}
+          <SplashScreen
+            bypassLocalStorage={splashTriggeredByInactivity}
+            brandTitle={brandTitle}
+            brandLogo={brandLogo}
+            brandBackgroundImage={brandBackgroundImage}
+            onDismiss={() => {
+              console.log('🎬 Splash screen dismissed - will restart inactivity timer if enabled');
+              setShowSplashScreen(false);
+              setSplashTriggeredByInactivity(false); // Reset the flag
+            }}
+          />
+        </>
+      ) : null}
       
       {/* PWA Install Prompt - Always rendered, handles its own timing and visibility */}
-      <PWAInstallPrompt 
+      <PWAInstallPrompt
         onClose={() => setShowPWAPromptManually(false)}
         forceShow={showPWAPromptManually}
+        disabled={tezdevTheme !== 'off'}
       />
 
       {/* Twitter Share Modal */}
@@ -5355,30 +10470,16 @@ const App = () => {
         isOpen={showTwitterModal}
         onClose={() => setShowTwitterModal(false)}
         onShare={handleTwitterShare}
-        imageUrl={twitterPhotoIndex !== null && photos[twitterPhotoIndex] ? photos[twitterPhotoIndex].images[0] : null}
-        photoData={twitterPhotoIndex !== null ? photos[twitterPhotoIndex] : null}
+        imageUrl={twitterPhotoData?.images?.[0] || (twitterPhotoIndex !== null && photos[twitterPhotoIndex]?.images?.[0]) || null}
+        videoUrl={twitterPhotoData?.videoUrl || (twitterPhotoIndex !== null && photos[twitterPhotoIndex]?.videoUrl) || null}
+        photoData={twitterPhotoData || (twitterPhotoIndex !== null ? photos[twitterPhotoIndex] : null)}
+        defaultMessage={twitterPhotoData?.statusText || (twitterPhotoIndex !== null && photos[twitterPhotoIndex]?.statusText) || undefined}
         stylePrompts={stylePrompts}
         tezdevTheme={tezdevTheme}
         aspectRatio={aspectRatio}
         outputFormat={outputFormat}
       />
 
-      {/* Top-left Style Dropdown - only show for Flux Kontext models */}
-      {showTopLeftStyleDropdown && (
-        <StyleDropdown
-          isOpen={showTopLeftStyleDropdown}
-          onClose={() => setShowTopLeftStyleDropdown(false)}
-          selectedStyle={selectedStyle}
-          updateStyle={handleUpdateStyle}
-          defaultStylePrompts={stylePrompts}
-          setShowControlOverlay={() => setShowControlOverlay(true)}
-          dropdownPosition="bottom"
-          triggerButtonClass=".header-style-select"
-          onThemeChange={handleThemeChange}
-          selectedModel={selectedModel}
-          onGallerySelect={handleNavigateToPromptSelector}
-        />
-      )}
 
 
 
@@ -5415,6 +10516,31 @@ const App = () => {
         onDrop={handleDrop}
         style={{ position: 'relative', zIndex: 1 }}
       >
+        {/* Brand background image overlay (e.g., Mandala Club venue) */}
+        {brandBackgroundImage && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 0,
+              overflow: 'hidden',
+              pointerEvents: 'none',
+            }}
+          >
+            <img
+              src={brandBackgroundImage}
+              alt=""
+              style={{
+                width: '100%',
+                minHeight: '100%',
+                objectFit: 'cover',
+                objectPosition: 'center top',
+                opacity: 0.2,
+                filter: 'saturate(0.3)',
+              }}
+            />
+          </div>
+        )}
         {/* Control overlay panel - Use context state/handlers */}
         <AdvancedSettings 
           visible={showControlOverlay}
@@ -5435,8 +10561,8 @@ const App = () => {
           controlNetStrength={controlNetStrength}
           controlNetGuidanceEnd={controlNetGuidanceEnd}
           inferenceSteps={inferenceSteps}
+          sampler={sampler}
           scheduler={scheduler}
-          timeStepSpacing={timeStepSpacing}
           flashEnabled={flashEnabled}
           keepOriginalPhoto={keepOriginalPhoto}
           aspectRatio={aspectRatio}
@@ -5454,8 +10580,8 @@ const App = () => {
           // Remove incorrect setters, use updateSetting instead
           onControlNetGuidanceEndChange={(value) => updateSetting('controlNetGuidanceEnd', value)}
           onInferenceStepsChange={(value) => updateSetting('inferenceSteps', value)}
+          onSamplerChange={(value) => updateSetting('sampler', value)}
           onSchedulerChange={(value) => updateSetting('scheduler', value)}
-          onTimeStepSpacingChange={(value) => updateSetting('timeStepSpacing', value)}
           onFlashEnabledChange={(value) => updateSetting('flashEnabled', value)}
           onKeepOriginalPhotoChange={(value) => updateSetting('keepOriginalPhoto', value)}
           onAspectRatioChange={(value) => {
@@ -5517,17 +10643,43 @@ const App = () => {
             updateSetting('sensitiveContentFilter', value);
             saveSettingsToCookies({ sensitiveContentFilter: value });
           }}
-          kioskMode={kioskMode}
-          onKioskModeChange={(value) => {
-            updateSetting('kioskMode', value);
-            saveSettingsToCookies({ kioskMode: value });
+          showSplashOnInactivity={showSplashOnInactivity}
+          onShowSplashOnInactivityChange={(value) => {
+            updateSetting('showSplashOnInactivity', value);
+            saveSettingsToCookies({ showSplashOnInactivity: value });
           }}
           onResetSettings={resetSettings} // Pass context reset function
           modelOptions={getModelOptions()} 
         />
 
-        {/* Help button - only show in camera view */}
-        {!showPhotoGrid && !selectedPhotoIndex && (
+        {/* Authentication Status - top-left corner (hidden in kiosk mode and on event domains) */}
+        {!showSplashScreen && currentPage !== 'prompts' && !showSplashOnInactivity && !isEventDomain() && (
+          <div 
+            className="auth-status-wrapper"
+            style={{
+              position: 'fixed',
+              top: 24,
+              left: 24,
+              zIndex: 1002,
+              filter: 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.15))',
+              transition: 'left 0.3s ease',
+              display: 'flex',
+              alignItems: 'center',
+            }}>
+            <AuthStatus
+              ref={authStatusRef}
+              onPurchaseClick={authState.isAuthenticated && authState.authMode === 'frontend' ? () => setShowStripePurchase(true) : undefined}
+              onSignupComplete={triggerSignupCelebration}
+              onHistoryClick={authState.isAuthenticated && authState.authMode === 'frontend' ? () => setShowRecentProjects(true) : undefined}
+              textColor={showStartMenu ? "#000000" : "#ffffff"}
+              playRandomFlashSound={playRandomFlashSound}
+              showToast={showToast}
+            />
+          </div>
+        )}
+
+        {/* Settings and Tips buttons - show on start menu */}
+        {!showPhotoGrid && !selectedPhotoIndex && showStartMenu && (
           <>
             <button
               className="header-settings-btn"
@@ -5536,7 +10688,7 @@ const App = () => {
                 position: 'fixed',
                 top: 24,
                 right: 72, // Position it to the left of the help button
-                background: 'linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%)',
+                background: 'linear-gradient(135deg, var(--brand-accent-tertiary) 0%, var(--brand-accent-tertiary-hover) 100%)',
                 border: 'none',
                 color: '#fff',
                 fontSize: 20,
@@ -5566,31 +10718,31 @@ const App = () => {
             >
               ⚙️
             </button>
-          <button
-            className="header-info-btn"
-            onClick={toggleNotesModal}
-            style={{
-              position: 'fixed',
-              top: 24,
-              right: 24,
-              background: 'linear-gradient(135deg, #ffb6e6 0%, #ff5e8a 100%)',
-              border: 'none',
-              color: '#fff',
-              fontSize: 22,
-              width: 38,
-              height: 38,
-              borderRadius: '50%',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-              cursor: 'pointer',
-              fontWeight: 900,
-              lineHeight: 1,
-              padding: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+            <button
+              className="header-info-btn"
+              onClick={toggleNotesModal}
+              style={{
+                position: 'fixed',
+                top: 24,
+                right: 24,
+                background: 'linear-gradient(135deg, var(--brand-header-bg) 0%, var(--brand-accent-secondary) 100%)',
+                border: 'none',
+                color: '#fff',
+                fontSize: 22,
+                width: 38,
+                height: 38,
+                borderRadius: '50%',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                cursor: 'pointer',
+                fontWeight: 900,
+                lineHeight: 1,
+                padding: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 transition: 'all 0.2s ease',
-              zIndex: 1000,
-            }}
+                zIndex: 1000,
+              }}
               onMouseOver={(e) => {
                 e.currentTarget.style.transform = 'scale(1.05)';
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
@@ -5598,13 +10750,101 @@ const App = () => {
               onMouseOut={(e) => {
                 e.currentTarget.style.transform = 'scale(1)';
                 e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
-            }}
-            title="Photobooth Tips"
-          >
-            ?
-          </button>
+              }}
+              title="Photobooth Tips"
+            >
+              ?
+            </button>
           </>
         )}
+
+        {/* Settings and Style Selector buttons - only show in live camera view (not splash or start menu) */}
+        {!showPhotoGrid && !selectedPhotoIndex && !showStartMenu && (
+          <>
+            <button
+              className="header-settings-btn"
+              onClick={() => setShowControlOverlay(!showControlOverlay)}
+              style={{
+                position: 'fixed',
+                top: 24,
+                right: 24,
+                background: 'linear-gradient(135deg, var(--brand-accent-tertiary) 0%, var(--brand-accent-tertiary-hover) 100%)',
+                border: 'none',
+                color: '#fff',
+                fontSize: 20,
+                width: 38,
+                height: 38,
+                borderRadius: '50%',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                cursor: 'pointer',
+                fontWeight: 900,
+                lineHeight: 1,
+                padding: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease',
+                zIndex: 1000,
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
+              }}
+              title="Settings"
+            >
+              ⚙️
+            </button>
+            {/* Camera View Style Selector Button */}
+            <button
+              className="camera-view-style-selector-button"
+              onClick={() => {
+                handleNavigateToPromptSelector();
+              }}
+              title="Your selected vibe - Click to change"
+            >
+              <div className="camera-view-style-selector-content">
+                {(() => {
+                  // Generate the full gallery image path with fallback logic
+                  // Skip special styles that don't have preview images
+                  const isIndividualStyle = selectedStyle &&
+                    !['custom', 'random', 'randomMix', 'oneOfEach', 'browseGallery', 'copyImageStyle', 'simplePick'].includes(selectedStyle);
+                  const folder = isIndividualStyle ? getPortraitFolderWithFallback(portraitType, selectedStyle, promptsDataRaw) : null;
+                  const stylePreviewImage = isIndividualStyle && folder
+                    ? `${urls.assetUrl}/gallery/prompts/${folder}/${generateGalleryFilename(selectedStyle)}`
+                    : null;
+                  return stylePreviewImage ? (
+                    <img
+                      src={stylePreviewImage}
+                      alt={selectedStyle ? styleIdToDisplay(selectedStyle) : 'Style preview'}
+                      className="camera-view-style-preview-image"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        const fallbackIcon = e.currentTarget.nextElementSibling;
+                        if (fallbackIcon && fallbackIcon.classList.contains('camera-view-style-icon-fallback')) {
+                          fallbackIcon.style.display = 'block';
+                        }
+                      }}
+                    />
+                  ) : null;
+                })()}
+                <span className={`camera-view-style-icon ${selectedStyle && selectedStyle !== 'custom' ? 'camera-view-style-icon-fallback' : ''}`} style={selectedStyle && selectedStyle !== 'custom' ? { display: 'none' } : {}}>
+                  🎨
+                </span>
+                <div className="camera-view-style-info">
+                  <div className="camera-view-style-label">Selected vibe</div>
+                  <div className="camera-view-style-text">
+                    {selectedStyle === 'custom' ? 'Custom...' : ((selectedStyle === 'randomMix' || selectedStyle === 'simplePick') && isOnlyPersonalizedEnabled) ? 'Personalized' : selectedStyle ? styleIdToDisplay(selectedStyle) : 'Select Style'}
+                  </div>
+                </div>
+              </div>
+            </button>
+          </>
+        )}
+
         
         {/* Studio lights - permanent background elements */}
         <div className="studio-lights-container">
@@ -5636,7 +10876,7 @@ const App = () => {
                 <h2 className="marker-font">Photobooth Tips</h2>
                 <ul className="marker-font">
                   <li>Generated compositions reuses the same face size, position, and orientation as the camera snapshot so step back and get creative!</li>
-                  <li>Only one face at a time unless using Flux.1 Kontext! If multiple faces the biggest one in frame is used.</li>
+                  <li>Only one face at a time unless using context image models (Qwen, Flux)! If multiple faces the biggest one in frame is used.</li>
                   <li>The more light / dark depth on your face the better, flat even light results can be subpar.</li>
                   <li>Try using the Custom Prompt feature and providing your own prompt!</li>
                   <li>You can even drag a photo into the camera window to use as a reference!</li>
@@ -5646,39 +10886,42 @@ const App = () => {
                     <a href="https://www.sogni.ai/sdk" target="_blank" rel="noopener noreferrer">
                       Vibe Coded with Sogni Client SDK<br/>Powered by Sogni Supernet ❤️
                     </a>
-                    <button
-                      onClick={() => {
-                        setShowInfoModal(false);
-                        setShowPromoPopup(true);
-                      }}
-                      className="signup-tip-button"
-                      style={{
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        border: 'none',
-                        color: 'white',
-                        padding: '6px 12px',
-                        borderRadius: '12px',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                        textShadow: '0 1px 2px rgba(0,0,0,0.2)',
-                        whiteSpace: 'nowrap',
-                        flexShrink: 0
-                      }}
-                      onMouseOver={(e) => {
-                        e.currentTarget.style.transform = 'scale(1.05)';
-                        e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
-                      }}
-                      onMouseOut={(e) => {
-                        e.currentTarget.style.transform = 'scale(1)';
-                        e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
-                      }}
-                      title="Get 100 free credits with Sogni!"
-                    >
-                      Signup? ✨
-                    </button>
+                    {/* Only show signup button if user is not logged in */}
+                    {!authState.isAuthenticated && (
+                      <button
+                        onClick={() => {
+                          setShowInfoModal(false);
+                          setShowPromoPopup(true);
+                        }}
+                        className="signup-tip-button"
+                        style={{
+                          background: 'linear-gradient(135deg, var(--brand-button-primary) 0%, var(--brand-button-primary-end) 100%)',
+                          border: 'none',
+                          color: 'white',
+                          padding: '6px 12px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                          textShadow: '0 1px 2px rgba(0,0,0,0.2)',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.transform = 'scale(1.05)';
+                          e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.transform = 'scale(1)';
+                          e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                        }}
+                        title="Get 125 free credits with Sogni!"
+                      >
+                        Signup? ✨
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -5699,11 +10942,10 @@ const App = () => {
           selectedPhotoIndex={selectedPhotoIndex}
           setSelectedPhotoIndex={setSelectedPhotoIndex}
           showPhotoGrid={showPhotoGrid}
-          handleBackToCamera={handleBackToCamera}
-          handlePreviousPhoto={handlePreviousPhoto}
-          handleNextPhoto={handleNextPhoto}
+          handleBackToCamera={handleBackToMenu}
           handlePhotoViewerClick={handlePhotoViewerClick}
           handleGenerateMorePhotos={handleGenerateMorePhotos}
+          handleOpenImageAdjusterForNextBatch={handleOpenImageAdjusterForNextBatch}
           handleShowControlOverlay={() => setShowControlOverlay(!showControlOverlay)}
           isGenerating={photos.some(photo => photo.generating)}
           keepOriginalPhoto={keepOriginalPhoto}
@@ -5724,55 +10966,57 @@ const App = () => {
           outputFormat={outputFormat}
           sensitiveContentFilter={sensitiveContentFilter}
           handleShareToX={handleShareToX}
+          handleShareViaWebShare={handleShareViaWebShare}
+          handleShareQRCode={handleKioskModeShare}
+          handleStitchedVideoQRShare={handleStitchedVideoQRShare}
           slothicornAnimationEnabled={slothicornAnimationEnabled}
           backgroundAnimationsEnabled={backgroundAnimationsEnabled}
           tezdevTheme={tezdevTheme}
+          brandLogo={brandLogo}
+          brandTitle={brandTitle}
           aspectRatio={aspectRatio}
           handleRetryPhoto={handleRetryPhoto}
+          handleRefreshPhoto={handleRefreshPhoto}
           onUseGalleryPrompt={handleUseGalleryPrompt}
           onPreGenerateFrame={handlePreGenerateFrameCallback}
           onFramedImageCacheUpdate={handleFramedImageCacheUpdate}
           onClearQrCode={() => {
             if (qrCodeData) {
               console.log('Clearing QR code due to image enhancement');
-              setQrCodeData(null);
             }
+            setQrCodeData(null);
           }}
           onClearMobileShareCache={() => {
             console.log('Clearing mobile share cache due to PhotoGallery request');
             setMobileShareCache({});
           }}
+          onRegisterFrameCacheClear={(clearFunction) => {
+            photoGalleryFrameClearRef.current = clearFunction;
+          }}
+          onRegisterVideoIntroTrigger={handleRegisterVideoIntroTrigger}
           qrCodeData={qrCodeData}
           onCloseQR={() => setQrCodeData(null)}
+          onOutOfCredits={() => {
+            console.log('[ENHANCE] Triggering out of credits popup from PhotoGallery (main)');
+            handleOutOfCreditsShow();
+          }}
+          onOpenLoginModal={isEventDomain() ? undefined : () => authStatusRef.current?.openLoginModal()}
+          numImages={numImages}
+          authState={authState}
+          onCopyImageStyleSelect={handleStyleReferenceUpload}
+          styleReferenceImage={styleReferenceImage}
+          onRemoveStyleReference={handleRemoveStyleReference}
+          onEditStyleReference={handleEditStyleReference}
+          updateStyle={handleUpdateStyle}
+          switchToModel={switchToModel}
+          onNavigateToVibeExplorer={handleNavigateToPromptSelector}
+          selectedModel={selectedModel}
+          portraitType={portraitType}
         />
           </div>
         )}
 
         <canvas ref={canvasReference} className="hidden" />
-
-        {/* Slothicorn mascot with direct DOM manipulation */}
-        {!showStartMenu && slothicornAnimationEnabled && (
-          <div 
-            ref={slothicornReference}
-            className="slothicorn-container"
-            style={{
-              position: 'fixed',
-              bottom: '-340px',
-              left: '50%',
-              transform: 'translateX(-50%) scale(1.5)',
-              width: '200px',
-              height: 'auto',
-              zIndex: 5000,
-              pointerEvents: 'none'
-            }}
-          >
-            <img 
-              src="/slothicorn-camera.png" 
-              alt="Slothicorn mascot" 
-              className="slothicorn-image" 
-            />
-          </div>
-        )}
 
         {/* Camera shutter sound */}
         <audio ref={shutterSoundReference} preload="auto">
@@ -5780,11 +11024,7 @@ const App = () => {
           Your browser does not support the audio element.
         </audio>
 
-        {/* Camera wind sound */}
-        <audio ref={cameraWindSoundReference} preload="auto">
-          <source src={cameraWindSound} type="audio/mpeg" />
-          Your browser does not support the audio element.
-        </audio>
+        {/* Flash sounds are created dynamically for concurrent playback */}
 
         {/* Hello sound */}
         {/*
@@ -5830,293 +11070,40 @@ const App = () => {
         />
       )}
 
-      {/* Add a dedicated useEffect for the aspect ratio CSS */}
-      {useEffect(() => {
-        // Add our CSS fixes (all 5 issues at once)
-        const styleElement = document.createElement('style');
-        styleElement.textContent = `
-          /* ------- FIX 1: Style dropdown ------- */
-          .style-dropdown {
-            animation: dropdownAppear 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards;
-          }
-          
-          /* Position variations */
-          .style-dropdown.top-position {
-            bottom: 100%;
-            top: auto !important;
-            margin-bottom: 10px;
-            transform-origin: center bottom !important;
-            animation: dropdownAppearTop 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards;
-          }
-          
-          .style-dropdown.bottom-position {
-            top: 100%;
-            bottom: auto !important;
-            margin-top: 10px;
-            transform-origin: center top !important;
-            animation: dropdownAppearBottom 0.3s cubic-bezier(0.17, 0.67, 0.25, 1.2) forwards;
-          }
-          
-          @keyframes dropdownAppearTop {
-            from {
-              opacity: 0;
-              transform: translateX(-50%) translateY(10px);
-            }
-            to {
-              opacity: 1; 
-              transform: translateX(-50%) translateY(0);
-            }
-          }
-          
-          @keyframes dropdownAppearBottom {
-            from {
-              opacity: 0;
-              transform: translateX(-50%) translateY(-10px);
-            }
-            to {
-              opacity: 1; 
-              transform: translateX(-50%) translateY(0);
-            }
-          }
-          
-          .style-section.featured {
-            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-            padding-bottom: 8px;
-            margin-bottom: 8px;
-          }
-          
-          .style-option {
-            display: flex;
-            align-items: center;
-            padding: 10px 12px;
-            margin: 2px 0;
-            border-radius: 4px;
-            cursor: pointer;
-            color: #333;
-            transition: background-color 0.2s;
-          }
-          
-          .style-option:hover {
-            background-color: #f5f5f5;
-          }
-          
-          .style-option:hover:before {
-            display: none !important; /* Remove the carat */
-          }
-          
-          .style-option.selected {
-            background-color: #fff0f4 !important; /* Light pink background */
-            color: #ff5e8a !important;
-            font-weight: 500;
-          }
-          
-          .style-icon {
-            margin-right: 10px;
-            z-index: 2;
-          }
-          
-          /* ------- FIX 2: Camera widget Polaroid style ------- */
-          .photobooth-frame {
-            background: white;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
-            border-radius: 4px;
-            width: auto;
-            max-width: 70%;
-            margin: 20px auto;
-            padding: 8px 8px 60px 8px;
-            position: relative;
-          }
-          
-          .photobooth-header {
-            margin-bottom: 8px;
-          }
-          
-          /* Move Take Photo button to bottom */
-          .header-take-photo-btn {
-            position: absolute !important;
-            bottom: 15px !important;
-            left: 50% !important;
-            transform: translateX(-50%) !important;
-            background: #ff5252 !important;
-            color: white !important;
-            font-weight: bold !important;
-            padding: 10px 20px !important;
-            border-radius: 25px !important;
-            border: none !important;
-            cursor: pointer !important;
-            z-index: 10 !important;
-          }
-          
-          .header-take-photo-btn:hover {
-            background: #ff7272 !important;
-          }
-
-          /* ------- FIX 4: Loading image fade effect ------- */
-          .film-frame.loading {
-            position: relative;
-          }
-          
-          .film-frame.loading img {
-            transition: opacity 5s;
-          }
-                    
-          /* Fallback image styling */
-          .film-frame[data-error="true"] img,
-          .film-frame img.fallback {
-            filter: grayscale(20%) !important;
-          }
-          
-          /* Set aspect ratio CSS variable based on selected aspect ratio */
-          :root {
-            --current-aspect-ratio: ${
-              aspectRatio === 'ultranarrow' ? '768/1344' :
-              aspectRatio === 'narrow' ? '832/1216' :
-              aspectRatio === 'portrait' ? '896/1152' : 
-              aspectRatio === 'square' ? '1024/1024' : 
-              aspectRatio === 'landscape' ? '1152/896' :
-              aspectRatio === 'wide' ? '1216/832' :
-              aspectRatio === 'ultrawide' ? '1344/768' :
-              window.innerHeight > window.innerWidth ? '896/1152' : '1152/896'
-            };
-          }
-          
-          /* Ensure images display properly */
-          #webcam {
-            object-fit: cover;
-            width: 100%;
-            height: auto;
-            border-radius: 0 !important;
-          }
-          
-          /* Update film frame images */
-          .film-frame img {
-            object-fit: cover;
-            width: 100%;
-          }
-          .fade-in {
-            transition: opacity 0.5s !important;
-          }
-
-          /* ------- UPDATED: Improve Film Frame Hover Effects ------- */
-          .film-frame:not(.loading) {
-            transform-origin: center center !important;
-            transform: scale(1) translateZ(0) !important;
-            will-change: transform, box-shadow !important;
-            /* Remove the default transition to prevent background animations */
-          }
-          
-          /* Allow loading animations to work - but not in selected/popup view */
-          .film-frame.loading:not(.selected) {
-            transform-origin: center center !important;
-            will-change: transform, box-shadow !important;
-            /* Don't override transform for loading frames - let animation handle it */
-          }
-          
-          /* Only apply transitions on hover/active for deliberate interaction, but not on loading frames */
-          /* Only apply hover effects on devices that support hover (not touch devices) */
-          @media (hover: hover) and (pointer: fine) {
-            .film-frame:not(.selected):not(.loading):hover {
-              transform: scale(1.05) translateZ(0) !important;
-              box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25) !important;
-              transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), 
-                          box-shadow 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
-            }
-            
-            .film-frame:not(.selected):not(.loading):active {
-              transform: scale(0.98) translateZ(0) !important;
-              box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2) !important;
-              transition: all 0.1s ease-out !important;
-            }
-          }
-          
-          /* Ensure only the deliberately selected photo animates */
-          .film-frame.selected {
-            transform: scale(1) !important;
-          }
-          
-          /* Add transition only for the specific photo being selected/deselected */
-          .film-frame.animating-selection {
-            transition: transform 0.5s cubic-bezier(0.2, 0, 0.2, 1) !important;
-          }
-                
-          /* ------- ADD: Psychedelic animation ------- */
-          @keyframes psychedelic-shift {
-            0% {
-              background-position: 0% 0%, 0 0, 0 0;
-            }
-            25% {
-              background-position: 100% 0%, 10px 10px, -10px -10px;
-            }
-            50% {
-              background-position: 100% 100%, 20px 20px, -20px -20px;
-            }
-            75% {
-              background-position: 0% 100%, 10px 30px, -10px -30px;
-            }
-            100% {
-              background-position: 0% 0%, 0 0, 0 0;
-            }
-          }
-        `;
-        
-        document.head.append(styleElement);
-        
-        // Update aspect ratio when orientation changes
-        const updateAspectRatio = () => {
-          // Only update if aspect ratio is not explicitly set by user
-          if (!aspectRatio || aspectRatio === 'auto') {
-            const isPortrait = window.innerHeight > window.innerWidth;
-            document.documentElement.style.setProperty(
-              '--current-aspect-ratio', 
-              isPortrait ? '896/1152' : '1152/896'
-            );
-          }
-        };
-        
-        // Set initial aspect ratio based on user selection or orientation
-        switch (aspectRatio) {
-          case 'ultranarrow':
-            document.documentElement.style.setProperty('--current-aspect-ratio', '768/1344');
-            break;
-          case 'narrow':
-            document.documentElement.style.setProperty('--current-aspect-ratio', '832/1216');
-            break;
-          case 'portrait':
-            document.documentElement.style.setProperty('--current-aspect-ratio', '896/1152');
-            break;
-          case 'square':
-            document.documentElement.style.setProperty('--current-aspect-ratio', '1024/1024');
-            break;
-          case 'landscape':
-            document.documentElement.style.setProperty('--current-aspect-ratio', '1152/896');
-            break;
-          case 'wide':
-            document.documentElement.style.setProperty('--current-aspect-ratio', '1216/832');
-            break;
-          case 'ultrawide':
-            document.documentElement.style.setProperty('--current-aspect-ratio', '1344/768');
-            break;
-          default:
-            // Default to orientation-based
-            updateAspectRatio();
-            break;
-        }
-        
-        // Update on resize only if not using explicit aspect ratio
-        window.addEventListener('resize', updateAspectRatio);
-        
-        return () => {
-          window.removeEventListener('resize', updateAspectRatio);
-          if (styleElement && document.head.contains(styleElement)) {
-            styleElement.remove();
-          }
-        };
-      }, [aspectRatio])}
 
       {/* Promotional Popup */}
-      <PromoPopup 
-        isOpen={showPromoPopup}
+      <PromoPopup
+        isOpen={showPromoPopup && !isEventDomain()}
         onClose={handlePromoPopupClose}
+        onSignup={() => authStatusRef.current?.openSignupModal()}
+      />
+
+      {/* Out of Credits Popup */}
+      <OutOfCreditsPopup
+        isOpen={showOutOfCreditsPopup && !isEventDomain()}
+        onClose={handleOutOfCreditsPopupClose}
+        onPurchase={authState.isAuthenticated && authState.authMode === 'frontend' ? () => setShowStripePurchase(true) : undefined}
+        balances={balances}
+        currentTokenType={walletTokenType}
+        estimatedCost={lastJobCostEstimate}
+        onSwitchPaymentMethod={switchPaymentMethod}
+      />
+
+      {/* Daily Boost from out-of-credits flow (bypasses event/kiosk mode suppression) */}
+      <DailyBoostCelebration
+        isVisible={showDailyBoostFromCredits}
+        creditAmount={dailyBoostReward ? parseInt(dailyBoostReward.amount, 10) : 50}
+        onClaim={handleDailyBoostFromCreditsClaim}
+        onDismiss={handleDailyBoostFromCreditsDismiss}
+        isClaiming={claimInProgress}
+        claimSuccess={lastClaimSuccess}
+        claimError={dailyBoostClaimError}
+      />
+
+      {/* Login Upsell Popup for non-authenticated users who've used their demo render */}
+      <LoginUpsellPopup
+        isOpen={showLoginUpsellPopup && currentPage !== 'prompts' && !isEventDomain()}
+        onClose={() => setShowLoginUpsellPopup(false)}
       />
 
       {/* Network Status Notification */}
@@ -6126,19 +11113,203 @@ const App = () => {
         isGenerating={isGenerating}
       />
       
+      {/* Bald for Base Popup - rendered in App.jsx so it works independently of PhotoGallery */}
+      <BaldForBaseConfirmationPopup
+        visible={showBaldForBasePopup}
+        onConfirm={handleBaldForBaseGenerate}
+        onClose={() => setShowBaldForBasePopup(false)}
+        loading={false}
+        costRaw={null}
+        costUSD={null}
+        videoResolution={settings.videoResolution || '480p'}
+        tokenType={walletTokenType}
+        isBatch={true}
+        itemCount={photos.filter(p => !p.hidden && !p.loading && !p.generating && !p.error && p.images && p.images.length > 0 && !p.isOriginal).length || 1}
+      />
+      
+      {/* Slothicorn mascot - rendered outside photobooth-app div so its z-index
+           is not trapped in the parent's stacking context (zIndex: 1) */}
+      {!showStartMenu && slothicornAnimationEnabled && (
+        <div
+          ref={slothicornReference}
+          className="slothicorn-container"
+          style={{
+            position: 'fixed',
+            bottom: '-340px',
+            left: '50%',
+            transform: 'translateX(-50%) scale(1.5)',
+            width: '200px',
+            height: 'auto',
+            zIndex: 5000,
+            pointerEvents: 'none'
+          }}
+        >
+          <img
+            src="/slothicorn-camera.png"
+            alt="Slothicorn mascot"
+            className="slothicorn-image"
+          />
+        </div>
+      )}
+
       {/* Add this section at the end, right before the closing tag */}
       {showImageAdjuster && currentUploadedImageUrl && (
+        <ErrorBoundary key={`error-boundary-${currentUploadedImageUrl.substring(0, 20)}`}>
+          <ImageAdjuster
+            key={currentUploadedImageUrl}
+            imageUrl={currentUploadedImageUrl}
+            onConfirm={handleAdjustedImage}
+            onCancel={handleCancelAdjusting}
+            onUseRawImage={handleUseRawImage}
+            initialPosition={
+              lastAdjustedPhoto?.adjustments?.position || defaultPosition
+            }
+            defaultScale={
+              lastAdjustedPhoto?.adjustments?.scale || defaultScaleValue
+            }
+            numImages={numImages}
+            stylePrompts={stylePrompts}
+            onNavigateToVibeExplorer={handleNavigateToPromptSelector}
+            photoSource={currentUploadedSource || lastAdjustedPhoto?.source || 'upload'}
+            isCameraActive={!!(videoReference.current && videoReference.current.srcObject)}
+            onTakeNewPhoto={async () => {
+            // Close the current adjuster
+            setShowImageAdjuster(false);
+            if (currentUploadedImageUrl) {
+              URL.revokeObjectURL(currentUploadedImageUrl);
+            }
+            setCurrentUploadedImageUrl('');
+            
+            // Check if we're currently viewing the photo grid
+            // If we are, navigate to camera. Otherwise, just close adjuster (already in camera mode)
+            if (showPhotoGrid) {
+              // We're on the photo grid page, need to navigate to camera
+              console.log('📷 Navigating from photo grid to camera to take new photo');
+              
+              // UI handles Einstein fallback automatically when lastCameraPhoto is null/empty
+              
+              // Hide photo gallery
+              setShowPhotoGrid(false);
+              setSelectedPhotoIndex(null);
+              
+              // Don't show start menu, just directly start the camera
+              // Enumerate camera devices first
+              await listCameras();
+              
+              // Start camera directly
+              const preferredDeviceId = preferredCameraDeviceId || selectedCameraDeviceId;
+              console.log('📹 Starting camera with preferred device:', preferredDeviceId || 'auto-select');
+              await startCamera(preferredDeviceId);
+              setCameraManuallyStarted(true);
+            } else {
+              // We're already in camera mode (adjuster was overlay on camera view)
+              // Just close the adjuster and restart the camera for a new photo
+              console.log('📷 Already in camera mode, restarting camera to take new photo');
+              
+              // Restart the camera (it was stopped after capture)
+              setTimeout(async () => {
+                const preferredDeviceId = preferredCameraDeviceId || selectedCameraDeviceId;
+                await startCamera(preferredDeviceId);
+              }, 100);
+            }
+          }}
+          onUploadNew={() => {
+            // Trigger file input to upload a new image
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.style.display = 'none';
+            
+            // Append to body for mobile compatibility
+            document.body.appendChild(input);
+            
+            input.onchange = async (e) => {
+              const file = e.target.files?.[0];
+              
+              // Clean up the input element
+              document.body.removeChild(input);
+              
+              if (file) {
+                // Check file size (17MB limit)
+                if (file.size > 17 * 1024 * 1024) {
+                  alert("Image must be less than 17MB.");
+                  return;
+                }
+                
+                // Close the current adjuster
+                setShowImageAdjuster(false);
+                if (currentUploadedImageUrl) {
+                  URL.revokeObjectURL(currentUploadedImageUrl);
+                }
+                
+                // Upload the new file (will reopen adjuster with new image)
+                await handleBrowsePhotoOption(file);
+              }
+            };
+            
+            // Also handle cancel/close of file picker
+            input.oncancel = () => {
+              document.body.removeChild(input);
+            };
+            
+            // Trigger click
+            input.click();
+          }}
+        />
+        </ErrorBoundary>
+      )}
+
+      {/* Style Reference Image Adjuster */}
+      {showStyleReferenceAdjuster && currentUploadedImageUrl && (
         <ImageAdjuster
-          key={currentUploadedImageUrl}
+          key={`style-ref-${currentUploadedImageUrl}`}
           imageUrl={currentUploadedImageUrl}
-          onConfirm={handleAdjustedImage}
-          onCancel={handleCancelAdjusting}
-          initialPosition={
-            lastEditablePhoto?.adjustments?.position || defaultPosition
-          }
-          defaultScale={
-            lastEditablePhoto?.adjustments?.scale || defaultScaleValue
-          }
+          onConfirm={handleStyleReferenceConfirm}
+          onCancel={() => {
+            setShowStyleReferenceAdjuster(false);
+            if (currentUploadedImageUrl) {
+              URL.revokeObjectURL(currentUploadedImageUrl);
+            }
+            setCurrentUploadedImageUrl('');
+          }}
+          initialPosition={{ x: 0, y: 0 }}
+          defaultScale={1}
+          numImages={1}
+          stylePrompts={stylePrompts}
+          headerText="Adjust Your Style Reference"
+          onNavigateToVibeExplorer={handleNavigateToPromptSelector}
+          onUploadNew={() => {
+            // Trigger file input to upload a new style reference image
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.style.display = 'none';
+            
+            // Append to body for mobile compatibility
+            document.body.appendChild(input);
+            
+            input.onchange = async (e) => {
+              const file = e.target.files?.[0];
+              
+              // Clean up the input element
+              document.body.removeChild(input);
+              
+              if (file) {
+                // Close the current adjuster
+                setShowStyleReferenceAdjuster(false);
+                // Upload the new file (will reopen adjuster with new image)
+                await handleStyleReferenceUpload(file);
+              }
+            };
+            
+            // Also handle cancel/close of file picker
+            input.oncancel = () => {
+              document.body.removeChild(input);
+            };
+            
+            // Trigger click
+            input.click();
+          }}
         />
       )}
 
@@ -6148,6 +11319,135 @@ const App = () => {
         onComplete={() => setShowConfetti(false)}
       />
 
+      {/* Camera Permission Waiting Message */}
+      {showPermissionMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 10000,
+            textAlign: 'center',
+          }}
+          data-testid="camera-permission-waiting"
+        >
+          {/* Slothicorn above message */}
+          <div
+            style={{
+              marginBottom: '20px',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              width: '100%',
+            }}
+          >
+            <img 
+              src="/sloth_cam_hop_trnsparent.png" 
+              alt="Sogni Sloth Camera" 
+              style={{
+                width: '180px',
+                height: 'auto',
+                objectFit: 'contain',
+                filter: 'drop-shadow(0 6px 20px rgba(0, 0, 0, 0.2))',
+                animation: 'sadFloat 3s ease-in-out infinite',
+                pointerEvents: 'none',
+              }}
+            />
+          </div>
+          
+          <div
+            style={{
+              color: 'white',
+              fontSize: '24px',
+              lineHeight: '1.6',
+              fontFamily: 'Arial, sans-serif',
+              textShadow: '0 2px 4px rgba(0, 0, 0, 0.8)',
+            }}
+          >
+            <div>Allow Photobooth to access</div>
+            <div>your camera to start</div>
+            <div>your shoot!</div>
+          </div>
+        </div>
+      )}
+
+      {/* Camera Permission Denied Overlay */}
+      {cameraPermissionDenied && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            zIndex: 10000,
+            padding: '20px',
+          }}
+          data-testid="camera-permission-denied"
+        >
+          <div
+            style={{
+              color: 'white',
+              fontSize: '20px',
+              textAlign: 'center',
+              maxWidth: '600px',
+              lineHeight: '1.6',
+              fontFamily: 'Arial, sans-serif',
+            }}
+          >
+            <div style={{ fontSize: '24px', marginBottom: '20px', fontWeight: 'bold' }}>
+              Camera Access Denied
+            </div>
+            <div style={{ marginBottom: '30px' }}>
+              Photobooth needs camera access to take photos. Please allow camera access in your browser settings and refresh the page.
+            </div>
+            <button
+              onClick={() => {
+                setCameraPermissionDenied(false);
+                setShowStartMenu(true);
+              }}
+              style={{
+                backgroundColor: '#ff6b9d',
+                color: 'white',
+                border: 'none',
+                padding: '12px 30px',
+                fontSize: '16px',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+              }}
+            >
+              Back to Menu
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Stripe Purchase Modal */}
+      {showStripePurchase && sogniClient && (
+        <ApiProvider value={sogniClient}>
+          <StripePurchase
+            onClose={() => setShowStripePurchase(false)}
+          />
+        </ApiProvider>
+      )}
+
+      {/* Recent Projects Panel */}
+      {showRecentProjects && (
+        <RecentProjects
+          sogniClient={sogniClient}
+          onClose={() => setShowRecentProjects(false)}
+          onReuseProject={handleReuseProject}
+          onReuseLocalProject={handleReuseLocalProject}
+          onStartNewProject={handleStartNewProject}
+          onRemixSingleImage={handleRemixSingleImage}
+        />
+      )}
     </>
   );
 };

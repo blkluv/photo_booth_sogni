@@ -5,7 +5,7 @@
 import config from '../config';
 import { createPolaroidImage } from '../utils/imageProcessing';
 import { themeConfigService } from './themeConfig';
-import { TWITTER_SHARE_CONFIG } from '../constants/settings';
+import { TWITTER_SHARE_CONFIG, getQRWatermarkConfig } from '../constants/settings';
 
 /**
  * Extract hashtag from photo data
@@ -21,8 +21,9 @@ export const getPhotoHashtag = (photo) => {
   }
 
   if (!foundLabel || foundLabel.length < 3) {
-    foundLabel = '#SogniPhotobooth';
+    foundLabel = ''; // No placeholder text
   }
+  
   return foundLabel;
 };
 
@@ -40,6 +41,14 @@ export const getPhotoHashtag = (photo) => {
  * @param {string} [params.aspectRatio] - Aspect ratio of the image
  * @param {string} [params.outputFormat='png'] - Output format ('png' or 'jpg') - Note: Twitter always uses JPG regardless of this setting
  * @param {boolean} [params.sogniWatermark=true] - Whether to include Sogni watermark
+ * @param {number} [params.sogniWatermarkSize=100] - Size of the QR watermark
+ * @param {number} [params.sogniWatermarkMargin=26] - Margin of the QR watermark from edge
+ * @param {boolean} [params.halloweenContext=false] - Whether this is a Halloween contest entry
+ * @param {boolean} [params.submitToContest=false] - Whether to submit to Halloween contest (explicit user choice)
+ * @param {string} [params.prompt] - User's prompt (for contest entries)
+ * @param {string} [params.username] - User's username (for contest entries)
+ * @param {string} [params.address] - User's wallet address (for contest entries)
+ * @param {Object} [params.metadata] - Additional metadata (model, steps, seed, etc.)
  * @returns {Promise<void>}
  */
 export const shareToTwitter = async ({
@@ -54,6 +63,14 @@ export const shareToTwitter = async ({
   aspectRatio = null,
   outputFormat = 'png',
   sogniWatermark = true,
+  sogniWatermarkSize = 100,
+  sogniWatermarkMargin = 26,
+  halloweenContext = false,
+  submitToContest = false,
+  prompt = null,
+  username = null,
+  address = null,
+  metadata = null,
 }) => {
   if (photoIndex === null || !photos[photoIndex] || !photos[photoIndex].images || !photos[photoIndex].images[0]) {
     console.error('No image selected or image URL is missing for sharing.');
@@ -124,7 +141,11 @@ export const shareToTwitter = async ({
   }
 
   const photo = photos[photoIndex];
-  const originalImageUrl = photo.images[0];
+  
+  // Check if this is a video - we now support video sharing via chunked upload
+  const hasVideo = !!photo.videoUrl;
+  const videoUrl = photo.videoUrl; // The video URL from Sogni (S3 signed URL)
+  const originalImageUrl = photo.images[0]; // Always have the image as fallback/thumbnail
   
   // Determine the appropriate message format based on TezDev theme
   let twitterMessage = customMessage;
@@ -146,8 +167,11 @@ export const shareToTwitter = async ({
     // Use default message for no theme
     twitterMessage = TWITTER_SHARE_CONFIG.DEFAULT_MESSAGE;
   }
-
-  console.log(`Creating image for sharing to X with TezDev theme: ${tezdevTheme}`);
+  
+  // If sharing a video, update message to mention video instead of photo
+  if (hasVideo && twitterMessage) {
+    twitterMessage = twitterMessage.replace(/\bphoto\b/gi, 'video');
+  }
   
   try {
     // Attempt to manually load the Permanent Marker font to ensure it's available
@@ -162,7 +186,21 @@ export const shareToTwitter = async ({
     
     let imageDataUrl;
     
-    if (tezdevTheme !== 'off') {
+    // For contest submissions, use raw image without any frames
+    if (submitToContest) {
+      console.log('Using raw image for contest submission (no polaroid frame, always JPG for Twitter)');
+      // Convert the original image to JPG format without any frames
+      imageDataUrl = await createPolaroidImage(originalImageUrl, '', {
+        tezdevTheme: 'off',
+        aspectRatio,
+        frameWidth: 0,
+        frameTopWidth: 0,
+        frameBottomWidth: 0,
+        frameColor: 'transparent',
+        outputFormat: 'jpg',
+        watermarkOptions: null // No watermark for contest entries
+      });
+    } else if (tezdevTheme !== 'off') {
       // For TezDev themes, create full frame version (no polaroid frame, just TezDev overlay)
       // Custom frames should not include labels - they have their own styling
       console.log('Creating TezDev full frame version for sharing (always JPG for Twitter)');
@@ -176,10 +214,10 @@ export const shareToTwitter = async ({
         outputFormat: 'jpg', // Always use JPG for Twitter sharing
         // Add QR watermark for Twitter sharing (if enabled)
         watermarkOptions: sogniWatermark ? {
-          size: 90, // Standardized size for consistency
-          margin: 5, // Closer to edge
+          size: sogniWatermarkSize,
+          margin: sogniWatermarkMargin,
           position: 'top-right',
-          opacity: 0.8
+          opacity: 1.0
         } : null
       });
     } else {
@@ -194,17 +232,17 @@ export const shareToTwitter = async ({
         outputFormat: 'jpg', // Always use JPG for Twitter sharing
         // Add QR watermark for Twitter sharing (if enabled)
         watermarkOptions: sogniWatermark ? {
-          size: 90, // Standardized size for consistency
-          margin: 5, // Closer to edge
+          size: sogniWatermarkSize,
+          margin: sogniWatermarkMargin,
           position: 'top-right',
-          opacity: 0.8
+          opacity: 1.0
         } : null
       });
     }
     
     // Use the data URL directly instead of creating a blob URL
     // This ensures the server can access the image data directly
-    console.log('Successfully created image for X sharing');
+    console.log(`Successfully created image for X sharing${hasVideo ? ' (video thumbnail)' : ''}`);
     console.log('Attempting to share image to X');
 
     let retries = 0;
@@ -221,9 +259,17 @@ export const shareToTwitter = async ({
           },
           credentials: 'include', // Important! Ensures cookies are sent
           body: JSON.stringify({ 
-            imageUrl: imageDataUrl, // Send the data URL directly instead of blob URL
+            imageUrl: imageDataUrl, // Send the image data URL (used as thumbnail for videos)
+            videoUrl: hasVideo ? videoUrl : null, // Send video URL if sharing a video
+            isVideo: hasVideo, // Flag to indicate video sharing
             message: twitterMessage, // Use the appropriate message format
-            shareUrl: shareUrl // Include the share URL if provided
+            shareUrl: shareUrl, // Include the share URL if provided
+            halloweenContext, // Include Halloween context flag
+            submitToContest, // Include explicit contest submission flag
+            prompt, // Include user's prompt for contest
+            username, // Include username for contest
+            address, // Include wallet address for contest
+            metadata // Include additional metadata for contest
           }),
         });
 
@@ -262,7 +308,7 @@ export const shareToTwitter = async ({
         
         // Handle direct share - backend used an existing token without requiring auth
         if (responseData.success === true && !responseData.authUrl) {
-          console.log('Image shared directly using existing token');
+          console.log(`${hasVideo ? 'Video' : 'Image'} shared directly using existing token`);
           
           // Close the pre-opened popup immediately; show success only in-app
           if (popup && !popup.closed) {

@@ -75,30 +75,16 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-# Optimize gallery files sync - only upload if they don't exist or are different
-# This prevents redundant uploads of large gallery images on subsequent deployments
-show_step "Optimizing gallery files sync (skip existing files)"
-if [ -d "dist/gallery/prompts" ]; then
-  echo "📸 Syncing gallery prompt images (skipping existing files)..."
-  # --ignore-existing: Skip files that already exist on the destination
-  # --size-only: Only transfer if file sizes differ (faster than checksum for large images)
-  rsync -ar --progress --ignore-existing --size-only dist/gallery/prompts/ $REMOTE_HOST:$REMOTE_FRONTEND_PATH/gallery/prompts/
-  if [ $? -ne 0 ]; then
-    echo "⚠️ Warning: Gallery files sync had issues, but continuing deployment"
-  else
-    echo "✅ Gallery files synced efficiently (existing files skipped)"
-  fi
-else
-  echo "ℹ️ No gallery/prompts directory found in dist, skipping gallery sync"
-fi
+# Note: Gallery images are now served from Cloudflare R2, no need to sync them
+# CDN URL is configured in src/config/urls.ts (assetUrl property)
 
-# Fix file permissions for static assets (especially theme images)
-show_step "Setting correct file permissions for static assets"
-ssh $REMOTE_HOST "find ${REMOTE_FRONTEND_PATH} -type f \( -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' -o -name '*.gif' -o -name '*.svg' -o -name '*.json' \) -print0 | xargs -0 chmod 644"
+# Fix file and directory permissions to ensure nginx can serve files
+show_step "Setting correct file and directory permissions"
+ssh $REMOTE_HOST "sudo chmod 755 ${REMOTE_FRONTEND_PATH} && sudo find ${REMOTE_FRONTEND_PATH} -type d -exec chmod 755 {} \; && sudo find ${REMOTE_FRONTEND_PATH} -type f -exec chmod 644 {} \;"
 if [ $? -ne 0 ]; then
-  echo "⚠️ Warning: Could not set file permissions for some static assets"
+  echo "⚠️ Warning: Could not set file permissions properly"
 else
-  echo "✅ File permissions set correctly for static assets"
+  echo "✅ File and directory permissions set correctly (directories: 755, files: 644)"
 fi
 
 echo "✅ Frontend deployed successfully"
@@ -141,19 +127,10 @@ echo "✅ Production environment file (.env.production) deployed successfully to
 
 # Setup and start services on remote server
 show_step "Setting up and starting services on remote server"
-ssh $REMOTE_HOST << EOF
-  # Fix any shell issues by setting up a proper BASH environment
-  export BASH_ENV=/dev/null
-  export ENV=/dev/null
-  
-  # Ensure shell works properly with extglob patterns
-  shopt -s extglob 2>/dev/null || true
-  
-  # Bypass problematic .functions file if it exists and contains the error
-  if grep -q "rm -i -v !(*.gz)" ~/.functions 2>/dev/null; then
-    echo "🔧 Detected problematic shell function, bypassing..."
-    BASH_ENV=/dev/null bash -l || true
-  fi
+ssh $REMOTE_HOST /bin/bash --noprofile --norc << 'EOF'
+  # Use a clean bash environment without loading any profile files
+  # This prevents the problematic .functions file from being sourced
+  set -e  # Exit on error
 
   # Check if port 3001 is already in use and kill the process if needed
   if lsof -i:3001 > /dev/null 2>&1; then
@@ -170,15 +147,30 @@ ssh $REMOTE_HOST << EOF
   # Install backend dependencies
   cd /var/www/photobooth.sogni.ai-server
   echo "📦 Installing backend dependencies..."
-  npm install --omit=dev
+  # Use --no-fund and --no-audit to prevent interactive prompts
+  # Use --loglevel=error to reduce output noise
+  npm install --omit=dev --no-fund --no-audit --prefer-offline --loglevel=error
+  
+  if [ $? -ne 0 ]; then
+    echo "❌ npm install failed! Check network connectivity and package.json"
+    exit 1
+  fi
+  echo "✅ Backend dependencies installed successfully"
   
   # Ensure correct permissions for environment file
   chmod 600 .env
   
   # Install PM2 if not already installed
   if ! command -v pm2 &> /dev/null; then
-    echo "Installing PM2 process manager..."
-    npm install -g pm2
+    echo "📦 Installing PM2 process manager..."
+    npm install -g pm2 --no-fund --no-audit --loglevel=error
+    if [ $? -ne 0 ]; then
+      echo "❌ PM2 installation failed!"
+      exit 1
+    fi
+    echo "✅ PM2 installed successfully"
+  else
+    echo "✅ PM2 is already installed"
   fi
   
   # Start or restart the backend using PM2
@@ -212,32 +204,27 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
+# Wait a moment for services to start
+echo "Waiting 5 seconds for services to start..."
+sleep 5
+
 # Verify deployment
 show_step "Verifying deployment"
-echo "🔍 Checking backend health directly on port 3001..."
-HEALTH_CHECK_DIRECT=$(curl -s -o /dev/null -w "%{http_code}" http://$REMOTE_HOST:3001/health || echo "failed")
-if [ "$HEALTH_CHECK_DIRECT" = "200" ] || [ "$HEALTH_CHECK_DIRECT" = "404" ]; then # 404 if /health is under /api in app
-  echo "✅ Backend is running (direct check status code: $HEALTH_CHECK_DIRECT)"
+echo "🔍 Checking backend health via branded domain (https://photobooth-api.sogni.ai)..."
+HEALTH_CHECK=$(ssh $REMOTE_HOST "curl -s -o /dev/null -w '%{http_code}' https://photobooth-api.sogni.ai/health" || echo "failed")
+if [ "$HEALTH_CHECK" = "200" ]; then
+  echo "✅ Backend API is accessible via HTTPS (status code: $HEALTH_CHECK)"
 else
-  echo "❌ Backend direct health check failed with status $HEALTH_CHECK_DIRECT"
+  echo "❌ Backend API health check failed with status $HEALTH_CHECK"
   echo "⚠️ Warning: The backend may not be running correctly. Please check logs with: ssh $REMOTE_HOST 'pm2 logs sogni-photobooth-production'"
 fi
 
-echo "🔍 Checking frontend availability via Nginx (photobooth.sogni.ai)..."
-FRONTEND_NGINX_CHECK=$(curl -s -o /dev/null -w "%{http_code}" -I http://photobooth.sogni.ai/ || echo "failed") # Check via HTTP as Nginx listens on 80
-if [ "$FRONTEND_NGINX_CHECK" = "200" ] || [ "$FRONTEND_NGINX_CHECK" = "301" ] || [ "$FRONTEND_NGINX_CHECK" = "302" ]; then # 30x if Cloudflare redirects to HTTPS
-  echo "✅ Frontend Nginx check successful (status code: $FRONTEND_NGINX_CHECK)"
+echo "🔍 Checking frontend availability (https://photobooth.sogni.ai)..."
+FRONTEND_CHECK=$(curl -s -o /dev/null -w "%{http_code}" -I https://photobooth.sogni.ai/ || echo "failed")
+if [ "$FRONTEND_CHECK" = "200" ]; then
+  echo "✅ Frontend is accessible via HTTPS (status code: $FRONTEND_CHECK)"
 else
-  echo "❌ Frontend Nginx check failed with status $FRONTEND_NGINX_CHECK"
-fi
-
-echo "🔍 Checking API availability via Nginx (photobooth-api.sogni.ai)..."
-API_NGINX_CHECK=$(curl -s -o /dev/null -w "%{http_code}" -I http://photobooth-api.sogni.ai/health || echo "failed") # Check via HTTP
-if [ "$API_NGINX_CHECK" = "200" ] || [ "$API_NGINX_CHECK" = "301" ] || [ "$API_NGINX_CHECK" = "302" ]; then # 30x if Cloudflare redirects to HTTPS, 200 if /health is direct
-  echo "✅ API Nginx check successful (status code: $API_NGINX_CHECK)"
-else
-  echo "❌ API Nginx check failed with status $API_NGINX_CHECK"
-  echo "⚠️ Warning: The API through Nginx may not be correctly configured."
+  echo "❌ Frontend check failed with status $FRONTEND_CHECK"
 fi
 
 echo ""

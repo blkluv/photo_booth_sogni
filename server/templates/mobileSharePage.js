@@ -3,9 +3,39 @@
 
 import { TWITTER_SHARE_CONFIG } from '../constants.js';
 
-export function renderMobileSharePage({ imageUrl, twitterMessage }) {
+export function renderMobileSharePage({ 
+  imageUrl, 
+  videoUrl, 
+  isVideo, 
+  twitterMessage,
+  // Metadata for proper filename generation
+  styleName = 'sogni',
+  videoDuration,
+  videoResolution,
+  videoFramerate,
+  outputFormat = 'jpg',
+  isFramed = false
+}) {
   const defaultMessage = TWITTER_SHARE_CONFIG.DEFAULT_MESSAGE;
   const safeTwitterMessage = twitterMessage || defaultMessage;
+  const mediaUrl = videoUrl || imageUrl;
+  const mediaType = isVideo ? 'video' : 'photo';
+  const mediaDescription = isVideo ? 'AI-generated video' : 'AI-generated photo';
+  
+  // Generate proper filename matching desktop download format
+  let fileName;
+  if (isVideo) {
+    // Video format: sogni-photobooth-{style}-video_{duration}s_{resolution}_{fps}fps.mp4
+    const duration = videoDuration || 5;
+    const resolution = videoResolution || '480p';
+    const fps = videoFramerate || 16;
+    fileName = `sogni-photobooth-${styleName}-video_${duration}s_${resolution}_${fps}fps.mp4`;
+  } else {
+    // Image format: sogni-photobooth-{style}-framed.jpg or sogni-photobooth-{style}.jpg
+    const extension = outputFormat === 'png' ? 'png' : 'jpg';
+    const frameType = isFramed ? '-framed' : '';
+    fileName = `sogni-photobooth-${styleName}${frameType}.${extension}`;
+  }
 
   return `
       <!DOCTYPE html>
@@ -13,15 +43,17 @@ export function renderMobileSharePage({ imageUrl, twitterMessage }) {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Share Your Photo - Sogni Photobooth</title>
+        <title>Share Your ${isVideo ? 'Video' : 'Photo'} - Sogni Photobooth</title>
         <meta property="og:title" content="My Sogni Photobooth Creation">
-        <meta property="og:description" content="Check out my AI-generated photo from Sogni Photobooth!">
+        <meta property="og:description" content="Check out my ${mediaDescription} from Sogni Photobooth!">
         <meta property="og:image" content="${imageUrl}">
-        <meta property="og:type" content="website">
-        <meta name="twitter:card" content="summary_large_image">
+        ${isVideo ? `<meta property="og:video" content="${videoUrl}">` : ''}
+        <meta property="og:type" content="${isVideo ? 'video.other' : 'website'}">
+        <meta name="twitter:card" content="${isVideo ? 'player' : 'summary_large_image'}">
         <meta name="twitter:title" content="My Sogni Photobooth Creation">
-        <meta name="twitter:description" content="Check out my AI-generated photo from Sogni Photobooth!">
+        <meta name="twitter:description" content="Check out my ${mediaDescription} from Sogni Photobooth!">
         <meta name="twitter:image" content="${imageUrl}">
+        ${isVideo ? `<meta name="twitter:player" content="${videoUrl}">` : ''}
         <style>
           * {
             margin: 0;
@@ -47,6 +79,11 @@ export function renderMobileSharePage({ imageUrl, twitterMessage }) {
             align-items: center;
             padding: 10px 10px 60px 10px;
             box-sizing: border-box;
+          }
+          
+          /* Video pages have normal padding */
+          .container.video-page {
+            padding: 10px 10px 60px 10px;
           }
           
           .header {
@@ -77,11 +114,50 @@ export function renderMobileSharePage({ imageUrl, twitterMessage }) {
             min-height: 0;
           }
           
+          /* For video pages, slightly wider content area */
+          .content.video-page {
+            max-width: 500px;
+            padding: 0 10px;
+          }
+          
           .photo-container {
             margin-bottom: 15px;
             width: 100%;
             display: flex;
             justify-content: center;
+          }
+          
+          /* Video container - centered with constrained size */
+          .video-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 15px;
+            position: relative;
+          }
+
+          .video-sound-btn {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.6);
+            border: none;
+            color: white;
+            font-size: 18px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 2;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+          }
+          .video-sound-btn:active {
+            background: rgba(0, 0, 0, 0.8);
           }
           
           .photo {
@@ -92,6 +168,15 @@ export function renderMobileSharePage({ imageUrl, twitterMessage }) {
             display: block;
             object-fit: contain;
             border-radius: 8px;
+          }
+          
+          .video {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            max-height: 60vh;
+            display: block;
+            object-fit: contain;
           }
           
           .actions {
@@ -119,31 +204,21 @@ export function renderMobileSharePage({ imageUrl, twitterMessage }) {
             flex: 1;
           }
           
-          .btn-twitter {
-            background: #1DA1F2;
+          .btn-save-share {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
+            border: none;
+            font-size: 16px;
+            padding: 14px 24px;
           }
           
-          .btn-twitter:hover {
-            background: #0d8bd9;
+          .btn-save-share:hover {
             transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
           }
           
-          .btn-twitter:disabled {
-            background: #999;
-            cursor: not-allowed;
-            transform: none;
-          }
-          
-          .btn-download {
-            background: white;
-            color: #667eea;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-          }
-          
-          .btn-download:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
+          .btn-save-share:active {
+            transform: translateY(0);
           }
           
           .footer {
@@ -152,13 +227,23 @@ export function renderMobileSharePage({ imageUrl, twitterMessage }) {
             left: 0;
             right: 0;
             text-align: center;
-            opacity: 0.9;
             font-size: 14px;
-            background: rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-            padding: 12px 16px;
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            padding: 16px;
             z-index: 1000;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 -4px 15px rgba(255, 215, 0, 0.3);
+          }
+          
+          .footer:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 -6px 20px rgba(255, 215, 0, 0.4);
+          }
+          
+          .footer:active {
+            transform: translateY(0);
           }
           
           .loading {
@@ -197,12 +282,269 @@ export function renderMobileSharePage({ imageUrl, twitterMessage }) {
             text-align: center;
           }
           
-          .footer a {
-            color: white;
+          .footer .prize-text {
+            color: #333;
             text-decoration: none;
-            font-weight: 500;
+            font-weight: 700;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
           }
           
+          .footer .prize-emoji {
+            font-size: 20px;
+            animation: bounce 2s infinite;
+          }
+          
+          @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+              transform: translateY(0);
+            }
+            40% {
+              transform: translateY(-10px);
+            }
+            60% {
+              transform: translateY(-5px);
+            }
+          }
+          
+          /* Promotional Popup Styles */
+          .promo-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            height: 100dvh;
+            background-color: rgba(0, 0, 0, 0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            overflow-y: auto;
+            padding: 20px 0;
+            box-sizing: border-box;
+            animation: overlayFadeIn 0.3s ease-out forwards;
+          }
+
+          @keyframes overlayFadeIn {
+            from { background-color: rgba(0, 0, 0, 0); }
+            to { background-color: rgba(0, 0, 0, 0.8); }
+          }
+
+          .promo-modal {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            width: 90%;
+            max-width: 480px;
+            max-height: 90vh;
+            min-height: 400px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            animation: modalSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            position: relative;
+            color: white;
+            margin: auto 0;
+          }
+
+          @keyframes modalSlideUp {
+            from {
+              opacity: 0;
+              transform: translateY(60px) scale(0.97);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0) scale(1);
+            }
+          }
+
+          @keyframes overlayFadeOut {
+            from { background-color: rgba(0, 0, 0, 0.8); }
+            to { background-color: rgba(0, 0, 0, 0); }
+          }
+
+          @keyframes modalSlideDown {
+            from {
+              opacity: 1;
+              transform: translateY(0) scale(1);
+            }
+            to {
+              opacity: 0;
+              transform: translateY(60px) scale(0.97);
+            }
+          }
+
+          .promo-modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 1;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+          }
+
+          .promo-modal-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+          }
+
+          .promo-modal-header {
+            padding: 24px 24px 16px 24px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+          }
+
+          .promo-mascot {
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+          }
+
+          .sloth-mascot {
+            width: 120px;
+            height: auto;
+            max-width: 100%;
+            filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+            animation: slothBounce 3s ease-in-out infinite;
+            transition: transform 0.3s ease;
+          }
+
+          .sloth-mascot:hover {
+            transform: scale(1.05) rotate(-2deg);
+          }
+
+          @keyframes slothBounce {
+            0%, 100% { 
+              transform: translateY(0) scale(1);
+            }
+            25% { 
+              transform: translateY(-8px) scale(1.02);
+            }
+            50% { 
+              transform: translateY(-4px) scale(1.01);
+            }
+            75% { 
+              transform: translateY(-12px) scale(1.03);
+            }
+          }
+
+          .promo-modal-header h2 {
+            font-size: 24px;
+            margin: 0;
+            font-weight: 600;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+          }
+
+          .promo-modal-content {
+            padding: 24px;
+            overflow-y: auto;
+            flex: 1;
+          }
+
+          .promo-message h3 {
+            font-size: 20px;
+            margin: 0 0 16px 0;
+            font-weight: 700;
+            text-align: center;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+          }
+
+          .promo-message p {
+            font-size: 16px;
+            line-height: 1.5;
+            margin: 0 0 24px 0;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.95);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+          }
+
+          .promo-message strong {
+            color: #FFD700;
+            font-weight: 700;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+          }
+
+          .promo-modal-footer {
+            padding: 20px 24px 24px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+          }
+
+          .promo-signup-btn {
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            border: none;
+            color: #333;
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+          }
+
+          .promo-signup-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 215, 0, 0.4);
+          }
+
+          .promo-signup-btn:active {
+            transform: translateY(0);
+          }
+
+          .signup-text {
+            flex: 1;
+          }
+
+          .signup-arrow {
+            font-size: 18px;
+            transition: transform 0.2s ease;
+          }
+
+          .promo-signup-btn:hover .signup-arrow {
+            transform: translateX(4px);
+          }
+
+          .promo-maybe-later {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: rgba(255, 255, 255, 0.8);
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+          }
+
+          .promo-maybe-later:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+          }
+
           @media (max-width: 480px) {
             .header h1 {
               font-size: 24px;
@@ -215,41 +557,114 @@ export function renderMobileSharePage({ imageUrl, twitterMessage }) {
             .actions {
               margin: 0 10px;
             }
+
+            .promo-modal-overlay {
+              align-items: flex-end;
+              padding: 0;
+            }
+
+            .promo-modal {
+              width: 100%;
+              margin: 0;
+              border-radius: 20px 20px 0 0;
+              max-height: 85dvh;
+              min-height: 300px;
+              padding-bottom: env(safe-area-inset-bottom, 20px);
+            }
+
+            @keyframes modalSlideUp {
+              from {
+                opacity: 0;
+                transform: translateY(100%);
+              }
+              to {
+                opacity: 1;
+                transform: translateY(0);
+              }
+            }
+
+            @keyframes modalSlideDown {
+              from {
+                opacity: 1;
+                transform: translateY(0);
+              }
+              to {
+                opacity: 0;
+                transform: translateY(100%);
+              }
+            }
+
+            .promo-modal-close {
+              top: 12px;
+              right: 12px;
+              width: 32px;
+              height: 32px;
+              font-size: 20px;
+            }
+
+            .sloth-mascot {
+              width: 80px;
+            }
+
+            .promo-modal-header h2 {
+              font-size: 20px;
+            }
+
+            .promo-message h3 {
+              font-size: 17px;
+            }
+
+            .promo-message p {
+              font-size: 14px;
+            }
           }
         </style>
       </head>
               <body>
-        <div class="container">
+        <div class="container${isVideo ? ' video-page' : ''}">
           <div class="header">
-            <h1>📸 Your Sogni Creation</h1>
-            <p>Share your AI-generated masterpiece!</p>
+            <h1>${isVideo ? '🎥' : '📸'} Your Sogni Creation</h1>
+            <p>Share your creation from Sogni AI Photobooth!</p>
           </div>
           
-          <div class="content">
+          <div class="content${isVideo ? ' video-page' : ''}">
+            ${isVideo ? `
+            <div class="video-container">
+              <video
+                id="shareVideo"
+                src="${videoUrl}"
+                class="video"
+                autoplay
+                loop
+                muted
+                playsinline
+                poster="${imageUrl}"
+              ></video>
+              <button id="soundBtn" class="video-sound-btn" aria-label="Toggle sound">🔇</button>
+            </div>
+            ` : `
             <div class="photo-container">
               <img src="${imageUrl}" alt="Your Sogni Photobooth creation" class="photo" />
             </div>
+            `}
             
             <div id="messages"></div>
             
             <div class="actions">
-              <button onclick="window.handleTwitterShare()" class="btn btn-twitter" id="twitterBtn">
+              <button onclick="window.handleSaveToPhone()" class="btn btn-save-share" id="saveBtn">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M22.46 6c-.77.35-1.6.58-2.46.67.9-.53 1.59-1.37 1.92-2.38-.84.5-1.78.86-2.79 1.07C18.27 4.49 17.01 4 15.63 4c-2.38 0-4.31 1.94-4.31 4.31 0 .34.04.67.11.99C7.83 9.09 4.16 7.19 1.69 4.23-.07 6.29.63 8.43 2.49 9.58c-.71-.02-1.38-.22-1.97-.54v.05c0 2.09 1.49 3.83 3.45 4.23-.36.1-.74.15-1.14.15-.28 0-.55-.03-.81-.08.55 1.71 2.14 2.96 4.03 3-1.48 1.16-3.35 1.85-5.37 1.85-.35 0-.69-.02-1.03-.06 1.92 1.23 4.2 1.95 6.67 1.95 8.01 0 12.38-6.63 12.38-12.38 0-.19 0-.38-.01-.56.85-.61 1.58-1.37 2.16-2.24z"/>
+                  <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/>
                 </svg>
-                Twitter
-              </button>
-              
-              <button onclick="window.handleSaveToPhone()" class="btn btn-download" id="saveBtn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-                </svg>
-                Save
+                Save & Share
               </button>
             </div>
             
-            <div class="footer">
-              <p>Created with <a href="https://photobooth.sogni.ai">Sogni Photobooth</a></p>
+            <div class="footer" onclick="window.showPromoPopup()">
+              <div class="prize-text">
+                <span class="prize-emoji">🎁</span>
+                <span>Redeem 100 Free Render Credits</span>
+                <span class="prize-emoji">✨</span>
+              </div>
             </div>
           </div>
         </div>
@@ -270,491 +685,31 @@ export function renderMobileSharePage({ imageUrl, twitterMessage }) {
             }
           }
           
-          function setButtonLoading(loading) {
-            const btn = document.getElementById('twitterBtn');
-            if (loading) {
-              btn.disabled = true;
-              btn.innerHTML = \`
-                <div class="loading"></div>
-                Sharing...
-              \`;
-            } else {
-              btn.disabled = false;
-              btn.innerHTML = \`
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M22.46 6c-.77.35-1.6.58-2.46.67.9-.53 1.59-1.37 1.92-2.38-.84.5-1.78.86-2.79 1.07C18.27 4.49 17.01 4 15.63 4c-2.38 0-4.31 1.94-4.31 4.31 0 .34.04.67.11.99C7.83 9.09 4.16 7.19 1.69 4.23-.07 6.29.63 8.43 2.49 9.58c-.71-.02-1.38-.22-1.97-.54v.05c0 2.09 1.49 3.83 3.45 4.23-.36.1-.74.15-1.14.15-.28 0-.55-.03-.81-.08.55 1.71 2.14 2.96 4.03 3-1.48 1.16-3.35 1.85-5.37 1.85-.35 0-.69-.02-1.03-.06 1.92 1.23 4.2 1.95 6.67 1.95 8.01 0 12.38-6.63 12.38-12.38 0-.19 0-.38-.01-.56.85-.61 1.58-1.37 2.16-2.24z"/>
-                </svg>
-                Twitter
-              \`;
-            }
-          }
-          
-          // Use the exact same shareToTwitter function as the main app
-          async function shareToTwitter(params) {
-            const {
-              photoIndex = 0,
-              photos = [{ images: ["${imageUrl}"] }],
-              setBackendError = (err) => console.error('Backend error:', err),
-              customMessage = ${JSON.stringify(safeTwitterMessage)},
-              shareUrl = window.location.href,
-              maxRetries = 2,
-              onSuccess = () => showMessage('Successfully shared to Twitter! 🎉', 'success'),
-              tezdevTheme = 'off',
-              aspectRatio = null,
-              outputFormat = 'jpg'
-            } = params;
-            
-            console.log('shareToTwitter called with params:', { photoIndex, customMessage, shareUrl });
-            
-            // Get the image data URL (same logic as main app)
-            const photo = photos[photoIndex];
-            if (!photo || !photo.images || !photo.images[0]) {
-              throw new Error('No image available for sharing');
-            }
-            
-            const imageDataUrl = photo.images[0];
-            const twitterMessage = customMessage;
-            
-            console.log('Attempting to share image to X');
-            
-            let retries = 0;
-            const attemptShare = async () => {
-              try {
-                setBackendError(null);
-                
-                // Use config for API endpoint (same as main app)
-                const apiBaseUrl = window.location.hostname.includes('localhost')
-                  ? 'http://localhost:3001'
-                  : 'https://photobooth-api.sogni.ai';
-                const apiUrl = apiBaseUrl + '/api/auth/x/start';
-                
-                const response = await fetch(apiUrl, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  credentials: 'include', // Important! Ensures cookies are sent
-                  body: JSON.stringify({ 
-                    imageUrl: imageDataUrl, // Send the data URL directly instead of blob URL
-                    message: twitterMessage, // Use the appropriate message format
-                    shareUrl: shareUrl // Include the share URL if provided
-                  }),
-                });
-                
-                if (!response.ok) {
-                  // Try to get error message from response
-                  let errorMessage = 'Failed to start Twitter share process.';
-                  try {
-                    const errorData = await response.json();
-                    errorMessage = errorData.message || errorMessage;
-                  } catch (e) {
-                    // If we can't parse response body, use status text
-                    errorMessage = response.statusText || errorMessage;
-                  }
-                  
-                  console.error('Failed to initiate Twitter share:', response.status, errorMessage);
-                  
-                  // For specific status codes that might be transient, retry
-                  if ((response.status >= 500 || response.status === 429) && retries < maxRetries) {
-                    retries++;
-                    console.log(\`Retrying Twitter share (\${retries}/\${maxRetries})\`);
-                    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retrying
-                    return attemptShare();
-                  }
-                  
-                  setBackendError({
-                    type: 'connection_error',
-                    title: '🌐 Connection Issue',
-                    message: 'Having trouble connecting to our sharing service. Please check your internet connection and try again.',
-                    details: errorMessage,
-                    canRetry: true
-                  });
-                  return;
-                }
-                
-                const responseData = await response.json();
-                console.log('Twitter API response:', responseData);
-                
-                if (responseData.success) {
-                  if (responseData.authUrl) {
-                    // Need to authenticate first
-                    console.log('Redirecting to Twitter auth:', responseData.authUrl);
-                    window.location.href = responseData.authUrl;
-                  } else if (responseData.message) {
-                    // Already authenticated and shared successfully
-                    console.log('Twitter share successful:', responseData.message);
-                    onSuccess();
-                  }
-                } else {
-                  throw new Error(responseData.message || 'Twitter sharing failed');
-                }
-                
-              } catch (error) {
-                console.error('Twitter share error:', error);
-                throw error;
-              }
-            };
-            
-            return attemptShare();
-          }
-          
-          // Show custom Twitter share modal (same as main app)
-          function handleTwitterShare() {
-            if (isSharing) return;
-            showTwitterModal();
-          }
-          // Expose handler globally for inline onclick
-          window.handleTwitterShare = handleTwitterShare;
-          
-          // Custom Twitter share modal (same as main app)
-          function showTwitterModal() {
-            // Create modal overlay
-            const overlay = document.createElement('div');
-            overlay.className = 'twitter-modal-overlay';
-            overlay.style.cssText = \`
-              position: fixed;
-              top: 0;
-              left: 0;
-              width: 100%;
-              height: 100%;
-              background-color: rgba(0, 0, 0, 0.75);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              z-index: 10000;
-              animation: fadeIn 0.2s ease-out;
-            \`;
-            
-            // Create modal
-            const modal = document.createElement('div');
-            modal.className = 'twitter-modal';
-            modal.style.cssText = \`
-              background-color: white;
-              border-radius: 16px;
-              box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
-              width: 95%;
-              max-width: 460px;
-              max-height: 85vh;
-              overflow: hidden;
-              display: flex;
-              flex-direction: column;
-              animation: slideIn 0.25s ease-out;
-              position: relative;
-            \`;
-            
-            modal.innerHTML = \`
-              <button class="twitter-modal-close" style="
-                position: absolute;
-                top: 12px;
-                right: 12px;
-                background: rgba(0, 0, 0, 0.1);
-                border: none;
-                color: #333;
-                width: 30px;
-                height: 30px;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 20px;
-                cursor: pointer;
-                z-index: 1;
-              ">×</button>
-              
-              <div class="twitter-modal-header" style="
-                padding: 16px 20px;
-                border-bottom: 1px solid #eee;
-                display: flex;
-                align-items: center;
-                gap: 12px;
-              ">
-                <svg class="twitter-logo" fill="#1DA1F2" viewBox="0 0 24 24" style="width: 22px; height: 22px;">
-                  <path d="M22.46 6c-.77.35-1.6.58-2.46.67.9-.53 1.59-1.37 1.92-2.38-.84.5-1.78.86-2.79 1.07C18.27 4.49 17.01 4 15.63 4c-2.38 0-4.31 1.94-4.31 4.31 0 .34.04.67.11.99C7.83 9.09 4.16 7.19 1.69 4.23-.07 6.29.63 8.43 2.49 9.58c-.71-.02-1.38-.22-1.97-.54v.05c0 2.09 1.49 3.83 3.45 4.23-.36.1-.74.15-1.14.15-.28 0-.55-.03-.81-.08.55 1.71 2.14 2.96 4.03 3-1.48 1.16-3.35 1.85-5.37 1.85-.35 0-.69-.02-1.03-.06 1.92 1.23 4.2 1.95 6.67 1.95 8.01 0 12.38-6.63 12.38-12.38 0-.19 0-.38-.01-.56.85-.61 1.58-1.37 2.16-2.24z"/>
-                </svg>
-                <h2 style="font-size: 18px; margin: 0; font-weight: 600; color: #333;">Share to X</h2>
-              </div>
-              
-              <div class="twitter-modal-content" style="
-                display: flex;
-                flex-direction: column;
-                gap: 16px;
-                padding: 16px 20px;
-                overflow-y: auto;
-                max-height: calc(85vh - 140px);
-              ">
-                <div class="twitter-message-container" style="position: relative;">
-                  <textarea class="twitter-message" style="
-                    width: 100%;
-                    min-height: 120px;
-                    padding: 12px;
-                    border: 1px solid #ddd;
-                    border-radius: 8px;
-                    font-size: 16px;
-                    resize: vertical;
-                    font-family: inherit;
-                    box-sizing: border-box;
-                    color: #000000;
-                  " placeholder="What would you like to say about this photo?" maxlength="280">${safeTwitterMessage}</textarea>
-                  <div class="twitter-char-counter" style="
-                    position: absolute;
-                    bottom: 8px;
-                    right: 12px;
-                    font-size: 12px;
-                    color: #666;
-                  "><span id="char-count">${safeTwitterMessage.length}</span>/280</div>
-                </div>
-                
-                <div class="twitter-image-preview" style="
-                  padding: 12px;
-                  background: #f8f8f8;
-                  margin-top: 12px;
-                  display: flex;
-                  justify-content: center;
-                  align-items: center;
-                  min-height: 150px;
-                  border-radius: 12px;
-                  overflow: hidden;
-                  position: relative;
-                ">
-                  <img src="${imageUrl}" alt="Preview" style="
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-                    object-fit: contain;
-                    max-height: 40vh;
-                    max-width: 100%;
-                  " />
-                </div>
-              </div>
-              
-              <div class="twitter-modal-footer" style="
-                padding: 16px 20px;
-                border-top: 1px solid #eee;
-                display: flex;
-                justify-content: flex-end;
-              ">
-                <button class="twitter-share-btn" style="
-                  background-color: #1DA1F2;
-                  color: white;
-                  border: none;
-                  border-radius: 50px;
-                  padding: 10px 24px;
-                  font-size: 16px;
-                  font-weight: 500;
-                  cursor: pointer;
-                  display: flex;
-                  align-items: center;
-                  gap: 8px;
-                ">
-                  <svg class="twitter-icon" fill="white" viewBox="0 0 24 24" style="width: 18px; height: 18px;">
-                    <path d="M22.46 6c-.77.35-1.6.58-2.46.67.9-.53 1.59-1.37 1.92-2.38-.84.5-1.78.86-2.79 1.07C18.27 4.49 17.01 4 15.63 4c-2.38 0-4.31 1.94-4.31 4.31 0 .34.04.67.11.99C7.83 9.09 4.16 7.19 1.69 4.23-.07 6.29.63 8.43 2.49 9.58c-.71-.02-1.38-.22-1.97-.54v.05c0 2.09 1.49 3.83 3.45 4.23-.36.1-.74.15-1.14.15-.28 0-.55-.03-.81-.08.55 1.71 2.14 2.96 4.03 3-1.48 1.16-3.35 1.85-5.37 1.85-.35 0-.69-.02-1.03-.06 1.92 1.23 4.2 1.95 6.67 1.95 8.01 0 12.38-6.63 12.38-12.38 0-.19 0-.38-.01-.56.85-.61 1.58-1.37 2.16-2.24z"/>
-                  </svg>
-                  Post
-                </button>
-              </div>
-            \`;
-            
-            // Add CSS animations
-            const style = document.createElement('style');
-            style.textContent = \`
-              @keyframes fadeIn {
-                from { opacity: 0; }
-                to { opacity: 1; }
-              }
-              @keyframes slideIn {
-                from { transform: translateY(20px); opacity: 0.8; }
-                to { transform: translateY(0); opacity: 1; }
-              }
-            \`;
-            document.head.appendChild(style);
-            
-            overlay.appendChild(modal);
-            document.body.appendChild(overlay);
-            
-            // Get elements
-            const closeBtn = modal.querySelector('.twitter-modal-close');
-            const shareBtn = modal.querySelector('.twitter-share-btn');
-            const textarea = modal.querySelector('.twitter-message');
-            const charCount = modal.querySelector('#char-count');
-            
-            // Close modal function
-            const closeModal = () => {
-              document.body.removeChild(overlay);
-              document.head.removeChild(style);
-            };
-            
-            // Event listeners
-            closeBtn.addEventListener('click', closeModal);
-            overlay.addEventListener('click', (e) => {
-              if (e.target === overlay) closeModal();
-            });
-            
-            // Character counter
-            textarea.addEventListener('input', () => {
-              charCount.textContent = textarea.value.length;
-            });
-            
-            // Share button
-            shareBtn.addEventListener('click', async () => {
-              if (isSharing) return;
-              
-              isSharing = true;
-              shareBtn.disabled = true;
-              shareBtn.innerHTML = \`
-                <span style="display: flex; align-items: center; gap: 8px;">
-                  <span style="display: flex; gap: 4px;">
-                    <span style="width: 6px; height: 6px; background: white; border-radius: 50%; animation: dotFade 1.4s infinite ease-in-out both; animation-delay: -0.32s;"></span>
-                    <span style="width: 6px; height: 6px; background: white; border-radius: 50%; animation: dotFade 1.4s infinite ease-in-out both; animation-delay: -0.16s;"></span>
-                    <span style="width: 6px; height: 6px; background: white; border-radius: 50%; animation: dotFade 1.4s infinite ease-in-out both;"></span>
-                  </span>
-                  <span>Sharing...</span>
-                </span>
-              \`;
-              
-              // Add dot animation
-              const dotStyle = document.createElement('style');
-              dotStyle.textContent = \`
-                @keyframes dotFade {
-                  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
-                  40% { opacity: 1; transform: scale(1); }
-                }
-              \`;
-              document.head.appendChild(dotStyle);
-              
-              try {
-                // Pre-open popup synchronously to avoid Safari popup blocking
-                let popup = null;
-                try {
-                  const width = 600;
-                  const height = 700;
-                  const left = window.innerWidth / 2 - width / 2 + window.screenX;
-                  const top = window.innerHeight / 2 - height / 2 + window.screenY;
-                  popup = window.open('', 'twitter-auth', \`width=\${width},height=\${height},left=\${left},top=\${top},location=yes,resizable=yes,scrollbars=yes\`);
-                } catch (e) {
-                  popup = null;
-                }
-                // Lightweight waiting UI in the pre-opened popup (if accessible)
-                if (popup) {
-                  try {
-                    popup.document.write(\`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Preparing share…</title><style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#f8f9fa;color:#333}.card{background:#fff;border-radius:8px;box-shadow:0 4px 6px rgba(0,0,0,.1);padding:1.2rem;text-align:center;max-width:90%;width:380px}.spinner{width:24px;height:24px;border:3px solid #e5e7eb;border-top-color:#1DA1F2;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 10px}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="card"><div class="spinner"></div><div>Preparing your image and opening X…</div></div></body></html>\`);
-                    popup.document.close();
-                  } catch (e) { /* ignore */ }
-                }
-                
-                const apiBaseUrl = window.location.hostname.includes('localhost')
-                  ? 'http://localhost:3001'
-                  : 'https://photobooth-api.sogni.ai';
-                
-                const response = await fetch(apiBaseUrl + '/api/auth/x/start', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  credentials: 'include',
-                  body: JSON.stringify({
-                    imageUrl: "${imageUrl}",
-                    message: textarea.value,
-                    shareUrl: 'https://photobooth.sogni.ai'
-                  }),
-                });
-                
-                if (!response.ok) {
-                  throw new Error('Failed to share');
-                }
-                
-                const responseData = await response.json();
-                
-                if (responseData.success === true && !responseData.authUrl) {
-                  // Direct share success - close popup and only show inline success
-                  try { if (popup && !popup.closed) popup.close(); } catch (e0) {}
-                  showMessage('Successfully shared to Twitter! 🎉', 'success');
-                  closeModal();
-                } else if (responseData.authUrl) {
-                  // Need to authenticate - navigate pre-opened popup or fallback
-                  if (popup) {
-                    try {
-                      popup.location.href = responseData.authUrl;
-                    } catch (e) {
-                      try { if (popup && !popup.closed) popup.close(); } catch (e01) {}
-                      window.location.href = responseData.authUrl;
-                      return;
-                    }
-                  } else {
-                    // Popup blocked or failed - navigate current window as fallback
-                    try { if (popup && !popup.closed) popup.close(); } catch (e02) {}
-                    window.location.href = responseData.authUrl;
-                    return;
-                  }
-                  
-                  let authCompleted = false;
-                  const messageHandler = (event) => {
-                    if (event.data && event.data.type === 'twitter-auth-success') {
-                      authCompleted = true;
-                      // Stop closed timer if running
-                      if (checkClosed) clearInterval(checkClosed);
-                      window.removeEventListener('message', messageHandler);
-                      try { if (popup && !popup.closed) popup.close(); } catch (e03) {}
-                      // Only inline success message; nothing in the popup
-                      showMessage('Successfully shared to Twitter! 🎉', 'success');
-                      closeModal();
-                    } else if (event.data && event.data.type === 'twitter-auth-error') {
-                      if (checkClosed) clearInterval(checkClosed);
-                      window.removeEventListener('message', messageHandler);
-                      try { if (popup && !popup.closed) popup.close(); } catch (e04) {}
-                      showMessage(\`Failed to share: \${event.data.message}\`, 'error');
-                      closeModal();
-                    }
-                  };
-                  
-                  window.addEventListener('message', messageHandler);
-                  
-                  // Check if popup was closed
-                  var checkClosed = setInterval(() => {
-                    if (!popup || popup.closed) {
-                      clearInterval(checkClosed);
-                      window.removeEventListener('message', messageHandler);
-                      if (!authCompleted) {
-                        showMessage('Twitter authorization was cancelled', 'error');
-                        closeModal();
-                      }
-                    }
-                  }, 1000);
-                } else {
-                  throw new Error('Unexpected response from server');
-                }
-              } catch (error) {
-                console.error('Twitter share error:', error);
-                showMessage(\`Failed to share: \${error.message}\`, 'error');
-                closeModal();
-              } finally {
-                isSharing = false;
-                document.head.removeChild(dotStyle);
-              }
-            });
-            
-            // Focus textarea
-            setTimeout(() => {
-              textarea.focus();
-              textarea.select();
-            }, 100);
-          }
-          
-          // Smart save functionality - same logic as main app
+          // Smart save functionality - uses native OS share dialog which works with all platforms including Twitter
           function handleSaveToPhone() {
-            const imageUrl = "${imageUrl}";
+            const mediaUrl = "${isVideo ? videoUrl : imageUrl}";
+            const isVideoMedia = ${isVideo ? 'true' : 'false'};
+            const mimeType = isVideoMedia ? 'video/mp4' : 'image/jpeg';
+            // Use proper filename matching desktop download format
+            const fileName = "${fileName}";
+            
             const userAgent = navigator.userAgent.toLowerCase();
             const isIOS = /iphone|ipad|ipod/.test(userAgent);
             const isAndroid = /android/.test(userAgent);
             const isSafari = /safari/.test(userAgent) && !/chrome/.test(userAgent);
             
-            console.log('Save to phone - Device detection:', { isIOS, isAndroid, isSafari });
+            console.log('Save to phone - Device detection:', { isIOS, isAndroid, isSafari, isVideo: isVideoMedia });
             
             if (isIOS) {
               // iOS: Use the share API if available, otherwise fallback to download
               if (navigator.share) {
-                fetch(imageUrl)
+                fetch(mediaUrl)
                   .then(response => response.blob())
                   .then(blob => {
-                    const file = new File([blob], 'sogni-photobooth-creation.jpg', { type: 'image/jpeg' });
+                    const file = new File([blob], fileName, { type: mimeType });
                     return navigator.share({
                       title: 'My Sogni Photobooth Creation',
-                      text: 'Check out my AI-generated photo!',
+                      text: \`Check out my \${isVideoMedia ? 'video' : 'photo'} from Sogni AI Photobooth!\`,
                       files: [file]
                     });
                   })
@@ -768,12 +723,13 @@ export function renderMobileSharePage({ imageUrl, twitterMessage }) {
             } else if (isAndroid) {
               // Android: Try share API first, then fallback
               if (navigator.share) {
-                fetch(imageUrl)
+                fetch(mediaUrl)
                   .then(response => response.blob())
                   .then(blob => {
-                    const file = new File([blob], 'sogni-photobooth-creation.jpg', { type: 'image/jpeg' });
+                    const file = new File([blob], fileName, { type: mimeType });
                     return navigator.share({
                       title: 'My Sogni Photobooth Creation',
+                      text: \`Check out my \${isVideoMedia ? 'video' : 'photo'} from Sogni AI Photobooth!\`,
                       files: [file]
                     });
                   })
@@ -793,16 +749,147 @@ export function renderMobileSharePage({ imageUrl, twitterMessage }) {
           window.handleSaveToPhone = handleSaveToPhone;
           
           function fallbackSave() {
+            const mediaUrl = "${isVideo ? videoUrl : imageUrl}";
+            
             // Create a temporary link and trigger download
             const link = document.createElement('a');
-            link.href = "${imageUrl}";
-            link.download = 'sogni-photobooth-creation.jpg';
+            link.href = mediaUrl;
+            // Use proper filename matching desktop download format
+            link.download = "${fileName}";
             link.style.display = 'none';
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
           }
           
+          // Show promotional popup
+          function showPromoPopup() {
+            // Create modal overlay
+            const overlay = document.createElement('div');
+            overlay.className = 'promo-modal-overlay';
+            
+            // Create modal
+            const modal = document.createElement('div');
+            modal.className = 'promo-modal';
+            
+            modal.innerHTML = \`
+              <button class="promo-modal-close">×</button>
+              
+              <div class="promo-modal-header">
+                <div class="promo-mascot">
+                  <img 
+                    src="/sloth_cam_hop_trnsparent.png" 
+                    alt="Sogni Sloth Camera" 
+                    class="sloth-mascot"
+                  />
+                </div>
+                <h2>Enjoying Photobooth?</h2>
+              </div>
+              
+              <div class="promo-modal-content">
+                <div class="promo-message">
+                  <h3>Unlock the Full Power of Sogni!</h3>
+                  <p>
+                    Take your creativity to the next level with our complete AI art platform.
+                    Get <strong>100 FREE render credits</strong> now.
+                  </p>            
+                </div>
+              </div>
+              
+              <div class="promo-modal-footer">
+                <button class="promo-signup-btn">
+                  <span class="signup-text">Get 100 Free Credits</span>
+                  <span class="signup-arrow">→</span>
+                </button>
+                
+                <button class="promo-maybe-later">
+                  Maybe Later
+                </button>
+              </div>
+            \`;
+            
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+            
+            // Get elements
+            const closeBtn = modal.querySelector('.promo-modal-close');
+            const signupBtn = modal.querySelector('.promo-signup-btn');
+            const maybeLaterBtn = modal.querySelector('.promo-maybe-later');
+            
+            // Close modal function with animation
+            const closeModal = () => {
+              overlay.style.animation = 'overlayFadeOut 0.25s ease-in forwards';
+              modal.style.animation = 'modalSlideDown 0.25s ease-in forwards';
+              modal.addEventListener('animationend', () => {
+                if (overlay.parentNode) document.body.removeChild(overlay);
+              }, { once: true });
+            };
+            
+            // Event listeners
+            closeBtn.addEventListener('click', closeModal);
+            maybeLaterBtn.addEventListener('click', closeModal);
+            overlay.addEventListener('click', (e) => {
+              if (e.target === overlay) closeModal();
+            });
+            
+            // Handle escape key
+            const handleEscape = (e) => {
+              if (e.key === 'Escape') {
+                closeModal();
+                document.removeEventListener('keydown', handleEscape);
+              }
+            };
+            document.addEventListener('keydown', handleEscape);
+            
+            // Signup button - navigate to photobooth signup flow
+            signupBtn.addEventListener('click', () => {
+              window.location.href = 'https://photobooth.sogni.ai/signup';
+            });
+          }
+          
+          // Expose handler globally for inline onclick
+          window.showPromoPopup = showPromoPopup;
+
+          // Video sound toggle - detect if video has audio and show unmute button
+          (function() {
+            const video = document.getElementById('shareVideo');
+            const soundBtn = document.getElementById('soundBtn');
+            if (!video || !soundBtn) return;
+
+            // Show sound button once video metadata is loaded (check for audio tracks)
+            function checkForAudio() {
+              // Use mozHasAudio, webkitAudioDecodedByteCount, or audioTracks API
+              const hasAudio = (
+                video.mozHasAudio ||
+                (video.webkitAudioDecodedByteCount != null && video.webkitAudioDecodedByteCount > 0) ||
+                (video.audioTracks && video.audioTracks.length > 0)
+              );
+              if (hasAudio) {
+                soundBtn.style.display = 'flex';
+              } else {
+                // Fallback: show button after brief playback to detect decoded audio bytes
+                setTimeout(function() {
+                  if (video.webkitAudioDecodedByteCount > 0 ||
+                      (video.audioTracks && video.audioTracks.length > 0)) {
+                    soundBtn.style.display = 'flex';
+                  }
+                }, 500);
+              }
+            }
+
+            video.addEventListener('loadedmetadata', checkForAudio);
+            // Also check after some playback in case metadata detection fails
+            video.addEventListener('playing', function onPlaying() {
+              video.removeEventListener('playing', onPlaying);
+              setTimeout(checkForAudio, 300);
+            });
+
+            soundBtn.addEventListener('click', function() {
+              video.muted = !video.muted;
+              soundBtn.textContent = video.muted ? '🔇' : '🔊';
+            });
+          })();
+
           // Auto-focus on Twitter button for better UX
           document.addEventListener('DOMContentLoaded', function() {
             const twitterBtn = document.querySelector('.btn-twitter');

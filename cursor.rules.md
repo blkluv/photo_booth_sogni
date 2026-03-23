@@ -1,5 +1,15 @@
 # Cursor Rules for Sogni Photobooth
 
+## 🚨🚨🚨 MANDATORY PRE-FLIGHT CHECK 🚨🚨🚨
+**BEFORE making ANY changes to React components with useEffect:**
+
+1. **READ** `USEEFFECT-CHECKLIST.md` - Complete the entire checklist
+2. **RUN** `npm run validate:useeffect` - Must pass with 0 violations
+3. **DOCUMENT** your useEffect with a comment explaining its single purpose
+4. **COMMIT** only after validation passes
+
+**If you skip these steps, you WILL introduce bugs that break the application.**
+
 ## CSS Specificity Rules
 - **NEVER write redundant CSS selectors** - Use ONE selector with proper specificity, not multiple variations
 - **Calculate CSS specificity properly**: IDs (100) > Classes (10) > Elements (1) > Universal (0)
@@ -7,17 +17,192 @@
 - **Avoid "nuclear option" selectors** with excessive redundancy like `html body div * .class, html body #root * .class`
 - **One selector per rule** - if you need high specificity, use `html body #root .specific-class` (specificity: 112)
 
-## useEffect Critical Rules 🚨
-- **NEVER put functions in useEffect dependency arrays** - causes infinite loops
-- **NEVER put complex expressions in dependency arrays** (like `array.some()`, `object.method`)
-- **ALWAYS use functional state updates** to avoid stale closures: `setState(current => newValue)`
-- **ALWAYS use primitive values or stable references** in dependency arrays
-- **ALWAYS move complex logic inside useEffect**, not in the dependency array
-- **ALWAYS use useCallback** for functions that must be in dependencies
-- **ALWAYS use refs** for values that don't need to trigger re-renders
+## 🚨🚨🚨 useEffect CRITICAL RULES - MANDATORY ENFORCEMENT 🚨🚨🚨
 
-## Development Environment Rules 🌐
-- **Local development URL**: Always use `https://photobooth-local.sogni.ai` (NOT localhost:5175)
+### 🎯 THE GOLDEN RULE: SINGLE RESPONSIBILITY PRINCIPLE
+**Each useEffect should respond to ONE SPECIFIC CHANGE, not multiple unrelated things**
+
+❌ **BAD** - Effect with multiple unrelated concerns:
+```javascript
+// This effect does TOO MUCH - it responds to auth changes AND setting changes
+useEffect(() => {
+  if (authState.isAuthenticated) {
+    initClient();
+    if (settings.watermark) {
+      updateWatermark();
+    }
+  }
+}, [authState.isAuthenticated, settings.watermark, initClient, updateWatermark]); // TOO MANY UNRELATED DEPENDENCIES!
+```
+
+✅ **GOOD** - Separate effects for separate concerns:
+```javascript
+// Auth effect - ONLY responds to auth changes
+useEffect(() => {
+  if (authState.isAuthenticated) {
+    initClient();
+  }
+}, [authState.isAuthenticated]); // ONLY auth-related dependency
+
+// Watermark effect - ONLY responds to watermark setting changes  
+useEffect(() => {
+  if (settings.watermark) {
+    updateWatermark();
+  }
+}, [settings.watermark]); // ONLY watermark-related dependency
+```
+
+### 🚫 ABSOLUTE BAN LIST - NEVER IN DEPENDENCIES:
+1. **Functions** - `initializeSogni`, `handleClick`, `updateSetting`, etc. ❌
+2. **Context functions** - `updateSetting`, `clearCache`, `registerCallback` ❌
+3. **Nested object properties** - `authState.getSogniClient()` ❌
+4. **Arrays/Objects** - `settings`, `authState`, `config` (unless primitive extract) ❌
+5. **Anything that's not directly related to when the effect should run** ❌
+
+### ✅ ONLY ALLOWED IN DEPENDENCIES:
+1. **Primitive values that should trigger this specific effect**
+   - Example: `authState.isAuthenticated` for an auth effect ✅
+   - Example: `settings.watermark` for a watermark effect ✅
+2. **That's it. Nothing else.** ✅
+
+### 🔧 MANDATORY PROCESS BEFORE ANY useEffect EDIT:
+
+**STEP 1: What is this effect's SINGLE purpose?**
+- "Handle auth state changes" → dependency: `authState.isAuthenticated`
+- "Update watermark when setting changes" → dependency: `settings.watermark`  
+- "Initialize on mount" → dependency: `[]`
+
+**STEP 2: Remove ALL dependencies not directly related to that purpose**
+- Is `initializeSogni` in the array? **DELETE IT** - reference it directly in effect body
+- Is `updateSetting` in the array? **DELETE IT** - it's a stable function, doesn't need to be a dependency
+- Is `settings` in array when you only care about `settings.watermark`? **DELETE IT** - extract the primitive
+
+**STEP 3: Verify the dependency array**
+- Count dependencies: More than 2-3? **SUSPICIOUS** - probably doing too much
+- See any functions? **ERROR** - remove them immediately
+- See any objects? **ERROR** - extract the primitive value you actually need
+
+### 🔥 ENFORCEMENT CHECKLIST (MUST PASS ALL):
+- [ ] Effect has ONE clear purpose (can be stated in one sentence)
+- [ ] Dependency array has ≤ 3 items (if more, split into multiple effects)
+- [ ] ZERO functions in dependency array
+- [ ] ZERO objects in dependency array (extract primitives instead)
+- [ ] ZERO context functions in dependency array (`updateSetting`, `clearCache`, etc.)
+- [ ] Each dependency directly relates to when effect should run
+- [ ] Can explain: "This effect runs when [dependency] changes because [reason]"
+
+### 🚨 INSTANT REJECTION PATTERNS:
+```javascript
+// ❌ FORBIDDEN - Multiple unrelated dependencies
+}, [authState.isAuthenticated, settings.watermark, updateSetting]);
+
+// ❌ FORBIDDEN - Functions in dependencies  
+}, [initializeSogni, handleClick]);
+
+// ❌ FORBIDDEN - Context functions
+}, [updateSetting, clearCache, registerCallback]);
+
+// ❌ FORBIDDEN - Whole objects
+}, [settings, authState, config]);
+
+// ❌ FORBIDDEN - Mixed concerns
+}, [isLoggedIn, selectedPhoto, apiEndpoint, theme]);
+
+// ✅ CORRECT - Single primitive, single concern
+}, [authState.isAuthenticated]);
+
+// ✅ CORRECT - Two related primitives, single concern
+}, [userId, sessionId]); // Both auth-related
+
+// ✅ CORRECT - Empty for mount-only
+}, []);
+```
+
+### 💡 HOW TO FIX COMMON VIOLATIONS:
+
+**Problem:** "ESLint wants me to add `updateSetting` to dependencies"
+**Solution:** Ignore ESLint - `updateSetting` is a stable context function, it won't change
+
+**Problem:** "I need to call a function inside the effect"
+**Solution:** Just call it - don't add it to dependencies. Functions don't need to be dependencies.
+
+**Problem:** "Effect needs to respond to auth AND settings changes"  
+**Solution:** Split into TWO effects - one for auth, one for settings
+
+**Problem:** "I need the whole `settings` object"
+**Solution:** Extract only the primitive values you need: `settings.watermark`, `settings.qrSize`, etc.
+
+### 📊 EXAMPLES FROM THIS CODEBASE:
+
+**❌ VIOLATION (from today's bug):**
+```javascript
+useEffect(() => {
+  // Responds to auth changes...
+  if (authState.isAuthenticated) { /* ... */ }
+  // But also has settings.watermark in dependencies!
+}, [authState.isAuthenticated, authState.authMode, initializeSogni, settings.sogniWatermark, updateSetting]);
+// ^ Multiple unrelated concerns, functions in dependencies = BUG
+```
+
+**✅ CORRECT (after fix):**
+```javascript
+// Effect: Handle auth state changes (login/logout)
+// Triggers when: User authentication status changes
+useEffect(() => {
+  // ONLY responds to auth changes
+  if (authState.isAuthenticated) { 
+    // Call initializeSogni directly - no need to add to dependencies
+    initializeSogni();
+  }
+}, [authState.isAuthenticated, authState.authMode]);
+// ^ Only auth-related primitives, no functions = NO BUG
+```
+
+### 🔧 AUTOMATED VALIDATION
+
+**Run this before committing:**
+```bash
+npm run validate:useeffect
+```
+
+This script will **automatically catch** violations and **prevent commits** with bad useEffect patterns.
+
+Current violations in codebase: Run the script to see them.
+
+**Your job:** Fix ALL violations before making new changes. Don't add to the problem.
+
+## 🚨🚨🚨 LOCAL DEVELOPMENT RULES - CRITICAL 🚨🚨🚨
+### ❌ NEVER TEST WITH THESE:
+- `http://localhost:3001` ❌
+- `http://localhost:5173` ❌  
+- `http://localhost:5175` ❌
+- `http://127.0.0.1:3001` ❌
+
+### ✅ ALWAYS TEST WITH THESE:
+- **Frontend**: `https://photobooth-local.sogni.ai` ✅
+- **Backend API**: `https://photobooth-api-local.sogni.ai` ✅
+- **Use `-k` flag with curl** for self-signed certificates ✅
+
+### 🔧 WHY THIS MATTERS:
+- **CORS** - Server only allows sogni.ai origins
+- **Cookies** - Set for `.sogni.ai` domain only
+- **OAuth** - Twitter/X OAuth uses sogni.ai redirects
+- **SSL/TLS** - Local uses HTTPS with self-signed certs
+- **Nginx** - Routes through nginx configuration
+
+### 📝 TESTING EXAMPLES:
+```bash
+# Test Halloween meta tags (CORRECT)
+curl -k -s https://photobooth-local.sogni.ai/halloween | grep "og:"
+
+# Test API health (CORRECT)  
+curl -k https://photobooth-api-local.sogni.ai/health
+
+# WRONG - Don't use localhost
+curl http://localhost:3001/halloween  # ❌ WILL FAIL
+```
+
+### 🚦 OTHER ENVIRONMENT RULES:
 - **Terminal instances**: NEVER spawn new terminal instances - the application is already running externally to Cursor
 - **Server management**: Do NOT use `npm run dev` or start/stop servers - they're managed outside Cursor
 - **Testing**: Use the live local development URL for testing changes

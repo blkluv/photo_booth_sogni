@@ -58,9 +58,14 @@ setInterval(cleanupOldShares, 15 * 60 * 1000);
 // Create a new mobile share
 router.post('/create', (req, res) => {
   try {
-    const { shareId, photoIndex, imageUrl, tezdevTheme, aspectRatio, outputFormat, timestamp, twitterMessage } = req.body;
+    const { 
+      shareId, photoIndex, imageUrl, videoUrl, isVideo, 
+      tezdevTheme, aspectRatio, outputFormat, timestamp, twitterMessage,
+      // New fields for proper filename generation
+      styleName, videoDuration, videoResolution, videoFramerate
+    } = req.body;
     
-    if (!shareId || !imageUrl) {
+    if (!shareId || (!imageUrl && !videoUrl)) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -68,12 +73,21 @@ router.post('/create', (req, res) => {
     const shareDataObj = {
       photoIndex,
       imageUrl,
+      videoUrl: videoUrl || null,
+      isVideo: isVideo || false,
       tezdevTheme,
       aspectRatio,
       outputFormat,
       timestamp,
       // Persist the precomputed Twitter message so the mobile share UI uses the correct text
-      twitterMessage
+      twitterMessage,
+      // Add creation timestamp for additional validation
+      createdAt: Date.now(),
+      // Store metadata for proper filename generation
+      styleName: styleName || 'sogni',
+      videoDuration: videoDuration || null,
+      videoResolution: videoResolution || null,
+      videoFramerate: videoFramerate || null
     };
     
     shareData.set(shareId, shareDataObj);
@@ -371,7 +385,19 @@ router.get('/:shareId', async (req, res) => {
     const twitterMessage = data.twitterMessage || TWITTER_SHARE_CONFIG.DEFAULT_MESSAGE;
     
     // Render via external template for maintainability
-    return res.send(renderMobileSharePage({ imageUrl: data.imageUrl, twitterMessage }));
+    return res.send(renderMobileSharePage({ 
+      imageUrl: data.imageUrl, 
+      videoUrl: data.videoUrl,
+      isVideo: data.isVideo || false,
+      twitterMessage,
+      // Pass metadata for proper filename generation
+      styleName: data.styleName || 'sogni',
+      videoDuration: data.videoDuration,
+      videoResolution: data.videoResolution,
+      videoFramerate: data.videoFramerate,
+      outputFormat: data.outputFormat || 'jpg',
+      isFramed: data.isFramed || false
+    }));
   } catch (error) {
     console.error(`[Mobile Share] FATAL ERROR serving mobile share page:`, error);
     console.error(`[Mobile Share] Error name:`, error.name);

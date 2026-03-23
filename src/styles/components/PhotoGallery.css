@@ -13,9 +13,49 @@
   }
 }
 
+@keyframes videoDropdownSlideUp {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(30px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes popupFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+@keyframes fadeInBounce {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px) scale(0.9);
+  }
+  60% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-5px) scale(1.02);
+  }
+  80% {
+    transform: translateX(-50%) translateY(2px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
 }
 
 /* Subtle loading animation - affects the entire polaroid frame */
@@ -29,6 +69,47 @@
   100% {
     transform: scale(1);
   }
+}
+
+/* Style ShareMenu button inside batch-share-button-container to match other batch buttons */
+.batch-share-button-container .share-menu-container {
+  display: flex !important;
+}
+
+.batch-share-button-container .action-button.twitter-btn {
+  background: transparent !important;
+  border: none !important;
+  color: white !important;
+  padding: 6px 10px !important;
+  padding-bottom: 8px !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  font-size: 0 !important; /* Hide text */
+  font-weight: 600 !important;
+  font-family: "Permanent Marker", cursive !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0 !important;
+  transition: all 0.2s ease !important;
+  white-space: nowrap !important;
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 1 !important;
+  min-height: 40px !important;
+  min-width: auto !important;
+  box-shadow: none !important;
+}
+
+.batch-share-button-container .action-button.twitter-btn:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+}
+
+.batch-share-button-container .action-button.twitter-btn svg {
+  width: 18px !important;
+  height: 18px !important;
+  font-size: initial !important;
 }
 
 /* One-time development to high exposure */
@@ -202,8 +283,13 @@
   transition: opacity 1.3s ease-out !important;
 }
 
+/* Preview image fade-in effect - handled by Web Animations API in PhotoGallery.jsx */
+/* Preview images get blur(5px) via inline styles and 2-second fade via JavaScript */
+
 /* Ensure placeholder fades out smoothly when final image loads */
-.film-frame.loaded .placeholder {
+/* BUT: Don't hide placeholder during preview state - it needs to stay visible */
+/* for the preview thumbnails to fade in over it */
+.film-frame.loaded:not([data-is-preview="true"]) .placeholder {
   animation: none !important;
   opacity: 0 !important;
   transition: opacity 0.2s ease-out !important;
@@ -382,6 +468,22 @@ html body .photo-action-buttons .action-button,
 
 .use-prompt-btn:active:not(:disabled) {
   background: linear-gradient(135deg, #3d8b40, #357a38);
+  transform: translateY(1px);
+}
+
+/* Video button styling */
+.video-btn {
+  background: linear-gradient(135deg, #FF6B6B, #FF5252);
+  color: white;
+}
+
+.video-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #FF5252, #E53935);
+  transform: translateY(-2px);
+}
+
+.video-btn:active:not(:disabled) {
+  background: linear-gradient(135deg, #E53935, #C62828);
   transform: translateY(1px);
 }
 
@@ -674,7 +776,7 @@ html body .photo-action-buttons .action-button,
     gap: 0;
     padding: 0 8px;
     flex-wrap: nowrap;
-    overflow-x: auto;
+    overflow: visible;
     justify-content: space-evenly !important;
     z-index: 999999 !important;
   }
@@ -686,6 +788,13 @@ html body .photo-action-buttons .action-button,
     flex: 1;
     flex-shrink: 0;
     max-width: calc(25% - 4px);
+    overflow: visible !important;
+  }
+
+  /* Ensure share menu container can overflow on mobile */
+  .photo-action-buttons .share-menu-container {
+    overflow: visible !important;
+    position: relative !important;
   }
   
   /* Larger Twitter icon on mobile */
@@ -717,6 +826,7 @@ html body .photo-action-buttons .action-button,
     width: 100% !important;
     padding: 0 4px !important;
     z-index: 999999 !important;
+    overflow: visible !important;
   }
   
   .action-button {
@@ -724,11 +834,1323 @@ html body .photo-action-buttons .action-button,
     min-width: 0 !important;
     max-width: none !important;
     margin: 0 2px !important;
+    overflow: visible !important;
+  }
+
+  /* Ensure share menu container can overflow on mobile portrait */
+  .photo-action-buttons .share-menu-container {
+    overflow: visible !important;
+    position: relative !important;
   }
   
   .enhance-buttons-group {
     flex: 1 1 0 !important;
     max-width: none !important;
     margin: 0 2px !important;
+  }
+
+  .share-menu-dropdown {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 0;
+    transform: none;
+    min-width: 180px;
+    overflow: visible !important;
+  }
+
+  .share-menu-option {
+    padding: 12px 16px;
+    font-size: 13px;
+  }
+}
+
+/* Hide button styles - visible on hover for desktop, always visible on touch devices */
+.photo-hide-btn {
+  opacity: 0 !important;
+  transform: scale(0.8) !important;
+  transition: all 0.2s ease !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+.photo-refresh-btn {
+  opacity: 0 !important;
+  transform: scale(0.8) !important;
+  transition: all 0.2s ease !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+.photo-block-btn-batch {
+  opacity: 0 !important;
+  transform: scale(0.8) !important;
+  transition: all 0.2s ease !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+.photo-motion-btn-batch {
+  opacity: 0 !important;
+  transform: scale(0.8) !important;
+  transition: all 0.2s ease !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* Default sizing for personalize card buttons (desktop) — no inline styles for width/height */
+.personalize-card .saved-remove-btn {
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  max-width: 22px !important;
+  max-height: 22px !important;
+  font-size: 12px !important;
+  box-sizing: border-box !important;
+  top: -7px !important;
+  right: -7px !important;
+}
+
+.personalize-card .photo-refresh-btn {
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  max-width: 24px !important;
+  max-height: 24px !important;
+  box-sizing: border-box !important;
+  top: 4px !important;
+  right: 4px !important;
+}
+
+.personalize-card .photo-refresh-btn svg,
+.personalize-card .personalize-refresh-svg {
+  width: 12px !important;
+  height: 12px !important;
+}
+
+/* On touch devices, always show batch gallery buttons and personalize card buttons (no hover needed) */
+@media (hover: none) and (pointer: coarse) {
+  .photo-hide-btn,
+  .photo-refresh-btn,
+  .photo-favorite-btn-batch {
+    opacity: 1 !important;
+    transform: scale(1) !important;
+  }
+
+  .saved-remove-btn {
+    opacity: 1 !important;
+  }
+
+  /* Compact personalize card buttons on touch devices */
+  .personalize-card .saved-remove-btn {
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    max-width: 18px !important;
+    max-height: 18px !important;
+    font-size: 10px !important;
+    border-width: 1.5px !important;
+    top: -5px !important;
+    right: -5px !important;
+  }
+
+  .personalize-card .photo-refresh-btn {
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    max-width: 20px !important;
+    max-height: 20px !important;
+    top: 3px !important;
+    right: 3px !important;
+  }
+
+  .personalize-card .photo-refresh-btn svg,
+  .personalize-card .personalize-refresh-svg {
+    width: 10px !important;
+    height: 10px !important;
+  }
+
+  /* Keep block and motion buttons hidden on mobile - desktop only features */
+  .photo-block-btn-batch,
+  .photo-motion-btn-batch {
+    opacity: 0 !important;
+    display: none !important;
+  }
+}
+
+/* Fallback for mobile browsers that may not support hover media query */
+@media screen and (max-width: 768px) {
+  .photo-hide-btn,
+  .photo-refresh-btn,
+  .photo-favorite-btn-batch {
+    opacity: 1 !important;
+    transform: scale(1) !important;
+  }
+
+  .saved-remove-btn {
+    opacity: 1 !important;
+  }
+
+  .personalize-card .saved-remove-btn {
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    max-width: 18px !important;
+    max-height: 18px !important;
+    font-size: 10px !important;
+    border-width: 1.5px !important;
+    top: -5px !important;
+    right: -5px !important;
+  }
+
+  .personalize-card .photo-refresh-btn {
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    max-width: 20px !important;
+    max-height: 20px !important;
+    top: 3px !important;
+    right: 3px !important;
+  }
+
+  .personalize-card .photo-refresh-btn svg,
+  .personalize-card .personalize-refresh-svg {
+    width: 10px !important;
+    height: 10px !important;
+  }
+
+  /* Keep block and motion buttons hidden on mobile - desktop only features */
+  .photo-block-btn-batch,
+  .photo-motion-btn-batch {
+    opacity: 0 !important;
+    display: none !important;
+  }
+}
+
+/* Show hide button, refresh button, block button, and favorite button on photo hover - only for grid photos (not selected) and only on non-touch devices */
+@media (hover: hover) and (pointer: fine) {
+  .film-frame:not(.selected):hover .photo-hide-btn {
+    opacity: 1 !important;
+    transform: scale(1) !important;
+    pointer-events: auto !important;
+  }
+
+  .film-frame:not(.selected):hover .photo-refresh-btn,
+  .personalize-card:hover .photo-refresh-btn {
+    opacity: 1 !important;
+    transform: scale(1) !important;
+    pointer-events: auto !important;
+  }
+
+  .film-frame:not(.selected):hover .photo-block-btn-batch {
+    opacity: 1 !important;
+    transform: scale(1) !important;
+    pointer-events: auto !important;
+  }
+
+  .film-frame:not(.selected):hover .photo-motion-btn-batch {
+    opacity: 1 !important;
+    transform: scale(1) !important;
+    pointer-events: auto !important;
+  }
+
+  .film-frame:not(.selected):hover .photo-favorite-btn {
+    opacity: 1 !important;
+    transform: scale(1) !important;
+    pointer-events: auto !important;
+  }
+
+
+  /* Show "Use this vibe" overlay on hover for desktop or touch-hovered for mobile in Style Explorer */
+  .film-frame:not(.selected):hover .use-vibe-overlay-container,
+  .film-frame.touch-hovered .use-vibe-overlay-container {
+    display: flex !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  /* Show vibe icons container on hover for desktop in Style Explorer */
+  .film-frame:not(.selected):hover .vibe-icons-container,
+  .film-frame.touch-hovered .vibe-icons-container {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    top: 20px !important;
+    right: 20px !important;
+  }
+  
+  .vibe-icons-container {
+    top: 20px !important;
+    right: 20px !important;
+  }
+
+  /* On mobile, move icons closer to corner with proper padding */
+  @media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
+    .vibe-icons-container {
+      top: 10px !important;
+      right: 10px !important;
+    }
+    
+    .film-frame:not(.selected):hover .vibe-icons-container,
+    .film-frame.touch-hovered .vibe-icons-container {
+      top: 10px !important;
+      right: 10px !important;
+    }
+  }
+
+  /* When favorited but not hovering or touch-hovered, hide all icons except heart */
+  .film-frame:not(.selected):not(:hover):not(.touch-hovered) .vibe-icons-container .photo-fullscreen-btn,
+  .film-frame:not(.selected):not(:hover):not(.touch-hovered) .vibe-icons-container .photo-video-btn,
+  .film-frame:not(.selected):not(:hover):not(.touch-hovered) .vibe-icons-container .photo-motion-btn,
+  .film-frame:not(.selected):not(:hover):not(.touch-hovered) .vibe-icons-container .photo-block-btn {
+    display: none !important;
+  }
+
+  /* Ensure current-style photos don't show overlay or icons unless explicitly hovered/touched */
+  .film-frame.current-style:not(:hover):not(.touch-hovered) .use-vibe-overlay-container {
+    display: none !important;
+    opacity: 0 !important;
+  }
+  
+  .film-frame.current-style:not(:hover):not(.touch-hovered) .vibe-icons-container {
+    opacity: 0 !important;
+  }
+
+  .film-frame:not(.selected):hover .photo-favorite-btn-batch {
+    opacity: 1 !important;
+    transform: scale(1) !important;
+    pointer-events: auto !important;
+  }
+}
+
+/* On touch devices, always show vibe icons container */
+@media (hover: none) and (pointer: coarse) {
+  .vibe-icons-container {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+}
+
+/* On touch devices or when selected, show all buttons */
+.film-frame.selected .photo-hide-btn,
+.film-frame.selected .photo-refresh-btn,
+.film-frame.selected .photo-block-btn-batch,
+.film-frame.selected .photo-motion-btn-batch,
+.film-frame.selected .photo-favorite-btn,
+.film-frame.selected .photo-video-btn,
+.film-frame.selected .photo-motion-btn,
+.film-frame.selected .photo-favorite-btn-batch,
+.film-frame.selected .photo-block-btn {
+  opacity: 1 !important;
+  transform: scale(1) !important;
+  pointer-events: auto !important;
+}
+
+/* Favorite button styles - only visible on hover (unless favorited) */
+.photo-favorite-btn {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+.photo-favorite-btn-batch {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  transition: none !important;
+  transform: none !important;
+  right: 52px !important; /* Always keep it in its proper position */
+}
+
+/* Video play button - always clickable */
+.photo-video-btn {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* Download All button styling */
+.download-all-btn {
+  background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.download-all-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #F57C00 0%, #E65100 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+}
+
+.download-all-btn:active:not(:disabled) {
+  transform: translateY(0px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.download-all-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Bulk download progress indicator */
+.bulk-download-progress {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* More button styling */
+.more-photos-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.more-photos-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Circular download button styling */
+.download-all-circular-btn:active:not(:disabled) {
+  transform: scale(0.95) !important;
+}
+
+/* Batch action dropdown container */
+.batch-action-dropdown-container {
+  position: relative;
+  display: inline-flex;
+  gap: 0;
+  overflow: visible;
+}
+
+.batch-action-button {
+  border: none;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.batch-action-button-main {
+  padding: 6px 14px;
+  padding-bottom: 8px;
+  font-size: 15px;
+  white-space: nowrap;
+  min-height: 40px;
+  font-family: "Permanent Marker", cursive;
+}
+
+.batch-action-button-dropdown {
+  padding: 6px 8px;
+  padding-bottom: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  font-size: 13px;
+  min-width: auto;
+  min-height: 40px;
+  flex-shrink: 0;
+}
+
+.batch-action-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.batch-action-button:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15) !important;
+}
+
+.batch-action-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Batch action mode dropdown */
+.batch-action-mode-dropdown {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.batch-action-mode-option {
+  font-family: "Permanent Marker", cursive;
+  transition: background 0.2s ease;
+}
+
+.batch-action-mode-option:hover {
+  background: rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Mobile spacing adjustments - match grid padding */
+@media screen and (max-width: 600px) {
+  /* Match button container spacing to grid padding (8px) */
+  .film-strip-container > div[style*="right: 32px"] {
+    right: 8px !important;
+  }
+}
+
+/* More button dropdown caret styling */
+.more-dropdown-caret:hover:not(:disabled) {
+  background: rgba(255, 82, 82, 0.9) !important;
+}
+
+.more-dropdown-caret:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+/* More dropdown menu styling */
+.more-dropdown-menu {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.more-dropdown-option {
+  font-family: "Permanent Marker", cursive;
+}
+
+/* Mobile responsiveness for download all button and dropdown */
+@media (max-width: 768px) {
+  .download-all-btn {
+    padding: 8px 12px;
+    font-size: 14px;
+    min-height: 44px; /* Ensure adequate touch target size */
+    min-width: 60px; /* Ensure adequate touch target width */
+  }
+
+  .more-dropdown-caret {
+    min-height: 44px; /* Ensure adequate touch target size */
+  }
+
+  .more-dropdown-menu {
+    min-width: 160px !important;
+    font-size: 13px !important;
+  }
+
+  .more-dropdown-option {
+    padding: 10px 14px !important;
+  }
+}
+
+/* Portrait type button hover labels */
+.portrait-type-button-container:hover .portrait-type-label {
+  opacity: 1;
+}
+
+/* Hide "Preview:" label on mobile */
+@media (max-width: 768px) {
+  .portrait-type-preview-label {
+    display: none !important;
+  }
+}
+
+/* Vibe Selector Widget - Aligned to right, compact horizontal design */
+.photo-gallery-style-selector-button {
+  position: fixed;
+  top: 24px;
+  right: 74px; /* Settings button (38px) + gap (12px) + settings position (24px) = 74px */
+  height: 38px;
+  z-index: 1001;
+  background: linear-gradient(135deg, var(--brand-adjuster-start), var(--brand-adjuster-end));
+  border: none;
+  border-radius: 8px;
+  padding: 0 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.photo-gallery-style-selector-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.photo-gallery-style-selector-button:hover::before {
+  left: 100%;
+}
+
+.photo-gallery-style-selector-button:hover {
+  background: linear-gradient(135deg, #ff8cc8, #8b7aed);
+  box-shadow: 0 6px 16px rgba(255, 126, 179, 0.4);
+  transform: translateY(-2px) scale(1.05);
+}
+
+.photo-gallery-style-selector-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.photo-gallery-style-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  justify-content: center;
+}
+
+.photo-gallery-style-label {
+  font-size: 8px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  line-height: 1;
+}
+
+.photo-gallery-style-icon {
+  font-size: 1rem;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.photo-gallery-style-selector-button:hover .photo-gallery-style-icon {
+  transform: scale(1.1) rotate(10deg);
+}
+
+.photo-gallery-style-preview-image {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.photo-gallery-style-selector-button:hover .photo-gallery-style-preview-image {
+  transform: scale(1.1);
+}
+
+.photo-gallery-style-icon-fallback {
+  display: none;
+}
+
+.photo-gallery-style-text {
+  font-family: "Permanent Marker", cursive;
+  font-size: 13px;
+  color: white;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1;
+}
+
+/* iPad responsiveness for vibe selector */
+@media (min-width: 768px) and (max-width: 1366px) {
+  .photo-gallery-style-selector-button {
+    top: 24px;
+    right: 74px; /* Match desktop spacing */
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 8px;
+  }
+
+  .photo-gallery-style-label {
+    font-size: 8px;
+  }
+
+  .photo-gallery-style-text {
+    font-size: 13px;
+    max-width: 160px;
+  }
+
+  .photo-gallery-style-icon {
+    font-size: 1rem;
+  }
+
+  .photo-gallery-style-preview-image {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* Mobile tablet (portrait) responsiveness for vibe selector */
+@media (max-width: 768px) and (min-width: 577px) {
+  .photo-gallery-style-selector-button {
+    top: 24px;
+    right: 74px; /* Settings button position (24px) + button width (38px) + gap (12px) = 74px */
+    height: 38px;
+    padding: 0 10px;
+    border-radius: 8px;
+    max-width: calc(100vw - 74px - 24px); /* Prevent extending beyond left edge */
+  }
+
+  .photo-gallery-style-label {
+    font-size: 8px;
+  }
+
+  .photo-gallery-style-text {
+    font-size: 12px;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .photo-gallery-style-icon {
+    font-size: 0.95rem;
+  }
+
+  .photo-gallery-style-preview-image {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+/* Mobile portrait specific adjustments - compact layout */
+@media (max-width: 576px) and (orientation: portrait) {
+  .photo-gallery-style-selector-button {
+    top: 24px; /* Match settings button vertical position */
+    right: 70px; /* Settings button position (24px) + button width (38px) + gap (8px) = 70px */
+    height: 38px;
+    padding: 0 8px;
+    border-radius: 6px;
+    max-width: calc(100vw - 70px - 24px); /* Prevent extending beyond left edge: screen width minus right offset minus left padding */
+  }
+
+  .photo-gallery-style-label {
+    font-size: 7px;
+  }
+
+  .photo-gallery-style-text {
+    font-size: 10px;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .photo-gallery-style-icon {
+    font-size: 0.85rem;
+  }
+
+  .photo-gallery-style-preview-image {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* Camera View Style Selector - Same styling as Photo Gallery but with camera-view prefix */
+.camera-view-style-selector-button {
+  position: fixed;
+  top: 24px;
+  right: 74px; /* Settings button (38px) + gap (12px) + settings position (24px) = 74px */
+  height: 38px;
+  z-index: 1001;
+  background: linear-gradient(135deg, var(--brand-adjuster-start), var(--brand-adjuster-end));
+  border: none;
+  border-radius: 8px;
+  padding: 0 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.camera-view-style-selector-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.camera-view-style-selector-button:hover::before {
+  left: 100%;
+}
+
+.camera-view-style-selector-button:hover {
+  background: linear-gradient(135deg, #ff8cc8, #8b7aed);
+  box-shadow: 0 6px 16px rgba(255, 126, 179, 0.4);
+  transform: translateY(-2px) scale(1.05);
+}
+
+.camera-view-style-selector-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.camera-view-style-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  justify-content: center;
+}
+
+.camera-view-style-label {
+  font-size: 8px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  line-height: 1;
+}
+
+.camera-view-style-icon {
+  font-size: 1rem;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.camera-view-style-selector-button:hover .camera-view-style-icon {
+  transform: scale(1.1) rotate(10deg);
+}
+
+.camera-view-style-preview-image {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.camera-view-style-selector-button:hover .camera-view-style-preview-image {
+  transform: scale(1.1);
+}
+
+.camera-view-style-icon-fallback {
+  display: none;
+}
+
+.camera-view-style-text {
+  font-family: "Permanent Marker", cursive;
+  font-size: 13px;
+  color: white;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1;
+}
+
+/* iPad responsiveness for camera view style selector */
+@media (min-width: 768px) and (max-width: 1366px) {
+  .camera-view-style-selector-button {
+    top: 24px;
+    right: 74px; /* Match desktop spacing */
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 8px;
+  }
+
+  .camera-view-style-label {
+    font-size: 8px;
+  }
+
+  .camera-view-style-text {
+    font-size: 13px;
+    max-width: 160px;
+  }
+
+  .camera-view-style-icon {
+    font-size: 1rem;
+  }
+
+  .camera-view-style-preview-image {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* Mobile tablet (portrait) responsiveness for camera view style selector */
+@media (max-width: 768px) and (min-width: 577px) {
+  .camera-view-style-selector-button {
+    top: 24px;
+    right: 74px; /* Settings button position (24px) + button width (38px) + gap (12px) = 74px */
+    height: 38px;
+    padding: 0 10px;
+    border-radius: 8px;
+    max-width: calc(100vw - 74px - 24px); /* Prevent extending beyond left edge */
+  }
+
+  .camera-view-style-label {
+    font-size: 8px;
+  }
+
+  .camera-view-style-text {
+    font-size: 12px;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .camera-view-style-icon {
+    font-size: 0.95rem;
+  }
+
+  .camera-view-style-preview-image {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+/* Mobile portrait specific adjustments for camera view - compact layout */
+@media (max-width: 576px) and (orientation: portrait) {
+  .camera-view-style-selector-button {
+    top: 24px; /* Match settings button vertical position */
+    right: 70px; /* Settings button position (24px) + button width (38px) + gap (8px) = 70px */
+    height: 38px;
+    padding: 0 8px;
+    border-radius: 6px;
+    max-width: calc(100vw - 70px - 24px); /* Prevent extending beyond left edge: screen width minus right offset minus left padding */
+  }
+
+  .camera-view-style-label {
+    font-size: 7px;
+  }
+
+  .camera-view-style-text {
+    font-size: 10px;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .camera-view-style-icon {
+    font-size: 0.85rem;
+  }
+
+  .camera-view-style-preview-image {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* ============================================
+   Video Generation Button Styles
+   ============================================ */
+
+/* Video button container */
+.video-button-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Video generate button */
+.video-generate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.video-generate-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.video-generate-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.video-generate-btn.loading {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Video NEW badge pulse animation */
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+}
+
+/* Shimmer animation for gradient text */
+@keyframes shimmer {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Video generation fun animations */
+@keyframes camera-bounce {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-4px) rotate(-5deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-4px) rotate(5deg);
+  }
+}
+
+@keyframes float-sparkle-0 {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateY(-12px) rotate(180deg);
+    opacity: 1;
+  }
+}
+
+@keyframes float-sparkle-1 {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translateY(-15px) scale(1.2);
+    opacity: 1;
+  }
+}
+
+@keyframes float-sparkle-2 {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg) scale(0.9);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateY(-10px) rotate(-180deg) scale(1.1);
+    opacity: 1;
+  }
+}
+
+@keyframes gradient-rotate {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes glow-border {
+  0% {
+    box-shadow: 0 8px 32px rgba(255, 107, 107, 0.3), 0 0 40px rgba(255, 165, 2, 0.2);
+  }
+  100% {
+    box-shadow: 0 8px 32px rgba(255, 165, 2, 0.4), 0 0 60px rgba(255, 107, 107, 0.3);
+  }
+}
+
+/* Video settings highlight animation - brief white border flash */
+@keyframes video-settings-flash {
+  0% {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+  20%, 40%, 60% {
+    outline: 2px solid rgba(255, 255, 255, 0.8);
+    outline-offset: 2px;
+  }
+  30%, 50%, 70% {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+  100% {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+}
+
+.video-settings-highlight {
+  animation: video-settings-flash 1.2s ease-out;
+  border-radius: 12px;
+}
+
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+
+@-webkit-keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+
+/* Ensure video ETA blink animation works on mobile - force animation to work */
+/* Target the video ETA display element specifically */
+.video-eta-stuck {
+  animation: blink 2s ease-in-out infinite !important;
+  -webkit-animation: blink 2s ease-in-out infinite !important;
+  animation-name: blink !important;
+  -webkit-animation-name: blink !important;
+  animation-duration: 2s !important;
+  -webkit-animation-duration: 2s !important;
+  animation-timing-function: ease-in-out !important;
+  -webkit-animation-timing-function: ease-in-out !important;
+  animation-iteration-count: infinite !important;
+  -webkit-animation-iteration-count: infinite !important;
+  animation-play-state: running !important;
+  -webkit-animation-play-state: running !important;
+  will-change: opacity !important;
+}
+
+.video-new-badge {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Video dropdown slide up animation */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.video-dropdown {
+  animation: slideUp 0.2s ease-out;
+}
+
+/* Video error message */
+.video-error {
+  animation: shake 0.3s ease-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+/* Video player in dropdown */
+.video-dropdown video {
+  background: #000;
+}
+
+/* Responsive adjustments for video button */
+@media (max-width: 768px) {
+  .video-generate-btn {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  
+  .video-new-badge {
+    font-size: 8px !important;
+    padding: 1px 4px !important;
+    top: -6px !important;
+    right: -6px !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .video-generate-btn {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+}
+
+/* Simple fade-in animation for batch video tip tooltip */
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Hover effect for the tooltip */
+.batch-video-tip-tooltip:hover {
+  opacity: 0.9;
+}
+
+/* ========== Personalize Mode — Mobile Responsive ========== */
+
+@media (max-width: 768px) {
+  /* Ensure tab bar clears the absolutely-positioned VIBE EXPLORER title */
+  .prompt-selector-header {
+    padding-top: 12px !important;
+  }
+
+  .vibe-explorer-tabs {
+    margin-top: 4px !important;
+    margin-bottom: 8px !important;
+    padding-top: 3px !important;
+  }
+
+  .personalize-container {
+    padding: 16px !important;
+  }
+
+  .personalize-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  .personalize-face-avatar {
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  .personalize-input-area {
+    padding: 12px !important;
+  }
+
+  .personalize-expanded-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Make refresh buttons always visible on touch devices */
+  .personalize-card .photo-refresh-btn {
+    opacity: 1 !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .prompt-selector-header {
+    padding-top: 8px !important;
+  }
+
+  .vibe-explorer-tabs {
+    margin-top: 2px !important;
+    margin-bottom: 6px !important;
+    padding-top: 3px !important;
+  }
+
+  .personalize-container {
+    padding: 10px !important;
+  }
+
+  .personalize-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .personalize-grid .personalize-card {
+    padding: 6px 6px 28px !important;
+  }
+
+  .personalize-face-avatar {
+    width: 36px !important;
+    height: 36px !important;
+  }
+
+  .personalize-preview-faces {
+    gap: 6px !important;
+  }
+
+  .personalize-input-area {
+    padding: 10px !important;
+    border-radius: 12px !important;
+  }
+
+  .personalize-model-toggle {
+    flex-wrap: wrap;
+    gap: 6px !important;
+  }
+
+  /* Even smaller buttons on narrow screens */
+  .personalize-card .saved-remove-btn {
+    width: 16px !important;
+    height: 16px !important;
+    min-width: 16px !important;
+    max-width: 16px !important;
+    max-height: 16px !important;
+    font-size: 9px !important;
+    border-width: 1.5px !important;
+    top: -4px !important;
+    right: -4px !important;
+    box-sizing: border-box !important;
+  }
+
+  .personalize-card .photo-refresh-btn {
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    max-width: 18px !important;
+    max-height: 18px !important;
+    top: 2px !important;
+    right: 2px !important;
+    box-sizing: border-box !important;
+  }
+
+  .personalize-card .photo-refresh-btn svg,
+  .personalize-card .personalize-refresh-svg {
+    width: 9px !important;
+    height: 9px !important;
   }
 }

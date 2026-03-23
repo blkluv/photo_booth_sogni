@@ -2,63 +2,62 @@
   "version": "1.0",
   "defaultTheme": null,
   "themes": {
-    "taipeiblockchain": {
-      "label": "Taipei Blockchain Week 2025",
+    "mandala": {
+      "label": "Mandala Club",
       "defaultAspectRatio": "narrow",
-      "framePadding": 26,
-      "tweetTemplate": "Just took my photo at the @sogni_protocol AI photobooth #TaipeiBlockchainWeek2025 https://photobooth.sogni.ai",
+      "framePadding": { "top": 0, "left": 0, "right": 0, "bottom": 34 },
+      "hiddenThemeGroups": ["halloween", "horror"],
+      "tweetTemplate": "Just took my photo at the @sogni_protocol AI Photobooth at Mandala Club! https://photobooth.sogni.ai",
       "frames": {
         "narrow": [
-          "/events/taipei-blockchain-2025/narrow_1.png",
-          "/events/taipei-blockchain-2025/narrow_2.png",
-          "/events/taipei-blockchain-2025/narrow_3.png",
-          "/events/taipei-blockchain-2025/narrow_4.png",
-          "/events/taipei-blockchain-2025/narrow_5.png",
-          "/events/taipei-blockchain-2025/narrow_6.png"
+          "/events/mandala/narrow_1.png?2"
         ]
+      },
+      "brand": {
+        "title": "MANDALA CLUB x SOGNI",
+        "logo": "/events/mandala/logo_white.png",
+        "backgroundImage": "/events/mandala/venue-bg-mirrored.webp",
+        "colors": {
+          "gradientStart": "#008C8C",
+          "gradientEnd": "#006666",
+          "frameColor": "#008C8C",
+          "accentPrimary": "#008C8C",
+          "accentSecondary": "#F4F1ED",
+          "accentTertiary": "#6185F2",
+          "accentTertiaryHover": "#4a6fd4",
+          "headerBg": "#004D4D",
+          "headerStroke": "#F4F1ED",
+          "pageBg": "#008C8C",
+          "pageBgMid": "#007A7A",
+          "pageBgEnd": "#006666",
+          "sliderThumb": "#F4F1ED",
+          "glitchPrimary": "#F4F1ED",
+          "glitchSecondary": "#008C8C",
+          "buttonPrimary": "#006666",
+          "buttonPrimaryEnd": "#004D4D",
+          "buttonSecondary": "#6185F2",
+          "adjusterStart": "#006666",
+          "adjusterEnd": "#004D4D",
+          "darkText": "#FFFFFF",
+          "darkBorder": "#FFFFFF",
+          "textSecondary": "#F4F1ED",
+          "textMuted": "#C8C4BE",
+          "cardBg": "#007A7A",
+          "pwaPink": "#DE73BE",
+          "gimiPurple": "#6185F2",
+          "ctaStart": "#6185F2",
+          "ctaEnd": "#4a6fd4"
+        }
       }
     },
-    "showup": {
-      "label": "Show Up Taipei Vibe",
+    "function1": {
+      "label": "Function 1",
       "defaultAspectRatio": "narrow",
-      "framePadding": 30,
-      "tweetTemplate": "Just took my photo at the @sogni_protocol AI photobooth https://photobooth.sogni.ai",
+      "framePadding": { "top": 0, "left": 0, "right": 0, "bottom": 135 },
+      "tweetTemplate": "Just took my photo at the @sogni_protocol AI Photobooth at Function 1! https://photobooth.sogni.ai",
       "frames": {
         "narrow": [
-          "/events/showup/narrow_1.png"
-        ]
-      }
-    },
-    "nodesamongus": {
-      "label": "Nodes Among Us",
-      "defaultAspectRatio": "narrow",
-      "framePadding": 20,
-      "tweetTemplate": "Just took my photo at the @sogni_protocol AI photobooth at Nodes Among Us: Taipei Blockchain Week https://photobooth.sogni.ai",
-      "frames": {
-        "narrow": [
-          "/events/nodes-among-us/narrow_1.png"
-        ]
-      }
-    },
-    "supercasual": {
-      "label": "Super Casual",
-      "defaultAspectRatio": "narrow",
-      "framePadding": 0,
-      "tweetTemplate": "Just took my photo at the @sogni_protocol AI photobooth #SuperCasual https://photobooth.sogni.ai",
-      "frames": {
-        "narrow": [
-          "/events/super-casual/narrow_1.png"
-        ]
-      }
-    },
-    "tezoswebx": {
-      "label": "Tezos WebX Asia",
-      "defaultAspectRatio": "narrow",
-      "framePadding": 0,
-      "tweetTemplate": "Just took my photo at the @sogni_protocol AI photobooth at the @Tezos booth at G-79 @WebX_Asia! #SogniAtWebXAsia @tzapac @etherlink https://photobooth.sogni.ai",
-      "frames": {
-        "narrow": [
-          "/events/tezos-webx/narrow_1.png"
+          "/events/function1/narrow_1.png"
         ]
       }
     }

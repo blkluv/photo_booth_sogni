@@ -7,7 +7,7 @@ const FriendlyErrorModal = ({ error, onClose, onRetry }) => {
   // Handle legacy string errors
   const errorData = typeof error === 'string' ? {
     type: 'generic',
-    title: '⚠️ Something went wrong',
+    title: 'oops! something went wrong 😅',
     message: error,
     canRetry: false
   } : error;
@@ -24,6 +24,7 @@ const FriendlyErrorModal = ({ error, onClose, onRetry }) => {
       case 'popup_blocked': return '🚫';
       case 'connection_error': return '🌐';
       case 'auth_error': return '🔐';
+      case 'kiosk_mode_error': return '📱';
       default: return '⚠️';
     }
   };
@@ -33,6 +34,7 @@ const FriendlyErrorModal = ({ error, onClose, onRetry }) => {
       case 'popup_blocked': return '#ff9800'; // Orange for popup issues
       case 'connection_error': return '#2196f3'; // Blue for connection issues
       case 'auth_error': return '#9c27b0'; // Purple for auth issues
+      case 'kiosk_mode_error': return '#ff5722'; // Deep orange for kiosk mode issues
       default: return '#f44336'; // Red for generic errors
     }
   };
@@ -110,7 +112,7 @@ const FriendlyErrorModal = ({ error, onClose, onRetry }) => {
                 color: '#856404',
                 fontWeight: '500'
               }}>
-                💡 To enable automatic sharing in the future:
+                💡 wanna enable automatic sharing?
               </p>
               <ul style={{ 
                 margin: '0',
@@ -119,9 +121,9 @@ const FriendlyErrorModal = ({ error, onClose, onRetry }) => {
                 color: '#856404',
                 lineHeight: '1.4'
               }}>
-                <li>Click the popup blocker icon in your browser's address bar</li>
-                <li>Select "Always allow popups from this site"</li>
-                <li>Refresh the page and try sharing again</li>
+                <li>click the popup blocker icon in ur browser's address bar</li>
+                <li>select "always allow popups from this site"</li>
+                <li>refresh the page and try sharing again!</li>
               </ul>
             </div>
           )}
@@ -192,6 +194,40 @@ const FriendlyErrorModal = ({ error, onClose, onRetry }) => {
               </button>
             )}
 
+            {/* Fallback action button */}
+            {errorData.fallbackAction && (
+              <button
+                onClick={() => {
+                  onClose();
+                  setTimeout(errorData.fallbackAction, 100); // Small delay to let modal close
+                }}
+                style={{
+                  background: 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)',
+                  color: 'white',
+                  border: 'none',
+                  padding: '12px 24px',
+                  borderRadius: '25px',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  boxShadow: '0 4px 12px rgba(33, 150, 243, 0.3)',
+                  transition: 'all 0.2s ease',
+                  minWidth: '120px',
+                  marginRight: '12px'
+                }}
+                onMouseOver={(e) => {
+                  e.target.style.transform = 'translateY(-1px)';
+                  e.target.style.boxShadow = '0 6px 16px rgba(33, 150, 243, 0.4)';
+                }}
+                onMouseOut={(e) => {
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = '0 4px 12px rgba(33, 150, 243, 0.3)';
+                }}
+              >
+                {errorData.fallbackLabel || '🔄 Alternative'}
+              </button>
+            )}
+
             {/* Retry button */}
             {errorData.canRetry && onRetry && (
               <button
@@ -210,7 +246,8 @@ const FriendlyErrorModal = ({ error, onClose, onRetry }) => {
                   fontWeight: '600',
                   boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)',
                   transition: 'all 0.2s ease',
-                  minWidth: '120px'
+                  minWidth: '120px',
+                  marginRight: errorData.fallbackAction ? '12px' : '0'
                 }}
                 onMouseOver={(e) => {
                   e.target.style.transform = 'translateY(-1px)';
@@ -221,7 +258,7 @@ const FriendlyErrorModal = ({ error, onClose, onRetry }) => {
                   e.target.style.boxShadow = '0 4px 12px rgba(76, 175, 80, 0.3)';
                 }}
               >
-                🔄 Try Again
+                🔄 try again
               </button>
             )}
 
@@ -249,13 +286,13 @@ const FriendlyErrorModal = ({ error, onClose, onRetry }) => {
                 e.target.style.transform = 'translateY(0)';
               }}
             >
-              Got it
+              got it!
             </button>
           </div>
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes slideIn {
           from {
             opacity: 0;
@@ -281,7 +318,9 @@ FriendlyErrorModal.propTypes = {
       details: PropTypes.string,
       canRetry: PropTypes.bool,
       fallbackUrl: PropTypes.string,
-      fallbackText: PropTypes.string
+      fallbackText: PropTypes.string,
+      fallbackAction: PropTypes.func,
+      fallbackLabel: PropTypes.string
     })
   ]),
   onClose: PropTypes.func.isRequired,

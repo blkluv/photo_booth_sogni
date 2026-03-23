@@ -37,7 +37,7 @@ async function toggleDevMode() {
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'icons/icon48.png',
-      title: 'Sogni Style Explorer',
+      title: 'Sogni Vibe Explorer',
       message: `Development mode ${newDevMode ? 'enabled' : 'disabled'}`
     });
   } catch (error) {
@@ -143,13 +143,6 @@ class SSEConnectionManager {
     this.eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        console.log(`Background: [CONCURRENT-DEBUG] SSE message received:`, {
-          type: data.type,
-          projectId: data.projectId,
-          jobId: data.jobId,
-          activeProjects: Array.from(this.activeProjects.keys()),
-          pendingProjects: Array.from(this.pendingEvents.keys())
-        });
         
         // Route event to correct project
         if (data.projectId) {
@@ -161,13 +154,6 @@ class SSEConnectionManager {
               this.pendingEvents.set(data.projectId, []);
             }
             this.pendingEvents.get(data.projectId).push(data);
-            console.log('Background: [CONCURRENT-DEBUG] Buffering SSE for untracked project', {
-              projectId: data.projectId,
-              type: data.type,
-              bufferedCount: this.pendingEvents.get(data.projectId).length,
-              activeProjectKeys: Array.from(this.activeProjects.keys()),
-              totalActiveProjects: this.activeProjects.size
-            });
           }
         } else {
           console.warn('Background: SSE message missing projectId, ignoring', data);
@@ -236,12 +222,6 @@ class SSEConnectionManager {
 
   // Register a project for tracking
   trackProject(projectId, imageUrl, resolve, reject) {
-    console.log('Background: [CONCURRENT-DEBUG] Tracking new project', {
-      projectId,
-      imageUrl,
-      totalActive: this.activeProjects.size + 1,
-      allActiveProjects: [...Array.from(this.activeProjects.keys()), projectId]
-    });
     this.activeProjects.set(projectId, { resolve, reject, imageUrl, isResolved: false });
     // Flush any buffered events for this project in arrival order
     if (this.pendingEvents.has(projectId)) {
@@ -276,14 +256,6 @@ class SSEConnectionManager {
     if (!project) return;
 
     const { resolve, reject, imageUrl } = project;
-
-    console.log('Background: [CONCURRENT-DEBUG] Routing event to project', {
-      projectId,
-      type: data.type,
-      imageUrl,
-      activeCount: this.activeProjects.size,
-      allActiveProjects: Array.from(this.activeProjects.keys())
-    });
 
     switch (data.type) {
       case 'connected':
@@ -686,8 +658,8 @@ async function handleImageConversionWithStyle(imageUrl, imageSize, styleKey, sty
       height: 1024,
       // SDXL Turbo optimized settings
       promptGuidance: 2.0,
-      scheduler: 'DPM++ SDE',
-      timeStepSpacing: 'Karras',
+      sampler: 'DPM++ SDE',
+      scheduler: 'Karras',
       inferenceSteps: 7,
       controlNetStrength: 0.7,
       controlNetGuidanceEnd: 0.6
@@ -786,6 +758,7 @@ async function handleImageConversion(imageUrl, imageSize) {
     const conversionParams = {
       testnet: false,
       tokenType: 'spark',
+      isPremiumSpark: false, // Extension uses non-premium Spark
       selectedModel: 'coreml-sogniXLturbo_alpha1_ad', // Backend expects selectedModel
       positivePrompt: finalPositivePrompt,
       negativePrompt: 'lowres, worst quality, low quality',
@@ -796,8 +769,8 @@ async function handleImageConversion(imageUrl, imageSize) {
       inferenceSteps: 7, // Backend expects inferenceSteps
       promptGuidance: 2, // Backend expects promptGuidance
       numberImages: 1, // Backend expects numberImages
-      scheduler: 'DPM++ SDE',
-      timeStepSpacing: 'Karras',
+      sampler: 'DPM++ SDE',
+      scheduler: 'Karras',
       outputFormat: 'jpg',
       sensitiveContentFilter: false,
       sourceType: 'upload', // Use upload instead of enhancement to avoid session conflicts

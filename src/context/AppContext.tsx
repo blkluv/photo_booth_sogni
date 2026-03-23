@@ -1,16 +1,44 @@
 import React, { createContext, useContext, useState, useRef, useMemo } from 'react';
 
 import { Photo, ProjectState, Settings } from '../types/index';
-import { DEFAULT_SETTINGS, getModelDefaults, isFluxKontextModel } from '../constants/settings';
-import { getSettingFromCookie, saveSettingsToCookies, getSettingsForModel, saveModelSpecificSettings } from '../utils/cookies';
+import { DEFAULT_SETTINGS, getModelDefaults, isContextImageModel, DEFAULT_MODEL_ID, QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID } from '../constants/settings';
+import { getSettingFromCookie, saveSettingsToCookies, getSettingsForModel, saveModelSpecificSettings, getThemeGroupPreferences, saveThemeGroupPreferences, getPersonalizeModelType } from '../utils/cookies';
+import { IMAGE_EDIT_PROMPTS_CATEGORY } from '../constants/editPrompts';
+import { getDefaultThemeGroupState } from '../constants/themeGroups';
+import promptsDataRaw from '../prompts.json';
+import { getEventThemeForDomain } from '../utils/eventDomains';
+
+// Helper function to check if a style is from the Christmas/Winter category
+const isWinterStyle = (styleKey: string): boolean => {
+  if (!styleKey || styleKey === 'custom' || styleKey === 'random' || styleKey === 'randomMix' || styleKey === 'oneOfEach' || styleKey === 'browseGallery') {
+    return false;
+  }
+  const winterPrompts = promptsDataRaw['christmas-winter']?.prompts || {};
+  return styleKey in winterPrompts;
+};
+
+// Helper function to check if a style is from the image-edit-prompts category
+const isEditPromptStyle = (styleKey: string): boolean => {
+  if (!styleKey || styleKey === 'custom' || styleKey === 'random' || styleKey === 'randomMix' || styleKey === 'oneOfEach' || styleKey === 'browseGallery' || styleKey === 'copyImageStyle') {
+    return false;
+  }
+  const editPrompts = promptsDataRaw[IMAGE_EDIT_PROMPTS_CATEGORY]?.prompts || {};
+  return styleKey in editPrompts;
+};
 
 // Helper function to handle TezDev theme cookie migration
 const getTezDevThemeFromCookie = () => {
+  // If loaded from a themed domain, always use that domain's theme
+  const domainTheme = getEventThemeForDomain();
+  if (domainTheme) {
+    return domainTheme;
+  }
+
   const savedTheme = getSettingFromCookie('tezdevTheme', DEFAULT_SETTINGS.tezdevTheme);
-  
+
   // Check if we've already performed the one-time migration
   const migrationCompleted = localStorage.getItem('sogni_theme_migration_v2');
-  
+
   if (!migrationCompleted) {
     // This is the one-time migration - reset any existing theme to 'off'
     if (savedTheme === 'supercasual') {
@@ -22,7 +50,7 @@ const getTezDevThemeFromCookie = () => {
     // Even if they had 'off' already, mark migration as completed so we don't check again
     localStorage.setItem('sogni_theme_migration_v2', 'completed');
   }
-  
+
   return savedTheme;
 };
 
@@ -46,13 +74,9 @@ interface AppContextType {
   
   // Settings
   settings: Settings;
-  updateSetting: <K extends keyof Settings>(key: K, value: Settings[K]) => void;
-  switchToModel: (modelId: string) => void;
+  updateSetting: <K extends keyof Settings>(key: K, value: Settings[K], isAuthenticated?: boolean) => void;
+  switchToModel: (modelId: string, pendingSettings?: Partial<Settings>) => void;
   resetSettings: () => void;
-  
-  // Style Dropdown
-  showStyleDropdown: boolean;
-  setShowStyleDropdown: React.Dispatch<React.SetStateAction<boolean>>;
   
   // Project State
   projectState: ProjectState;
@@ -64,12 +88,15 @@ interface AppContextType {
   setShowPhotoGrid: React.Dispatch<React.SetStateAction<boolean>>;
   dragActive: boolean;
   setDragActive: React.Dispatch<React.SetStateAction<boolean>>;
+  
+  // Cache clearing functions
+  clearImageCaches: () => void;
+  registerCacheClearingCallback: (callback: () => void) => () => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-
   
   // Photos state
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -78,32 +105,120 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Image loading state
   const [loadedImages, setLoadedImages] = useState<LoadedImagesState>({});
   
-  // Style dropdown state
-  const [showStyleDropdown, setShowStyleDropdown] = useState(false);
-  
   // Settings state
   const [settings, setSettings] = useState<Settings>(() => {
     const theme = getTezDevThemeFromCookie();
     const aspectRatio = getSettingFromCookie('aspectRatio', DEFAULT_SETTINGS.aspectRatio);
-    const selectedModel = getSettingFromCookie('selectedModel', DEFAULT_SETTINGS.selectedModel);
+    let selectedModel = getSettingFromCookie('selectedModel', DEFAULT_SETTINGS.selectedModel);
+    let selectedStyle = getSettingFromCookie('selectedStyle', DEFAULT_SETTINGS.selectedStyle);
+    let positivePrompt = getSettingFromCookie('positivePrompt', DEFAULT_SETTINGS.positivePrompt);
+    const winterContext = getSettingFromCookie('winterContext', false);
+    const portraitType = getSettingFromCookie('portraitType', 'medium');
     
-    // Get model-specific settings for the current model
+    console.log('🔍 [AppContext INIT] Read from storage:', {
+      selectedStyle,
+      selectedModel,
+      winterContext,
+      portraitType,
+      positivePrompt: positivePrompt?.substring(0, 50) + '...'
+    });
+    
+    // Check if the CURRENT selected style is actually a winter style
+    // Only preserve DreamShaper if the style is actually winter
+    const isCurrentStyleWinter = isWinterStyle(selectedStyle);
+    const shouldPreserveDreamShaper = selectedModel === 'coreml-dreamshaperXL_v21TurboDPMSDE' && isCurrentStyleWinter;
+
+    // Check if only the Personalized category is enabled — preserve the personalize model
+    // so that restarting the photobooth doesn't reset away from Qwen Image Edit Lightning
+    const themePrefs = getThemeGroupPreferences();
+    const themeEntries = Object.entries(themePrefs);
+    const isPersonalizedOnly = themeEntries.length > 0 &&
+      themePrefs['personalized'] === true &&
+      themeEntries.every(([k, v]) => k === 'personalized' ? v : !v);
+    const personalizeTargetModel = getPersonalizeModelType() === 'image-edit'
+      ? QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID
+      : DEFAULT_MODEL_ID;
+    const shouldPreservePersonalizeModel = isPersonalizedOnly && selectedModel === personalizeTargetModel;
+
+    // Always reset non-default models on page load/initialization
+    // EXCEPT DreamShaper when the current style is actually a winter style
+    // EXCEPT the personalize model when only the Personalized category is enabled
+    if (selectedModel !== DEFAULT_MODEL_ID && !shouldPreserveDreamShaper && !shouldPreservePersonalizeModel) {
+      console.log(`🔄 [INIT] Resetting model from ${selectedModel} to default (${DEFAULT_MODEL_ID}) - style: ${selectedStyle}, isWinter: ${isCurrentStyleWinter}`);
+      selectedModel = DEFAULT_MODEL_ID;
+      
+      // Save to cookies and also ensure model-specific settings are loaded for default model
+      saveSettingsToCookies({ selectedModel: DEFAULT_MODEL_ID });
+      const defaultModelSettings = getSettingsForModel(DEFAULT_MODEL_ID);
+      saveModelSpecificSettings(DEFAULT_MODEL_ID, defaultModelSettings);
+      console.log('🔄 [INIT] Saved default model settings:', defaultModelSettings);
+      
+      // Clear any cached context image model settings to prevent conflicts
+      try {
+        localStorage.removeItem('sogni_model_qwen_image_edit_2511_fp8_lightning');
+        localStorage.removeItem('sogni_model_qwen_image_edit_2511_fp8');
+        localStorage.removeItem('sogni_model_flux2_dev_fp8');
+        console.log('🔄 [INIT] Cleared context image model caches');
+      } catch (e) {
+        console.warn('Failed to clear context image model caches:', e);
+      }
+      
+      // Reset copyImageStyle or edit prompt styles to randomMix when resetting the model
+      // This ensures they're in sync - edit prompts require edit models
+      if (selectedStyle === 'copyImageStyle' || isEditPromptStyle(selectedStyle)) {
+        console.log(`🔄 [INIT] Also resetting style from "${selectedStyle}" to Random: All (model was reset to non-edit model)`);
+        selectedStyle = 'randomMix';
+        saveSettingsToCookies({ selectedStyle });
+      }
+    } else if (shouldPreserveDreamShaper) {
+      console.log('❄️ [INIT] Preserving DreamShaper model because current style is winter');
+    } else if (shouldPreservePersonalizeModel) {
+      console.log(`🎨 [INIT] Preserving model ${selectedModel} because only Personalized category is enabled`);
+    }
+    
+    // Reset custom prompt to blank on page load (but preserve if style is 'custom')
+    // Also clear from localStorage to prevent non-authenticated user data from persisting
+    if (positivePrompt && positivePrompt.trim() !== '' && selectedStyle !== 'custom') {
+      console.log('🔄 [INIT] Resetting custom prompt to blank');
+      positivePrompt = '';
+      // Clear from localStorage to prevent stale data from non-authenticated sessions
+      try {
+        localStorage.removeItem('sogni_positivePrompt');
+      } catch (e) {
+        console.warn('Failed to clear positivePrompt from localStorage:', e);
+      }
+    }
+
+    // Load customSceneName from cookies, but clear from localStorage when style is not custom
+    // This prevents non-authenticated user's scene names from persisting incorrectly
+    let customSceneName = getSettingFromCookie('customSceneName', DEFAULT_SETTINGS.customSceneName) as string;
+    if (selectedStyle !== 'custom') {
+      // Clear from localStorage when not in custom mode to prevent stale data
+      try {
+        localStorage.removeItem('sogni_customSceneName');
+      } catch (e) {
+        console.warn('Failed to clear customSceneName from localStorage:', e);
+      }
+    }
+    
+    // Get model-specific settings for the (possibly reset) model
     const modelSettings = getSettingsForModel(selectedModel);
     
     return {
-      selectedStyle: getSettingFromCookie('selectedStyle', DEFAULT_SETTINGS.selectedStyle),
+      selectedStyle,
       selectedModel,
+      positivePrompt,
+      customSceneName,
       numImages: modelSettings.numImages || DEFAULT_SETTINGS.numImages,
       promptGuidance: modelSettings.promptGuidance || DEFAULT_SETTINGS.promptGuidance,
       controlNetStrength: getSettingFromCookie('controlNetStrength', DEFAULT_SETTINGS.controlNetStrength),
       controlNetGuidanceEnd: getSettingFromCookie('controlNetGuidanceEnd', DEFAULT_SETTINGS.controlNetGuidanceEnd),
       inferenceSteps: modelSettings.inferenceSteps || DEFAULT_SETTINGS.inferenceSteps,
+      sampler: modelSettings.sampler || DEFAULT_SETTINGS.sampler,
       scheduler: modelSettings.scheduler || DEFAULT_SETTINGS.scheduler,
-      timeStepSpacing: modelSettings.timeStepSpacing || DEFAULT_SETTINGS.timeStepSpacing,
       guidance: modelSettings.guidance || DEFAULT_SETTINGS.guidance,
       flashEnabled: getSettingFromCookie('flashEnabled', DEFAULT_SETTINGS.flashEnabled),
       keepOriginalPhoto: getSettingFromCookie('keepOriginalPhoto', DEFAULT_SETTINGS.keepOriginalPhoto),
-      positivePrompt: getSettingFromCookie('positivePrompt', DEFAULT_SETTINGS.positivePrompt),
       stylePrompt: getSettingFromCookie('stylePrompt', DEFAULT_SETTINGS.stylePrompt),
       negativePrompt: getSettingFromCookie('negativePrompt', DEFAULT_SETTINGS.negativePrompt),
       seed: getSettingFromCookie('seed', DEFAULT_SETTINGS.seed),
@@ -117,10 +232,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       preferredCameraDeviceId: getSettingFromCookie('preferredCameraDeviceId', DEFAULT_SETTINGS.preferredCameraDeviceId),
       kioskMode: getSettingFromCookie('kioskMode', DEFAULT_SETTINGS.kioskMode),
       sogniWatermark: getSettingFromCookie('sogniWatermark', DEFAULT_SETTINGS.sogniWatermark),
+      sogniWatermarkSize: getSettingFromCookie('sogniWatermarkSize', DEFAULT_SETTINGS.sogniWatermarkSize),
+      sogniWatermarkMargin: getSettingFromCookie('sogniWatermarkMargin', DEFAULT_SETTINGS.sogniWatermarkMargin),
+      sogniWatermarkPosition: getSettingFromCookie('sogniWatermarkPosition', DEFAULT_SETTINGS.sogniWatermarkPosition),
+      portraitType, // Include portraitType in settings
       // Worker preferences
       requiredWorkers: getSettingFromCookie('requiredWorkers', DEFAULT_SETTINGS.requiredWorkers),
       preferWorkers: getSettingFromCookie('preferWorkers', DEFAULT_SETTINGS.preferWorkers),
-      skipWorkers: getSettingFromCookie('skipWorkers', DEFAULT_SETTINGS.skipWorkers)
+      skipWorkers: getSettingFromCookie('skipWorkers', DEFAULT_SETTINGS.skipWorkers),
+      // Inactivity splash screen settings
+      showSplashOnInactivity: getSettingFromCookie('showSplashOnInactivity', DEFAULT_SETTINGS.showSplashOnInactivity),
+      inactivityTimeout: getSettingFromCookie('inactivityTimeout', DEFAULT_SETTINGS.inactivityTimeout),
+      // Event context flags
+      halloweenContext: getSettingFromCookie('halloweenContext', DEFAULT_SETTINGS.halloweenContext),
+      winterContext, // Include winterContext in settings
+      // Video generation settings
+      videoResolution: getSettingFromCookie('videoResolution', DEFAULT_SETTINGS.videoResolution),
+      videoQuality: getSettingFromCookie('videoQuality', DEFAULT_SETTINGS.videoQuality),
+      videoFramerate: getSettingFromCookie('videoFramerate', DEFAULT_SETTINGS.videoFramerate),
+      videoDuration: getSettingFromCookie('videoDuration', DEFAULT_SETTINGS.videoDuration),
+      videoPositivePrompt: getSettingFromCookie('videoPositivePrompt', DEFAULT_SETTINGS.videoPositivePrompt),
+      videoNegativePrompt: getSettingFromCookie('videoNegativePrompt', DEFAULT_SETTINGS.videoNegativePrompt)
     };
   });
   
@@ -139,23 +271,63 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [showPhotoGrid, setShowPhotoGrid] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   
-  const updateSetting = <K extends keyof Settings>(key: K, value: Settings[K]) => {
+  // Cache clearing callbacks
+  const cacheClearingCallbacks = useRef<(() => void)[]>([]);
+  
+  // Pending settings that are being updated in the current batch
+  const pendingSettingsRef = useRef<Partial<Settings>>({});
+  
+  const updateSetting = <K extends keyof Settings>(key: K, value: Settings[K], isAuthenticated: boolean = false) => {
+    // Skip if the value hasn't actually changed
+    const currentValue = settings[key];
+    if (currentValue === value) {
+      console.log(`updateSetting: ${String(key)} unchanged (${String(value)}), skipping`);
+      return;
+    }
+
+    // Prevent changing theme when domain enforces one (e.g., mandala.sogni.ai)
+    if (key === 'tezdevTheme') {
+      const domainTheme = getEventThemeForDomain();
+      if (domainTheme) {
+        console.log(`updateSetting: Theme locked to '${domainTheme}' by domain, ignoring change`);
+        return;
+      }
+    }
+    
     // Special handling for model changes
     if (key === 'selectedModel') {
       console.log(`updateSetting: Model change detected, calling switchToModel with ${String(value)}`);
-      switchToModel(value as string);
+      // Pass pending settings to switchToModel so it can use the latest values
+      switchToModel(value as string, pendingSettingsRef.current);
+      // Clear pending settings after model switch
+      pendingSettingsRef.current = {};
       return;
     }
+    
+    // Track this setting in pending updates (but AFTER model check)
+    // This way if model is set first, later settings still accumulate for the next model change
+    pendingSettingsRef.current[key] = value;
     
     setSettings(prev => {
       const newSettings = { ...prev, [key]: value };
       
       // Save model-specific settings separately
-      const modelSpecificSettings = ['inferenceSteps', 'scheduler', 'timeStepSpacing', 'promptGuidance', 'guidance', 'numImages'];
+      const modelSpecificSettings = ['inferenceSteps', 'sampler', 'scheduler', 'promptGuidance', 'guidance', 'numImages'];
+      // Custom prompt settings should NOT be saved when not authenticated
+      // to prevent conflicts when a logged-in user refreshes the page
+      const customPromptSettings = ['positivePrompt', 'customSceneName'];
       if (modelSpecificSettings.includes(key)) {
+        console.log(`📦 Saving model-specific setting ${String(key)}`);
         saveModelSpecificSettings(newSettings.selectedModel, { [key]: value });
+      } else if (customPromptSettings.includes(key)) {
+        // Only save custom prompt settings when authenticated
+        // Non-authenticated users' custom prompts are kept in memory only
+        if (isAuthenticated) {
+          saveSettingsToCookies({ [key]: value }, true);
+        }
       } else {
-        saveSettingsToCookies({ [key]: value });
+        // Save to localStorage if authenticated, sessionStorage if not
+        saveSettingsToCookies({ [key]: value }, isAuthenticated);
       }
       
       return newSettings;
@@ -163,56 +335,142 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
   
   // Function to switch to a different model and load its settings
-  const switchToModel = (modelId: string) => {
+  const switchToModel = (modelId: string, pendingSettings: Partial<Settings> = {}) => {
     const currentModel = settings.selectedModel;
-    const isCurrentFlux = isFluxKontextModel(currentModel);
-    const isNewFlux = isFluxKontextModel(modelId);
+    
+    // Skip if we're already on this model
+    if (currentModel === modelId) {
+      console.log(`Already on model ${modelId}, skipping switch`);
+      // Still need to apply pending settings if there are any
+      if (Object.keys(pendingSettings).length > 0) {
+        console.log(`Applying pending settings without model switch:`, pendingSettings);
+        setSettings(prev => ({
+          ...prev,
+          ...pendingSettings
+        }));
+        // Save pending settings to cookies
+        saveSettingsToCookies(pendingSettings);
+      }
+      return;
+    }
+    
+    const isCurrentContextImage = isContextImageModel(currentModel);
+    const isNewContextImage = isContextImageModel(modelId);
+    
+    // If switching to a non-edit model while Copy Image Style or edit prompt style is selected, switch to Random All
+    const currentStyle = settings.selectedStyle;
+    if (!isNewContextImage && (currentStyle === 'copyImageStyle' || isEditPromptStyle(currentStyle))) {
+      console.log(`🔄 Switching from "${currentStyle}" to Random All because non-edit model selected`);
+      // Add to pending settings so it gets applied with the model switch
+      pendingSettings = {
+        ...pendingSettings,
+        selectedStyle: 'randomMix'
+      };
+    }
     
     // Check if we're switching between different model types
-    const switchingModelTypes = isCurrentFlux !== isNewFlux;
+    const switchingModelTypes = isCurrentContextImage !== isNewContextImage;
+    
+    // Auto-toggle Image Edit Styles category based on model type
+    try {
+      const currentThemePrefs = getThemeGroupPreferences();
+      const defaultThemeState = getDefaultThemeGroupState();
+      const themeState: Record<string, boolean> = { ...defaultThemeState, ...currentThemePrefs };
+      
+      const isEditCategoryEnabled = themeState[IMAGE_EDIT_PROMPTS_CATEGORY] ?? false;
+      
+      // If switching TO an edit model and Image Edit Styles is NOT enabled, enable it
+      // But skip if Personalized is the only enabled category (user is in personalize flow)
+      const isPersonalizedOnly = themeState['personalized'] &&
+        Object.entries(themeState).every(([k, v]) => k === 'personalized' ? v : !v);
+      if (isNewContextImage && !isEditCategoryEnabled && !isPersonalizedOnly) {
+        console.log('✏️ Auto-enabling Image Edit Styles category (switched to edit model)');
+        themeState[IMAGE_EDIT_PROMPTS_CATEGORY] = true;
+        saveThemeGroupPreferences(themeState);
+      }
+      // If switching FROM an edit model to non-edit and Image Edit Styles IS enabled, disable it
+      else if (!isNewContextImage && isCurrentContextImage && isEditCategoryEnabled) {
+        console.log('✏️ Auto-disabling Image Edit Styles category (switched from edit model)');
+        themeState[IMAGE_EDIT_PROMPTS_CATEGORY] = false;
+        saveThemeGroupPreferences(themeState);
+      }
+    } catch (e) {
+      console.warn('Failed to auto-toggle Image Edit Styles category:', e);
+    }
     
     let modelSettings;
     if (switchingModelTypes) {
       // When switching between model types, use defaults instead of saved settings
       modelSettings = getModelDefaults(modelId);
-      console.log(`Switching between model types (${isCurrentFlux ? 'Flux.1 Kontext' : 'Other'} -> ${isNewFlux ? 'Flux.1 Kontext' : 'Other'}), restoring defaults for ${modelId}:`, modelSettings);
+      console.log(`Switching between model types (${isCurrentContextImage ? 'Context Image' : 'SDXL'} -> ${isNewContextImage ? 'Context Image' : 'SDXL'}), restoring defaults for ${modelId}:`, modelSettings);
     } else {
       // When switching within the same model type, use saved settings
       modelSettings = getSettingsForModel(modelId);
       console.log(`Switching within same model type, loading saved settings for ${modelId}:`, modelSettings);
     }
     
+    // Merge current settings with pending updates and model-specific settings
     const newSettings = {
       ...settings,
+      ...pendingSettings, // Apply any pending updates from the current batch
       selectedModel: modelId,
       inferenceSteps: modelSettings.inferenceSteps ?? DEFAULT_SETTINGS.inferenceSteps,
+      sampler: modelSettings.sampler ?? DEFAULT_SETTINGS.sampler,
       scheduler: modelSettings.scheduler ?? DEFAULT_SETTINGS.scheduler,
-      timeStepSpacing: modelSettings.timeStepSpacing ?? DEFAULT_SETTINGS.timeStepSpacing,
       promptGuidance: modelSettings.promptGuidance ?? DEFAULT_SETTINGS.promptGuidance,
       guidance: modelSettings.guidance ?? DEFAULT_SETTINGS.guidance,
       numImages: modelSettings.numImages ?? DEFAULT_SETTINGS.numImages,
     };
     
+    // Cap numImages at 4 for context image models (Qwen, Flux) if current value is higher
+    if (isNewContextImage && newSettings.numImages > 4) {
+      console.log(`🔢 Capping numImages from ${newSettings.numImages} to 4 for context image model`);
+      newSettings.numImages = 4;
+    }
+    
     console.log(`Final settings being applied:`, {
       inferenceSteps: newSettings.inferenceSteps,
+      sampler: newSettings.sampler,
       scheduler: newSettings.scheduler,
-      timeStepSpacing: newSettings.timeStepSpacing,
       promptGuidance: newSettings.promptGuidance,
       guidance: newSettings.guidance,
       numImages: newSettings.numImages,
+      selectedStyle: newSettings.selectedStyle, // LOG THIS
+      winterContext: newSettings.winterContext,
+      portraitType: newSettings.portraitType,
     });
+    
+    console.log(`🔍 [switchToModel] selectedStyle: ${newSettings.selectedStyle}, winterContext: ${newSettings.winterContext}`);
     
     setSettings(newSettings);
     
     // Save the model selection
     saveSettingsToCookies({ selectedModel: modelId });
     
+    // Save any non-model-specific pending settings (like selectedStyle)
+    if (Object.keys(pendingSettings).length > 0) {
+      const modelSpecificKeys = ['inferenceSteps', 'sampler', 'scheduler', 'promptGuidance', 'guidance', 'numImages'];
+      const nonModelSpecificSettings: Partial<Settings> = {};
+      
+      (Object.keys(pendingSettings) as (keyof Settings)[]).forEach(key => {
+        if (!modelSpecificKeys.includes(key)) {
+          // TypeScript-safe assignment
+          (nonModelSpecificSettings as any)[key] = pendingSettings[key];
+        }
+      });
+      
+      if (Object.keys(nonModelSpecificSettings).length > 0) {
+        console.log('💾 Saving non-model-specific pending settings:', nonModelSpecificSettings);
+        saveSettingsToCookies(nonModelSpecificSettings);
+      }
+    }
+    
     // If we switched model types and restored defaults, save them as the new settings for this model
     if (switchingModelTypes) {
       saveModelSpecificSettings(modelId, {
         inferenceSteps: modelSettings.inferenceSteps,
+        sampler: modelSettings.sampler,
         scheduler: modelSettings.scheduler,
-        timeStepSpacing: modelSettings.timeStepSpacing,
         promptGuidance: modelSettings.promptGuidance,
         guidance: modelSettings.guidance,
         numImages: modelSettings.numImages,
@@ -223,6 +481,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
   
   const resetSettings = () => {
+    console.log('🔄 RESET SETTINGS CALLED - This will reset showSplashOnInactivity to false');
+    console.trace('Reset settings call stack');
+    
     // Get the current model
     const currentModel = settings.selectedModel;
     
@@ -233,9 +494,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const resetToDefaults = {
       ...DEFAULT_SETTINGS,
       selectedModel: currentModel, // Keep the current model
+      tezdevTheme: getEventThemeForDomain() || DEFAULT_SETTINGS.tezdevTheme, // Preserve domain-enforced theme
       inferenceSteps: modelDefaults.inferenceSteps,
-      scheduler: modelDefaults.scheduler,
-      timeStepSpacing: modelDefaults.timeStepSpacing,
+      sampler: modelDefaults.sampler ?? DEFAULT_SETTINGS.sampler,
+      scheduler: modelDefaults.scheduler ?? DEFAULT_SETTINGS.scheduler,
       promptGuidance: modelDefaults.promptGuidance || DEFAULT_SETTINGS.promptGuidance,
       guidance: modelDefaults.guidance,
       numImages: modelDefaults.numImages,
@@ -246,19 +508,55 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Save model-specific settings to their separate storage
     saveModelSpecificSettings(currentModel, {
       inferenceSteps: resetToDefaults.inferenceSteps,
+      sampler: resetToDefaults.sampler,
       scheduler: resetToDefaults.scheduler,
-      timeStepSpacing: resetToDefaults.timeStepSpacing,
       promptGuidance: resetToDefaults.promptGuidance,
       guidance: resetToDefaults.guidance,
       numImages: resetToDefaults.numImages,
     });
     
-    // Save non-model-specific settings to global storage
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { inferenceSteps, scheduler, timeStepSpacing, promptGuidance, guidance, numImages, ...nonModelSettings } = resetToDefaults;
-    saveSettingsToCookies(nonModelSettings);
+    // Save non-model-specific settings to both localStorage AND sessionStorage
+    // to ensure the reset works for both authenticated and non-authenticated users
+    const nonModelSettings = {
+      selectedStyle: resetToDefaults.selectedStyle,
+      positivePrompt: resetToDefaults.positivePrompt,
+      aspectRatio: resetToDefaults.aspectRatio,
+      videoResolution: resetToDefaults.videoResolution,
+      videoQuality: resetToDefaults.videoQuality,
+      videoFramerate: resetToDefaults.videoFramerate,
+      videoPositivePrompt: resetToDefaults.videoPositivePrompt,
+      videoNegativePrompt: resetToDefaults.videoNegativePrompt,
+      // ... (only save non-model-specific settings here)
+    } as Partial<Settings>;
     
-    console.log(`Reset settings for model ${currentModel} to defaults:`, modelDefaults);
+    // Save to both storages to ensure reset works regardless of auth state
+    saveSettingsToCookies(nonModelSettings, true);  // localStorage
+    saveSettingsToCookies(nonModelSettings, false); // sessionStorage
+    
+    console.log('✅ Settings reset to defaults:', modelDefaults);
+  };
+  
+  // Cache clearing functions
+  const clearImageCaches = () => {
+    console.log('Clearing all image caches due to QR settings change');
+    cacheClearingCallbacks.current.forEach(callback => {
+      try {
+        callback();
+      } catch (error) {
+        console.warn('Error executing cache clearing callback:', error);
+      }
+    });
+  };
+  
+  const registerCacheClearingCallback = (callback: () => void) => {
+    cacheClearingCallbacks.current.push(callback);
+    // Return cleanup function
+    return () => {
+      const index = cacheClearingCallbacks.current.indexOf(callback);
+      if (index > -1) {
+        cacheClearingCallbacks.current.splice(index, 1);
+      }
+    };
   };
   
   const contextValue = useMemo(() => ({
@@ -272,8 +570,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     updateSetting,
     switchToModel,
     resetSettings,
-    showStyleDropdown,
-    setShowStyleDropdown,
     projectState,
     showInfoModal,
     setShowInfoModal,
@@ -281,12 +577,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setShowPhotoGrid,
     dragActive,
     setDragActive,
+    clearImageCaches,
+    registerCacheClearingCallback,
   }), [
     photos,
     selectedPhotoIndex,
     loadedImages,
     settings,
-    showStyleDropdown,
     showInfoModal,
     showPhotoGrid,
     dragActive,

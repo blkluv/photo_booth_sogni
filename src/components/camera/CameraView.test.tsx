@@ -1,6 +1,7 @@
 /** @jsxImportSource react */
 import React, { createRef } from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/dom';
 import { CameraView } from './CameraView';
 
 // Use React in a way that TypeScript recognizes
@@ -44,8 +45,8 @@ describe('CameraView', () => {
     fireEvent.click(styleButton);
     
     // Check if dropdown opened with featured options
-    expect(screen.getByText('Random Mix')).toBeInTheDocument();
-    expect(screen.getByText('Random')).toBeInTheDocument();
+    expect(screen.getByText('Random: All')).toBeInTheDocument();
+    expect(screen.getByText('Random: Single')).toBeInTheDocument();
     expect(screen.getByText('Custom...')).toBeInTheDocument();
   });
 

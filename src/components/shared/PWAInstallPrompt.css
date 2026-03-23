@@ -28,7 +28,7 @@
 }
 
 .pwa-install-prompt {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--brand-button-primary) 0%, var(--brand-button-primary-end) 100%);
   border-radius: 20px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   width: 90%;
@@ -284,8 +284,8 @@
 }
 
 .pwa-step-number {
-  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
-  color: #333;
+  background: linear-gradient(135deg, var(--brand-page-bg-mid) 0%, var(--brand-accent-secondary) 100%);
+  color: var(--brand-text-secondary);
   width: 24px;
   height: 24px;
   border-radius: 50%;
@@ -315,9 +315,9 @@
 }
 
 .pwa-install-dismiss {
-  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  background: linear-gradient(135deg, var(--brand-page-bg-mid) 0%, var(--brand-accent-secondary) 100%);
   border: none;
-  color: #333;
+  color: var(--brand-text-secondary);
   padding: 16px 24px;
   border-radius: 12px;
   font-size: 16px;

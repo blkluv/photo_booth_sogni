@@ -45,7 +45,7 @@
 }
 
 .aspect-ratio-button.active svg .polaroid-frame {
-  fill: #ff5e8a;
+  fill: var(--brand-accent-secondary);
 }
 
 .aspect-ratio-button svg {

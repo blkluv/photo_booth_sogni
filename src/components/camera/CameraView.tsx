@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, memo } from 'react';
 import styles from '../../styles/components/camera.module.css';
 import AdvancedSettings from '../shared/AdvancedSettings';
 import AspectRatioDropdown from '../shared/AspectRatioDropdown';
@@ -45,9 +45,9 @@ interface CameraViewProps {
   promptGuidance?: number;
   /** Handler for prompt guidance change */
   onPromptGuidanceChange?: (value: number) => void;
-  /** Guidance value (Flux.1 Kontext specific) */
+  /** Guidance value (Qwen Image Edit specific) */
   guidance?: number;
-  /** Handler for guidance change (Flux.1 Kontext specific) */
+  /** Handler for guidance change (Qwen Image Edit specific) */
   onGuidanceChange?: (value: number) => void;
   /** ControlNet strength value */
   controlNetStrength?: number;
@@ -61,14 +61,14 @@ interface CameraViewProps {
   inferenceSteps?: number;
   /** Handler for inference steps change */
   onInferenceStepsChange?: (value: number) => void;
-  /** Scheduler value */
+  /** Sampler value (sampling algorithm: euler, dpmpp_sde, etc.) */
+  sampler?: string;
+  /** Handler for sampler change */
+  onSamplerChange?: (value: string) => void;
+  /** Scheduler value (noise schedule: karras, simple, etc.) */
   scheduler?: string;
   /** Handler for scheduler change */
   onSchedulerChange?: (value: string) => void;
-  /** Time step spacing value */
-  timeStepSpacing?: string;
-  /** Handler for time step spacing change */
-  onTimeStepSpacingChange?: (value: string) => void;
   /** Flash enabled state */
   flashEnabled?: boolean;
   /** Handler for flash enabled change */
@@ -105,6 +105,10 @@ interface CameraViewProps {
   onCameraSelect?: (deviceId: string) => void;
   /** TezDev theme setting */
   tezdevTheme?: unknown;
+  /** Brand title override */
+  brandTitle?: string | null;
+  /** Brand logo URL */
+  brandLogo?: string | null;
 }
 
 export const CameraView: React.FC<CameraViewProps> = (props) => {
@@ -137,10 +141,10 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
     onControlNetGuidanceEndChange,
     inferenceSteps = modelDefaults.inferenceSteps || 7,
     onInferenceStepsChange,
-    scheduler = modelDefaults.scheduler || 'DPM++ SDE',
+    sampler = modelDefaults.sampler || 'DPM++ SDE',
+    onSamplerChange,
+    scheduler = modelDefaults.scheduler || 'Karras',
     onSchedulerChange,
-    timeStepSpacing = modelDefaults.timeStepSpacing || 'Karras',
-    onTimeStepSpacingChange,
     flashEnabled = true,
     onFlashEnabledChange,
     keepOriginalPhoto = false,
@@ -321,6 +325,38 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
     return showPhotoGrid ? styles.slideOut : styles.slideIn;
   }, [isVideoLoaded, showPhotoGrid]);
 
+  // Keyboard/remote shutter trigger
+  // Bluetooth camera remotes typically send VolumeUp/VolumeDown key events.
+  // Presentation clickers send ArrowRight/PageDown. Some remotes send Camera or media keys.
+  // Also support Enter and Space for accessibility and generic remotes.
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if focused on an interactive element
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON' || tag === 'A') return;
+
+      const triggerKeys = [
+        'Enter', ' ',
+        'AudioVolumeUp', 'AudioVolumeDown', 'VolumeUp', 'VolumeDown',
+        'ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown',
+        'PageDown', 'PageUp',
+        'Camera',
+        'MediaPlayPause', 'MediaTrackNext',
+      ];
+      if (!triggerKeys.includes(e.key)) return;
+
+      // Don't fire if shutter is not ready or camera view is not active
+      if (!isReady || isDisabled || showPhotoGrid) return;
+
+      e.preventDefault();
+      onTakePhoto();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- onTakePhoto is a callback prop, excluded per useEffect rules
+  }, [isReady, isDisabled, showPhotoGrid]);
+
   // Camera device menu state
   const [isDeviceMenuOpen, setIsDeviceMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ bottom: '64px', left: '50%', transform: 'translateX(-50%)' });
@@ -357,13 +393,14 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
   const hasMultipleCameras = Array.isArray(cameraDevices) && cameraDevices.filter((d: MediaDeviceInfo) => d && d.kind === 'videoinput').length > 1;
   
   // Memoize expensive conditional calculations to prevent unnecessary re-renders
+  // Thumbnail always shows now (with Einstein fallback), so position button accordingly
   const shouldShowDesktopButtonNextToThumbnail = useMemo(() => {
-    return !isMobile && hasMultipleCameras && lastPhotoData && (lastPhotoData.blob || lastPhotoData.dataUrl) && onThumbnailClick;
-  }, [isMobile, hasMultipleCameras, lastPhotoData, onThumbnailClick]);
+    return !isMobile && hasMultipleCameras && onThumbnailClick;
+  }, [isMobile, hasMultipleCameras, onThumbnailClick]);
   
   const shouldShowDesktopButtonNoThumbnail = useMemo(() => {
-    return !isMobile && hasMultipleCameras && !(lastPhotoData && (lastPhotoData.blob || lastPhotoData.dataUrl) && onThumbnailClick);
-  }, [isMobile, hasMultipleCameras, lastPhotoData, onThumbnailClick]);
+    return !isMobile && hasMultipleCameras && !onThumbnailClick;
+  }, [isMobile, hasMultipleCameras, onThumbnailClick]);
   
   // Camera detection logic (debug logging removed to prevent console spam)
 
@@ -396,14 +433,6 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
           // Calculate distance from container bottom to button top, then add gap
           const buttonTopFromContainerBottom = containerRect.bottom - buttonRect.top;
           const relativeBottom = buttonTopFromContainerBottom + buttonRect.height + 8; // 8px gap above button
-          
-          console.log('📍 Button positioning debug:', {
-            buttonRect: { left: buttonRect.left, top: buttonRect.top, width: buttonRect.width, height: buttonRect.height },
-            containerRect: { left: containerRect.left, top: containerRect.top, bottom: containerRect.bottom },
-            relativeLeft,
-            relativeBottom,
-            buttonTopFromContainerBottom
-          });
           
           const newPosition = {
             bottom: `${relativeBottom}px`,
@@ -494,7 +523,7 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
         {/* Title and settings in the polaroid top border */}
         <div className={styles.polaroidHeader}>
           <div className={styles.title}>
-            SOGNI PHOTOBOOTH
+            {(!props.brandLogo && !props.brandTitle) && 'SOGNI PHOTOBOOTH'}
           </div>
         </div>
         
@@ -529,7 +558,6 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
                 zIndex: 1
               }}
             />
-            
 
           </div>
         </div>
@@ -544,7 +572,7 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
         />
 
         {/* Thumbnail button - positioned in bottom left corner, aligned with aspect ratio picker */}
-        {lastPhotoData && (lastPhotoData.blob || lastPhotoData.dataUrl) && onThumbnailClick && (
+        {onThumbnailClick && (
           <button
             className={styles.thumbnailButtonCorner}
             onClick={onThumbnailClick}
@@ -552,7 +580,13 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
             data-testid="thumbnail-button"
           >
             <img
-              src={lastPhotoData.blob ? URL.createObjectURL(lastPhotoData.blob) : lastPhotoData.dataUrl}
+              src={
+                lastPhotoData?.blob 
+                  ? URL.createObjectURL(lastPhotoData.blob) 
+                  : lastPhotoData?.dataUrl 
+                    ? lastPhotoData.dataUrl 
+                    : "/albert-einstein-sticks-out-his-tongue.jpg"
+              }
               alt="Last photo thumbnail"
               className={styles.thumbnailImage}
             />
@@ -560,7 +594,7 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
         )}
 
         {/* Camera flip button - positioned next to thumbnail when present, or in original mobile location */}
-        {isMobile && lastPhotoData && (lastPhotoData.blob || lastPhotoData.dataUrl) && onThumbnailClick && (
+        {isMobile && onThumbnailClick && (
           <button
             className={`${styles.cameraFlipButton} ${styles.cameraFlipButtonWithThumbnail}`}
             onClick={handleCameraButtonClick}
@@ -663,10 +697,10 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
         onControlNetGuidanceEndChange={onControlNetGuidanceEndChange}
         inferenceSteps={inferenceSteps}
         onInferenceStepsChange={onInferenceStepsChange}
+        sampler={sampler}
+        onSamplerChange={onSamplerChange}
         scheduler={scheduler}
         onSchedulerChange={onSchedulerChange}
-        timeStepSpacing={timeStepSpacing}
-        onTimeStepSpacingChange={onTimeStepSpacingChange}
         flashEnabled={flashEnabled}
         onFlashEnabledChange={onFlashEnabledChange}
         keepOriginalPhoto={keepOriginalPhoto}
@@ -678,4 +712,4 @@ export const CameraView: React.FC<CameraViewProps> = (props) => {
   );
 };
 
-export default CameraView; 
+export default memo(CameraView); 

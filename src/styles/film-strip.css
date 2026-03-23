@@ -158,11 +158,10 @@ body.extension-mode .action-button:not(.use-prompt-btn) {
   container-type: inline-size;
 }
 
-/* Style Explorer grid layout - 5 columns on desktop */
+/* Style Explorer grid layout - 4 columns on desktop (polaroid style like Personalize) */
 .film-strip-content.prompt-selector-mode {
-  /* Style Explorer - 5 columns with smaller images for better density */
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
-  /* Better responsive behavior for different screen sizes */
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 24px !important;
   container-type: inline-size;
 }
 
@@ -186,6 +185,18 @@ body.extension-mode .action-button:not(.use-prompt-btn) {
     grid-template-columns: calc(50% - 8px) calc(50% - 8px) !important;
     gap: 16px !important;
   }
+
+  /* Prevent background scrolling when a photo is selected in fullscreen */
+  .film-strip-container.has-selected {
+    overflow: hidden !important;
+    touch-action: none !important;
+  }
+
+  /* Also prevent body scrolling when photo is selected */
+  body.has-selected-photo {
+    overflow: hidden !important;
+    touch-action: none !important;
+  }
 }
 
 /* Force 2 columns on mobile/narrow screens */
@@ -194,31 +205,59 @@ body.extension-mode .action-button:not(.use-prompt-btn) {
     /* Reduce padding on mobile for better space utilization */
     padding: 10px 8px 20px 8px !important;
   }
-  
+
   .film-strip-content {
     /* Force exactly 2 equal-width columns using full width */
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 12px !important; /* Slightly smaller gap for more space */
     /* Reduce padding to maximize photo space on mobile */
-    padding: 70px 8px 20px 8px !important;
+    padding: 70px 8px 120px 8px !important;
   }
-  
+
   /* Remove any conflicting margins */
   .film-frame:not(.selected) {
     margin: 0 !important;
   }
-  
+
   /* Multiple selectors to ensure it works */
   .film-strip-container .film-strip-content {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 12px !important;
-    padding: 70px 8px 20px 8px !important;
+    padding: 70px 8px 120px 8px !important;
   }
   
   [class*="film-strip-content"] {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 12px !important;
     padding: 70px 8px 20px 8px !important;
+  }
+}
+
+/* Add extra bottom padding on mobile portrait to allow scrolling past fixed corner buttons */
+@media screen and (max-width: 600px) and (orientation: portrait) {
+  .film-strip-content {
+    /* Extra bottom padding to clear the Menu and New Batch buttons */
+    padding-bottom: 120px !important;
+  }
+
+  .film-strip-container .film-strip-content {
+    padding-bottom: 120px !important;
+  }
+
+  [class*="film-strip-content"] {
+    padding-bottom: 120px !important;
+  }
+
+  /* Prevent background scrolling when a photo is selected in fullscreen */
+  .film-strip-container.has-selected {
+    overflow: hidden !important;
+    touch-action: none !important;
+  }
+
+  /* Also prevent body scrolling when photo is selected */
+  body.has-selected-photo {
+    overflow: hidden !important;
+    touch-action: none !important;
   }
 }
 
@@ -275,8 +314,8 @@ body.extension-mode .action-button:not(.use-prompt-btn) {
   .film-frame .photo-label {
     position: relative !important;
     bottom: 10px !important;
-    left: 5px !important;
-    right: 5px !important;
+    left: 2px !important;
+    right: 2px !important;
     text-align: center !important;
     font-size: 12px !important;
     height: 30px !important; /* Fixed height for label */
@@ -288,6 +327,7 @@ body.extension-mode .action-button:not(.use-prompt-btn) {
     width: auto !important;
     box-sizing: border-box !important;
     display: block !important;
+    padding: 0 2px !important;
   }
 
   /* Larger font for loaded photos on mobile */
@@ -319,7 +359,7 @@ body.extension-mode .action-button:not(.use-prompt-btn) {
   }
 }
 
-.film-frame img {
+.film-frame img:not(.placeholder) {
   width: calc(100% - 0px) !important;
   height: calc(100% - 0px) !important;
   object-fit: cover !important; /* Cover instead of contain to fill the frame */
@@ -328,7 +368,9 @@ body.extension-mode .action-button:not(.use-prompt-btn) {
   flex-grow: 1 !important;
   margin: 0 !important;
   padding: 0 !important;
-  transition: opacity 100ms ease-in !important;
+  /* Start invisible - JavaScript controls visibility via inline styles and animations */
+  /* NO !important here so inline styles can override */
+  opacity: 0;
   /* Prevent pixelation during image loading */
   image-rendering: -webkit-optimize-contrast !important;
   image-rendering: auto !important;
@@ -341,6 +383,9 @@ body.extension-mode .action-button:not(.use-prompt-btn) {
   user-drag: auto !important;
   pointer-events: auto !important;
 }
+
+/* Preview image fade-in effect - handled by Web Animations API in PhotoGallery.jsx */
+/* Preview images get blur(5px) via inline styles and 2-second fade via JavaScript */
 
 /* Ensure minimum 4 images per row on desktop landscape for regular photo grid */
 @media (orientation: landscape) and (min-width: 1200px) {
@@ -382,21 +427,21 @@ body.extension-mode .action-button:not(.use-prompt-btn) {
 @media (orientation: landscape) and (min-width: 2000px) {
   .film-strip-content {
     gap: 48px !important;
-    padding: 80px 40px 40px 40px !important;
+    padding: 80px 40px 120px 40px !important;
   }
 }
 
 @media (orientation: landscape) and (min-width: 2560px) {
   .film-strip-content {
     gap: 64px !important;
-    padding: 100px 60px 60px 60px !important;
+    padding: 100px 60px 140px 60px !important;
   }
 }
 
 @media (orientation: landscape) and (min-width: 3200px) {
   .film-strip-content {
     gap: 80px !important;
-    padding: 120px 80px 80px 80px !important;
+    padding: 120px 80px 160px 80px !important;
   }
 }
 
@@ -423,11 +468,11 @@ body.extension-mode .action-button:not(.use-prompt-btn) {
   .film-strip-container {
     padding: 10px 4px 20px 4px !important;
   }
-  
+
   .film-strip-content,
   .film-strip-container .film-strip-content,
   [class*="film-strip-content"] {
-    padding: 60px 4px 20px 4px !important;
+    padding: 60px 4px 120px 4px !important;
     gap: 8px !important;
   }
 }
@@ -446,8 +491,8 @@ body.extension-mode .action-button:not(.use-prompt-btn) {
 .film-frame .photo-label {
   position: absolute !important;
   bottom: 8px !important;
-  left: 5px !important;
-  right: 5px !important;
+  left: 2px !important;
+  right: 2px !important;
   height: 40px !important;
   display: block !important;
   line-height: 40px !important;
@@ -461,6 +506,7 @@ body.extension-mode .action-button:not(.use-prompt-btn) {
   /* Use block display with defined width for ellipsis to work */
   width: auto !important;
   box-sizing: border-box !important;
+  padding: 0 2px !important;
 }
 
 /* Larger font size for completed photos with hashtags */
@@ -473,6 +519,26 @@ body.extension-mode .action-button:not(.use-prompt-btn) {
   overflow: hidden !important;
   display: block !important;
   line-height: 37px !important;
+}
+
+/* Smaller label for Style Explorer cards (prompt-selector-mode) */
+.prompt-selector-mode .film-frame .photo-label {
+  font-size: 11px !important;
+  bottom: 0 !important;
+  height: 36px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+}
+.prompt-selector-mode .film-frame.loaded .photo-label:not(:empty) {
+  font-size: 14px !important;
+  bottom: 0 !important;
+  height: 36px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
 }
 body.has-selected-photo .film-frame.selected.loaded .photo-label:not(:empty),
 body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label:not(:empty) {
@@ -528,38 +594,84 @@ body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label
   
   /* Keep selected photo labels at original size for popup view */
   /* The existing rules for .selected photos will override these */
+
+  /* Style Explorer on mobile: keep compact polaroid padding */
+  .prompt-selector-mode .film-frame:not(.selected) {
+    padding: 6px !important;
+    padding-bottom: 24px !important;
+  }
+  .prompt-selector-mode .film-frame:not(.selected)::after {
+    top: 6px !important;
+    left: 6px !important;
+    right: 6px !important;
+    bottom: 24px !important;
+  }
+  .prompt-selector-mode .film-frame:not(.selected) .photo-label,
+  .prompt-selector-mode .film-frame:not(.selected).loaded .photo-label:not(:empty) {
+    font-size: 10px !important;
+    bottom: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+  }
 }
 
 /* Back to Camera button - ensure it stays fixed */
 .corner-btn {
   position: fixed;
-  left: 20px;
-  bottom: 20px;
-  background: #ff5252 !important;
+  left: 32px;
+  bottom: 32px;
+  background: linear-gradient(135deg, var(--brand-cta-start), var(--brand-cta-end)) !important;
   color: white;
   border: none;
-  padding: 8px 16px;
+  padding: 6px 14px;
+  padding-bottom: 8px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
   cursor: pointer;
   /* Ensure adequate touch target size */
-  min-height: 44px;
+  min-height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
   transition: all 0.2s ease;
   white-space: nowrap;
-  font-size: 16px;
+  font-size: 15px;
   z-index: 9999;
-  transition: transform 0.2s, box-shadow 0.2s;
-  padding-bottom: 10px;
+  transition: transform 0.2s, box-shadow 0.2s, opacity 0.3s;
   font-family: "Permanent Marker", cursive;
 }
 
 .corner-btn.photos-corner-btn {
   left: unset;
-  right: 20px;
+  right: 32px;
+}
+
+.corner-btn.continue-corner-btn {
+  left: unset;
+  right: 32px;
+  background: linear-gradient(135deg, var(--brand-cta-start), var(--brand-cta-end)) !important;
+}
+
+/* When on intro screen, position Continue differently */
+.corner-btn.intro-continue-btn {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+}
+
+/* When Photos button is present on options screen, position Continue button to the left of it */
+.options-section .corner-btn.continue-corner-btn {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+}
+
+/* Adjust when both Continue and Photos buttons are visible */
+body:has(.photos-corner-btn) .options-section .corner-btn.continue-corner-btn {
+  right: calc(32px + 110px + 12px); /* 32px margin + ~110px Photos button width + 12px gap */
 }
 
 
@@ -583,7 +695,8 @@ body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label
 /* Remove the "hovered" class approach completely and use only pure CSS - but don't interfere with loading animations or selected frames */
 /* Only apply hover effects on devices that support hover (not touch devices) */
 @media (hover: hover) and (pointer: fine) {
-  .film-frame:not(.loading):not(.selected):hover {
+  .film-frame:not(.loading):not(.selected):hover,
+  .film-frame:not(.loading):not(.selected):hover:active {
     transform: translateY(-10px) translateZ(0) !important;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4) !important;
     z-index: 10 !important;
@@ -593,7 +706,7 @@ body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label
 
 /* Current style indicator for Style Explorer mode */
 .film-frame.current-style:not(.selected) {
-  border: 4px solid #72e3f2 !important;
+  border: 4px solid var(--brand-accent-tertiary) !important;
   box-shadow: 0 4px 16px rgba(114, 227, 242, 0.4) !important;
   transform: scale(1.02) !important;
   transition: all 0.3s ease !important;
@@ -607,7 +720,7 @@ body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label
   left: -4px;
   right: -4px;
   bottom: -4px;
-  background: linear-gradient(45deg, #72e3f2, #4bbbd3);
+  background: linear-gradient(45deg, var(--brand-accent-tertiary), var(--brand-accent-tertiary-hover));
   border-radius: 6px;
   z-index: -1;
   opacity: 0.3;
@@ -628,6 +741,26 @@ body.has-selected-photo .film-frame.selected[data-enhancing="true"] .photo-label
 .film-frame {
   padding: 16px;
   padding-bottom: 56px;
+}
+
+/* Smaller polaroid padding for Style Explorer cards */
+.prompt-selector-mode .film-frame:not(.selected) {
+  padding: 10px !important;
+  padding-bottom: 36px !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+/* Adjust inner bevel for prompt-selector-mode polaroid padding */
+.prompt-selector-mode .film-frame:not(.selected)::after {
+  top: 10px !important;
+  left: 10px !important;
+  right: 10px !important;
+  bottom: 36px !important;
+}
+
+.prompt-selector-mode .film-frame:not(.selected):hover {
+  transform: rotate(0deg) translateY(-4px) scale(1.03) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.2) !important;
 }
 
 /* Selected state with FLIP animation support - HIGHEST PRIORITY */
@@ -658,7 +791,60 @@ body .film-frame.selected,
   overflow: visible !important;
 }
 
+/* When gallery carousel is present in prompt selector, adjust fullscreen image to fit above carousel */
+.film-strip-container.has-gallery-carousel .film-frame.selected {
+  max-height: calc(100vh - 120px) !important;
+  top: calc((100vh - 120px) / 2 + 20px) !important;
+}
+
+/* Constrain the actual image within the polaroid frame when carousel is present */
+/* Account for: polaroid top padding (8px) + bottom padding area for label (50px) = ~58px + extra margin */
+.film-strip-container.has-gallery-carousel .film-frame.selected img {
+  max-height: calc(100vh - 240px) !important;
+  max-width: calc(100vw - 80px) !important;
+  object-fit: contain !important;
+}
+
+/* Mobile adjustments for gallery carousel presence */
+@media (max-width: 768px) {
+  .film-strip-container.has-gallery-carousel .film-frame.selected {
+    max-height: calc(100vh - 110px) !important;
+    top: calc((100vh - 110px) / 2 + 15px) !important;
+  }
+  
+  .film-strip-container.has-gallery-carousel .film-frame.selected img {
+    max-height: calc(100vh - 220px) !important;
+    max-width: calc(100vw - 60px) !important;
+    object-fit: contain !important;
+  }
+}
+
+/* In Style Explorer mode, keep selected photos in grid as thumbnails (no fullscreen) */
+/* UNLESS user explicitly clicked fullscreen button */
+.film-strip-container.prompt-selector-mode .film-frame.selected:not(.fullscreen-mode) {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  transform: none !important;
+  -webkit-transform: none !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  max-height: none !important;
+  cursor: default !important;
+  z-index: 1 !important;
+}
+
+/* Keep selected image at normal grid size in Style Explorer */
+.film-strip-container.prompt-selector-mode .film-frame.selected:not(.fullscreen-mode) img {
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+  max-height: none !important;
+  object-fit: cover !important;
+}
+
 /* Add inner bevel/shadow effect to all selected photos (desktop and mobile) */
+/* z-index must be higher than images (which use zIndex: 2 in inline styles) */
 .film-frame.selected::after {
   content: "";
   position: absolute;
@@ -668,7 +854,7 @@ body .film-frame.selected,
   bottom: var(--polaroid-bottom-border);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1), inset 0 2px 4px rgba(0, 0, 0, 0.1);
   pointer-events: none;
-  z-index: 1;
+  z-index: 10; /* Must be above images (zIndex: 2) */
   border-radius: 2px;
 }
 
@@ -724,6 +910,20 @@ body .film-frame.selected,
   opacity: 0.3;
 }
 
+/* In Style Explorer mode, keep all photos visible and clickable when not in fullscreen mode */
+.film-strip-container.prompt-selector-mode .film-strip-content.has-selected .film-frame:not(.selected):not(.fullscreen-mode) {
+  filter: none;
+  pointer-events: auto;
+  opacity: 1;
+}
+
+/* When in fullscreen mode in Style Explorer, blur background like normal */
+.film-strip-container.prompt-selector-mode .film-strip-content.has-selected .film-frame.fullscreen-mode ~ .film-frame:not(.selected) {
+  filter: blur(4px) brightness(0.7);
+  pointer-events: none;
+  opacity: 0.3;
+}
+
 .film-frame.selected img {
   /* Display at full resolution within available frame space */
   width: auto !important;
@@ -756,8 +956,8 @@ body .film-frame.selected,
 .film-frame.selected .photo-label {
   position: absolute !important;
   bottom: 20px !important;
-  left: 10px !important;
-  right: 10px !important;
+  left: 2px !important;
+  right: 2px !important;
   height: 40px !important;
   display: block !important;
   line-height: 33px !important;
@@ -769,6 +969,7 @@ body .film-frame.selected,
   white-space: nowrap !important;
   overflow: hidden !important;
   z-index: 10000 !important; /* Higher z-index to ensure visibility */
+  padding: 0 2px !important;
   /* Use block display with defined width for ellipsis to work */
   width: auto !important;
   box-sizing: border-box !important;
@@ -802,7 +1003,7 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
 
 
 /* Add responsive styles for selected photo view on mobile/portrait */
-@media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
+@media (max-width: 769px), (orientation: portrait) and (max-device-width: 1024px) {
   body .film-frame.selected.loaded,
   body .film-frame.selected,
   .film-frame.selected {
@@ -900,6 +1101,29 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
   }
   .corner-btn {
     z-index: 998 !important;
+    left: 8px !important; /* Match grid padding */
+    min-height: 40px !important;
+    padding: 6px 14px !important;
+    padding-bottom: 8px !important;
+    font-size: 15px !important;
+  }
+
+  .corner-btn.photos-corner-btn,
+  .corner-btn.intro-continue-btn {
+    right: 8px !important; /* Match grid padding */
+    left: unset !important;
+    bottom: 32px !important;
+  }
+
+  .corner-btn.continue-corner-btn {
+    right: 8px !important; /* Match grid padding */
+    left: unset !important;
+    bottom: 32px !important;
+  }
+
+  /* When both Continue and Photos buttons are visible on options screen, position Continue to the left of Photos */
+  body:has(.photos-corner-btn) .options-section .corner-btn.continue-corner-btn {
+    right: calc(8px + 110px + 12px) !important; /* 8px margin + ~110px Photos button width + 12px gap */
   }
 }
 
@@ -936,26 +1160,44 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
   z-index: 9990;
 }
 
+/* Show dark overlay for regular gallery and for fullscreen in Style Explorer */
 .film-strip-container.has-selected::before {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
 }
 
+/* Hide dark overlay in Style Explorer UNLESS fullscreen mode is active */
+.film-strip-container.prompt-selector-mode.has-selected:not(.fullscreen-active)::before {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 /* Create a loading indicator that covers the image only, not the border */
 .film-frame.loading::before {
   content: "";
   position: absolute;
-  top: 12px; /* Match padding */
-  left: 12px; /* Match padding */
-  right: 12px; /* Match padding */
-  bottom: 40px; /* Leave space for label */
+  top: 16px; /* Match padding */
+  left: 16px; /* Match padding */
+  right: 16px; /* Match padding */
+  bottom: 56px; /* Leave space for label */
   z-index: 5;
   pointer-events: none;
   /* Warm wash that fades away as the image develops */
   background: radial-gradient(120% 120% at 50% 30%, rgba(255, 248, 230, 0.55) 0%, rgba(255, 246, 220, 0.4) 28%, rgba(255, 246, 220, 0.25) 52%, rgba(255, 246, 220, 0.1) 72%, rgba(255, 246, 220, 0) 100%);
   opacity: 1;
   animation: film-wash 14s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Adjust loading overlay for mobile portrait */
+@media (max-width: 768px) and (orientation: portrait), (orientation: portrait) and (max-device-width: 768px) {
+  .film-frame:not(.selected).loading::before {
+    top: 8px !important; /* Match reduced mobile padding */
+    left: 8px !important; /* Match reduced mobile padding */
+    right: 8px !important; /* Match reduced mobile padding */
+    bottom: 28px !important; /* Match reduced mobile bottom padding */
+  }
 }
 
 @keyframes film-wash {
@@ -971,7 +1213,7 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
   top: 50%;
   transform: translateY(-50%);
   background: none;
-  color: #FF69B4 !important;
+  color: var(--brand-pwa-pink) !important;
   border: none;
   width: 60px;
   height: 60px;
@@ -1006,44 +1248,38 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
 
 /* Generate button for Style Explorer - generates fresh batch with current settings */
 .view-photos-btn {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  left: auto !important;
-  z-index: 100;
-  background: linear-gradient(135deg, #ff5e8a 0%, #ff3366 100%);
-  gap: 8px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-  transition: transform 0.2s, box-shadow 0.2s;
+  /* Inherit all styling from corner-btn, just override what's needed */
+  background: linear-gradient(135deg, var(--brand-cta-start), var(--brand-cta-end)) !important;
+  /* Position on right like photos-corner-btn */
+  left: unset !important;
+  right: 32px !important;
+  /* Explicitly set sizing to match corner-btn base */
+  font-size: 15px !important;
+  padding: 6px 14px !important;
+  padding-bottom: 8px !important;
+  min-height: 40px !important;
 }
 
 .view-photos-btn:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-  background: linear-gradient(135deg, #ff7aa1 0%, #ff4b78 100%);
+  transform: scale(1.05) !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4) !important;
 }
 
 .view-photos-btn:active {
-  transform: translateY(1px);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  transform: scale(0.98) !important;
 }
 
-/* Responsive styling for Generate button on mobile */
+/* Responsive styling for View Photos button on mobile */
 @media (max-width: 768px), (orientation: portrait) and (max-device-width: 1024px) {
   .view-photos-btn {
-    right: 10px;
-    bottom: 10px;
+    right: 8px !important; /* Match grid padding */
   }
 }
 
-/* Specific adjustments for small screens in portrait mode like iPhone */
+/* Specific adjustments for small screens in portrait mode */
 @media (max-width: 420px) and (orientation: portrait) {
   .view-photos-btn {
-    padding: 8px 12px;
-    font-size: 12px;
-    right: 10px;
-    bottom: 10px;
-    border-radius: 16px;
+    right: 8px !important; /* Match grid padding */
   }
 }
 
@@ -1225,7 +1461,7 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
 }
 
 .more-btn {
-  background: #72e3f2;
+  background: var(--brand-accent-tertiary);
   position: fixed;
   right: 20px;
   bottom: 20px;
@@ -1268,12 +1504,23 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
   }
 }
 
+/* Adjust action buttons when gallery carousel is present */
+.film-strip-container.has-gallery-carousel .photo-action-buttons {
+  bottom: 110px !important;
+}
+
+@media (max-width: 768px) {
+  .film-strip-container.has-gallery-carousel .photo-action-buttons {
+    bottom: 100px !important;
+  }
+}
+
 /* Mobile responsive adjustments */
 @media (max-width: 768px) {
   .photo-action-buttons {
     flex-wrap: nowrap;
     gap: 4px;
-    overflow-x: auto;
+    overflow: visible;
     padding: 0 8px;
   }
   
@@ -1300,23 +1547,39 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
     padding-right: 16px !important;
   }
   
-  /* Better spacing for random style buttons */
-  .prompt-selector-header > div {
+  /* Better spacing for random style buttons — exclude vibe-explorer-tabs from padding-top */
+  .prompt-selector-header > div:not(.vibe-explorer-tabs) {
     margin-bottom: 12px !important;
     padding-top: 15px !important;
   }
-  
-  /* Enhanced selected state for random buttons on mobile */
-  .prompt-selector-header button {
+
+  /* Enhanced selected state for random buttons on mobile — exclude personalize card buttons */
+  .prompt-selector-header button:not(.saved-remove-btn):not(.photo-refresh-btn) {
     font-size: 13px !important;
     padding: 12px 18px !important;
     min-height: 44px !important;
     font-weight: 600 !important;
   }
+
+  /* Reset padding/sizing for Simple mode header buttons (search icon, portrait toggle, clear all) */
+  .prompt-selector-header .simple-mode-header button {
+    padding: revert !important;
+    min-height: revert !important;
+    font-size: revert !important;
+    font-weight: revert !important;
+  }
+
+  /* Ensure personalize card buttons are NOT affected by prompt-selector-header button rules */
+  .prompt-selector-header .personalize-card button {
+    padding: 0 !important;
+    min-height: unset !important;
+    font-size: inherit !important;
+    font-weight: inherit !important;
+  }
   
   /* More prominent selected state on mobile */
   .prompt-selector-header button[style*="rgba(114, 227, 242, 0.9)"] {
-    background: linear-gradient(135deg, #72e3f2 0%, #4bbbd3 100%) !important;
+    background: linear-gradient(135deg, var(--brand-accent-tertiary) 0%, var(--brand-accent-tertiary-hover) 100%) !important;
     border: 3px solid #ffffff !important;
     box-shadow: 0 4px 16px rgba(114, 227, 242, 0.6) !important;
     color: white !important;
@@ -1330,7 +1593,7 @@ html body.has-selected-photo .film-strip-container.visible .film-frame.selected[
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
     color: #333 !important;
   }
-  
+
   /* Custom button special styling on mobile */
   .prompt-selector-header button[style*="linear-gradient(135deg, #3b82f6"] {
     border: 3px solid #ffffff !important;

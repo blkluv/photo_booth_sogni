@@ -1,4 +1,80 @@
 {
+  "favorites": {
+    "name": "Favorites",
+    "prompts": {}
+  },
+  "image-edit-prompts": {
+    "name": "Image Edit Styles",
+    "prompts": {
+      "makeMeLegos": "Preserve the person's face, identity, and position in the frame, make them into a lego character",
+      "astronaut": "Replace their clothes with a realistic NASA astronaut suit while keeping their face and identity the same",
+      "bodybuilder": "keep the person's face the same, keep hair the same, keep nose and mouth the same, same face shape, same expression, Make the person have huge muscles that blend naturally into their face realistically while keeping their existing identity and characteristics",
+      "claymation": "Model the person in a claymation look, keep their identity, finger dents, matte clay and diorama set",
+      "makeMeCloned": "Make the person appear multiple times in the image while keeping everything else the same",
+      "bobblehead": "Convert the person into a bobblehead figure. (Keep the person's face, hair, and identity the same). Oversized head spring base simple studio background",
+      "makeMeCold": "cover the scene in snow and put winter clothes on the person, (keep the person's face and identity matching the original). They are very cold and you can see their breath",
+      "fortniteInspo": "Create a stylized battle royale portrait inspired by Fortnite keep identity saturated colors and action pose",
+      "makeMePixelArt": "make them into a retro pixel art character while keeping their identity",
+      "pixarInspo": "Create a stylized portrait inspired by Pixar keep identity large expressive eyes soft global illumination warm backdrop",
+      "simpsonsInspo": "Transform the person into The Simpsons character while preserving their identity and facial features",
+      "marioKartInspo": "Place the person in a kart racing scene inspired by Super Mario Bros keeping their identity the same, bright track balloons and confetti",
+      "minecraftInspo": "Voxelize the person and the scene into a Minecraft style keep identity squared features blocky environment and simple sky",
+      "makeMeWoWeInspo": "Style the person as a fantasy World of Warcraft character while keeping their identity recognizable, ornate armor glowing runes and castle hall",
+      "makeMePopArt": "Create a pop art portrait keep identity halftone dots flat primaries and burst background",
+      "makeMeUkiyoE": "Render the person as an ukiyo e print keep identity bold linework flat color planes and wave or cloud motifs",
+      "tattooFlash": "Render the person as a traditional tattoo flash icon keep identity bold lines limited inks and parchment texture",
+      "makeMeAngry": "face expression is angry",
+      "makeMeNeon": "keep their clothes the same, keep face the same, keep hair the same, keep nose and mouth the same, same face shape, same expression, aesthetic 9, reimagine this person while keeping their facial features intact, digital_drawing_(artwork), colorful, high_contrast, psychedelic illustration, surreal grotesque cartoon style, thick bold outlines, dripping and shiny, pink fleshy, exaggerated forms, neon palette (pink, green, yellow, purple), sticker-art aesthetic, vaporwave background with diagonal stripes, dynamic composition, urban street art vibe, inspired by graffiti and tattoo flash.",
+      "makeMeViking": "Change all the clothes to viking armor and viking hat with horns while keeping exact face and body size the same",
+      "makeMeBox": "Turn me into a boxer wearing blue boxing gloves and a sports top that says 'BASE', art style will be similar to Fortnite Characters, background looks like a boxing ring",
+      "addCats": "Add cats and match style",
+      "hatsAndGlasses": "Add cowboy hats and sunglasses",
+      "makeMeDoodleArt": "Convert into a minimalist bold line colorful cartoon abstract portrait, minimal features, very simple, surreal playful pastel style, abstract vector, minimal facial features, thick outlines, rainbow, clouds"
+    }
+  },
+  "christmas-winter": {
+    "name": "Christmas / Winter",
+    "prompts": {
+      "defrostMode": "full-body fashion portrait of a person standing encased inside a giant transparent ice cube, sunlight refracting through the frozen walls. Wearing a vivid red ski suit with matching hood creating a futuristic survival aesthetic. Set in a vast, cracked salt-flat desert under a bright turquoise sky with soft clouds. Harsh natural sunlight, sharp shadows, crisp reflections, surreal high-contrast colors. Cinematic, high-concept editorial style, minimalistic composition with strong geometric forms, cool sci-fi mood",
+      "icedUp": "wearing a fully-covered outfit made of ice cubes, ice cube headdress, (detailed translucent ice cubes:1.3), ice cube armor, centered in the frame, standing in a vast, snow-covered landscape, (clear blue sky:1.2) in the background, (bright, natural lighting:1.2), (photorealistic style:1.2), serene atmosphere, cool color palette, high detail, sharp focus, artstation quality, 8k resolution, (intricate details in the ice structure:1.3), minimalistic background, shot with a medium focal length",
+      "tooIcy4U": "Wearing a white glossy, shiny full latex body suit. Plasticy white body suit. Hair flowing in the wind , hair coated with snow, snow on hair, snow everywhere, snow storm, white eyes. Artic landscape behind",
+      "snowflakes": "snow royalty, (detailed skin texture:1.3), (glitter makeup:1.4), (visible frozen eyelashes:1.2), (full frosted lips:1.2), (frozen eyes), snow on the face, frosted face, frozen face frosted hair, snow on the hair, surrounded by out of focus frosty, ice crystal branches, soft, diffused lighting, winter aesthetic, cold color palette, high detail, 8k resolution, (intricate details in the ice crystals:1.1), shot with a macro lens",
+      "whiteOpulentFur": "Pose in the snow in opulent white fur coat, cold breath visible. Arctic lanascape behind. Ultra realistic 8k fashion light, detailed fur folds, snow sparkle,  ultra blue sky, snowy background, modern lunar look. Canon 50mm Camera",
+      "blackOpulentFur": "wearing an oversized black shaggy fur hat and opulent black fur coat. With frosted lake in the background. Ultra blue sky, cool-toned studio lighting, icy editorial mood. Hyperrealistic, Vogue-style, 80s photography, 1980, cool-toned, analog, paper editorial number, snowy background. Canon 50mm camera, moonlight Fuji",
+      "snowLeopardFur": "Wearing an oversized luxurious snow leopard fur coat with rich texture, paired with large matching fur boots, posing on a snowy slope. Cold alpine environment with rugged grey rock, deep shadows, and crisp snow reflecting the light",
+      "icyBlueCoat": "fashion portrait in a surreal frozen landscape, towering walls of thick, sculptural ice and snow. Subject wearing an oversized light blue shaggy faux-fur coat with dramatic texture. Face partially covered by a brown knit balaclava. Cold daylight with soft shadows and crisp details in the snow, pale blue and white color palette. A frosted lake in the background, ultra-blue sky, cool-toned studio-style lighting outdoors, creating an icy high-fashion editorial mood. Hyperrealistic, Vogue-style 1980s photography, cool-toned analog aesthetics, subtle film grain, vintage paper-editorial feeling, snowy environment. Canon camera, 50mm lens, moonlight Fuji film look, crisp details, bold contrast, minimalistic yet striking composition",
+      "exploringTheNorth": "fashion portrait in a surreal frozen landscape, towering walls of thick, sculptural ice and snow. Person wearing an oversized light blue shaggy faux-fur coat, dramatic texture, leaning casually against the icy surface. Face partially covered by a brown knit balaclava. Cold daylight, soft shadows, crisp details in the snow, pale blue and white color palette. High-fashion editorial mood, minimalistic yet bold, strong contrast between warm brown knit and cool icy environment",
+      "myBabyPenguin": "high-fashion editorial photo of a human with a baby penguin on a snowy mountain slope under a clear blue sky. Wearing a luxurious full-length orange fur coat fully closed, with matching high furry boots and a large voluminous shapka hat. The fur textures look soft, dense, and natural, shimmering slightly under the bright cold sunlight. Ultra-realistic textures of snow crystals, soft natural lighting, cinematic composition, premium fashion aesthetic reminiscent of a winter Vogue edition, 8K resolution, full-body shot. Sony Alpha A7R IV camera, 85mm lens, f/2.8, ISO 100, shutter speed 1/800 sec, daylight white balance, soft front lighting with high dynamic range, depth of field with background bokeh",
+      "myPolarBearBaby": "high-fashion editorial photo of a human holding a baby polar bear on a snowy mountain slope under a clear blue sky. Wearing a luxurious full-length white fur coat fully closed, with matching high furry boots and a large voluminous white shapka hat. The fur textures look soft, dense, and natural, shimmering slightly under the bright cold sunlight. Ultra-realistic textures of snow crystals, soft natural lighting, cinematic composition, premium fashion aesthetic reminiscent of a winter Vogue edition, 8K resolution, full-body shot. Camera Sony Alpha A7R IV, 85mm lens, f/2.8, ISO 100, shutter speed 1/800 sec, daylight white balance, soft front lighting with high dynamic range, depth of field with background bokeh",
+      "mySnowLeopardBaby": "high-fashion editorial photo of a human with a baby snow leopard on a snowy mountain slope under a clear blue sky. Wearing a luxurious full-length snow leopard fur coat fully closed, with matching high furry boots and a large voluminous shapka hat.The fur textures look soft, dense, and natural, shimmering slightly under the bright cold sunlight. Ultra-realistic textures of snow crystals, soft natural lighting, cinematic composition, premium fashion aesthetic reminiscent of a winter Vogue edition, 8K resolution, full-body shot. Camera settings: Sony Alpha A7R IV, 85mm lens, f/2.8, ISO 100, shutter speed 1/800 sec, daylight white balance, soft front lighting with high dynamic range, depth of field with background bokeh.",
+      "myPantherBaby": "high-fashion editorial photo of a human wearing an opulent, luxurious full (BLACK) fur coat holding with a baby black panther, set on a snowy mountain slope under a clear blue sky. soft natural lighting, cinematic composition, premium fashion aesthetic reminiscent of a winter Vogue edition, 8K resolution, full-body shot. Camera settings: Sony Alpha A7R IV, 85mm lens, f/2.8, ISO 100, shutter speed 1/800 sec, daylight white balance, soft front lighting with high dynamic range, depth of field with background bokeh",
+      "myBabyBear": "high-fashion editorial photo of a human wearing an opulent, luxurious full (BROWN) fur coat holding with a baby brown bear, set on a snowy mountain slope under a clear blue sky. soft natural lighting, cinematic composition, premium fashion aesthetic reminiscent of a winter Vogue edition, 8K resolution, full-body shot. Camera settings: Sony Alpha A7R IV, 85mm lens, f/2.8, ISO 100, shutter speed 1/800 sec, daylight white balance, soft front lighting with high dynamic range, depth of field with background bokeh",
+      "myBabyWolf": "A high-fashion editorial photo of a human wearing an opulent, luxurious full (GREY) fur coat holding a baby wolf, set on a snowy mountain slope under a clear blue sky. soft natural lighting, cinematic composition, premium fashion aesthetic reminiscent of a winter Vogue edition, 8K resolution, full-body shot. Camera settings: Sony Alpha A7R IV, 85mm lens, f/2.8, ISO 100, shutter speed 1/800 sec, daylight white balance, soft front lighting with high dynamic range, depth of field with background bokeh",
+      "myBabyDeer": "A high-fashion editorial photo of a human wearing an opulent, luxurious full (BROWN and WHITE) fur coat holding a baby reindeer, set on a snowy mountain slope under a clear blue sky. soft natural lighting, cinematic composition, premium fashion aesthetic reminiscent of a winter Vogue edition, 8K resolution, full-body shot. Camera settings: Sony Alpha A7R IV, 85mm lens, f/2.8, ISO 100, shutter speed 1/800 sec, daylight white balance, soft front lighting with high dynamic range, depth of field with background bokeh",
+      "silverKnight": "silver warrior in a snowstorm with long silver hair with a grey castle in the background",
+      "forestElf": "elf with iridescent skin and 2 shiny reindeer horns on top of the head, wearing a winter coat, set in a snowy enchanted forest with flares of light",
+      "snowLittleRidingHood": "Little Red Riding Hood wandering through an enchanted forest during a swirling snowstorm. Shot at night with flash-in-the-dark photography, the harsh direct flash catching floating snowflakes like sparkling stars. The surrounding woods fade into mystical darkness, twisted trees and soft glimmers of light between branches. The bright red cloak glows vividly against the deep night, fluttering dramatically in the storm. Atmosphere: dreamy, magical, mysterious, fairytale realism with a touch of danger and wonder.",
+      "snowSatyr": "A satyr standing in a snowy enchanted forest: human upper body with soft curled hair and expressive eyes, lower body with fur-covered goat legs, cloven hooves, and a long tail. Wearing a warm scarf and rustic winter cloak. Snow falls quietly around them, thick flakes drifting through the air. Ancient trees coated in ice and frost, soft blue winter light filtering through the branches. Magical, storybook atmosphere with subtle sparkles in the snow, footprints trailing behind. Cinematic fantasy composition, high detail, warm expression, high-resolution illustration.",
+      "winterElf": "A mystical snow elf in an ancient frozen landscape, inspired by high-fantasy Skyrim aesthetics. The elf has pale (frosted) skin covered in ice crystals, blue bioluminescent glow skin. Eyes are bright and luminous, glowing faintly in the cold air. Ethereal white eyelashes and faint icy markings across the face. Hair flowing with a light frost coating the strands. The environment is a majestic snowy ruin with ancient carved stone, drifting snow, and pale blue ambient light. Cold atmospheric lighting, crisp textures, ultra-realistic skin detail, magical winter aura. Cinematic composition, high-resolution fantasy portrait, immersive icy mood, enchanted frost-magic energy.",
+      "polarHat": "wearing a whimsical polar bear fur headdress, dark top, with face framed by the furry polar bear, looking directly at the viewer with a gentle expression, (detailed skin texture:1.3), the headdress has a Santa hat, a black background with falling snow, fashion advertisement",
+      "pinkWrap": "wearing a large, fuchsia-colored candy wrapper around the head, styled like a bow, covering her face partially, (detailed facial features:1.3), lips and eyebrows covered in silver glitter, neutral expression, bare shoulders, center frame, looking forward, (candy wrapper texture:1.3), soft, diffused lighting, clean background, studio shot, pastel color scheme with fuchsia and light gray, high fashion, surreal, concept art, photorealistic, 8k, sharp focus",
+      "babyBlueWrap": "wearing a large, chromatic silver wrapper around the head, styled like a bow, covering face, center frame, looking forward, (candy wrapper texture:1.3), Ultra blue sky, cool-toned studio lighting, icy editorial mood. Hyperrealistic, Vogue-style, 80s photography, 1980, cool-toned, analog, paper editorial number, snowy background. Canon camera, 50mm, moonlight Fuji",
+      "pearlWrap": "wearing a large, white pearlescent wrapper around the head, styled like a bow, covering face, center frame, looking forward, (candy wrapper texture:1.3), Ultra blue sky, cool-toned studio lighting, icy editorial mood. Hyperrealistic, Vogue-style, 80s photography, 1980, cool-toned, analog, paper editorial number, snowy background.  Canon camera, 50mm, moonlight Fuji",
+      "silverWrap": "wearing a large, silver wrapper around the head, styled like a bow, covering face, center frame, looking forward, (candy wrapper texture:1.3), Ultra blue sky, cool-toned studio lighting, icy editorial mood. Hyperrealistic, Vogue-style, 80s photography, 1980, cool-toned, analog, paper editorial number, snowy background. Canon camera, 50mm, moonlight Fuji",
+      "redWrap": "wearing a large, vivid, and shiny red wrapper around her head, styled like a bow, covering face, center frame, looking forward, (candy wrapper texture:1.3), Ultra white sky, cool-toned studio lighting, icy editorial mood. Hyperrealistic, Vogue-style, 80s photography, 1980, cool-toned, analog, paper editorial number, snowy background. Camera: Canon, 50mm, moonlight Fuji",
+      "christmasWrap": "wearing a large, vivid, and shiny green wrapper around her head, styled like a bow, covering face, center frame, looking forward, (candy wrapper texture:1.3), gradient red backdrop, cool-toned studio lighting, icy editorial mood. Hyperrealistic, Vogue-style, 80s photography, 1980, cool-toned, analog, paper editorial number, snowy background. Camera: Canon, 50mm, moonlight Fuji",
+      "treeInUrHair": "wearing a full coverage green chiffon blouse, intricate, high fashion, hair is shaped like a triangle (made of hair), decorated with red ornaments, green star and Christmas ornaments. Studio shot, gray background, soft lighting, concept art, surreal, sharp focus, art photography, 8k, (detailed skin texture:1.2), (detailed hair:1.2), (festive atmosphere:1.1)",
+      "alone4Christmas": "Home Alone movie, living room in Home Alone movie, Christmas living room, 2 thieves in the background",
+      "winterTalentShow": "Character from Mean Girls movie performing on stage at a school winter talent show, wearing a red velvet Santa-style mini dress with white fur trim, black belt, knee-high red boots, and a Santa hat. Cady Heron, Regina George, Karen Smith, Gretchen Wieners. Bright stage lights, red curtains, glittery holiday backdrop, soft falling artificial snow. Cinematic, fun, energetic holiday performance, photorealistic, high resolution",
+      "IHateChristmas": "The Grinch movie, (The Grinch), green skin, green furry creature with vibrant green skin, fluffy textured fur, exaggerated eyebrows, playful mischievous smile, and glowing yellow-green eyes. Wearing a Santa Claus costume, Holiday lighting, whimsical expression, soft snowflakes in the background, cinematic Christmas atmosphere. Hyperrealistic texture, fun and stylized, high-resolution fantasy portrait.",
+      "OnceUponDecember": "character inspired by the elegant opera-night scene from the Anastasia cartoon. Wearing a deep navy-blue strapless evening gown, sleek and fitted through the bodice with a slight flare at the bottom. Paired with long (white) opera gloves, a delicate diamond choker necklace, and subtle shimmering earrings. Hair is a rich animated reddish-auburn color, styled in a soft, elegant updo with loose strands framing the face. Scene set in a warm, golden-lit interior with hand-painted textures, creating a romantic, nostalgic atmosphere. Classic 90s animated movie style: expressive eyes, smooth shading, warm palette, painterly highlights, graceful posture. High-resolution illustration with a gentle glow, cinematic elegance, and vintage animated charm.",
+      "theWanderer": "character from Narnia movie, narnia chronicles movie set in a snow storm in a forest",
+      "whiteSorcerer": "A powerful winter witch with white locs wears regal white and silver winter robes, long flowing layers of fur and shimmering fabrics, and an icy crown made of (stalagmites). A white polar bear is beside the winter witch. Heavy snowfall surrounds them, swirling dramatically in the wind, trees coated in glittering ice. Ultra-detailed textures, ethereal lighting, 8K resolution, dramatic composition, fantasy illustration",
+      "skiChic": "wearing a white ski-goggles, a long sleeve white turtleneck top and white tight pants, high white boots, standing in the center of the frame, posing, facing the viewer, against a snow covered landscape, a helicopter in the background, winter scene, pristine snow, high angle shot, (photorealistic:1.3), (detailed clothing:1.3), cold lighting, (bright daylight:1.2), clear sky, (artistic photography:1.2), high resolution",
+      "skiInThe80s": "1980s photoshot of someone standing on snowy ground, wearing a vibrant patterned 80s-style ski suit with neon colors and geometric shapes, bright yellow beanie, rainbow knee-high socks, and chunky blue retro ski boots, holding ski poles with green accents. (colorful ski gear:1.3), (snowy environment:1.1), bright, sunny day with classic 1980s postcard lighting — high contrast, slightly warm sun glow, and deep blue sky. (photorealistic style:1.1), high-resolution image, vintage 80s art-photography flair with subtle film grain, light lens flare, and saturated colors. Vibrant tones, sharp focus on the subject, shallow depth of field, (dynamic pose:1.2). 1980s,1980 photoshoot, 1980s photography,vintage 80s art-photography flair with subtle film grain, kitsch"
+      
+    }
+  },
   "anime-manga-chibi": {
     "name": "Anime / Manga / Chibi",
     "prompts": {
@@ -40,7 +116,8 @@
       "statueRoman": "Antique Roman statue with red garments",
       "stoneMoss": "Attractive, weather-worn stone statue bust overgrown with soft moss, muted earth palette, misty forest ruination mood.",
       "vangoghSwirl": "Attractive portrait, bold impasto brush strokes and swirling nigh sky patterns, vivid ultramarine and ochre palette, post impressionist vibrance.",
-      "warholPopQuad": "Attractive portrait, four panel silkscreen pop grid, high contrast posterized hues—cyan, magenta, yellow, lime—flat halftone texture."
+      "warholPopQuad": "Attractive portrait, four panel silkscreen pop grid, high contrast posterized hues—cyan, magenta, yellow, lime—flat halftone texture.",
+      "1990sHouseParty": "1990s house party, candid snapshot, people dancing in the background, dark living room, empty plastic cups, harsh flash photography, direct flash, blown-out highlights, deep shadows, grainy texture, film grain, soft focus, desaturated colors, slight color shift, vignetting, low fidelity, 1990s photo aesthetic, light leaks, a pizza, old TV, VHS tapes on a shelf, nostalgic atmosphere"
     }
   },
   "comics-caricature": {
@@ -64,7 +141,23 @@
       "sumiDragon": "Attractive, dramatic sumi-ink dragon silhouette framing face, smoky wash, parchment tone.",
       "techBlueprint": "Attractive, blueprint schematics portrait, cyan technical lines, grid paper, annotation scribbles.",
       "tikiRetro": "Attractive, 1950s tiki-bar portrait, carved wooden mask, hibiscus garland, torchlit bamboo.",
-      "wireframeHead": "retro wireframe head model, vector grid lines, neon vertices, dark void background, subtle glow"
+      "wireframeHead": "retro wireframe head model, vector grid lines, neon vertices, dark void background, subtle glow",
+      "neonCyberpunk": "neon cyberpunk walking in a rain-soaked neon city street at night, (hooded long coat:1.2), glowing cybernetic implants, wires along jawline, mechanical arm with pulsing LED veins, chrome plating under torn clothing, hardened expression, holographic billboards flickering and glitching, flying drones in smog, neon reflections on wet pavement, (cinematic film still:1.2), (photorealistic hyper-detailed textures:1.3), (neon haze and electric atmosphere:1.1), dramatic shadows, cinematic lighting, 8k ultra realistic, live-action movie style, inspired by Cyberpunk Edgerunners and Blade Runner"
+    }
+  },
+  "glamour": {
+    "name": "Glamour",
+    "prompts": {
+      "barbie": "glamorous fashion Barbie aesthetic, sparkling pink gown, polished hair with glossy curls, radiant smooth skin, bright pink studio or dreamhouse background, confident pose, lens-flare sparkle effects, clean high-fashion lighting, magazine-cover look",
+      "mallGlamour90s": "1990s mall glamour portrait, soft-focus diffusion, feather boa, studio gels (teal/purple), airbrushed sparkle, vignette",
+      "relaxBath": "in bubble bath submerged to face, white bubbles, pink bathtub, 35mm cinematic film",
+      "thinkPink": "pink sequined dress, glamorous messy hair, dewy skin, neon pink edge light, fashion editorial, playful smirk",
+      "crystalCrownPrism": "crown of clear crystals with rainbow refractions, halo sparkles, soft ethereal backlight",
+      "pinkOweenWitch": "portrait, pink glam witch aesthetic, rhinestone corset, glitter eyeshadow, iridescent pink smoke, playful smile, beauty editorial lighting, clean background",
+      "satinStudio": "cinematic studio portrait, elegant human in flowing satin, soft beauty lighting, dramatic Rembrandt shadows, classic Hollywood glamour style, kodak porta 800 film look, golden highlights, masterpiece, best quality, photorealistic",
+      "fashionMag": "stunning editorial portrait, model against bright monochrome backdrop, neon rim lighting, saturated color grade, fashion magazine cover, high-gloss finish, sharp detail, vibrant commercial look, masterpiece, best quality",
+      "avantgarde": "avant-garde portrait, couture fashion styling, bold makeup, experimental hairstyle, magazine editorial photography, edgy urban background, high contrast color grade, masterpiece, best quality, photorealistic",
+      "addamsElegance": "morticia addams, addams family, macabre aristocrat family portrait, ornate mansion, deadpan expressions, Victorian gothic fashion, candlelit parlor, porcelain skin, pale, timeless black-and-white glamour"
     }
   },
   "kitsch-gags-animals": {
@@ -150,9 +243,8 @@
       "doubleExposureForest": "double exposure portrait overlayed with dense forest silhouettes, fog layers, gentle film grain, dreamy blend",
       "filmGrainB&W": "Attractive, grainy 35mm black-and-white film portrait, natural light bloom, gentle depth-of-field, timeless vibe.",
       "magazineCoverStudio": "glossy studio portrait framed like a magazine cover, seamless paper backdrop, rim lights, subtle paper texture, vignette, no readable text",
-      "mallGlamour90s": "1990s mall glamour portrait, soft-focus diffusion, feather boa, studio gels (teal/purple), airbrushed sparkle, vignette",
-      "relaxBath": "in bubble bath submerged to face, white bubbles, pink bathtub, 35mm cinematic film",
-      "vintageHollywood": "Attractive, 1940s Hollywood headshot, silver-gelatin sheen, soft glow glass filter, dramatic key light, velvet backdrop, coiffed waves, celebrity vibe"
+      "vintageHollywood": "Attractive, 1940s Hollywood headshot, silver-gelatin sheen, soft glow glass filter, dramatic key light, velvet backdrop, coiffed waves, celebrity vibe",
+      "profHeadshot": "clean corporate headshot, person in tailored suit, seamless gray studio background, balanced three-point lighting, crisp detail, neutral color grade, LinkedIn profile style, photorealistic, masterpiece, best quality"
     }
   },
   "raver-costume-space-party": {
@@ -160,7 +252,6 @@
     "prompts": {
       "candyRaver": "cheerful candy raver at a massive outdoor festival stage under a rainbow-lit canopy. She wears oversized tie-dye UFO pants with rainbow stripes, a pastel pink tank top, and hundreds of neon kandi bracelets. Fluffy leg warmers in hot pink cover her sneakers as she jumps to the beat. Colorful barrettes and glittery hair clips in her pigtails shimmer under LED floodlights. Around her, thousands of ravers wave glowsticks and inflatable toys while confetti drifts through the air",
       "crownDrip": "large dripping, crown, sitting in throne, psychedelic fantasy, melted plastic, dripping, rainbow dripping, tie dye, rainbow glitchcore, vaporwave neon, corrupted tarot card, futuristic medieval, throne symbolism, cosmic background, dripping background, VHS gradient textures, dripping",
-      "crystalCrownPrism": "crown of clear crystals with rainbow refractions, halo sparkles, soft ethereal backlight",
       "festivalColorPowder": "bursting festival color powder around subject, high-speed freeze, airborne pigments, celebratory energy",
       "fingers4am": "raver, rave, trippy, acid, 2000s, rainbow, internet, hands in the air, dark club ",
       "spaceBot": "handmade surreal robot costume with a tight, full-body metallic silver outfit that covers the arms, legs, and torso entirely in shiny reflective material. The costume includes a large handmade robot headpiece that fully covers the head and neck, shaped with big glowing eyes and a digital mouth display. The silver suit has sleek circuit pattern details and embedded LED lights that glow along the chest and arms. The figure is holding two pink LED glowsticks. The scene is in deep outer space with a dark starry sky and colorful nebulae. Rainbow lasers and UV lights reflect brilliantly on the smooth silver surfaces",
@@ -174,7 +265,6 @@
   "roleplay": {
     "name": "Roleplay",
     "prompts": {
-      "makeMeABoxer": "tribal face tattoo, boxer in boxing ring, leotard, holding championship belt",
       "loFiBeatmaker": "Attractive, lo-fi beatmaker in front of bedroom studio, headphones, MPC keyboard, potted plants, cassette deck, cozy lamp glow, rain on window, no readable text",
       "rnBSoulSinger": "Attractive, R&B soul singer at vintage ribbon mic, gloves, velvet curtain, soft rim light, glossy stage reflections, intimate pose, no readable text",
       "popIdol": "Japanese glossy pop idol stage pose, in-ear monitors, glitter confetti, pastel LED wall, backup dancers bokeh, sparkle highlights, no readable text",
@@ -186,18 +276,32 @@
       "countrySinger": "country singer with acoustic guitar, felt hat, string-light barn backdrop, warm amber wash, dust motes, no readable text",
       "punkRocker": "punk frontperson shout-singing into wired mic, piercings, nose ring, ripped denim, safety-pin accents, stickered guitar, tiny club stage, motion blur, no readable text",
       "f1Driver": "carbon-fiber race suit and glossy helmet visor, pit-lane reflections, speed streaks, tire smoke wisp, standing in front of racecar, sponsor panels abstracted, no readable text",
-      "proWrestler": "ring entrance pose, feathered robe flare, pyro spark fountains, championship belt shine, ropes and fog machine haze, no readable text",
       "basketballStar": "action sports photography, soaring slam dunk in basketball court basket, rim angle, glossy hardwood reflections, sweaty headband, jersey, sweat highlights, arena jumbotron glow, crowd blur, no readable text",
       "quarterback": "American football quarterback mid-throw,football helmet, eye-black stripes, stadium lights flare, confetti drift, turf spray, dynamic motion blur, no readable text",
       "figureSkater": "triple-axel freeze frame, ice skate, legs, sequined costume sparkles, ice spray arc, spotlight cones, cool arena haze",
-      "sumoChampion": "yokozuna stance on dohyo, ceremonial belt, salt toss captured midair, lantern glow, taiko drum vibe",
       "velodromeCyclist": "track cyclist banked on steep velodrome curve, aero helmet, skinsuit, speed lines and wheel spoke blur",
       "rockClimber": "lead climber dyno on colorful indoor holds, chalk burst, quickdraws and rope, overhead gym lighting",
       "soccerGoalie": "hero shot socker goalie, action sports photography, motion blur, airborne goalkeeper save, goalie gloves, soccer ball flying, sneaker cleats, stadium bokeh, neon sideline LEDs, grass clippings frozen midair, no readable text",
-      "fencer": "hero shot, one single Fencing rapier pointing at viewer, motion blur, lunge action shot, white lamé suit and mask lifted to reveal face, crisp high key backlight",
+      "vintageBurlesque": "vintage burlesque, faded colors, pink",
+      "bodyBuilder": "bodybuilder extreme muscular body, modeling contest"
+    }
+  },
+  "fighters": {
+    "name": "Fighter",
+    "prompts": {
+      "makeMeABoxer": "tribal face tattoo, boxer in boxing ring, leotard, holding championship belt",
+      "proWrestler": "ring entrance pose, feathered robe flare, pyro spark fountains, championship belt shine, ropes and fog machine haze, no readable text",
       "luchaLibre": "Mexican lucha libre. triumphant",
       "kungFuMaster": "dynamic wushu long-fist pose, flowing silk uniform, temple courtyard, motion trails, drifting leaves",
       "mmaChampion": "octagon cage backdrop, 4oz gloves, corner floodlights, coach towels bokeh, dynamic feint blur, head to head, bloody nose",
+      "sumoChampion": "yokozuna stance on dohyo, ceremonial belt, salt toss captured midair, lantern glow, taiko drum vibe",
+      "streetFighterChamp": "8-bit arcade game style, arcade fighter pose, urban rooftop at night, neon skyline, oversized boxing gloves, exaggerated motion trails, stylized anime shading",
+      "madMaxBrawler": "post-apocalyptic desert arena, spiked shoulder pads, scrap metal armor, dust storm haze, oil drum fire glow, chain weapon, dystopian chaos",
+      "kombatWarrior": "arcade game character, martial arts stance, glowing aura, cracked stone arena, lightning bolts, scorched floor, tattered gi, cinematic fire embers",
+      "samuraiRonin": "ancient ronin samurai warrior, katana, cherry blossoms falling, moonlit temple steps, traditional armor, cinematic atmosphere",
+      "gladiatorChampion": "ancient Roman coliseum, bloodied sand floor, bronze helmet with plume, gladiator sword and shield, victorious stance, crowd blurred in background",
+      "muayThaiWarrior": "dynamic flying knee strike, ancient temple backdrop, ceremonial mongkol headband, rope hand wraps, sweat and dust motion trails, golden sunlight",
+      "fencer": "hero shot, one single Fencing rapier pointing at viewer, motion blur, lunge action shot, white lamé suit and mask lifted to reveal face, crisp high key backlight",
       "kendoDuelist": "kendo armor (bogu) with shinai clash at impact, dojang backlight beams, subtle breath fog, no readable text"
     }
   },
@@ -243,12 +347,74 @@
       "vectorPop": "Attractive, bold vector pop-portrait, flat CMY blocks, thick white outline, shadow offset."
     }
   },
-  "zombies-horror": {
-    "name": "Zombies / Horror",
+  "halloween": {
+    "name": "Halloween",
     "prompts": {
+      "darkFantasyBerserker": "towering barbarian fighter, giant axe, spiked armor, glowing red eyes, stormy sky backdrop, cracked battlefield ground, cinematic fantasy",
+      "corpseBride": "Corpse Bride, Blue-skin Corpse Bride, Victoria Everglot",
+      "elphabaMakeup": "portrait, green witch makeup, sleek black dress, wide witch hat in hand (not worn), emerald smoke swirls, theatrical spotlight, moody Broadway vibe, glossy black nails, intense gaze, cinematic contrast",
+      "kpopDemonHunter": "portrait, k-pop demon hunter idol, neon stage, black & red techwear armor accents, holographic mic prop held, glitter eyeliner, glossy skin, dramatic rim light, volumetric haze, sharp focus, studio fashion lighting, dynamic pose, energetic vibe",
+      "frogPeacekeeper": "portrait, person in frog-themed poncho with inflatable collar, peace-symbol button, reflective protest vest, soft glowing lights, calm smile, documentary style realism",
+      "minecraftJockey": "portrait, block-pattern cosplay jacket, white chicken plush prop held chest-level, pixel-print textures, playful gamer vibe, clean studio background, crisp speculars, confident smile",
+      "labubuToyLook": "portrait, pastel monster hoodie (labubu-inspired), candycore palette, plush ear hood pushed back, cute mischief expression, soft fill light, toy-photography sheen, shallow depth of field",
+      "wednesdayAddams": "portrait, black dress with white collar, twin braids, pale matte skin, deadpan expression, low-key lighting, desaturated gothic mood, subtle film grain",
+      "inflatableShark": "portrait, person wearing inflatable shark-hooded cape with human face visible, at dusk, subtle blue rim lighting, humorous tone",
+      "brideOfFrankenstein": "high-fashion reinterpretation of the Bride of Frankenstein, voluminous streaked hair styled tall, lightning-lit gothic laboratory setting, black lace gown with metallic accents, white streaks glowing softly, elegant defiance, cinematic gothic lighting",
+      "daenerysTargaryen": "Daenerys Targaryen inspired queen look, platinum hair in braids, dragon perched behind, throne made of swords, stone throne room background, warm golden light, regal expression",
+      "furiosa": "Furiosa from Furiosa: A Mad Max Saga 2024, cropped leather armor, engine grease streaks on face, forehead covered in dark ash, extremely heavy mascara, desert wasteland backdrop with burning horizon, cinematic orange dust light, fierce determined gaze",
+      "darkFairy": "fantasy dark fairy with translucent black wings, glowing embers in air, forest clearing background, cinematic lighting and moody colors",
+      "pumpkinQueen": "Pumpkin Queen, Decayed Harvest Spirit, macabre gothic portrait, foggy moonlit pumpkin patch, tattered moss-covered black gown with glowing miniature Jack-o'-Lanterns",
+      "officeHulk": "me tearing off my corporate clothing to become the Hulk! busy office behind me, panic!",
+      "darkQueen": "Maleficent, Dark queen with horned headdress, red lips, and powerful aura holding a magical staff, cinematic lighting",
+      "frankenstin": "Frankenstein monster with pale stitched skin, flat head, and worn dark clothes, eerie atmosphere.",
+      "cosmicGrimReaper": "Death dressed in stars, a cosmic grim reaper with galaxy-patterned cloak, silver scythe shimmering with nebula dust.",
+      "surrealPumpkin": "A surreal horror scene of a woman crying as a demonic pumpkin rests in her hands, its eyes glowing with hypnotic power. Her head is surrounded by swirling hallucinations and distorted faces, representing mind control. The scene feels dreamlike, with warped colors and a haunting atmosphere. Digital art, surreal horror concept.",
+      "midnightWitch": "Transform the woman in the image into an enchanted midnight witch for Halloween. Keep her natural features and pose but dress her in a dark, shimmering gown adorned with celestial patterns of stars, moons, and constellations. Add a soft, magical aura surrounding her, glowing subtly in the dim light. Include elegant accessories such as a crystal pendant and a small, gold-trimmed witch hat. The background should evoke a mystical night, moonlight filtering through fog, with floating candles creating an ethereal glow. Maintain a moody yet enchanting tone, using cinematic lighting to enhance her makeup, hair, and overall mysterious elegance."
+    }
+  },
+  "horror": {
+    "name": "Horror",
+    "prompts": {
+      "vampireHunter": "Blade, the vampire hunter, standing powerfully against a dark smoky background with red light behind him, wearing black tactical leather coat and sunglasses, holding a silver katana with faint blood on the blade, stoic expression, cinematic composition, sharp HDR realism, moody atmosphere, poster-style lighting",
+      "riteousAngel": "Cinematic portrait of a war-torn angel white wings. Long white hair, pale skin, glowing white eyes with white pupils. Streaks of blood splattered on the face, white knight armor, and hands. The angel stands in ethereal light, holding a silver sword dripping with blood.",
+      "vampireLord": "Vampire Lord, dark, elegant, imposing, wearing a flowing cape and a crown of thorns, surrounded by shadows and candles, cinematic lighting",
+      "cyborgDemon": "depict him as a corrupted cyborg demon, metal plates cracked with glowing red circuits leaking through, part of his face melting into a demonic skull, mechanical jaw twisted open showing glowing teeth, dark smoke rising from chest reactor, glowing kanji curse symbols carved into his armor, sparks and dripping oil like black blood, horror lighting, background of dark alley lit by broken neon and paper lanterns, ultra-detailed 8K anime horror masterpiece",
+      "rustedSurgeon": "A full-body photorealistic portrait of a person wearing a terrifying Halloween costume: The Rusted Surgeon. The costume features: a (filthy, blood-stained butcher-style apron:1.2) made of stiff canvas. The person is wearing a (thick, black leather collar:1.2). Their skin is splattered and dripping with (copious amounts of fake blood on the face, neck, and chest:1.5), including a distinct vertical line of blood down the forehead. Their hair is wet and disheveled. The costume is detailed with filth and dried blood. The person is standing in a dimly lit setting with a dark, textured background. Ultra-detailed, practical SFX makeup, cinematic horror lighting, menacing pose",
+      "hauntedBride": "Close-up shot of a haunted bride in a white gown, her face pale and sorrowful, surrounded by vivid red roses. Her trembling hand, stained with blood, clutches a broken glass piece. Her eyes are full of grief and pain, evoking a sense of tragic horror. The atmosphere is dark and misty, gothic horror style, high detail.",
+      "hoodedEerie": "Standing under a cloudy, moonlit sky. Wears a hooded tattered black cloak. Skeletal mask makeup, fiery eyes. Holds a staff, surrounded by mist, creating eerie atmosphere.",
+      "corpseBallerina": "The Corpse Ballerina: A heavily distressed, stained tutu with a cracked, porcelain doll-like face, blood stained dripping from clothes",
+      "castleWitch": "Dressed as a witch with an evil Castle atmosphere and dead zombies walking in the background. nightime, evil. dead dolls, grimacing expression, grim meadow, creepy black robed villagers in background, arri alexa film grade look, blood splatter",
+      "queenOfTheDamned": "Akasha from Queen of the Damned, Queen of the Damned movie, Queen Akasha, blood stains on face",
       "grindhouse": "70s grindhouse poster vibe, deep reds, film scratches, dramatic chiaroscuro, torn wardrobe, suggestive splatter (non-graphic), no readable text",
       "classicZombieBW": "zombie with bone hands reaching hand out to camera, mouth open, 1960s black-and-white undead portrait, film grain, harsh key light, haunted farmhouse vibe, cracked makeup, subtle bloodless grime",
-      "apocalypseRooftop": "zombie portrait, solo survivor-turned-undead on rooftop, city smoke plumes, helicopter silhouette, dusk gradient sky, tattered clothes"
+      "apocalypseRooftop": "zombie portrait, solo survivor-turned-undead on rooftop, city smoke plumes, helicopter silhouette, dusk gradient sky, tattered clothes",
+      "midsommarBloom": "Sweden eerie midsummer folk beautiy queen portrait, (blood dripping down face), painful strained sad expression, frown, furrowed eyebrows, super grand thick colorful floral crown headdress, elaborate flower garlands, grimacing expression, elaborate Sweden nordic white linen folk dress, overexposed sunlit meadow, creepy white robed villagers in background, lens-flare halo, hash sun shadows, professional teal and orange, arri alexa film grade look, blood splatter, midsommer, cinematic bokeh, warm golden sunlight, soft pastel tones, subtle desaturation, high dynamic range, fine film grain",
+      "hauntedPromQueen": "all red figured covered in blood, 1970s prom setting, bloody tiara, hands up in the air, completely drenched in blood, sparkly sequin dress, disco lights through fog, frozen smile, slow-motion horror glam moment",
+      "revengeBride": "blood-stained wedding gown, covered in blood, holding gleaming sword, bouquet, rain pouring, cinematic lens flare, gothic romance tone, horror movie cover composition",
+      "clownFromHell": "creepy clown makeup dripping with blood tears, neon circus tent behind, deflated balloons, dark carnival fog, twisted smile, horror fashion editorial lighting",
+      "burningWitch": "burning witch, cross, salem witch trials, witchcraft, colonial, Daguerreotype, high-contrast chiaroscuro lighting, cinematic renaissance horror tone",
+      "hellraiserPriest": "sinister ceremonial figure with polished black leather robe, pinhead, needles in bald head, glowing grid of pins, holding puzzle box, crimson lighting from below, infernal geometry aesthetic",
+      "dreamStalker": "(nightmare terror claw hands), striped sweater villain emerging from wall of smoke, long blades for hands, sharp glove claws glinting under red light, surreal nightmare haze, cinematic dream horror glow",
+      "ghostInTheTV": "ghost emerging from television screen, flickering static, eerie blue glow, cinematic bokeh, ghostly figure, haunted mirror selfie, vintage horror aesthetic"
+    }
+  },
+  "videos": {
+    "name": "Videos",
+    "prompts": {
+      "jazzSaxophonist": "jazz sax solo under moody spotlight, smoky club, brass bell reflections, upright bass bokeh, deep blue gels, no readable text",
+      "kittySwarm": "Attractive portrait swarmed by dozens of cute black kittens climbing over shoulders and on head, fuzzy tails, wide eyed delight.",
+      "stoneMoss": "Attractive, weather-worn stone statue bust overgrown with soft moss, muted earth palette, misty forest ruination mood.",
+      "dapperVictorian": "Attractive, dapper Victorian era photo tintype, oval vignette, subtle hand-tint, pocket-watch chain detail.",
+      "prismKaleidoscope": "kaleidoscopic prism shards around face, mirrored repeats, crystalline sparkles, lens flares",
+      "apocalypseRooftop": "zombie portrait, solo survivor-turned-undead on rooftop, city smoke plumes, helicopter silhouette, dusk gradient sky, tattered clothes",
+      "anime1990s": "Charismatic adventurer, Studio Ghibli style anime, hayo miyazaki, masterpiece, whimsical, 90s anime, cute",
+      "nftBoredApe": "colorful punk cartoon, funky ape drawing, cartoon emaciated chimp, funny, fun, big nostrils, furry ape, very skinny chimp, stylish urban hip, exaggerated cartoony stylized features, bored face expression, tan skin, dark gray shaggy fur, vector-style illustration, solid colorful background, thick outlines, 2D flat shading, nft art, funky funk style, indie cool, big teeth, big mouth, extremely skinny body, vacant stare, cigar pressed between mouth lips, halo, Hawaiian shirt, simple color background, monkey, wacky hat, cigar, sunglasses",
+      "clownPastel": "Attractive, gentle pastel clown portrait, soft rainbow makeup, fuzzy pompoms, comforting carnival lights.",
+      "jojoStandAura": "Attractive, exaggerated JoJo linework, bold color block shadows, ethereal Stand silhouette behind.",
+      "babyBlueWrap": "wearing a large, chromatic silver wrapper around the head, styled like a bow, covering face, center frame, looking forward, (candy wrapper texture:1.3), Ultra blue sky, cool-toned studio lighting, icy editorial mood. Hyperrealistic, Vogue-style, 80s photography, 1980, cool-toned, analog, paper editorial number, snowy background. Canon camera, 50mm, moonlight Fuji",
+      "myPolarBearBaby": "high-fashion editorial photo of a human holding a baby polar bear on a snowy mountain slope under a clear blue sky. Wearing a luxurious full-length white fur coat fully closed, with matching high furry boots and a large voluminous white shapka hat. The fur textures look soft, dense, and natural, shimmering slightly under the bright cold sunlight. Ultra-realistic textures of snow crystals, soft natural lighting, cinematic composition, premium fashion aesthetic reminiscent of a winter Vogue edition, 8K resolution, full-body shot. Camera Sony Alpha A7R IV, 85mm lens, f/2.8, ISO 100, shutter speed 1/800 sec, daylight white balance, soft front lighting with high dynamic range, depth of field with background bokeh",
+      "pinkWrap": "wearing a large, fuchsia-colored candy wrapper around the head, styled like a bow, covering her face partially, (detailed facial features:1.3), lips and eyebrows covered in silver glitter, neutral expression, bare shoulders, center frame, looking forward, (candy wrapper texture:1.3), soft, diffused lighting, clean background, studio shot, pastel color scheme with fuchsia and light gray, high fashion, surreal, concept art, photorealistic, 8k, sharp focus",
+      "redWrap": "wearing a large, vivid, and shiny red wrapper around her head, styled like a bow, covering face, center frame, looking forward, (candy wrapper texture:1.3), Ultra white sky, cool-toned studio lighting, icy editorial mood. Hyperrealistic, Vogue-style, 80s photography, 1980, cool-toned, analog, paper editorial number, snowy background. Camera: Canon, 50mm, moonlight Fuji"
     }
   }
 }

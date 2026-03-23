@@ -160,7 +160,7 @@ class ThemeConfigService {
   /**
    * Get frame padding for a theme
    * @param {string} themeId - Theme identifier
-   * @returns {Promise<number>} Frame padding in pixels
+   * @returns {Promise<Object|number>} Frame padding object {top, left, right, bottom} or legacy number
    */
   async getFramePadding(themeId) {
     // Check cache first
@@ -169,11 +169,67 @@ class ThemeConfigService {
     }
 
     const theme = await this.getTheme(themeId);
-    const padding = theme?.framePadding || 0;
+    let padding = theme?.framePadding;
+    
+    // Handle backward compatibility - convert number to object
+    if (typeof padding === 'number') {
+      padding = {
+        top: padding,
+        left: padding,
+        right: padding,
+        bottom: padding
+      };
+    } else if (!padding || typeof padding !== 'object') {
+      // Default padding object
+      padding = { top: 0, left: 0, right: 0, bottom: 0 };
+    } else {
+      // Ensure all required properties exist with defaults
+      padding = {
+        top: padding.top || 0,
+        left: padding.left || 0,
+        right: padding.right || 0,
+        bottom: padding.bottom || 0
+      };
+    }
     
     // Cache the result
     this.framePaddingCache.set(themeId, padding);
     return padding;
+  }
+
+  /**
+   * Get brand colors for a theme
+   * @param {string} themeId - Theme identifier
+   * @returns {Promise<Object|null>} Brand colors object or null if theme has no brand colors
+   */
+  async getBrandColors(themeId) {
+    const theme = await this.getTheme(themeId);
+    return theme?.brand?.colors || null;
+  }
+
+  async getBrandTitle(themeId) {
+    const theme = await this.getTheme(themeId);
+    return theme?.brand?.title || null;
+  }
+
+  async getBrandLogo(themeId) {
+    const theme = await this.getTheme(themeId);
+    return theme?.brand?.logo || null;
+  }
+
+  async getBrandBackgroundImage(themeId) {
+    const theme = await this.getTheme(themeId);
+    return theme?.brand?.backgroundImage || null;
+  }
+
+  /**
+   * Get hidden theme groups for a theme (categories to hide in Vibe Explorer)
+   * @param {string} themeId - Theme identifier
+   * @returns {Promise<string[]>} Array of theme group IDs to hide
+   */
+  async getHiddenThemeGroups(themeId) {
+    const theme = await this.getTheme(themeId);
+    return theme?.hiddenThemeGroups || [];
   }
 
   /**

@@ -1,9 +1,22 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 
 import PropTypes from 'prop-types';
+import urls from '../../config/urls';
 import { getCustomDimensions } from '../../utils/imageProcessing';
 import { useApp } from '../../context/AppContext.tsx';
 import { themeConfigService } from '../../services/themeConfig';
+import { useSogniAuth } from '../../services/sogniAuth';
+import { useWallet } from '../../hooks/useWallet';
+import { useCostEstimation } from '../../hooks/useCostEstimation.ts';
+import { getTokenLabel } from '../../services/walletService';
+import { styleIdToDisplay } from '../../utils';
+import { generateGalleryFilename, getPortraitFolderWithFallback } from '../../utils/galleryLoader';
+import { getThemeGroupPreferences } from '../../utils/cookies';
+import { getDefaultThemeGroupState } from '../../constants/themeGroups';
+import promptsDataRaw from '../../prompts.json';
+import { analyzeImageSubjects } from '../../services/faceAnalysisService';
+import { isContextImageModel, QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID } from '../../constants/settings';
+import { useToastContext } from '../../context/ToastContext';
 import '../../styles/components/ImageAdjuster.css';
 
 /**
@@ -15,28 +28,103 @@ const ImageAdjuster = ({
   onConfirm,
   onCancel,
   initialPosition = { x: 0, y: 0 },
-  defaultScale = 1
+  defaultScale = 1,
+  numImages = 1,
+  stylePrompts = {},
+  headerText = 'Adjust Your Image',
+  onUploadNew = null,
+  onNavigateToVibeExplorer = null,
+  photoSource = 'upload', // 'camera' or 'upload'
+  onTakeNewPhoto = null,
+  isCameraActive = false, // Whether camera is currently running in the background
+  onUseRawImage = null // Callback when user wants to use raw image without generation
 }) => {
+  // Guard against invalid props that could cause render crashes
+  if (!imageUrl) {
+    console.error('[IMAGE_ADJUSTER] CRITICAL: imageUrl is missing!');
+    return null;
+  }
 
   
-  const { settings } = useApp();
-  const { aspectRatio, tezdevTheme } = settings;
+  const { settings, updateSetting, switchToModel } = useApp();
+  const { aspectRatio, tezdevTheme, selectedModel, inferenceSteps, promptGuidance, scheduler, numImages: contextNumImages, selectedStyle, portraitType, positivePrompt, customSceneName } = settings;
+  const authState = useSogniAuth();
+  const { isAuthenticated } = authState;
+  const { tokenType } = useWallet();
+  const tokenLabel = getTokenLabel(tokenType);
+  const { showToast } = useToastContext();
   
-  // Calculate frame size based on aspect ratio
-  // Use 75% for 1:1 or wider ratios, 100% for portrait ratios
-  const getFrameSize = () => {
-    const wideAspectRatios = ['square', 'landscape', 'wide', 'ultrawide'];
-    return wideAspectRatios.includes(aspectRatio) ? '50%' : '100%';
-  };
   
-  const frameSize = getFrameSize();
+  // Check if only Personalized category is enabled (for label override)
+  const isOnlyPersonalizedEnabled = useMemo(() => {
+    const saved = getThemeGroupPreferences();
+    const defaultState = getDefaultThemeGroupState();
+    const themes = { ...defaultState, ...saved };
+    const entries = Object.entries(themes);
+    if (entries.length === 0) return false;
+    return themes['personalized'] === true &&
+      entries.every(([k, v]) => k === 'personalized' ? v : !v);
+  }, [selectedStyle]); // Re-check when style changes (proxy for settings update)
+
+  // Generate preview image path for selected style
+  const stylePreviewImage = useMemo(() => {
+    // Check if it's an individual style (not a prompt sampler mode)
+    const isIndividualStyle = selectedStyle && 
+      !['custom', 'random', 'randomMix', 'oneOfEach', 'browseGallery', 'copyImageStyle', 'simplePick'].includes(selectedStyle);
+    
+    if (isIndividualStyle) {
+      try {
+        const expectedFilename = generateGalleryFilename(selectedStyle);
+        const folder = getPortraitFolderWithFallback(portraitType, selectedStyle, promptsDataRaw);
+        return `${urls.assetUrl}/gallery/prompts/${folder}/${expectedFilename}`;
+      } catch (error) {
+        console.warn('Error generating style preview image:', error);
+        return null;
+      }
+    }
+    
+    return null;
+  }, [selectedStyle, portraitType]);
+  
+  // Batch count selection state
+  const batchOptions = [1, 2, 4, 8, 16];
+  const [selectedBatchCount, setSelectedBatchCount] = useState(numImages || contextNumImages);
+  const [isBatchDropdownOpen, setIsBatchDropdownOpen] = useState(false);
+
+  // Use original image checkbox state
+  const [useOriginalImage, setUseOriginalImage] = useState(false);
+
+  // Estimate cost for this generation
+  // ImageAdjuster uses InstantID ControlNet, not Qwen Image Edit
+  const { loading: costLoading, cost, costInUSD } = useCostEstimation({
+    model: selectedModel,
+    imageCount: selectedBatchCount,
+    stepCount: inferenceSteps,
+    guidance: promptGuidance,
+    scheduler: scheduler,
+    network: 'fast',
+    previewCount: 10,
+    contextImages: 0, // Not using context image models
+    cnEnabled: true // Using InstantID ControlNet
+  });
+  
   
   const containerRef = useRef(null);
   const imageRef = useRef(null);
+  const dropdownRef = useRef(null);
   
   // Track image position and scale - initialize directly with props
   const [position, setPosition] = useState(initialPosition);
   const [scale, setScale] = useState(defaultScale);
+  
+  // Track processing state to prevent unmounting during async operations
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // Face analysis state
+  const [faceCount, setFaceCount] = useState(null);
+  const pendingConfirmRef = useRef(null); // Stores blob when waiting for model switch
+  const pendingModelSwitchRef = useRef(false); // True when waiting for model switch to propagate
+  const subjectAnalysisRef = useRef(null); // Stores subject analysis result for passing to parent
 
   // Update position and scale when props change (for restoration)
   useEffect(() => {
@@ -48,6 +136,87 @@ const ImageAdjuster = ({
       sliderRef.current.value = defaultScale;
     }
   }, [initialPosition.x, initialPosition.y, defaultScale]);
+
+  // Reset imageLoaded when imageUrl changes (new image uploaded/selected)
+  // Also check if image is already loaded (cached images may load instantly)
+  useEffect(() => {
+    console.log('[IMAGE_ADJUSTER] ========== IMAGE URL CHANGED ==========');
+    console.log('[IMAGE_ADJUSTER] New imageUrl:', imageUrl?.substring(0, 50) + '...');
+    console.log('[IMAGE_ADJUSTER] Timestamp:', new Date().toISOString());
+    setImageLoaded(false);
+    
+    // Check if image is already loaded (cached images may load instantly)
+    // Use multiple checks with increasing delays to catch both cached and loading images
+    let checkCount = 0;
+    const maxChecks = 50; // Check for up to 5 seconds (50 * 100ms)
+    let timeoutId = null;
+    let isCleanedUp = false;
+    
+    const checkImageLoaded = () => {
+      if (isCleanedUp) return;
+      
+      checkCount++;
+      if (imageRef.current) {
+        const img = imageRef.current;
+        // Check if image is complete and has valid dimensions
+        // Don't check src match as blob URLs might be different objects
+        if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+          setImageLoaded(true);
+          return; // Stop checking
+        }
+      }
+      
+      // Continue checking if not loaded yet and haven't exceeded max checks
+      if (checkCount < maxChecks) {
+        timeoutId = setTimeout(checkImageLoaded, 100);
+      } else {
+        // After max checks, if image still not loaded, show it anyway to prevent stuck state
+        // This handles edge cases where onLoad never fires
+        // Show the image anyway - better to show a potentially broken image than stuck loading state
+        if (imageRef.current) {
+          setImageLoaded(true);
+        }
+      }
+    };
+    
+    // Start checking after a short delay to allow DOM to update
+    timeoutId = setTimeout(checkImageLoaded, 50);
+    
+    // Cleanup function to cancel pending checks
+    return () => {
+      isCleanedUp = true;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [imageUrl]);
+
+  // Background subject analysis when imageUrl changes
+  // For SD models: drives multi-face modal
+  // For context-image models: pre-warms cache for prompt rewriting
+  useEffect(() => {
+    if (!imageUrl) return;
+
+    let cancelled = false;
+    setFaceCount(null);
+
+    // Get the real SDK client for authenticated users (direct SDK analysis path)
+    const realClient = authState.isAuthenticated && authState.authMode === 'frontend'
+      ? authState.getSogniClient()
+      : null;
+
+    console.log('[SUBJECT_ANALYSIS] Starting background analysis...');
+    analyzeImageSubjects(imageUrl, realClient).then((result) => {
+      if (!cancelled) {
+        console.log('[SUBJECT_ANALYSIS] Result:', result.faceCount, 'face(s), description:', result.subjectDescription);
+        setFaceCount(result.faceCount);
+        // Store for passing to parent on confirm
+        subjectAnalysisRef.current = result;
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, [imageUrl]);
 
   // Load theme frame URLs and padding when theme or aspect ratio changes
   useEffect(() => {
@@ -61,11 +230,11 @@ const ImageAdjuster = ({
         } catch (error) {
           console.warn('Could not load theme frame URLs:', error);
           setFrameUrls([]);
-          setFramePadding(0);
+          setFramePadding({ top: 0, left: 0, right: 0, bottom: 0 });
         }
       } else {
         setFrameUrls([]);
-        setFramePadding(0);
+        setFramePadding({ top: 0, left: 0, right: 0, bottom: 0 });
       }
     };
 
@@ -77,7 +246,7 @@ const ImageAdjuster = ({
   
   // For dynamic theme frame URLs
   const [frameUrls, setFrameUrls] = useState([]);
-  const [framePadding, setFramePadding] = useState(0);
+  const [framePadding, setFramePadding] = useState({ top: 0, left: 0, right: 0, bottom: 0 });
   
   // For pinch zoom gesture
   const [isPinching, setIsPinching] = useState(false);
@@ -221,6 +390,23 @@ const ImageAdjuster = ({
       }
     };
   }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsBatchDropdownOpen(false);
+      }
+    };
+
+    if (isBatchDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isBatchDropdownOpen]);
   
   // Update position via DOM manipulation only (no React state updates during drag)
   const updatePositionDirect = useCallback((newPosition) => {
@@ -259,10 +445,22 @@ const ImageAdjuster = ({
   };
   
   // Handle image load
-  const handleImageLoad = () => {
-    setImageLoaded(true);
+  const handleImageLoad = useCallback(() => {
+    // Double-check that image is actually loaded before setting state
+    if (imageRef.current && imageRef.current.complete && 
+        imageRef.current.naturalWidth > 0 && imageRef.current.naturalHeight > 0) {
+      setImageLoaded(true);
+    } else {
+      // Retry after a short delay in case dimensions aren't ready yet
+      setTimeout(() => {
+        if (imageRef.current && imageRef.current.complete && 
+            imageRef.current.naturalWidth > 0 && imageRef.current.naturalHeight > 0) {
+          setImageLoaded(true);
+        }
+      }, 100);
+    }
     // Don't reset position - keep the initial position from props
-  };
+  }, []);
   
   // Add document-level event listeners for mouse drag operations
   useEffect(() => {
@@ -469,100 +667,240 @@ const ImageAdjuster = ({
     }
   }, []);
   
-  // Handle confirm button click
-  const handleConfirm = () => {
-    if (!containerRef.current || !imageRef.current) return;
-    
-    const container = containerRef.current;
-    const image = imageRef.current;
-    
-    // Create a canvas to render the adjusted image
-    const canvas = document.createElement('canvas');
-    canvas.width = dimensions.width;
-    canvas.height = dimensions.height;
-    const ctx = canvas.getContext('2d');
-    
-    // Enable high-quality image resampling for best results when resizing
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    
-    // Fill with black background to ensure proper borders
-    ctx.fillStyle = 'black';
-    ctx.fillRect(0, 0, dimensions.width, dimensions.height);
-    
-    // Calculate the image dimensions and fit it within the canvas maintaining aspect ratio (contain)
-    const imageAspect = image.naturalWidth / image.naturalHeight;
-    const canvasAspect = dimensions.width / dimensions.height;
-    
-    let drawWidth, drawHeight;
-    
-    if (imageAspect > canvasAspect) {
-      // Image is wider than canvas relative to height
-      drawWidth = dimensions.width;
-      drawHeight = dimensions.width / imageAspect;
-    } else {
-      // Image is taller than canvas relative to width
-      drawHeight = dimensions.height;
-      drawWidth = dimensions.height * imageAspect;
-    }
-    
-    // Calculate how user adjustments affect the drawing
-    // Convert from screen coordinates to canvas coordinates
-    const containerRect = container.getBoundingClientRect();
-    const screenToCanvasX = dimensions.width / containerRect.width;
-    const screenToCanvasY = dimensions.height / containerRect.height;
-    
-    // Apply the scale adjustment
-    drawWidth *= scale;
-    drawHeight *= scale;
-    
-    // Recalculate center offset after scaling
-    const scaledOffsetX = (dimensions.width - drawWidth) / 2;
-    const scaledOffsetY = (dimensions.height - drawHeight) / 2;
-    
-    // Apply position adjustments, converting from screen pixels to canvas pixels
-    const adjustedX = scaledOffsetX + (position.x * screenToCanvasX);
-    const adjustedY = scaledOffsetY + (position.y * screenToCanvasY);
-    
-    // Draw the image with all adjustments applied
-    ctx.drawImage(
-      image,
-      adjustedX,
-      adjustedY,
-      drawWidth,
-      drawHeight
-    );
-    
-    // Convert to PNG blob first with maximum quality to preserve details
-    canvas.toBlob(async (pngBlob) => {
-      // Convert PNG to high-quality JPEG for efficient upload
-      let finalBlob;
-      try {
-        const { convertPngToHighQualityJpeg } = await import('../../utils/imageProcessing.js');
-        // Don't add watermarks to adjusted images - they're used as placeholders
-        // Watermarks should only be applied to final outputs (downloads, shares)
-        finalBlob = await convertPngToHighQualityJpeg(pngBlob, 0.92, null);
-        console.log(`📊 ImageAdjuster: JPEG format selected for upload (no watermark - used as placeholder)`);
-      } catch (conversionError) {
-        console.warn('ImageAdjuster: JPEG conversion failed, using PNG:', conversionError);
-        finalBlob = pngBlob;
-        console.log(`📊 ImageAdjuster: PNG format (fallback)`);
+  // Process image with user adjustments (cropping, scaling, positioning)
+  // Returns a promise that resolves with the processed blob
+  const processImageWithAdjustments = useCallback(() => {
+    return new Promise((resolve, reject) => {
+      if (!containerRef.current || !imageRef.current) {
+        reject(new Error('Container or image ref not available'));
+        return;
       }
+      
+      const image = imageRef.current;
+      
+      // Validate image dimensions
+      if (!image.complete || !image.naturalWidth || !image.naturalHeight || 
+          image.naturalWidth === 0 || image.naturalHeight === 0) {
+        reject(new Error('Image is not ready yet. Please wait for the image to fully load.'));
+        return;
+      }
+      
+      const container = containerRef.current;
+      
+      // Create a canvas to render the adjusted image
+      const canvas = document.createElement('canvas');
+      canvas.width = dimensions.width;
+      canvas.height = dimensions.height;
+      const ctx = canvas.getContext('2d');
+      
+      // Enable high-quality image resampling
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      
+      // Fill with black background
+      ctx.fillStyle = 'black';
+      ctx.fillRect(0, 0, dimensions.width, dimensions.height);
+      
+      // Calculate the image dimensions and fit it within the canvas
+      const imageAspect = image.naturalWidth / image.naturalHeight;
+      const canvasAspect = dimensions.width / dimensions.height;
+      
+      let drawWidth, drawHeight;
+      
+      if (imageAspect > canvasAspect) {
+        drawWidth = dimensions.width;
+        drawHeight = dimensions.width / imageAspect;
+      } else {
+        drawHeight = dimensions.height;
+        drawWidth = dimensions.height * imageAspect;
+      }
+      
+      // Calculate how user adjustments affect the drawing
+      const containerRect = container.getBoundingClientRect();
+      const screenToCanvasX = dimensions.width / containerRect.width;
+      const screenToCanvasY = dimensions.height / containerRect.height;
+      
+      // Apply the scale adjustment
+      drawWidth *= scale;
+      drawHeight *= scale;
+      
+      // Recalculate center offset after scaling
+      const scaledOffsetX = (dimensions.width - drawWidth) / 2;
+      const scaledOffsetY = (dimensions.height - drawHeight) / 2;
+      
+      // Apply position adjustments
+      const adjustedX = scaledOffsetX + (position.x * screenToCanvasX);
+      const adjustedY = scaledOffsetY + (position.y * screenToCanvasY);
+      
+      // Draw the image with all adjustments applied
+      try {
+        ctx.drawImage(image, adjustedX, adjustedY, drawWidth, drawHeight);
+      } catch (drawError) {
+        console.error('[IMAGE_ADJUSTER] ctx.drawImage() failed:', drawError);
+        reject(new Error('Failed to process image. Please try again.'));
+        return;
+      }
+      
+      // Convert to PNG blob
+      try {
+        canvas.toBlob(async (pngBlob) => {
+          if (!pngBlob) {
+            console.error('[IMAGE_ADJUSTER] canvas.toBlob() failed - blob is null');
+            reject(new Error('Failed to process image. Please try again.'));
+            return;
+          }
+          
+          // Convert PNG to high-quality JPEG
+          let finalBlob;
+          try {
+            const { convertPngToHighQualityJpeg } = await import('../../utils/imageProcessing.js');
+            finalBlob = await convertPngToHighQualityJpeg(pngBlob, 0.92, null);
+          } catch (conversionError) {
+            console.warn('ImageAdjuster: JPEG conversion failed, using PNG:', conversionError);
+            finalBlob = pngBlob;
+          }
+          
+          if (!finalBlob) {
+            reject(new Error('Failed to process image. Please try again.'));
+            return;
+          }
+          
+          resolve(finalBlob);
+        }, 'image/png', 1.0);
+      } catch (toBlobError) {
+        console.error('[IMAGE_ADJUSTER] canvas.toBlob() threw error:', toBlobError);
+        reject(new Error('Failed to process image. Please try again.'));
+      }
+    });
+  }, [dimensions, scale, position]);
+  
+  // Proceed with generation (called directly or after model switch propagates)
+  const proceedWithGeneration = useCallback((finalBlob) => {
+    if (useOriginalImage && onUseRawImage) {
+      onUseRawImage(finalBlob);
+    } else {
+      onConfirm(finalBlob, { position, scale, batchCount: selectedBatchCount, subjectAnalysis: subjectAnalysisRef.current });
+    }
+  }, [position, scale, selectedBatchCount, onConfirm, useOriginalImage, onUseRawImage]);
+
+  // After model switch: wait for selectedModel to update, then proceed with generation.
+  // This ensures onConfirm (generateFromBlob) has the new model in its closure.
+  useEffect(() => {
+    if (pendingModelSwitchRef.current && isContextImageModel(selectedModel) && pendingConfirmRef.current) {
+      pendingModelSwitchRef.current = false;
+      const blob = pendingConfirmRef.current;
+      pendingConfirmRef.current = null;
+      proceedWithGeneration(blob);
+    }
+  }, [selectedModel]);
+
+  // Handle confirm button click
+  const handleConfirm = useCallback(async () => {
+    // Prevent multiple clicks while processing
+    if (isProcessing) {
+      return;
+    }
+
+    // Set processing state to prevent unmounting
+    setIsProcessing(true);
+
+    try {
+      const finalBlob = await processImageWithAdjustments();
 
       // Log final file size being transmitted
       const finalSizeMB = (finalBlob.size / 1024 / 1024).toFixed(2);
       console.log(`📤 ImageAdjuster transmission size: ${finalSizeMB}MB`);
 
-      onConfirm(finalBlob, { position, scale });
-    }, 'image/png', 1.0);
-  };
+      // Auto-switch model when multiple faces detected
+      const shouldAutoSwitch = faceCount !== null
+        && faceCount > 1
+        && !isContextImageModel(selectedModel)
+        && !useOriginalImage;
+
+      if (shouldAutoSwitch) {
+        console.log('[FACE_ANALYSIS] Multiple faces detected (' + faceCount + '), auto-switching model');
+        pendingConfirmRef.current = finalBlob;
+        if (switchToModel) {
+          pendingModelSwitchRef.current = true;
+          switchToModel(QWEN_IMAGE_EDIT_LIGHTNING_MODEL_ID);
+          showToast({
+            type: 'info',
+            title: 'Group Photo Detected',
+            message: `We detected ${faceCount} people, so we switched to a model that handles group photos better.`,
+            timeout: 5000
+          });
+        }
+        setIsProcessing(false);
+        return;
+      }
+
+      proceedWithGeneration(finalBlob);
+    } catch (error) {
+      console.error('[IMAGE_ADJUSTER] handleConfirm error:', error);
+      setIsProcessing(false);
+      alert(error.message || 'Failed to process image. Please try again.');
+    }
+  }, [isProcessing, processImageWithAdjustments, faceCount, selectedModel, useOriginalImage, proceedWithGeneration, switchToModel, showToast]);
   
   
   return (
     <div className="image-adjuster-overlay">
-      <div className="image-adjuster-container">
-        <h2>Adjust Your Image</h2>
-        <p className="image-adjuster-subtitle">Smaller faces can give more room for creativity.</p>
+      <div className="image-adjuster-wrapper">
+        <div className="image-adjuster-container">
+          {/* Pinned Style Widget - Top Left */}
+          <button 
+          className="image-adjuster-style-selector-button"
+          onClick={() => {
+            if (onNavigateToVibeExplorer) {
+              onNavigateToVibeExplorer();
+            }
+          }}
+          title="Your selected vibe - Click to change"
+        >
+          <div className="image-adjuster-style-selector-content">
+            {stylePreviewImage ? (
+              <img 
+                src={stylePreviewImage} 
+                alt={selectedStyle ? styleIdToDisplay(selectedStyle) : 'Style preview'}
+                className="image-adjuster-style-preview-image"
+                onError={(e) => {
+                  // Fallback to emoji icon if image fails to load
+                  e.currentTarget.style.display = 'none';
+                  const fallbackIcon = e.currentTarget.nextElementSibling;
+                  if (fallbackIcon && fallbackIcon.classList.contains('image-adjuster-style-icon-fallback')) {
+                    fallbackIcon.style.display = 'block';
+                  }
+                }}
+              />
+            ) : null}
+            <span className={`image-adjuster-style-icon ${stylePreviewImage ? 'image-adjuster-style-icon-fallback' : ''}`} style={stylePreviewImage ? { display: 'none' } : {}}>
+              🎨
+            </span>
+            <div className="image-adjuster-style-info">
+              <div className="image-adjuster-style-label">Selected vibe</div>
+              <div className="image-adjuster-style-text">
+                {selectedStyle === 'custom' ? 'Custom...' : ((selectedStyle === 'randomMix' || selectedStyle === 'simplePick') && isOnlyPersonalizedEnabled) ? 'Personalized' : selectedStyle ? styleIdToDisplay(selectedStyle) : 'Select Style'}
+              </div>
+            </div>
+          </div>
+        </button>
+        
+        {/* Close button in top right */}
+        <button 
+          className="image-adjuster-close-btn"
+          onClick={onCancel}
+          title="Close"
+        >
+          ×
+        </button>
+        
+        <h2>{headerText}</h2>
+        <p className="image-adjuster-subtitle">
+          {headerText === 'Adjust Your Style Reference' 
+            ? 'Crop and position your style reference image.' 
+            : 'Smaller faces can give more room for creativity.'}
+        </p>
+        
         <div 
           className="image-frame"
           ref={containerRef}
@@ -576,6 +914,7 @@ const ImageAdjuster = ({
         >
           <div className="image-container">
             <img
+              key={imageUrl} // Force re-render when URL changes to ensure onLoad fires
               ref={imageRef}
               src={imageUrl}
               alt="Adjust this image"
@@ -584,11 +923,29 @@ const ImageAdjuster = ({
                 transformOrigin: 'center',
                 cursor: isDragging ? 'grabbing' : 'grab',
                 opacity: imageLoaded ? 1 : 0, // Hide until loaded
-                transition: 'opacity 0.3s ease'
+                transition: 'opacity 0.3s ease',
+                // Use contain to show the full source image without clipping
+                // This ensures the entire image is visible when resizing the widget
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                objectPosition: 'center'
               }}
               onLoad={() => {
-                console.log('Image loaded with position:', position, 'scale:', scale);
+                console.log('[IMAGE_ADJUSTER] <img> onLoad event fired');
+                console.log('[IMAGE_ADJUSTER] Position:', position, 'Scale:', scale);
+                console.log('[IMAGE_ADJUSTER] Frame padding:', framePadding);
+                console.log('[IMAGE_ADJUSTER] Theme:', tezdevTheme);
                 handleImageLoad();
+              }}
+              onError={(e) => {
+                console.error('Image failed to load:', e);
+                // Show image anyway after error to prevent stuck loading state
+                // User will see broken image rather than infinite loading
+                setTimeout(() => {
+                  console.warn('Setting imageLoaded to true despite error to prevent stuck state');
+                  setImageLoaded(true);
+                }, 500);
               }}
               onMouseDown={handleDragStart}
               onTouchStart={handleDragStart}
@@ -612,7 +969,7 @@ const ImageAdjuster = ({
                   backgroundRepeat: 'no-repeat',
                   pointerEvents: 'none',
                   zIndex: 2,
-                  borderRadius: '5px',
+                  borderRadius: '0',
                   transform: 'translateZ(0)' // Force GPU acceleration for crisp rendering
                 }}
               />
@@ -627,6 +984,7 @@ const ImageAdjuster = ({
                 <div className="frame-corner bottom-right"></div>
               </>
             )}
+            
           </div>
 
         </div>
@@ -660,19 +1018,108 @@ const ImageAdjuster = ({
           </div>
         </div>
         
-        <div className="image-adjustment-buttons">
-          <button 
-            className="cancel-button"
-            onClick={onCancel}
-          >
-            Cancel
-          </button>
-          <button 
-            className="confirm-button" 
-            onClick={handleConfirm}
-          >
-            Confirm
-          </button>
+        <div className={`image-adjustment-buttons ${settings.showSplashOnInactivity ? 'kiosk-mode' : ''}`}>
+          {/* Replace/Swap image button - now in button bar */}
+          {(onUploadNew || onTakeNewPhoto) && (
+            <button
+              className="swap-image-button"
+              onClick={photoSource === 'camera' && onTakeNewPhoto ? onTakeNewPhoto : onUploadNew}
+              title={photoSource === 'camera' ? (isCameraActive ? "Close and take new photo" : "Take a new photo") : "Upload a different image"}
+            >
+              {photoSource === 'camera' ? '📷' : '⬆️'}
+              <span className="button-label">
+                New
+              </span>
+            </button>
+          )}
+
+
+          <div className="imagine-button-wrapper">
+            <div className="batch-dropdown-container" ref={dropdownRef}>
+              <button
+                className="confirm-button confirm-button-main"
+                onClick={handleConfirm}
+                disabled={isProcessing || !imageLoaded}
+                style={{
+                  ...(headerText === 'Adjust Your Style Reference' ? { borderRadius: '12px' } : {}),
+                  ...(isProcessing || !imageLoaded ? { opacity: 0.6, cursor: 'not-allowed' } : {})
+                }}
+              >
+                {headerText === 'Adjust Your Style Reference' ? (
+                  'Continue'
+                ) : (
+                  <div className="confirm-button-content">
+                    <div className="confirm-button-label">
+                      {isProcessing ? '⏳ Processing...' : !imageLoaded ? '⏳ Loading image...' : useOriginalImage ? `Use Original ${selectedBatchCount}x` : `Imagine ${selectedBatchCount}x`}
+                    </div>
+                    <div className="confirm-button-details">
+                      {!settings.showSplashOnInactivity && !isProcessing && !useOriginalImage && isAuthenticated && !costLoading && cost !== null && (
+                        <>
+                          <span className="price-token">{cost.toFixed(2)} {tokenLabel.split(' ')[0]}</span>
+                          {costInUSD !== null && (
+                            <span className="price-usd">≈ ${(Math.round(costInUSD * 100) / 100).toFixed(2)}</span>
+                          )}
+                        </>
+                      )}
+                      {!settings.showSplashOnInactivity && useOriginalImage && !isProcessing && (
+                        <span className="price-free">Free</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </button>
+              {headerText !== 'Adjust Your Style Reference' && (
+                <button
+                  className="confirm-button confirm-button-dropdown"
+                  onClick={() => setIsBatchDropdownOpen(!isBatchDropdownOpen)}
+                  disabled={isProcessing}
+                  aria-label="Select batch count"
+                  style={{
+                    ...(isProcessing ? { opacity: 0.6, cursor: 'not-allowed' } : {}),
+                    borderLeft: '1px solid rgba(255, 255, 255, 0.15)'
+                  }}
+                >
+                  <span className="dropdown-caret">▼</span>
+                </button>
+              )}
+              {isBatchDropdownOpen && (
+                <div className="batch-dropdown-menu">
+                  {batchOptions.map(count => (
+                    <button
+                      key={count}
+                      className={`batch-dropdown-item ${count === selectedBatchCount ? 'selected' : ''}`}
+                      onClick={() => {
+                        console.log(`🔢 Batch count changed to ${count}`);
+                        setSelectedBatchCount(count);
+                        updateSetting('numImages', count); // Save to settings immediately
+                        setIsBatchDropdownOpen(false);
+                      }}
+                    >
+                      {count}x
+                      {count === selectedBatchCount && <span className="checkmark">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* Use Original checkbox - right under the Imagine button */}
+            {onUseRawImage && headerText !== 'Adjust Your Style Reference' && !settings.showSplashOnInactivity && (
+              <label
+                className="use-raw-image-checkbox"
+                title="Skip AI generation and use your cropped/adjusted image as-is"
+              >
+                <input
+                  type="checkbox"
+                  checked={useOriginalImage}
+                  onChange={(e) => setUseOriginalImage(e.target.checked)}
+                />
+                skip AI generation
+              </label>
+            )}
+          </div>
+        </div>
+
+        
         </div>
       </div>
     </div>
@@ -687,7 +1134,16 @@ ImageAdjuster.propTypes = {
     x: PropTypes.number,
     y: PropTypes.number
   }),
-  defaultScale: PropTypes.number
+  defaultScale: PropTypes.number,
+  numImages: PropTypes.number,
+  stylePrompts: PropTypes.object,
+  headerText: PropTypes.string,
+  onUploadNew: PropTypes.func,
+  onNavigateToVibeExplorer: PropTypes.func,
+  photoSource: PropTypes.oneOf(['camera', 'upload']),
+  onTakeNewPhoto: PropTypes.func,
+  isCameraActive: PropTypes.bool,
+  onUseRawImage: PropTypes.func
 };
 
 export default ImageAdjuster; 

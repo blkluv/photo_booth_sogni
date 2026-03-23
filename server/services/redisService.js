@@ -248,6 +248,17 @@ export const listAllTwitterSessions = async () => {
 
 export const redisReady = () => redisClient.isOpen;
 
+/**
+ * Get the Redis client instance
+ * @returns {Object|null} - Redis client or null if not connected
+ */
+export const getRedisClient = () => {
+  return redisClient.isOpen ? redisClient : null;
+};
+
+// Export redisClient for direct access
+export { redisClient };
+
 export default redisClient;
 
 // Metrics tracking prefixes
@@ -382,5 +393,268 @@ export const getAllMetrics = async () => {
   } catch (error) {
     console.error('[Redis] Error retrieving metrics:', error);
     return null;
+  }
+};
+
+// Contest tracking prefixes
+const CONTEST_PREFIX = 'contest:';
+const CONTEST_ENTRY_PREFIX = 'contest:entry:';
+const CONTEST_INDEX_PREFIX = 'contest:index:';
+
+/**
+ * Store a contest entry in Redis
+ * @param {string} contestId - Contest identifier
+ * @param {string} entryId - Entry ID
+ * @param {Object} entry - Entry data
+ * @returns {Promise<boolean>} - Success status
+ */
+export const storeContestEntry = async (contestId, entryId, entry) => {
+  if (!redisClient.isOpen) {
+    console.warn('[Redis] Not connected, cannot store contest entry');
+    return false;
+  }
+
+  try {
+    const entryKey = `${CONTEST_ENTRY_PREFIX}${contestId}:${entryId}`;
+    const indexKey = `${CONTEST_INDEX_PREFIX}${contestId}`;
+
+    // Store the entry data as JSON
+    await redisClient.set(entryKey, JSON.stringify(entry));
+
+    // Add entry ID to sorted set (sorted by timestamp)
+    await redisClient.zAdd(indexKey, {
+      score: entry.timestamp,
+      value: entryId
+    });
+
+    // Increment contest entry counter
+    await incrementMetric(`contest:${contestId}:entries`, 1);
+
+    console.log(`[Redis] Stored contest entry ${contestId}:${entryId}`);
+    return true;
+  } catch (error) {
+    console.error('[Redis] Error storing contest entry:', error);
+    return false;
+  }
+};
+
+/**
+ * Get contest entries with pagination
+ * @param {string} contestId - Contest identifier
+ * @param {Object} options - Query options
+ * @returns {Promise<Object>} - Paginated entries
+ */
+export const getContestEntries = async (contestId, options = {}) => {
+  if (!redisClient.isOpen) {
+    console.warn('[Redis] Not connected, cannot retrieve contest entries');
+    return { entries: [], total: 0, page: 1, limit: 20, totalPages: 0 };
+  }
+
+  const {
+    page = 1,
+    limit = 20,
+    sortBy = 'timestamp',
+    order = 'desc',
+    moderationStatus = null
+  } = options;
+
+  try {
+    const indexKey = `${CONTEST_INDEX_PREFIX}${contestId}`;
+
+    // Get all entry IDs from sorted set (we'll filter after)
+    const allEntryIds = order === 'desc'
+      ? await redisClient.zRange(indexKey, 0, -1, { REV: true })
+      : await redisClient.zRange(indexKey, 0, -1);
+
+    // Fetch all entry data and filter
+    let entries = [];
+    for (const entryId of allEntryIds) {
+      const entryKey = `${CONTEST_ENTRY_PREFIX}${contestId}:${entryId}`;
+      const data = await redisClient.get(entryKey);
+      if (data) {
+        const entry = JSON.parse(data);
+        // Filter by moderation status if specified
+        if (!moderationStatus || entry.moderationStatus === moderationStatus) {
+          entries.push(entry);
+        }
+      }
+    }
+
+    // Sort by votes if needed
+    if (sortBy === 'votes') {
+      entries.sort((a, b) => {
+        const aVotes = (a.votes || []).length;
+        const bVotes = (b.votes || []).length;
+        
+        // Primary sort by vote count
+        if (aVotes !== bVotes) {
+          return order === 'asc' ? aVotes - bVotes : bVotes - aVotes;
+        }
+        
+        // Secondary sort by timestamp (newest first) when votes are equal
+        return b.timestamp - a.timestamp;
+      });
+    } else if (sortBy !== 'timestamp') {
+      // Sort by other fields if needed
+      entries.sort((a, b) => {
+        const aVal = a[sortBy];
+        const bVal = b[sortBy];
+        if (order === 'asc') {
+          return aVal > bVal ? 1 : -1;
+        } else {
+          return aVal < bVal ? 1 : -1;
+        }
+      });
+    }
+
+    // Get total after filtering
+    const total = entries.length;
+
+    // Apply pagination after filtering
+    const start = (page - 1) * limit;
+    const end = start + limit;
+    const paginatedEntries = entries.slice(start, end);
+
+    return {
+      entries: paginatedEntries,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    };
+  } catch (error) {
+    console.error('[Redis] Error getting contest entries:', error);
+    return { entries: [], total: 0, page: 1, limit: 20, totalPages: 0 };
+  }
+};
+
+/**
+ * Get a specific contest entry
+ * @param {string} contestId - Contest identifier
+ * @param {string} entryId - Entry ID
+ * @returns {Promise<Object|null>} - Entry data or null
+ */
+export const getContestEntry = async (contestId, entryId) => {
+  if (!redisClient.isOpen) {
+    console.warn('[Redis] Not connected, cannot retrieve contest entry');
+    return null;
+  }
+
+  try {
+    const entryKey = `${CONTEST_ENTRY_PREFIX}${contestId}:${entryId}`;
+    const data = await redisClient.get(entryKey);
+
+    if (data) {
+      return JSON.parse(data);
+    }
+
+    return null;
+  } catch (error) {
+    console.error('[Redis] Error getting contest entry:', error);
+    return null;
+  }
+};
+
+/**
+ * Get contest statistics
+ * @param {string} contestId - Contest identifier
+ * @returns {Promise<Object>} - Contest statistics
+ */
+export const getContestStats = async (contestId) => {
+  if (!redisClient.isOpen) {
+    console.warn('[Redis] Not connected, cannot retrieve contest stats');
+    return {
+      totalEntries: 0,
+      uniqueUsers: 0,
+      oldestEntry: null,
+      newestEntry: null
+    };
+  }
+
+  try {
+    const indexKey = `${CONTEST_INDEX_PREFIX}${contestId}`;
+
+    // Get total entries
+    const totalEntries = await redisClient.zCard(indexKey);
+
+    // Get oldest and newest timestamps
+    let oldestEntry = null;
+    let newestEntry = null;
+
+    if (totalEntries > 0) {
+      const oldest = await redisClient.zRange(indexKey, 0, 0, { WITHSCORES: true });
+      const newest = await redisClient.zRange(indexKey, -1, -1, { WITHSCORES: true });
+
+      if (oldest.length > 0) {
+        oldestEntry = parseInt(oldest[0].score);
+      }
+      if (newest.length > 0) {
+        newestEntry = parseInt(newest[0].score);
+      }
+    }
+
+    // Count unique users by iterating through all entries
+    let uniqueUsers = 0;
+    if (totalEntries > 0) {
+      const allEntryIds = await redisClient.zRange(indexKey, 0, -1);
+      const uniqueUserSet = new Set();
+      
+      for (const entryId of allEntryIds) {
+        const entryKey = `${CONTEST_ENTRY_PREFIX}${contestId}:${entryId}`;
+        const data = await redisClient.get(entryKey);
+        if (data) {
+          const entry = JSON.parse(data);
+          const userIdentifier = entry.address || entry.username || 'anonymous';
+          uniqueUserSet.add(userIdentifier);
+        }
+      }
+      
+      uniqueUsers = uniqueUserSet.size;
+    }
+
+    return {
+      totalEntries,
+      uniqueUsers,
+      oldestEntry,
+      newestEntry
+    };
+  } catch (error) {
+    console.error('[Redis] Error getting contest stats:', error);
+    return {
+      totalEntries: 0,
+      uniqueUsers: 0,
+      oldestEntry: null,
+      newestEntry: null
+    };
+  }
+};
+
+/**
+ * Delete a contest entry from Redis
+ * @param {string} contestId - Contest identifier
+ * @param {string} entryId - Entry ID
+ * @returns {Promise<boolean>} - Success status
+ */
+export const deleteContestEntry = async (contestId, entryId) => {
+  if (!redisClient.isOpen) {
+    console.warn('[Redis] Not connected, cannot delete contest entry');
+    return false;
+  }
+
+  try {
+    const entryKey = `${CONTEST_ENTRY_PREFIX}${contestId}:${entryId}`;
+    const indexKey = `${CONTEST_INDEX_PREFIX}${contestId}`;
+
+    // Delete the entry data
+    await redisClient.del(entryKey);
+
+    // Remove from sorted set
+    await redisClient.zRem(indexKey, entryId);
+
+    console.log(`[Redis] Deleted contest entry ${contestId}:${entryId}`);
+    return true;
+  } catch (error) {
+    console.error('[Redis] Error deleting contest entry:', error);
+    return false;
   }
 }; 

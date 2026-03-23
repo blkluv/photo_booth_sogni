@@ -116,7 +116,7 @@
 
 .aspect-ratio-option.active {
   background: rgba(255, 94, 138, 0.15);
-  color: #ff5e8a;
+  color: var(--brand-accent-secondary);
 }
 
 .aspect-ratio-dropdown .option-icon {

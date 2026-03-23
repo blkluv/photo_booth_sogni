@@ -49,6 +49,7 @@ jspm_packages/
 
 # dotenv environment variables file
 .env
+.env.local
 .env.staging
 .env.production
 
@@ -72,3 +73,11 @@ Thumbs.db
 # Test results
 test-results/
 playwright-report/
+
+# Runtime data files
+server/mobile-shares.json
+
+server/uploads/contest/gallery-submissions/
+
+# Local scripts (not for version control)
+local-scripts/

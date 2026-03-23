@@ -50,9 +50,13 @@ export default defineConfig(({ mode }) => {
         allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "X-Client-App-ID"]
       },
       // Allow iframe embedding for browser extension
+      // Add COOP/COEP headers for SharedArrayBuffer support (required for FFmpeg.wasm on mobile)
+      // Using 'credentialless' instead of 'require-corp' to allow external resources like R2
       headers: {
         'X-Frame-Options': 'ALLOWALL',
-        'Content-Security-Policy': "frame-ancestors *;"
+        'Content-Security-Policy': "frame-ancestors *;",
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'credentialless'
       },
       proxy: {
         // Proxy API requests to the backend server
@@ -92,23 +96,22 @@ export default defineConfig(({ mode }) => {
       assetsDir: 'assets',
       // Ensure JSON files and JavaScript configs are included in the build
       assetsInclude: ['**/*.json', 'src/constants/**/*.js'],
-      // AGGRESSIVE cache busting with content hashes AND timestamps for all assets
+      // Cache busting with content hashes - hash changes when content changes
       rollupOptions: {
         output: {
-          // Add hash AND timestamp to all JS and CSS files for maximum cache busting
-          entryFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
-          chunkFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
+          // Content hash provides cache busting when files change
+          entryFileNames: `assets/[name]-[hash].js`,
+          chunkFileNames: `assets/[name]-[hash].js`,
           assetFileNames: (assetInfo) => {
             const info = assetInfo.name.split('.');
             const ext = info[info.length - 1];
-            const timestamp = Date.now();
             if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(ext)) {
-              return `assets/images/[name]-[hash]-${timestamp}.${ext}`;
+              return `assets/images/[name]-[hash].${ext}`;
             }
             if (/css/i.test(ext)) {
-              return `assets/css/[name]-[hash]-${timestamp}.${ext}`;
+              return `assets/css/[name]-[hash].${ext}`;
             }
-            return `assets/[name]-[hash]-${timestamp}.${ext}`;
+            return `assets/[name]-[hash].${ext}`;
           },
         },
       },

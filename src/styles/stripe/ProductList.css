@@ -1,0 +1,282 @@
+/* Product List - Matches sogni-web StripePurchaseV2 */
+
+.stripe-header {
+  padding: 32px 24px 24px;
+  text-align: center;
+}
+
+.stripe-spark-label {
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  color: #00d5ff;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.stripe-header h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0;
+}
+
+/* Swiper product slider */
+.stripe-slider-container {
+  margin-top: 24px;
+}
+
+.stripe-product-slider {
+  padding: 0 16px;
+}
+
+.stripe-product-slider .swiper-slide {
+  width: 236px;
+}
+
+.stripe-product-slide {
+  width: 236px;
+  height: 123px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(205, 229, 255, 0.1);
+  background: rgba(16, 18, 20, 0.8);
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.stripe-product-active {
+  border: 1px solid #00d5ff;
+}
+
+.stripe-slide-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.stripe-slide-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.stripe-most-popular {
+  color: #00d5ff;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.stripe-product-slide p {
+  font-size: 13px;
+  font-weight: 500;
+  margin: 0 0 8px;
+}
+
+.stripe-slide-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.stripe-slide-price {
+  font-size: 14px;
+  color: #ffffff;
+}
+
+.stripe-discount-badge {
+  display: flex;
+  padding: 3px 8px;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  border-radius: 11px;
+  font-size: 12px;
+  font-weight: 500;
+  background: rgba(0, 213, 255, 0.1);
+  color: #00d5ff;
+}
+
+.stripe-product-placeholder {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Content section below slider */
+.stripe-content {
+  padding: 0 24px 24px;
+}
+
+.stripe-content p {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+  text-align: center;
+  margin: 0 0 48px;
+}
+
+.stripe-content p.stripe-progress-message {
+  color: #ffffff;
+  margin: 0 0 36px;
+}
+
+/* Perks list */
+.stripe-perks {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  margin: 32px 0;
+  list-style: none;
+  padding: 0;
+}
+
+.stripe-perks li {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stripe-perk-icons {
+  display: flex;
+  align-items: center;
+}
+
+/* CTA button */
+.stripe-cta-button {
+  width: 100%;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 22px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: linear-gradient(135deg, #00b4d8, #00d5ff);
+  color: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: opacity 0.2s ease;
+}
+
+.stripe-cta-button:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.stripe-cta-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.stripe-cta-button-spark {
+  background: linear-gradient(135deg, #00b4d8, #00d5ff);
+}
+
+/* Progress buttons */
+.stripe-progress-buttons {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 16px;
+}
+
+.stripe-progress-buttons button {
+  min-width: 215px;
+}
+
+.stripe-dismiss-button {
+  padding: 12px 24px;
+  border-radius: 22px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.7);
+  transition: all 0.2s ease;
+}
+
+.stripe-dismiss-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Spinner */
+.stripe-spinner {
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top: 3px solid #00d5ff;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  animation: stripe-spin 1s linear infinite;
+}
+
+.stripe-spinner-small {
+  display: inline-block;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  border-top: 2px solid #000;
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  animation: stripe-spin 0.8s linear infinite;
+}
+
+@keyframes stripe-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Loading overlay */
+.stripe-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(16, 18, 20, 0.85);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  z-index: 5;
+}
+
+/* CTA description text */
+.stripe-cta-description {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+  text-align: center;
+  margin: 0 0 48px;
+}
+
+@media (max-width: 480px) {
+  .stripe-progress-buttons {
+    width: 100%;
+  }
+
+  .stripe-progress-buttons button {
+    width: 100%;
+  }
+}

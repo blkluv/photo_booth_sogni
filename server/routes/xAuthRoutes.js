@@ -1,7 +1,7 @@
 import express from 'express';
 // import { generateAuthLink, loginWithOAuth2, shareImageToX } from '../services/twitterShareService.js'; // We'll uncomment later
 import crypto from 'crypto'; // For generating a random state string
-import { generateAuthLink, loginWithOAuth2, shareImageToX, CLIENT_ORIGIN, refreshOAuth2Token, getClientFromToken } from '../services/twitterShareService.js';
+import { generateAuthLink, loginWithOAuth2, shareImageToX, shareVideoToX, CLIENT_ORIGIN, refreshOAuth2Token, getClientFromToken } from '../services/twitterShareService.js';
 import { v4 as uuidv4 } from 'uuid';
 import process from 'process'; // Add process import for environment variables
 import { 
@@ -14,6 +14,8 @@ import {
   listAllTwitterSessions,
   incrementTwitterShares
 } from '../services/redisService.js';
+import { trackMetric } from '../services/analyticsService.js';
+import { saveContestEntry } from '../services/contestService.js';
 
 const router = express.Router();
 
@@ -22,6 +24,50 @@ const sessionOAuthData = new Map();
 const sessionIdIndex = new Map();
 const OAUTH_DATA_TTL = 15 * 60 * 1000; // 15 minutes TTL for OAuth data (in-memory fallback)
 const OAUTH_DATA_TTL_SECONDS = 15 * 60; // 15 minutes TTL for Redis
+
+// Twitter character limits
+const TWITTER_MAX_TWEET_LENGTH = 280; // Non-premium account limit
+const TWITTER_URL_LENGTH = 23; // Twitter counts all URLs as 23 characters (t.co shortening)
+
+/**
+ * Truncate tweet text to fit within Twitter's character limit
+ * Twitter counts all URLs as exactly 23 characters regardless of actual length (via t.co shortening)
+ * @param {string} message - The message to include in the tweet
+ * @param {string} shareUrl - Optional URL to append to the tweet
+ * @returns {string} - Truncated tweet text that fits within Twitter's limits
+ */
+const truncateTweetText = (message, shareUrl = null) => {
+  // Ensure message is a string
+  const messageStr = message || "Created in #SogniPhotobooth";
+  
+  // Calculate how Twitter will count the final tweet
+  // Twitter counts URLs as 23 chars, but we need to account for actual message length
+  let maxMessageLength = TWITTER_MAX_TWEET_LENGTH;
+  
+  // If we have a URL, reserve space for it (23 chars for URL + 1 space)
+  if (shareUrl) {
+    maxMessageLength -= (TWITTER_URL_LENGTH + 1); // 280 - 24 = 256 chars for message
+  }
+  
+  // Check if message fits within available space
+  let finalMessage = messageStr;
+  if (messageStr.length > maxMessageLength) {
+    // Truncate message with ellipsis (reserve 3 chars for "...")
+    finalMessage = messageStr.substring(0, maxMessageLength - 3) + '...';
+  }
+  
+  // Build final tweet text
+  const tweetText = shareUrl ? `${finalMessage} ${shareUrl}` : finalMessage;
+  
+  // Validate the result will fit in Twitter's limit
+  // For validation: count message + (URL as 23 chars if present)
+  const twitterCharCount = finalMessage.length + (shareUrl ? TWITTER_URL_LENGTH + 1 : 0);
+  if (twitterCharCount > TWITTER_MAX_TWEET_LENGTH) {
+    console.warn(`[Tweet Truncation] Warning: Tweet may exceed limit. Message: ${finalMessage.length}, Twitter count: ${twitterCharCount}`);
+  }
+  
+  return tweetText;
+};
 
 // Debug endpoint to verify Redis is working properly
 // Only enable in development or when explicitly allowed
@@ -169,11 +215,17 @@ const getSessionId = (req, res, next) => {
 // POST /api/auth/x/start - Initiate Twitter OAuth flow
 router.post('/start', getSessionId, async (req, res) => {
   try {
-    // Check for required data
-    const { imageUrl, message, shareUrl } = req.body;
-    if (!imageUrl) {
-      return res.status(400).json({ message: 'No image URL provided' });
+    // Check for required data - support both image and video
+    const { imageUrl, videoUrl, isVideo, message, shareUrl, halloweenContext, submitToContest, prompt, username, address, metadata } = req.body;
+    
+    // For videos, we need either videoUrl or imageUrl (as fallback thumbnail)
+    const mediaUrl = isVideo ? (videoUrl || imageUrl) : imageUrl;
+    
+    if (!mediaUrl) {
+      return res.status(400).json({ message: 'No media URL provided' });
     }
+    
+    console.log(`[Twitter OAuth] Starting share flow - isVideo: ${isVideo}, mediaUrl: ${mediaUrl.substring(0, 80)}...`);
 
     const sessionId = req.sessionId;
     
@@ -229,18 +281,34 @@ router.post('/start', getSessionId, async (req, res) => {
       // Try to use existing token for direct share if still valid or successfully refreshed
       if (!isExpired || existingOAuthData.lastRefresh) {
         try {
-          console.log('[Twitter OAuth] Using existing token to share directly');
+          console.log(`[Twitter OAuth] Using existing token to share directly (isVideo: ${isVideo})`);
           
           // Create Twitter client from the stored token
           const loggedUserClient = getClientFromToken(existingOAuthData.accessToken);
           
-          // Construct tweet text with custom message and shareUrl
-          const tweetText = shareUrl
-            ? `${message || "Created in #SogniPhotobooth"} ${shareUrl}`
-            : message || "Created in #SogniPhotobooth https://photobooth.sogni.ai";
+          // Construct tweet text with custom message and shareUrl, truncated to Twitter's character limit
+          const fallbackUrl = shareUrl || "https://photobooth.sogni.ai";
+          const tweetText = truncateTweetText(
+            message || "Created in #SogniPhotobooth",
+            shareUrl || (message ? fallbackUrl : null) // Only add fallback URL if no shareUrl and we have a custom message
+          );
           
-          // Attempt to share the image directly
-          await shareImageToX(loggedUserClient, imageUrl, tweetText);
+          // Attempt to share the media directly - use video function if it's a video
+          let tweetResult;
+          if (isVideo && videoUrl) {
+            console.log('[Twitter OAuth] Sharing video to Twitter (direct share)...');
+            console.log('[Twitter OAuth] Video URL:', videoUrl.substring(0, 100) + '...');
+            try {
+              tweetResult = await shareVideoToX(loggedUserClient, videoUrl, tweetText);
+            } catch (videoError) {
+              console.error('[Twitter OAuth] DIRECT VIDEO UPLOAD FAILED:', videoError.message);
+              console.error('[Twitter OAuth] Full video error:', videoError);
+              throw videoError;
+            }
+          } else {
+            console.log('[Twitter OAuth] Sharing image to Twitter...');
+            tweetResult = await shareImageToX(loggedUserClient, mediaUrl, tweetText);
+          }
           
           // Update usage timestamps
           existingOAuthData.lastUsed = Date.now();
@@ -254,12 +322,43 @@ router.post('/start', getSessionId, async (req, res) => {
             sessionOAuthData.set(sessionId, existingOAuthData);
           }
           
-          // Track successful share in metrics
+          // Track successful share in metrics (both old and new systems)
           await incrementTwitterShares();
+          await trackMetric('twitter_shares', 1);
           
-          // Send direct success response
           console.log('[Twitter OAuth] Successfully shared directly using existing token');
           
+          // If user explicitly wants to submit to contest, submit to contest (direct share path)
+          if (submitToContest && prompt && tweetResult?.data?.id) {
+            try {
+              console.log('[Contest] Submitting Halloween contest entry (direct share)');
+              const tweetUrl = `https://twitter.com/i/web/status/${tweetResult.data.id}`;
+              
+              await saveContestEntry({
+                contestId: 'halloween',
+                imageUrl,
+                prompt,
+                username,
+                address,
+                tweetId: tweetResult.data.id,
+                tweetUrl,
+                metadata: {
+                  ...(metadata || {}),
+                  message: message || '',
+                  shareUrl: shareUrl || '',
+                  timestamp: Date.now(),
+                  shareType: 'direct'
+                }
+              });
+              
+              console.log('[Contest] Successfully submitted Halloween contest entry (direct share)');
+            } catch (contestError) {
+              // Don't fail the whole share if contest submission fails
+              console.error('[Contest] Error submitting contest entry (direct share):', contestError);
+            }
+          }
+          
+          // Send direct success response
           // Make sure the response includes all necessary fields for the client to recognize success
           return res.json({ 
             success: true,
@@ -293,8 +392,16 @@ router.post('/start', getSessionId, async (req, res) => {
       codeVerifier,
       timestamp: Date.now(),
       pendingImageUrl: imageUrl,
+      pendingVideoUrl: videoUrl || null,
+      pendingIsVideo: isVideo || false,
       pendingMessage: message,
-      pendingShareUrl: shareUrl
+      pendingShareUrl: shareUrl,
+      halloweenContext: halloweenContext || false,
+      submitToContest: submitToContest || false,
+      prompt: prompt || null,
+      username: username || null,
+      address: address || null,
+      metadata: metadata || null
     };
     
     if (redisReady()) {
@@ -373,7 +480,7 @@ router.get('/callback', async (req, res) => {
     // onsole.log('[Twitter OAuth] Retrieved OAuth data successfully, proceeding with Twitter API call');
 
     // Extract required data from OAuth data
-    const { codeVerifier, pendingImageUrl: imageUrl, pendingMessage: message } = oauthData;
+    const { codeVerifier, pendingImageUrl: imageUrl, pendingVideoUrl: videoUrl, pendingIsVideo: isVideo, pendingMessage: message } = oauthData;
     
     // IMPORTANT: Do not delete OAuth data yet, wait until the token exchange is successful
     
@@ -425,29 +532,78 @@ router.get('/callback', async (req, res) => {
       // Extract the pending data
       const shareUrl = oauthData.pendingShareUrl;
       
-      if (!imageUrl) {
-        throw new Error('No pending image URL found in session data');
+      // Need either imageUrl or videoUrl
+      const mediaUrl = isVideo ? (videoUrl || imageUrl) : imageUrl;
+      if (!mediaUrl) {
+        throw new Error('No pending media URL found in session data');
       }
       
-      // Construct tweet text with custom message and shareUrl
-      const tweetText = shareUrl
-        ? `${message || "Created in #SogniPhotobooth"} ${shareUrl}`
-        : message || "Created in #SogniPhotobooth https://photobooth.sogni.ai";
+      // Construct tweet text with custom message and shareUrl, truncated to Twitter's character limit
+      const fallbackUrl = shareUrl || "https://photobooth.sogni.ai";
+      const tweetText = truncateTweetText(
+        message || "Created in #SogniPhotobooth",
+        shareUrl || (message ? fallbackUrl : null) // Only add fallback URL if no shareUrl and we have a custom message
+      );
       
-      // Share the image on Twitter with the logged in user
-      const tweetResult = await shareImageToX(loggedUserClient, imageUrl, tweetText);
+      // Share media on Twitter with the logged in user - use video function if it's a video
+      let tweetResult;
+      if (isVideo && videoUrl) {
+        console.log('[Twitter OAuth] Sharing video to Twitter via callback...');
+        console.log('[Twitter OAuth] Video URL:', videoUrl.substring(0, 100) + '...');
+        try {
+          tweetResult = await shareVideoToX(loggedUserClient, videoUrl, tweetText);
+        } catch (videoError) {
+          console.error('[Twitter OAuth] VIDEO UPLOAD FAILED:', videoError.message);
+          console.error('[Twitter OAuth] Full video error:', videoError);
+          throw videoError;
+        }
+      } else {
+        console.log('[Twitter OAuth] Sharing image to Twitter via callback...');
+        tweetResult = await shareImageToX(loggedUserClient, mediaUrl, tweetText);
+      }
       
       // Add specific check for successful tweet result
       if (!tweetResult || !tweetResult.data || !tweetResult.data.id) {
         throw new Error('Could not verify successful image share. Tweet data incomplete.');
       }
       
-      // Increment share count in analytics
+      // Increment share count in analytics (both old and new systems)
       if (sessionId && redisReady()) {
         await incrementTwitterShares();
+        await trackMetric('twitter_shares', 1);
       }
       
       console.log('[Twitter OAuth] Image successfully shared to X, tweet ID:', tweetResult.data.id);
+      
+      // If user explicitly wants to submit to contest, submit to contest (OAuth callback path)
+      if (oauthData.submitToContest && oauthData.prompt) {
+        try {
+          console.log('[Contest] Submitting Halloween contest entry (OAuth callback)');
+          const tweetUrl = `https://twitter.com/i/web/status/${tweetResult.data.id}`;
+          
+          await saveContestEntry({
+            contestId: 'halloween',
+            imageUrl,
+            prompt: oauthData.prompt,
+            username: oauthData.username,
+            address: oauthData.address,
+            tweetId: tweetResult.data.id,
+            tweetUrl,
+            metadata: {
+              ...(oauthData.metadata || {}),
+              message: message || '',
+              shareUrl: shareUrl || '',
+              timestamp: Date.now(),
+              shareType: 'oauth_callback'
+            }
+          });
+          
+          console.log('[Contest] Successfully submitted Halloween contest entry (OAuth callback)');
+        } catch (contestError) {
+          // Don't fail the whole share if contest submission fails
+          console.error('[Contest] Error submitting contest entry (OAuth callback):', contestError);
+        }
+      }
       
       // Success HTML with messaging to parent window
       const successHtml = `
@@ -571,6 +727,16 @@ router.get('/callback', async (req, res) => {
       userMessage = 'Could not complete Twitter authorization. The request may have expired or been invalid.';
     } else if (error.message.includes('Failed to share image on X')) {
       userMessage = `Could not share your image to Twitter. ${error.message.replace('Failed to share image on X: ','')}`;
+    } else if (error.message.includes('403 Forbidden') || error.message.includes('rejected video upload')) {
+      userMessage = 'Video upload to Twitter is not available. Twitter API video uploads require elevated access. Please use the native share menu to share videos, or share the image instead.';
+      console.error('[Twitter OAuth] Video upload 403 - API permissions issue');
+    } else if (error.message.includes('video') || error.message.includes('Video')) {
+      userMessage = `Could not share your video to Twitter: ${error.message}`;
+      console.error('[Twitter OAuth] Video share error details:', error);
+    } else if (error.message.includes('download')) {
+      userMessage = `Could not download media for Twitter: ${error.message}`;
+    } else if (error.message.includes('upload')) {
+      userMessage = `Could not upload media to Twitter: ${error.message}`;
     }
     
     // Send HTML with error message that will post to opener

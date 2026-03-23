@@ -1,6 +1,7 @@
 import js from "@eslint/js";
 import globals from "globals";
 import pluginReact from "eslint-plugin-react";
+import reactHooks from "eslint-plugin-react-hooks";
 import pluginTs from "@typescript-eslint/eslint-plugin";
 import parserTs from "@typescript-eslint/parser";
 
@@ -49,17 +50,44 @@ export default [
   // React (JSX/TSX)
   {
     files: ["**/*.{jsx,tsx}"],
-    plugins: {
-      '@typescript-eslint': pluginTs,
-      'react': pluginReact,
-      'react-hooks': pluginReact.configs.reactHooks,
-      'jsx-a11y': pluginReact.configs.jsxA11y,
-    },
     ...pluginReact.configs.flat.recommended,
+    plugins: {
+      ...pluginReact.configs.flat.recommended.plugins,
+      '@typescript-eslint': pluginTs,
+      'react-hooks': reactHooks,
+    },
     settings: {
       react: {
         version: 'detect',
       },
     },
+    rules: {
+      ...pluginReact.configs.flat.recommended.rules,
+      // 🚨 CRITICAL: Enforce strict useEffect dependency rules
+      'react-hooks/exhaustive-deps': ['error', {
+        'additionalHooks': '',
+        'enableDangerousAutofixThisMayCauseInfiniteLoops': false
+      }],
+      // Warn on too many dependencies (likely doing too much)
+      'max-lines-per-function': ['warn', {
+        max: 50,
+        skipBlankLines: true,
+        skipComments: true
+      }],
+    },
   },
+  // 🚨 CUSTOM RULE: Catch common useEffect violations
+  {
+    files: ["**/*.{jsx,tsx}"],
+    rules: {
+      // Ban common context functions in dependencies
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'CallExpression[callee.name="useEffect"] > ArrayExpression[elements.length>3]',
+          message: '❌ useEffect has too many dependencies (>3). Split into multiple effects with single responsibilities.'
+        }
+      ]
+    }
+  }
 ];

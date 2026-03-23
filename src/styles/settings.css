@@ -9,7 +9,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(255, 51, 102, 0.95) 0%, rgba(113, 50, 232, 0.95) 100%);
+  background: linear-gradient(135deg, var(--brand-accent-primary) 0%, var(--brand-gradient-end) 100%);
   padding: 20px;
   transform: translateY(-100%);
   transition: transform 0.5s cubic-bezier(0.3, 0, 0.3, 1), backdrop-filter 0.5s ease;
@@ -70,12 +70,12 @@
 }
 
 .settings-title::before {
-  color: #ff0066;
+  color: var(--brand-glitch-primary);
   transform: translate(-4px, -2px);
 }
 
 .settings-title::after {
-  color: #00ccff;
+  color: var(--brand-glitch-secondary);
   transform: translate(4px, 2px);
 }
 
@@ -113,7 +113,7 @@
 }
 
 .dismiss-overlay-btn:hover {
-  background: rgba(255, 51, 102, 0.8);
+  background: var(--brand-accent-primary);
   transform: scale(1.1);
 }
 
@@ -131,44 +131,19 @@
   padding: 8px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   position: relative;
   transform: translateX(-10px);
   opacity: 0;
-  transition: transform 0.4s ease, opacity 0.4s ease, background-color 0.2s ease, transform 0.2s ease;
 }
 
 .control-overlay.visible .control-option {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
   transform: translateX(0);
   opacity: 1;
 }
 
-/* Stagger the animations for a nice flow */
-.control-overlay.visible .control-option:nth-child(1) { transition-delay: 0.25s; }
-.control-overlay.visible .control-option:nth-child(2) { transition-delay: 0.3s; }
-.control-overlay.visible .control-option:nth-child(3) { transition-delay: 0.35s; }
-.control-overlay.visible .control-option:nth-child(4) { transition-delay: 0.4s; }
-.control-overlay.visible .control-option:nth-child(5) { transition-delay: 0.45s; }
-.control-overlay.visible .control-option:nth-child(6) { transition-delay: 0.5s; }
-.control-overlay.visible .control-option:nth-child(7) { transition-delay: 0.55s; }
-.control-overlay.visible .control-option:nth-child(8) { transition-delay: 0.6s; }
-.control-overlay.visible .control-option:nth-child(9) { transition-delay: 0.65s; }
-.control-overlay.visible .control-option:nth-child(10) { transition-delay: 0.7s; }
-.control-overlay.visible .control-option:nth-child(11) { transition-delay: 0.75s; }
-.control-overlay.visible .control-option:nth-child(12) { transition-delay: 0.8s; }
-.control-overlay.visible .control-option:nth-child(13) { transition-delay: 0.85s; }
-.control-overlay.visible .control-option:nth-child(14) { transition-delay: 0.9s; }
-.control-overlay.visible .control-option:nth-child(15) { transition-delay: 0.95s; }
-.control-overlay.visible .control-option:nth-child(16) { transition-delay: 1.0s; }
-.control-overlay.visible .control-option:nth-child(17) { transition-delay: 1.05s; }
-.control-overlay.visible .control-option:nth-child(18) { transition-delay: 1.1s; }
-.control-overlay.visible .control-option:nth-child(19) { transition-delay: 1.15s; }
-.control-overlay.visible .control-option:nth-child(20) { transition-delay: 1.2s; }
 
-.control-option:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-  transform: translateY(-2px);
-}
+
 
 /* Disable hover effect for worker preference sections */
 .worker-preference-section:hover {
@@ -185,6 +160,8 @@
   display: inline-block;
   color: #fff;
   margin: 5px;
+  font-weight: 700;
+  font-size: 15px;
 }
 
 /* Value displayed to the right of sliders */
@@ -205,7 +182,7 @@
 .slider-input {
   width: 100%;
   height: 12px;
-  background: linear-gradient(to right, #ff3366, #7132e8);
+  background: linear-gradient(to right, var(--brand-accent-primary), var(--brand-gradient-end));
   border-radius: 6px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   -webkit-appearance: none;
@@ -220,7 +197,7 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: #ffd301;
+  background: var(--brand-slider-thumb);
   cursor: pointer;
   border: 2px solid white;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
@@ -231,7 +208,7 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: #ffd301;
+  background: var(--brand-slider-thumb);
   cursor: pointer;
   border: 2px solid white;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
@@ -240,14 +217,14 @@
 .slider-input::-webkit-slider-runnable-track {
   height: 16px;
   border-radius: 8px;
-  background: linear-gradient(to right, #ff3366, #7132e8);
+  background: linear-gradient(to right, var(--brand-accent-primary), var(--brand-gradient-end));
   border: none;
 }
 
 .slider-input::-moz-range-track {
   height: 16px;
   border-radius: 8px;
-  background: linear-gradient(to right, #ff3366, #7132e8);
+  background: linear-gradient(to right, var(--brand-accent-primary), var(--brand-gradient-end));
   border: none;
 }
 
@@ -257,7 +234,7 @@
   flex: 1;
   padding: 12px 15px;
   background-color: rgba(255, 255, 255, 0.9);
-  color: #333;
+  color: #1a1a1a;
   font-weight: bold;
   border-radius: 10px;
   font-size: 16px;
@@ -280,10 +257,7 @@
   border-radius: 10px;
   background-color: rgba(255, 255, 255, 0.2);
   color: #fff;
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  font-weight: bold;
   font-size: 16px;
-  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
   transition: background-color 0.2s ease;
 }
 
@@ -291,6 +265,14 @@
 .model-select:focus {
   outline: none;
   background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Ensure dropdown options are readable on all platforms */
+.camera-select option,
+.model-select option {
+  background-color: #2a2a4a;
+  color: #fff;
+  padding: 8px;
 }
 
 /* Responsive tweaks */
@@ -512,7 +494,7 @@
   margin-right: 15px;
   width: 24px;
   height: 24px;
-  accent-color: #ffd301; /* yellow knob */
+  accent-color: var(--brand-slider-thumb); /* yellow knob */
 }
 
 .control-option.checkbox .control-label {
@@ -528,7 +510,7 @@
 }
 
 .reset-settings-btn {
-  background-color: #ff3366;
+  background-color: var(--brand-accent-primary);
   color: white;
   padding: 10px 15px;
   border: none;
@@ -557,6 +539,36 @@
   font-family: monospace;
   padding: 5px;
   border-top: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.view-analytics-btn {
+  background: linear-gradient(135deg, var(--brand-button-primary) 0%, var(--brand-button-primary-end) 100%);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+}
+
+.view-analytics-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(135deg, #7b92f0 0%, #8a5bb5 100%);
+}
+
+.view-analytics-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* Aspect ratio controls in Advanced Settings */
@@ -600,7 +612,7 @@
 }
 
 .aspect-ratio-button.active svg .polaroid-frame {
-  fill: #ff5e8a;
+  fill: var(--brand-accent-secondary);
 }
 
 .aspect-ratio-button svg {
@@ -629,6 +641,12 @@
     font-size: 10px;
     margin-top: 10px;
     padding: 3px;
+    gap: 8px;
+  }
+  
+  .view-analytics-btn {
+    font-size: 10px;
+    padding: 5px 10px;
   }
   
   /* Responsive styles for aspect ratio controls */
@@ -643,21 +661,40 @@
   }
 }
 
+/* Settings Section Group - Collapsible sections */
+.settings-section-group {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+/* Emphasize section group titles */
+.settings-section-group .toggle-text {
+  font-weight: 700;
+  font-size: 16px;
+  opacity: 1;
+}
+
 /* Model Group - Integrated Advanced Settings */
 .model-group {
   background: rgba(0, 0, 0, 0.2);
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   margin-bottom: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Emphasize model group titles */
+.model-group .control-label,
+.model-group .toggle-text {
+  font-weight: 700;
+  font-size: 16px;
 }
 
 .model-main {
   margin-bottom: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .advanced-toggle-wrapper {
@@ -667,33 +704,38 @@
 .advanced-toggle-subtle {
   width: 100%;
   padding: 8px 15px;
-  background: rgba(255, 255, 255, 0.05);
   border: none;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.9);
   font-size: 13px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: space-between;
   transition: all 0.2s ease;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  outline: none;
 }
 
-.advanced-toggle-subtle:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
+.advanced-toggle-subtle:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.advanced-toggle-subtle:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 .toggle-text {
-  font-weight: 500;
-  font-size: 12px;
-  opacity: 0.9;
+  font-weight: 700;
+  font-size: 15px;
+  opacity: 1;
+  letter-spacing: 0.3px;
 }
 
 .toggle-chevron {
   font-size: 16px;
   transition: transform 0.2s ease;
-  color: #ffd301;
+  color: var(--brand-slider-thumb);
   font-weight: bold;
 }
 
@@ -702,9 +744,13 @@
 }
 
 .advanced-subsection {
-  background: rgba(0, 0, 0, 0.1);
   animation: expandDown 0.25s ease;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Remove extra dark backgrounds from controls inside subsections for cleaner look */
+.advanced-subsection .control-option {
+  background: transparent;
+  box-shadow: none;
 }
 
 @keyframes expandDown {
@@ -720,7 +766,7 @@
 
 .advanced-control {
   padding: 10px 15px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -754,7 +800,7 @@
 .advanced-slider {
   width: 120px;
   height: 8px;
-  background: linear-gradient(to right, #ff3366, #7132e8);
+  background: linear-gradient(to right, var(--brand-accent-primary), var(--brand-gradient-end));
   border-radius: 4px;
   -webkit-appearance: none;
   appearance: none;
@@ -764,14 +810,14 @@
 .advanced-slider::-webkit-slider-runnable-track {
   height: 8px;
   border-radius: 4px;
-  background: linear-gradient(to right, #ff3366, #7132e8);
+  background: linear-gradient(to right, var(--brand-accent-primary), var(--brand-gradient-end));
   border: none;
 }
 
 .advanced-slider::-moz-range-track {
   height: 8px;
   border-radius: 4px;
-  background: linear-gradient(to right, #ff3366, #7132e8);
+  background: linear-gradient(to right, var(--brand-accent-primary), var(--brand-gradient-end));
   border: none;
 }
 
@@ -781,7 +827,7 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #ffd301;
+  background: var(--brand-slider-thumb);
   cursor: pointer;
   border: 1px solid white;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
@@ -792,7 +838,7 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #ffd301;
+  background: var(--brand-slider-thumb);
   cursor: pointer;
   border: 1px solid white;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
@@ -823,7 +869,7 @@
 .advanced-select:focus {
   outline: none;
   background: rgba(255, 255, 255, 0.15);
-  border-color: #ffd301;
+  border-color: var(--brand-slider-thumb);
 }
 
 /* Mobile responsive */
@@ -901,6 +947,7 @@
 
 /* Control description text */
 .control-description {
+  text-align: right;
   font-size: 12px;
   color: rgba(255, 255, 255, 0.7);
   margin-top: 8px;

@@ -1,0 +1,409 @@
+/* AuthStatus Component Styles - Starface Inspired */
+
+/* Referral Share Popup entrance animation */
+@keyframes menuFadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Daily Boost Glow Animation - Enhanced for visibility */
+@keyframes dailyBoostGlow {
+  0%, 100% {
+    box-shadow: 0 0 20px 4px rgba(16, 185, 129, 0.7), 0 0 40px 8px rgba(16, 185, 129, 0.4), 0 4px 0 #1a1a1a;
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    box-shadow: 0 0 30px 6px rgba(16, 185, 129, 0.9), 0 0 60px 12px rgba(16, 185, 129, 0.6), 0 6px 0 #1a1a1a;
+    transform: translate(-2px, -2px) scale(1.05);
+  }
+  50% {
+    box-shadow: 0 0 35px 8px rgba(16, 185, 129, 1), 0 0 70px 16px rgba(16, 185, 129, 0.7), 0 8px 0 #1a1a1a;
+    transform: translate(-3px, -3px) scale(1.08);
+  }
+  75% {
+    box-shadow: 0 0 30px 6px rgba(16, 185, 129, 0.9), 0 0 60px 12px rgba(16, 185, 129, 0.6), 0 6px 0 #1a1a1a;
+    transform: translate(-2px, -2px) scale(1.05);
+  }
+}
+
+/* Pulse animation for extra attention */
+@keyframes dailyBoostPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+/* Auth status wrapper positioning adjustments */
+.auth-status-wrapper {
+  transition: left 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  display: flex;
+  align-items: center;
+}
+
+/* Tooltip bounce animation for Recent Projects */
+@keyframes tooltipBounce {
+  0% {
+    opacity: 0;
+    transform: translateY(-50%) translateX(-10px) scale(0.9);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-50%) translateX(5px) scale(1.05);
+  }
+  80% {
+    transform: translateY(-50%) translateX(-2px) scale(0.98);
+  }
+  100% {
+    transform: translateY(-50%) translateX(0) scale(1);
+  }
+}
+
+/* Mobile portrait - compact layout with wrapping */
+@media (max-width: 576px) and (orientation: portrait) {
+  .auth-status-container {
+    max-width: 130px;
+  }
+
+  .auth-status-content {
+    font-size: 11px !important;
+    gap: 3px !important;
+    line-height: 1.2;
+  }
+
+  .auth-status-content span {
+    font-size: 11px !important;
+  }
+
+  /* Hide separator on mobile portrait, stack vertically */
+  .auth-separator {
+    display: none !important;
+  }
+
+  /* Force balance to next line */
+  .auth-balance {
+    flex-basis: 100%;
+    font-size: 10px !important;
+  }
+}
+
+/* Mobile tablet */
+@media (max-width: 768px) and (min-width: 577px) {
+  .auth-status-content {
+    font-size: 13px !important;
+    gap: 6px !important;
+  }
+
+  .auth-status-content span {
+    font-size: 13px !important;
+  }
+}
+
+/* Starface-Inspired Wallet Container */
+.cosmic-wallet-container {
+  position: relative;
+  overflow: hidden;
+  background: #FFED4E;
+  border: 4px solid #1a1a1a;
+  box-shadow: 6px 6px 0 #1a1a1a;
+}
+
+/* Remove all the cosmic overlay effects */
+.cosmic-wallet-container::before,
+.cosmic-wallet-container::after,
+.cosmic-wallet-container .star-trail-1,
+.cosmic-wallet-container .star-trail-2 {
+  display: none;
+}
+
+.cosmic-wallet-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Shimmer animation for active payment buttons - sweeps LEFT to RIGHT */
+@keyframes shimmerSweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+@keyframes subtleGlow {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Sparkle twinkle for extra magic */
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Sparkler Effect for Spark Points Logo - Keep the animation! */
+@keyframes sparklerBurst {
+  0% {
+    transform: translate(0, 0) scale(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1.2);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(calc(var(--sparkler-x) * 0.3), calc(var(--sparkler-y) * 0.3)) scale(1);
+  }
+  70% {
+    opacity: 0.8;
+    transform: translate(calc(var(--sparkler-x) * 0.7), calc(var(--sparkler-y) * 0.7)) scale(0.8);
+  }
+  100% {
+    transform: translate(var(--sparkler-x), var(--sparkler-y)) scale(0.3);
+    opacity: 0;
+  }
+}
+
+@keyframes sparklerFlicker {
+  0%, 100% {
+    opacity: 0;
+  }
+  10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90% {
+    opacity: 1;
+  }
+  15%, 25%, 35%, 45%, 55%, 65%, 75%, 85%, 95% {
+    opacity: 0.3;
+  }
+}
+
+.spark-logo-container {
+  position: relative;
+}
+
+.sparkler-particle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin-top: -2px;
+  margin-left: -2px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: -1;
+  background: radial-gradient(circle, #1a1a1a 0%, #1a1a1a 40%, rgba(26, 26, 26, 0.8) 60%, transparent 100%);
+  box-shadow: 
+    0 0 3px rgba(26, 26, 26, 0.6),
+    0 0 6px rgba(26, 26, 26, 0.4);
+}
+
+.sparkler-particle-1 {
+  --sparkler-x: 18px;
+  --sparkler-y: -12px;
+  animation: sparklerBurst 2s ease-out infinite, sparklerFlicker 0.15s ease-in-out infinite;
+  animation-delay: 0s, 0s;
+}
+
+.sparkler-particle-2 {
+  --sparkler-x: 15px;
+  --sparkler-y: 15px;
+  animation: sparklerBurst 2s ease-out infinite, sparklerFlicker 0.15s ease-in-out infinite;
+  animation-delay: 0.6s, 0.05s;
+}
+
+.sparkler-particle-3 {
+  --sparkler-x: -15px;
+  --sparkler-y: 15px;
+  animation: sparklerBurst 2s ease-out infinite, sparklerFlicker 0.15s ease-in-out infinite;
+  animation-delay: 1.2s, 0.1s;
+}
+
+.sparkler-particle-4 {
+  --sparkler-x: -18px;
+  --sparkler-y: -12px;
+  animation: sparklerBurst 2s ease-out infinite, sparklerFlicker 0.15s ease-in-out infinite;
+  animation-delay: 1.8s, 0.15s;
+}
+
+.sparkler-particle-5 {
+  --sparkler-x: 0px;
+  --sparkler-y: -20px;
+  animation: sparklerBurst 2s ease-out infinite, sparklerFlicker 0.15s ease-in-out infinite;
+  animation-delay: 2.4s, 0.2s;
+}
+
+.sparkler-particle-6 {
+  --sparkler-x: 20px;
+  --sparkler-y: 0px;
+  animation: sparklerBurst 2s ease-out infinite, sparklerFlicker 0.15s ease-in-out infinite;
+  animation-delay: 3s, 0.25s;
+}
+
+.sparkler-particle-7 {
+  --sparkler-x: 0px;
+  --sparkler-y: 20px;
+  animation: sparklerBurst 2s ease-out infinite, sparklerFlicker 0.15s ease-in-out infinite;
+  animation-delay: 3.6s, 0.3s;
+}
+
+.sparkler-particle-8 {
+  --sparkler-x: -20px;
+  --sparkler-y: 0px;
+  animation: sparklerBurst 2s ease-out infinite, sparklerFlicker 0.15s ease-in-out infinite;
+  animation-delay: 4.2s, 0.35s;
+}
+
+.sparkler-particle-9 {
+  --sparkler-x: 12px;
+  --sparkler-y: -16px;
+  animation: sparklerBurst 2s ease-out infinite, sparklerFlicker 0.15s ease-in-out infinite;
+  animation-delay: 4.8s, 0.4s;
+}
+
+.sparkler-particle-10 {
+  --sparkler-x: 16px;
+  --sparkler-y: 12px;
+  animation: sparklerBurst 2s ease-out infinite, sparklerFlicker 0.15s ease-in-out infinite;
+  animation-delay: 5.4s, 0.45s;
+}
+
+.sparkler-particle-11 {
+  --sparkler-x: -12px;
+  --sparkler-y: 16px;
+  animation: sparklerBurst 2s ease-out infinite, sparklerFlicker 0.15s ease-in-out infinite;
+  animation-delay: 6s, 0.5s;
+}
+
+.sparkler-particle-12 {
+  --sparkler-x: -16px;
+  --sparkler-y: -16px;
+  animation: sparklerBurst 2s ease-out infinite, sparklerFlicker 0.15s ease-in-out infinite;
+  animation-delay: 6.6s, 0.55s;
+}
+
+/* SOGNI Token Particle Effect - Keep the animation! */
+@keyframes sogniParticle {
+  0% {
+    transform: translate(0, 0) scale(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1.2);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(calc(var(--sogni-x) * 0.3), calc(var(--sogni-y) * 0.3)) scale(1);
+  }
+  70% {
+    opacity: 0.8;
+    transform: translate(calc(var(--sogni-x) * 0.7), calc(var(--sogni-y) * 0.7)) scale(0.8);
+  }
+  100% {
+    transform: translate(var(--sogni-x), var(--sogni-y)) scale(0.3);
+    opacity: 0;
+  }
+}
+
+@keyframes sogniFlicker {
+  0%, 100% {
+    opacity: 0;
+  }
+  10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90% {
+    opacity: 1;
+  }
+  15%, 25%, 35%, 45%, 55%, 65%, 75%, 85%, 95% {
+    opacity: 0.3;
+  }
+}
+
+.sogni-logo-container {
+  position: relative;
+}
+
+.sogni-particle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin-top: -2px;
+  margin-left: -2px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: -1;
+  background: radial-gradient(circle, #1a1a1a 0%, #1a1a1a 40%, rgba(26, 26, 26, 0.8) 60%, transparent 100%);
+  box-shadow: 
+    0 0 3px rgba(26, 26, 26, 0.6),
+    0 0 6px rgba(26, 26, 26, 0.4);
+}
+
+.sogni-particle-1 {
+  --sogni-x: 20px;
+  --sogni-y: -16px;
+  animation: sogniParticle 2s ease-out infinite, sogniFlicker 0.15s ease-in-out infinite;
+  animation-delay: 0s, 0s;
+}
+
+.sogni-particle-2 {
+  --sogni-x: 18px;
+  --sogni-y: 18px;
+  animation: sogniParticle 2s ease-out infinite, sogniFlicker 0.15s ease-in-out infinite;
+  animation-delay: 0.6s, 0.05s;
+}
+
+.sogni-particle-3 {
+  --sogni-x: -18px;
+  --sogni-y: 18px;
+  animation: sogniParticle 2s ease-out infinite, sogniFlicker 0.15s ease-in-out infinite;
+  animation-delay: 1.2s, 0.1s;
+}
+
+.sogni-particle-4 {
+  --sogni-x: -20px;
+  --sogni-y: -16px;
+  animation: sogniParticle 2s ease-out infinite, sogniFlicker 0.15s ease-in-out infinite;
+  animation-delay: 1.8s, 0.15s;
+}
+
+.sogni-particle-5 {
+  --sogni-x: 0px;
+  --sogni-y: -24px;
+  animation: sogniParticle 2s ease-out infinite, sogniFlicker 0.15s ease-in-out infinite;
+  animation-delay: 2.4s, 0.2s;
+}
+
+.sogni-particle-6 {
+  --sogni-x: 24px;
+  --sogni-y: 0px;
+  animation: sogniParticle 2s ease-out infinite, sogniFlicker 0.15s ease-in-out infinite;
+  animation-delay: 3s, 0.25s;
+}
+
+.sogni-particle-7 {
+  --sogni-x: 0px;
+  --sogni-y: 24px;
+  animation: sogniParticle 2s ease-out infinite, sogniFlicker 0.15s ease-in-out infinite;
+  animation-delay: 3.6s, 0.3s;
+}
+
+.sogni-particle-8 {
+  --sogni-x: -24px;
+  --sogni-y: 0px;
+  animation: sogniParticle 2s ease-out infinite, sogniFlicker 0.15s ease-in-out infinite;
+  animation-delay: 4.2s, 0.35s;
+}

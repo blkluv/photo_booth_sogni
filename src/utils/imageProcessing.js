@@ -165,15 +165,52 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
       if (tezdevTheme !== 'off') {
         try {
           const framePadding = await themeConfigService.getFramePadding(tezdevTheme);
-          if (framePadding > 0) {
-            // Reduce image size to account for the border
-            const adjustedImageWidth = imageWidth - (framePadding * 2);
-            const adjustedImageHeight = imageHeight - (framePadding * 2);
-            // Center the smaller image within the original bounds
-            const adjustedX = frameWidth + framePadding;
-            const adjustedY = frameTopWidth + framePadding;
+          
+          // Check if we have any padding (either old number format or new object format)
+          const hasPadding = (typeof framePadding === 'number' && framePadding > 0) ||
+                           (typeof framePadding === 'object' && 
+                            (framePadding.top > 0 || framePadding.left > 0 || framePadding.right > 0 || framePadding.bottom > 0));
+          
+          if (hasPadding) {
+            // Handle both old number format and new object format
+            let paddingObj;
+            if (typeof framePadding === 'number') {
+              // Legacy format - convert to object
+              paddingObj = { top: framePadding, left: framePadding, right: framePadding, bottom: framePadding };
+            } else {
+              paddingObj = framePadding;
+            }
+            
+            // Intelligent positioning: image must COVER the entire available space
+            // CRITICAL: Preserve aspect ratio but ensure NO white space in frame
+            
+            // Calculate available space after accounting for frame padding
+            const availableWidth = imageWidth - (paddingObj.left + paddingObj.right);
+            const availableHeight = imageHeight - (paddingObj.top + paddingObj.bottom);
+            
+            // Calculate scale factor needed to COVER the available space (like object-fit: cover)
+            const originalAspectRatio = img.width / img.height;
+            const availableAspectRatio = availableWidth / availableHeight;
+            
+            let adjustedImageWidth, adjustedImageHeight;
+            
+            if (originalAspectRatio > availableAspectRatio) {
+              // Image is wider - scale by HEIGHT to ensure full coverage (image will be cropped horizontally)
+              adjustedImageHeight = availableHeight;
+              adjustedImageWidth = availableHeight * originalAspectRatio;
+            } else {
+              // Image is taller - scale by WIDTH to ensure full coverage (image will be cropped vertically)
+              adjustedImageWidth = availableWidth;
+              adjustedImageHeight = availableWidth / originalAspectRatio;
+            }
+            
+            // Center the scaled image within the available space (some parts may extend beyond bounds)
+            const adjustedX = frameWidth + paddingObj.left + (availableWidth - adjustedImageWidth) / 2;
+            const adjustedY = frameTopWidth + paddingObj.top + (availableHeight - adjustedImageHeight) / 2;
+            
             ctx.drawImage(img, adjustedX, adjustedY, adjustedImageWidth, adjustedImageHeight);
-            console.log(`Drew image with ${tezdevTheme} frame padding adjustment (${framePadding}px): ${adjustedImageWidth}x${adjustedImageHeight} at (${adjustedX}, ${adjustedY})`);
+            console.log(`Drew image with ${tezdevTheme} frame padding adjustment:`, paddingObj, 
+                       `Image: ${adjustedImageWidth}x${adjustedImageHeight} at (${adjustedX}, ${adjustedY})`);
           } else {
             // No padding needed for this theme
             ctx.drawImage(img, frameWidth, frameTopWidth, imageWidth, imageHeight);
@@ -227,8 +264,8 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
         // Position label in the bottom white area, a bit higher from the bottom for better visual balance
         const labelY = polaroidHeight - (frameBottomWidth / 2);
         
-        // Constrain label length if too long
-        const maxLabelWidth = polaroidWidth - 20; // Increased padding
+        // Constrain label length if too long - allow text to span nearly full width
+        const maxLabelWidth = polaroidWidth - 4; // Minimal padding (2px each side)
         let displayLabel = textToDraw;
         
         if (ctx.measureText(textToDraw).width > maxLabelWidth) {
@@ -260,12 +297,11 @@ export async function createPolaroidImage(imageUrl, label, options = {}) {
             }
           }
           
-          // Position QR watermark within the image area to avoid overlapping with label
+          // Position QR watermark based on user preference
           const imageAreaWatermarkOptions = {
             ...watermarkOptions,
-            position: 'top-right', // Always use top-right for polaroid frames
-            // Adjust positioning to be within the image area
-            imageAreaOnly: true,
+            // Use the position from watermarkOptions, defaulting to top-right for polaroid frames
+            // Pass through the marginStartsInsideFrame setting from watermarkOptions
             imageWidth,
             imageHeight,
             frameOffsetX: frameWidth,
@@ -461,16 +497,38 @@ export const blobToDataURL = (blob) => {
  * @param {number} options.margin - Margin from edges (default: 20)
  * @param {string} options.position - Position ('bottom-right', 'bottom-left', 'top-right', 'top-left')
  * @param {number} options.opacity - Opacity of the watermark (0-1, default: 1.0)
+ * @param {string} options.url - URL to encode in QR code (default: 'https://qr.sogni.ai')
+ * @param {boolean} options.marginStartsInsideFrame - Whether margin starts inside frame (true) or from corner (false, default)
+ * @param {number} options.imageWidth - Width of image area (required when marginStartsInsideFrame is true)
+ * @param {number} options.imageHeight - Height of image area (required when marginStartsInsideFrame is true)
+ * @param {number} options.frameOffsetX - X offset of image from canvas edge (required when marginStartsInsideFrame is true)
+ * @param {number} options.frameOffsetY - Y offset of image from canvas edge (required when marginStartsInsideFrame is true)
+ * @param {Object} options.framePadding - Frame padding object for custom themes
  */
 export async function addQRWatermark(ctx, canvasWidth, canvasHeight, options = {}) {
   const {
     size = 80,
     margin = 20,
     position = 'bottom-right',
-    opacity = 1.0
+    opacity = 1.0,
+    url = 'https://qr.sogni.ai'
   } = options;
 
-  return new Promise((resolve) => {
+  try {
+    // Import QR code service dynamically
+    const { qrCodeService } = await import('../services/qrCodeService');
+    
+    // Generate QR code data URL
+    const qrDataUrl = await qrCodeService.generateQRCode(url, {
+      width: size * 2, // Generate at higher resolution for better quality
+      margin: 1, // Minimal margin since we control positioning
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    });
+
+    return new Promise((resolve) => {
     const qrImage = new Image();
     qrImage.crossOrigin = 'anonymous';
     
@@ -484,19 +542,27 @@ export async function addQRWatermark(ctx, canvasWidth, canvasHeight, options = {
       // Calculate position based on preference
       let x, y;
       
-      // If imageAreaOnly is specified, position within the image area, not the full canvas
-      if (options.imageAreaOnly && options.imageWidth && options.imageHeight) {
+      // If marginStartsInsideFrame is true, position within the image area, not the full canvas
+      if (options.marginStartsInsideFrame && options.imageWidth && options.imageHeight) {
         const imageWidth = options.imageWidth;
         const imageHeight = options.imageHeight;
         const offsetX = options.frameOffsetX || 0;
         const offsetY = options.frameOffsetY || 0;
-        const framePadding = options.framePadding || 0;
+        const framePadding = options.framePadding || { top: 0, left: 0, right: 0, bottom: 0 };
+        
+        // Handle both old number format and new object format for frame padding
+        let paddingObj;
+        if (typeof framePadding === 'number') {
+          paddingObj = { top: framePadding, left: framePadding, right: framePadding, bottom: framePadding };
+        } else {
+          paddingObj = framePadding;
+        }
         
         // Account for frame padding in positioning - QR should be inside the frame border
-        const adjustedOffsetX = offsetX + framePadding;
-        const adjustedOffsetY = offsetY + framePadding;
-        const adjustedImageWidth = imageWidth - (framePadding * 2);
-        const adjustedImageHeight = imageHeight - (framePadding * 2);
+        const adjustedOffsetX = offsetX + paddingObj.left;
+        const adjustedOffsetY = offsetY + paddingObj.top;
+        const adjustedImageWidth = imageWidth - (paddingObj.left + paddingObj.right);
+        const adjustedImageHeight = imageHeight - (paddingObj.top + paddingObj.bottom);
         
         switch (position) {
           case 'bottom-left':
@@ -519,8 +585,9 @@ export async function addQRWatermark(ctx, canvasWidth, canvasHeight, options = {
             break;
         }
         
-        if (framePadding > 0) {
-          console.log(`QR positioned with frame padding: ${framePadding}px, adjusted position: (${x}, ${y})`);
+        const hasPadding = paddingObj.top > 0 || paddingObj.left > 0 || paddingObj.right > 0 || paddingObj.bottom > 0;
+        if (hasPadding) {
+          console.log(`QR positioned with frame padding:`, paddingObj, `adjusted position: (${x}, ${y})`);
         }
       } else {
         // Original positioning for full canvas
@@ -558,18 +625,22 @@ export async function addQRWatermark(ctx, canvasWidth, canvasHeight, options = {
       // Restore context state
       ctx.restore();
       
-      console.log(`✅ QR watermark applied at ${position} (${x}, ${y}) with size ${size}px`);
+      console.log(`✅ QR watermark applied at ${position} (${x}, ${y}) with size ${size}px for URL: ${url}`);
       resolve();
-    };
-    
-    qrImage.onerror = (error) => {
-      console.warn('Failed to load QR code watermark, continuing without it:', error);
-      resolve(); // Don't reject, just continue without watermark
-    };
-    
-    // Load the QR code image using the same path pattern as custom frames
-    qrImage.src = '/assets/sogni-linktree-qr.png';
-  });
+      };
+      
+      qrImage.onerror = (error) => {
+        console.warn('Failed to load generated QR code watermark, continuing without it:', error);
+        resolve(); // Don't reject, just continue without watermark
+      };
+      
+      // Use the generated QR code data URL
+      qrImage.src = qrDataUrl;
+    });
+  } catch (error) {
+    console.warn('Failed to generate QR code watermark, continuing without it:', error);
+    return Promise.resolve(); // Don't reject, just continue without watermark
+  }
 }
 
 /**

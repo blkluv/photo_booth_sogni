@@ -7,10 +7,12 @@
   "scripts": {
     "start": "node index.js",
     "dev": "npx kill-port 3001 && nodemon index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "migrate-analytics": "node scripts/migrate-analytics.js",
+    "cleanup-random-mix": "node scripts/cleanup-random-mix.js"
   },
   "dependencies": {
-    "@sogni-ai/sogni-client": "^3.3.0",
+    "@sogni-ai/sogni-client": "^4.1.0-alpha.4",
     "axios": "^1.9.0",
     "connect-redis": "^8.0.3",
     "cookie-parser": "^1.4.7",

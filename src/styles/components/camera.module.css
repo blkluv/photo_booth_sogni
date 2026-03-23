@@ -94,7 +94,7 @@
   font-family: "Permanent Marker", cursive;
   font-size: 20px;
   font-weight: bold;
-  color: #ff5e8a;
+  color: var(--brand-accent-primary);
   letter-spacing: 1px;
   white-space: nowrap;
   overflow: hidden;
@@ -102,6 +102,25 @@
   margin: 0;
   padding: 0;
   line-height: 1.2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brandLogo {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+}
+
+.brandX {
+  opacity: 0.7;
+  font-size: 16px;
+}
+
+.brandSogni {
+  font-size: 16px;
 }
 
 .cameraView {
@@ -468,6 +487,7 @@
     width: 20px;
     height: 20px;
   }
+
 }
 
 /* Control Overlay */
@@ -477,7 +497,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(255, 51, 102, 0.95) 0%, rgba(113, 50, 232, 0.95) 100%);
+  background: linear-gradient(135deg, var(--brand-accent-primary) 0%, var(--brand-gradient-end) 100%);
   padding: 20px;
   transform: translateY(-100%);
   transition: transform 0.3s ease-in-out;
@@ -519,7 +539,7 @@
 }
 
 :global(.dismiss-overlay-btn:hover) {
-  background: rgba(255, 51, 102, 0.8);
+  background: var(--brand-accent-primary);
   transform: scale(1.1);
 }
 
@@ -534,7 +554,6 @@
   padding: 8px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   position: relative;
 }
 
@@ -549,7 +568,6 @@
   font-size: 14px;
   font-weight: 600;
   color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
   margin-right: 10px;
 }
 
@@ -569,7 +587,7 @@
 :global(.slider-input) {
   width: 100%;
   height: 12px;
-  background: linear-gradient(to right, #ff3366, #7132e8);
+  background: linear-gradient(to right, var(--brand-accent-primary), var(--brand-gradient-end));
   border-radius: 6px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   -webkit-appearance: none;
@@ -584,7 +602,7 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: #ffd301;
+  background: var(--brand-slider-thumb);
   cursor: pointer;
   border: 2px solid white;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
@@ -595,7 +613,7 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: #ffd301;
+  background: var(--brand-slider-thumb);
   cursor: pointer;
   border: 2px solid white;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
@@ -604,14 +622,14 @@
 :global(.slider-input::-webkit-slider-runnable-track) {
   height: 16px;
   border-radius: 8px;
-  background: linear-gradient(to right, #ff3366, #7132e8);
+  background: linear-gradient(to right, var(--brand-accent-primary), var(--brand-gradient-end));
   border: none;
 }
 
 :global(.slider-input::-moz-range-track) {
   height: 16px;
   border-radius: 8px;
-  background: linear-gradient(to right, #ff3366, #7132e8);
+  background: linear-gradient(to right, var(--brand-accent-primary), var(--brand-gradient-end));
   border: none;
 }
 
@@ -781,8 +799,47 @@
   }
 }
 
-/* iPad-specific fixes for portrait mode - HIGH SPECIFICITY to override mobile-portrait-fixes.css */
-@media (min-width: 768px) and (max-width: 1366px) and (orientation: portrait) {
+/* Reposition thumbnail and camera buttons for reduced border-bottom (70px vs 112px desktop).
+   translateY(-50%) shifts elements up by half their height, which overflows the 70px area.
+   Fix: remove translateY(-50%) and use bottom directly — same pattern as the aspect ratio
+   dropdown at @media (max-width: 768px). Bottom edges aligned at 12px from frame bottom.
+   IMPORTANT: This block must appear AFTER the base !important rules above to win the cascade. */
+@media (min-width: 481px) and (max-width: 600px) {
+  .thumbnailButtonCorner {
+    bottom: 12px !important;
+    transform: translateY(0%) !important;
+  }
+
+  .thumbnailButtonCorner:hover {
+    transform: scale(1.1) !important;
+  }
+
+  .cameraFlipButtonWithThumbnail {
+    bottom: 12px !important;
+    transform: translateY(0%) !important;
+  }
+
+  .cameraDeviceButtonNextToThumbnail {
+    bottom: 12px !important;
+    transform: translateY(0%) !important;
+  }
+
+  .cameraDeviceButtonNextToThumbnail:hover {
+    transform: scale(1.1) !important;
+  }
+
+  .cameraDeviceButtonDesktop {
+    bottom: 12px !important;
+    transform: translateY(0%) !important;
+  }
+
+  .cameraDeviceButtonDesktop:hover {
+    transform: scale(1.1) !important;
+  }
+}
+
+/* iPad-specific fixes for portrait mode (including iPad Mini) - HIGH SPECIFICITY to override mobile-portrait-fixes.css */
+@media (min-width: 744px) and (max-width: 1366px) and (orientation: portrait) {
   /* Use higher specificity to override mobile-portrait-fixes.css */
   html body #root .polaroidFrame,
   body #root .polaroidFrame {
@@ -855,8 +912,8 @@
   }
 }
 
-/* iPad landscape mode - ensure good proportions and proper spacing */
-@media (min-width: 768px) and (max-width: 1366px) and (orientation: landscape) {
+/* iPad landscape mode (including iPad Mini) - ensure good proportions and proper spacing */
+@media (min-width: 744px) and (max-width: 1366px) and (orientation: landscape) {
   .polaroidFrame {
     max-height: 80vh !important;
     max-width: 70vw !important; /* Narrower in landscape to maintain good proportions */
@@ -928,6 +985,30 @@
   transform: translateY(-50%) scale(1.1);
 }
 
+/* Responsive overrides for desktop camera buttons on narrow viewports */
+/* Chrome device toolbar may not trigger JS isMobile detection, so desktop buttons */
+/* can render at mobile widths - must align with thumbnail and aspect ratio dropdown */
+@media (max-width: 480px) {
+  .cameraDeviceButtonNextToThumbnail {
+    bottom: -8px !important;
+    left: 60px !important;    /* Adjusted for mobile thumbnail (12px left + 40px width + 8px gap) */
+    transform: translateY(-50%) !important;
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .cameraDeviceButtonNextToThumbnail:hover {
+    transform: translateY(-50%) scale(1.1) !important;
+  }
+}
+
+@media (max-width: 480px) and (orientation: portrait) {
+  .cameraDeviceButtonNextToThumbnail {
+    bottom: -5px !important;  /* Match portrait-specific thumbnail positioning */
+    left: 60px !important;
+  }
+}
+
 /* Desktop camera device button - positioned on right when no thumbnail */
 .cameraDeviceButtonDesktop {
   position: absolute;
@@ -951,6 +1032,27 @@
   background: white;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   transform: translateY(-50%) scale(1.1);
+}
+
+@media (max-width: 480px) {
+  .cameraDeviceButtonDesktop {
+    bottom: -8px !important;
+    left: 12px !important;    /* Move to left side to avoid overlap with aspect ratio dropdown */
+    right: auto !important;
+    transform: translateY(-50%) !important;
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .cameraDeviceButtonDesktop:hover {
+    transform: translateY(-50%) scale(1.1) !important;
+  }
+}
+
+@media (max-width: 480px) and (orientation: portrait) {
+  .cameraDeviceButtonDesktop {
+    bottom: -5px !important;  /* Match portrait-specific positioning */
+  }
 }
 
 /* Camera device dropdown menu */
@@ -1030,7 +1132,7 @@
 }
 
 .cameraDeviceMenuCheck {
-  color: #ff5e8a;
+  color: var(--brand-accent-secondary);
   font-weight: 700;
 }
 

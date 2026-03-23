@@ -1,0 +1,1203 @@
+.halloween-event {
+  height: 100vh;
+  background: #fc984a;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Halloween-specific film-strip container */
+.halloween-film-strip {
+  background: transparent !important; /* No overlay - use solid orange background from .halloween-event */
+}
+
+/* Disable the container slide-in animation for Halloween page */
+.halloween-film-strip.film-strip-container.visible {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+  filter: none !important;
+}
+
+/* Disable flying-in animation for Halloween photos */
+.halloween-film-strip.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived) {
+  animation: none !important;
+  opacity: 1 !important;
+}
+
+/* Disable staggered animation delays for Halloween photos */
+.halloween-film-strip.film-strip-container.visible .film-frame:not(.loading):not(.newly-arrived):nth-child(n) {
+  animation-delay: 0s !important;
+}
+
+/* Ensure film-strip takes full height */
+.halloween-film-strip.film-strip-container {
+  height: 100vh;
+  overflow-y: auto;
+  position: relative;
+  z-index: 10; /* Above background images */
+}
+
+/* Add extra bottom space so users can scroll past and see the background sloths */
+.halloween-film-strip .film-strip-content.prompt-selector-mode {
+  padding-bottom: 150px !important;
+}
+
+/* Ensure container allows scrolling past content */
+.halloween-film-strip.film-strip-container {
+  padding-bottom: 0 !important;
+}
+
+/* Halloween-specific film-frame hover effects - use Style Explorer behavior */
+.halloween-film-strip .film-frame:not(.selected):hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4) !important;
+  transition: all 0.2s ease;
+}
+
+/* Hover overlay for Halloween styles */
+.halloween-hover-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.halloween-style-frame:hover .halloween-hover-overlay {
+  opacity: 1;
+}
+
+/* Mobile: show overlay on selected (first tap) */
+@media (max-width: 768px) {
+  .halloween-style-frame.mobile-selected .halloween-hover-overlay {
+    opacity: 1;
+  }
+}
+
+.use-costume-text {
+  background: white;
+  color: #2d1810;
+  padding: 12px 20px;
+  border-radius: 25px;
+  font-weight: bold;
+  font-size: 1rem;
+  border: 3px solid #ff6b00;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transform: scale(0.9);
+  transition: transform 0.2s ease;
+}
+
+.halloween-style-frame:hover .use-costume-text {
+  transform: scale(1);
+}
+
+/* Attribution text in hover overlay */
+.halloween-attribution {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  color: white;
+  font-size: 13px;
+  opacity: 0.95;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  font-style: italic;
+  font-weight: 500;
+}
+
+/* Community Badge - shown on UGC attributed prompts */
+.halloween-community-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  width: auto;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  transition: all 0.2s ease;
+}
+
+.halloween-style-frame:hover .halloween-community-badge {
+  transform: scale(1.2);
+}
+
+.community-icon {
+  font-size: 20px;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+}
+
+/* Mobile styles for hover overlay */
+@media (max-width: 768px) {
+  .use-costume-text {
+    font-size: 0.9rem;
+    padding: 10px 16px;
+  }
+
+  .halloween-attribution {
+    font-size: 11px;
+    bottom: 10px;
+    right: 10px;
+  }
+
+  .halloween-community-badge {
+    top: 3px;
+    left: 3px;
+  }
+
+  .community-icon {
+    font-size: 18px;
+  }
+}
+
+/* Authentication status in top-left corner */
+.halloween-auth-status {
+  position: fixed;
+  top: 24px;
+  left: 24px;
+  z-index: 1000;
+}
+
+/* Ensure music player shows above other elements on Halloween page */
+.halloween-event .halloween-music-section {
+  z-index: 1001 !important;
+}
+
+.halloween-event .click-me-prompt {
+  z-index: 1002 !important;
+}
+
+/* Background images at the bottom corners */
+.halloween-background-image {
+  position: fixed;
+  bottom: 0;
+  width: 35%;
+  height: 100vh;
+  background-image: url('/halloween_bg.jpg');
+  background-size: contain;
+  background-repeat: no-repeat;
+  z-index: 1; /* Above base background, below film-strip */
+  pointer-events: none;
+}
+
+.halloween-background-left {
+  left: 0;
+  background-position: bottom left;
+}
+
+.halloween-background-right {
+  display: none;
+}
+
+/* Main content container */
+.halloween-content {
+  position: relative;
+  z-index: 1;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  box-sizing: border-box;
+}
+
+/* Floating decorations - scroll with page */
+.halloween-decorations {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 50; /* Above photo grid but below UI elements like music player */
+  overflow: hidden;
+}
+
+.floating-ghost,
+.floating-pumpkin,
+.floating-bat,
+.floating-spider {
+  position: absolute;
+  font-size: 2rem;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.floating-ghost {
+  animation: floatGhost 8s ease-in-out infinite;
+}
+
+.ghost-1 {
+  top: 10%;
+  left: 5%;
+  animation-delay: 0s;
+}
+
+.ghost-2 {
+  top: 30%;
+  right: 8%;
+  animation-delay: 3s;
+}
+
+.floating-pumpkin {
+  animation: bobPumpkin 6s ease-in-out infinite;
+}
+
+.pumpkin-1 {
+  top: 20%;
+  left: 15%;
+  animation-delay: 1s;
+}
+
+.pumpkin-2 {
+  top: 50%;
+  right: 12%;
+  animation-delay: 2.5s;
+}
+
+.floating-bat {
+  animation: flyBat 10s ease-in-out infinite;
+}
+
+.bat-1 {
+  top: 15%;
+  left: 30%;
+  animation-delay: 0s;
+}
+
+.bat-2 {
+  top: 40%;
+  left: 60%;
+  animation-delay: 3s;
+}
+
+.bat-3 {
+  top: 25%;
+  right: 20%;
+  animation-delay: 5s;
+}
+
+.floating-spider {
+  animation: swingSpider 4s ease-in-out infinite;
+}
+
+.spider-1 {
+  top: 5%;
+  left: 40%;
+  animation-delay: 0.5s;
+}
+
+.spider-2 {
+  top: 35%;
+  right: 30%;
+  animation-delay: 2s;
+}
+
+/* Header - scrolls with the page */
+.halloween-header {
+  text-align: center;
+  margin-bottom: 1rem;
+  padding: 1rem 0;
+  padding-top: 1rem;
+}
+
+.halloween-title {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #2d1810;
+  text-shadow: 
+    2px 2px 0 #fff,
+    -2px -2px 0 #fff,
+    2px -2px 0 #fff,
+    -2px 2px 0 #fff;
+  margin: 0 0 0.5rem 0;
+  animation: pulseTitle 3s ease-in-out infinite;
+}
+
+/* Portrait Type Selector - styled for Halloween theme */
+.halloween-portrait-selector {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.halloween-portrait-btn {
+  background: transparent;
+  border-radius: 50%;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 60px;
+  height: 60px;
+  overflow: hidden;
+}
+
+.halloween-portrait-btn:hover {
+  transform: scale(1.1);
+}
+
+/* Halloween-specific label styling */
+.halloween-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 14px;
+  font-weight: bold;
+  color: white;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.6), 0 0 2px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.pumpkin-icon,
+.ghost-icon {
+  display: inline-block;
+  margin: 0 1rem;
+  animation: wiggle 2s ease-in-out infinite;
+}
+
+.halloween-subtitle {
+  font-size: 1.3rem;
+  color: #2d1810;
+  font-weight: 600;
+  margin: 0;
+}
+
+.sparkle {
+  display: inline-block;
+  margin: 0 0.5rem;
+  animation: twinkle 1.5s ease-in-out infinite;
+}
+
+/* Music Section - global positioning in shared styles */
+
+/* Overlay container - positioned over the photo grid */
+.halloween-overlay {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  z-index: 10000;
+  max-width: 700px;
+  width: calc(90% - 60px); /* Subtract space for close button */
+  max-height: calc(90vh - 60px); /* Subtract space for close button */
+  /* No background here - let the contest section handle it */
+  padding: 0;
+  /* Ensure it doesn't move */
+  will-change: auto;
+}
+
+/* Dismiss button */
+.overlay-dismiss-btn {
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #2d1810;
+  color: #fff;
+  border: 3px solid #ff6b00;
+  font-size: 1.8rem;
+  cursor: pointer;
+  z-index: 10001;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  /* Ensure button is fully visible */
+  overflow: visible;
+}
+
+.overlay-dismiss-btn:hover {
+  background: #ff6b00;
+  transform: rotate(90deg) scale(1.1);
+  box-shadow: 0 6px 15px rgba(255, 107, 0, 0.5);
+}
+
+.overlay-dismiss-btn:active {
+  transform: rotate(90deg) scale(0.95);
+}
+
+/* Collapsed pumpkin button */
+.halloween-pumpkin-button {
+  position: absolute;
+  top: 30px;
+  right: 30px;
+  z-index: 99; /* Below music player (100) but above most content */
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  gap: 15px;
+  animation: pumpkinBounce 2s ease-in-out infinite;
+}
+
+.pumpkin-emoji {
+  font-size: 4rem;
+  display: block;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+  transition: transform 0.2s ease;
+  position: relative;
+}
+
+.halloween-pumpkin-button:hover .pumpkin-emoji {
+  transform: scale(1.1) rotate(-5deg);
+}
+
+.pumpkin-dismiss-btn {
+  position: absolute;
+  top: 8px;
+  right: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(45, 24, 16, 0.8);
+  color: #fff;
+  border: 1px solid rgba(255, 107, 0, 0.8);
+  font-size: 0.85rem;
+  cursor: pointer;
+  z-index: 100;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  padding: 0;
+  line-height: 1;
+  opacity: 0;
+}
+
+.halloween-pumpkin-button:hover .pumpkin-dismiss-btn {
+  opacity: 1;
+}
+
+.pumpkin-dismiss-btn:hover {
+  background: rgba(255, 107, 0, 0.95);
+  transform: scale(1.1);
+  box-shadow: 0 2px 6px rgba(255, 107, 0, 0.5);
+}
+
+.pumpkin-dismiss-btn:active {
+  transform: scale(0.95);
+}
+
+.halloween-pumpkin-button .compete-bubble {
+  position: relative;
+  background: white;
+  color: #2d1810;
+  padding: 6px 12px;
+  border-radius: 15px;
+  font-weight: bold;
+  font-size: 0.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border: 2px solid #ff6b00;
+  white-space: nowrap;
+}
+
+.halloween-pumpkin-button .compete-bubble::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-left: 10px solid #ff6b00;
+}
+
+.halloween-pumpkin-button .compete-bubble::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-left: 8px solid white;
+  margin-left: -2px;
+}
+
+@keyframes pumpkinBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Desktop: hide emoji, show text */
+.compete-emoji {
+  display: none;
+}
+
+.compete-text {
+  display: inline;
+}
+
+/* Mobile styles for pumpkin button */
+@media (max-width: 768px) {
+  .halloween-pumpkin-button {
+    top: 20px;
+    right: 20px;
+    flex-direction: column; /* Stack vertically: pumpkin on top, bubble below */
+    gap: 4px;
+  }
+
+  .pumpkin-emoji {
+    font-size: 3rem;
+  }
+
+  .pumpkin-dismiss-btn {
+    width: 18px;
+    height: 18px;
+    font-size: 0.75rem;
+    top: 6px;
+    right: 2px;
+    opacity: 1;
+  }
+  
+  .halloween-pumpkin-button .compete-bubble {
+    font-size: 0.9rem;
+    padding: 4px 8px;
+  }
+
+  /* Mobile: hide text, show emoji */
+  .compete-text {
+    display: none !important;
+  }
+
+  .compete-emoji {
+    display: inline !important;
+  }
+
+  /* Reposition speech bubble arrow to point upward (toward pumpkin) */
+  .halloween-pumpkin-button .compete-bubble::before {
+    top: auto;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 10px solid #ff6b00;
+    border-top: none;
+  }
+
+  .halloween-pumpkin-button .compete-bubble::after {
+    top: auto;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-bottom: 8px solid white;
+    border-top: none;
+    margin-left: 0;
+    margin-bottom: -2px;
+  }
+}
+
+/* Contest Section */
+.halloween-contest {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  position: relative;
+  max-height: 100%;
+  overflow-y: auto; /* Allow scrolling within the contest card if needed */
+  border-radius: 20px;
+  /* Add backdrop blur for better readability */
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  /* Black drop shadow */
+  box-shadow: 
+    0 10px 40px rgba(0, 0, 0, 0.5),
+    0 20px 80px rgba(0, 0, 0, 0.3);
+}
+
+.contest-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  padding: 1.8rem 2rem;
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.3),
+    0 0 0 5px #2d1810;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.contest-card::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #ff6b00, #ffa500, #ff8c00, #ff6b00);
+  z-index: -1;
+  border-radius: 20px;
+  animation: borderGlow 3s ease-in-out infinite;
+}
+
+.contest-title {
+  font-size: 1.4rem;
+  color: #2d1810;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.contest-description {
+  font-size: 1rem;
+  color: var(--brand-text-secondary);
+  margin-bottom: 1.5rem;
+  text-align: center;
+  line-height: 1.6;
+  max-width: 90%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.style-library-link {
+  color: #ff6b00;
+  font-weight: bold;
+  text-decoration: underline;
+  transition: color 0.2s ease;
+}
+
+.style-library-link:hover {
+  color: #ff8c00;
+  text-decoration: none;
+}
+
+.how-to-win {
+  background: #fff5e6;
+  border-radius: 15px;
+  padding: 1rem;
+  margin-bottom: 1.2rem;
+  border: 3px solid #ff8c00;
+}
+
+.how-to-win h3 {
+  font-size: 1.2rem;
+  color: #2d1810;
+  text-align: center;
+  margin: 0 0 0.6rem 0;
+}
+
+.how-to-win ul {
+  list-style: none;
+  padding: 0;
+}
+
+.how-to-win li {
+  padding: 0.4rem 0 0.4rem 2rem;
+  position: relative;
+  color: #333;
+  line-height: 1.5;
+  font-size: 0.95rem;
+  text-align: left;
+}
+
+.how-to-win li::before {
+  content: '🎃';
+  position: absolute;
+  left: 0;
+}
+
+.feature-info,
+.deadline {
+  text-align: center;
+  font-size: 1rem;
+  color: #2d1810;
+  margin: 0.6rem 0;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.highlight {
+  color: #ff6b00;
+  font-weight: bold;
+  font-size: 1.3em;
+}
+
+.halloween-inspiration {
+  margin-bottom: 1.2rem;
+  text-align: center;
+}
+
+.halloween-inspiration h3 {
+  font-size: 1.2rem;
+  color: #2d1810;
+  margin: 0 0 1rem 0;
+}
+
+.halloween-gallery {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding: 0.5rem 0;
+}
+
+.halloween-event .halloween-polaroid {
+  background: white;
+  padding: 8px 8px 20px 8px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+  transform: rotate(-2deg);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  cursor: pointer;
+}
+
+.halloween-event .halloween-polaroid:nth-child(2) {
+  transform: rotate(1deg);
+}
+
+.halloween-event .halloween-polaroid:nth-child(3) {
+  transform: rotate(-3deg);
+}
+
+.halloween-event .halloween-polaroid:nth-child(4) {
+  transform: rotate(2deg);
+}
+
+.halloween-event .halloween-polaroid:nth-child(5) {
+  transform: rotate(-1deg);
+}
+
+.halloween-event .halloween-polaroid:hover {
+  transform: rotate(0deg) scale(1.05);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  z-index: 10;
+}
+
+.halloween-event .halloween-polaroid img {
+  width: 80px;
+  height: 120px;
+  object-fit: cover;
+  display: block;
+}
+
+.start-creating-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0.9rem 1.2rem;
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: white;
+  background: linear-gradient(135deg, #ff6b00 0%, #ff8c00 100%);
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 5px 15px rgba(255, 107, 0, 0.4);
+}
+
+.start-creating-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(255, 107, 0, 0.6);
+}
+
+.start-creating-btn:active {
+  transform: translateY(-1px);
+}
+
+.btn-icon {
+  margin: 0 0.5rem;
+  font-size: 1.8rem;
+}
+
+/* Animations */
+@keyframes floatGhost {
+  0%, 100% {
+    transform: translateY(0) translateX(0);
+  }
+  25% {
+    transform: translateY(-20px) translateX(10px);
+  }
+  50% {
+    transform: translateY(-10px) translateX(-10px);
+  }
+  75% {
+    transform: translateY(-30px) translateX(5px);
+  }
+}
+
+@keyframes bobPumpkin {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-15px) rotate(5deg);
+  }
+}
+
+@keyframes flyBat {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate(-30px, -20px) rotate(-10deg);
+  }
+  50% {
+    transform: translate(20px, -40px) rotate(5deg);
+  }
+  75% {
+    transform: translate(-10px, -25px) rotate(-5deg);
+  }
+}
+
+@keyframes swingSpider {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(20px);
+  }
+}
+
+@keyframes pulseTitle {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes wiggle {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-10deg);
+  }
+  75% {
+    transform: rotate(10deg);
+  }
+}
+
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
+}
+
+@keyframes borderGlow {
+  0%, 100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .halloween-event {
+    overflow-y: auto;
+  }
+
+  .halloween-auth-status {
+    top: 16px;
+    left: 16px;
+  }
+
+  .halloween-content {
+    padding: 1rem;
+    min-height: 100vh;
+    height: auto;
+    justify-content: flex-start;
+    padding-top: 2rem;
+    padding-bottom: 50vh;
+  }
+
+  .halloween-header {
+    margin-bottom: 0.25rem;
+    padding-top: 2.5rem;
+  }
+
+  .halloween-title {
+    font-size: 1.4rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .pumpkin-icon,
+  .ghost-icon {
+    font-size: 1.2rem;
+    margin: 0 0.3rem;
+  }
+
+  /* Mobile portrait type selector */
+  .halloween-portrait-selector {
+    gap: 10px;
+    margin-top: 0.5rem;
+    margin-bottom: 0;
+  }
+
+  .halloween-portrait-btn {
+    width: 50px;
+    height: 50px;
+  }
+
+  .halloween-label {
+    font-size: 12px;
+  }
+
+  .halloween-contest {
+    max-width: 100%;
+    margin: 0;
+  }
+
+  .contest-card {
+    padding: 1.3rem 1.2rem;
+  }
+
+  .contest-title {
+    font-size: 1.4rem;
+    margin-bottom: 1rem;
+  }
+
+  .contest-description {
+    font-size: 0.95rem;
+    margin-bottom: 1.2rem;
+    max-width: 100%;
+    line-height: 1.5;
+  }
+
+  .contest-description p {
+    margin: 0;
+  }
+
+  .mission-prefix,
+  .photobooth-prefix {
+    display: none;
+  }
+
+  .how-to-win {
+    padding: 1rem 0.9rem;
+    margin-bottom: 1rem;
+  }
+
+  .how-to-win h3 {
+    font-size: 1.15rem;
+    margin-bottom: 0.7rem;
+  }
+
+  .how-to-win li {
+    font-size: 0.9rem;
+    padding: 0.35rem 0 0.35rem 1.8rem;
+    line-height: 1.4;
+  }
+
+  .how-to-win li::before {
+    font-size: 1rem;
+  }
+
+  .feature-info,
+  .deadline {
+    font-size: 0.95rem;
+    margin: 0.5rem 0;
+    line-height: 1.4;
+  }
+
+  .highlight {
+    font-size: 1.2em;
+  }
+
+  .halloween-inspiration h3 {
+    font-size: 1.1rem;
+  }
+
+  .halloween-gallery {
+    gap: 0.8rem;
+  }
+
+  .halloween-event .halloween-polaroid {
+    padding: 6px 6px 16px 6px;
+  }
+
+  .halloween-event .halloween-polaroid img {
+    width: 60px;
+    height: 90px;
+  }
+
+  .halloween-event .halloween-polaroid:nth-child(5) {
+    display: none;
+  }
+
+  .start-creating-btn {
+    font-size: 1.15rem;
+    padding: 1rem 1.3rem;
+  }
+
+  .btn-icon {
+    font-size: 1.3rem;
+  }
+
+  .floating-ghost,
+  .floating-pumpkin,
+  .floating-bat,
+  .floating-spider {
+    font-size: 1.3rem;
+  }
+
+  .halloween-background-left {
+    width: 100%;
+    height: 45vh;
+    background-position: bottom center;
+  }
+
+  .halloween-background-right {
+    display: none;
+  }
+
+  /* Mobile styles for overlay */
+  .overlay-dismiss-btn {
+    top: -16px;
+    right: -16px;
+    width: 40px;
+    height: 40px;
+    font-size: 1.4rem;
+  }
+
+  .halloween-overlay {
+    width: 95%;
+    max-height: 85vh;
+    padding: 0;
+  }
+
+  .contest-card {
+    padding: 1.3rem 1.2rem;
+  }
+
+}
+
+/* Music section mobile positioning - in HalloweenMusicPlayer.css */
+
+/* Extra small screens */
+@media (max-width: 400px) {
+  .halloween-content {
+    padding: 0.8rem;
+    padding-top: 1.5rem;
+  }
+
+  .halloween-title {
+    font-size: 1.2rem;
+  }
+
+  .contest-card {
+    padding: 1.1rem 1rem;
+  }
+
+  .contest-title {
+    font-size: 1.2rem;
+  }
+
+  .contest-description {
+    font-size: 0.9rem;
+  }
+
+  .mission-prefix,
+  .photobooth-prefix {
+    display: none;
+  }
+
+  .how-to-win h3 {
+    font-size: 1.05rem;
+  }
+
+  .how-to-win li {
+    font-size: 0.85rem;
+  }
+
+  .feature-info,
+  .deadline {
+    font-size: 0.9rem;
+  }
+
+  .halloween-inspiration h3 {
+    font-size: 1rem;
+  }
+
+  .halloween-gallery {
+    gap: 0.6rem;
+  }
+
+  .halloween-event .halloween-polaroid {
+    padding: 5px 5px 14px 5px;
+  }
+
+  .halloween-event .halloween-polaroid img {
+    width: 50px;
+    height: 75px;
+  }
+
+  .halloween-event .halloween-polaroid:nth-child(5) {
+    display: none;
+  }
+
+  .start-creating-btn {
+    font-size: 1.05rem;
+    padding: 0.9rem 1.1rem;
+  }
+
+  /* Extra small styles for overlay */
+  .overlay-dismiss-btn {
+    top: -14px;
+    right: -14px;
+    width: 36px;
+    height: 36px;
+    font-size: 1.2rem;
+  }
+
+  .halloween-overlay {
+    width: 96%;
+    padding: 0;
+  }
+
+  .contest-card {
+    padding: 1.1rem 1rem;
+  }
+}
+

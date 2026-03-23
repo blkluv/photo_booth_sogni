@@ -2,17 +2,16 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- AGGRESSIVE CACHE BUSTING -->
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <meta name="cache-buster" content="1.0.21">
-    <link rel="icon" href="/favicon.ico?v=1.0.20" />
-    <title>Sogni AI Photobooth</title>
+    <!-- Cache control for development - less aggressive for PWA compatibility -->
+    <meta name="cache-buster" content="2.0.0">
+    <link rel="icon" href="/favicon.ico?v=2" />
+    <title>Sogni AI Photobooth | Free AI Headshot Generator & Portrait Maker</title>
+    <meta name="description" content="Create stunning AI headshots, portraits, and video portraits with Sogni Photobooth—your all-in-one AI headshot generator, free AI portrait generator, and anime PFP maker. Transform your photos with 200+ styles in seconds, or generate AI videos from your portraits!" />
+    <meta name="keywords" content="AI headshot generator, free AI portrait generator, AI portrait generator, AI video generator, video portraits, AI video portraits, PFP maker, anime PFP maker, AI photo generator, AI photobooth, AI selfie generator, profile picture maker, anime avatar creator, AI art generator, portrait AI, headshot maker, AI image generator, photo transformer, AI video maker, portrait video generator" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     
     <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.json?v=1.0.20" />
+    <link rel="manifest" href="/manifest.json?v=2" />
     
     <!-- Theme colors -->
     <meta name="theme-color" content="#000000" />
@@ -26,27 +25,77 @@
     <meta name="apple-mobile-web-app-title" content="Sogni Photobooth" />
     <meta name="application-name" content="Sogni Photobooth" />
     
+    <!-- Additional PWA meta tags for better iOS support -->
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="apple-touch-fullscreen" content="yes" />
+    
+    <!-- Preconnect to Google Fonts for faster font loading -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <!-- Preload critical fonts to prevent FOUC -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Indie+Flower&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Indie+Flower&display=swap" media="print" onload="this.media='all'" />
+    
+    <!-- Fallback for browsers without JavaScript -->
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Indie+Flower&display=swap" />
+    </noscript>
+    
+    <!-- Inline critical CSS to prevent FOUC -->
+    <style>
+      /* Ensure fonts load with swap behavior to prevent invisible text */
+      @font-face {
+        font-family: 'Permanent Marker';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url(https://fonts.gstatic.com/s/permanentmarker/v16/Fh4uPib9Iyv2ucM6pGQMWimMp004La2Cfw.woff2) format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      
+      @font-face {
+        font-family: 'Indie Flower';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url(https://fonts.gstatic.com/s/indieflower/v21/m8JVjfNVeKWVnh3QMuKkFcZlbkGG1dKEDw.woff2) format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      
+      /* Reserve space for splash screen elements to prevent layout shift */
+      .splash-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #FFED4E 0%, #FFD700 50%, #FFC700 100%);
+        z-index: 10000;
+      }
+    </style>
+    
     <!-- iOS Splash Screens -->
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     
     <!-- Apple Touch Icons -->
-    <link rel="apple-touch-icon" href="/icons/icon-180x180.png?v=1.0.16" />
-    <link rel="apple-touch-icon" sizes="72x72" href="/icons/icon-72x72.png?v=1.0.16" />
-    <link rel="apple-touch-icon" sizes="96x96" href="/icons/icon-96x96.png?v=1.0.16" />
-    <link rel="apple-touch-icon" sizes="128x128" href="/icons/icon-128x128.png?v=1.0.16" />
-    <link rel="apple-touch-icon" sizes="144x144" href="/icons/icon-144x144.png?v=1.0.16" />
-    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png?v=1.0.16" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180x180.png?v=1.0.16" />
-    <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192x192.png?v=1.0.16" />
-    <link rel="apple-touch-icon" sizes="384x384" href="/icons/icon-384x384.png?v=1.0.16" />
-    <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512x512.png?v=1.0.16" />
+    <link rel="apple-touch-icon" href="/icons/icon-180x180.png?v=2" />
+    <link rel="apple-touch-icon" sizes="72x72" href="/icons/icon-72x72.png?v=2" />
+    <link rel="apple-touch-icon" sizes="96x96" href="/icons/icon-96x96.png?v=2" />
+    <link rel="apple-touch-icon" sizes="128x128" href="/icons/icon-128x128.png?v=2" />
+    <link rel="apple-touch-icon" sizes="144x144" href="/icons/icon-144x144.png?v=2" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png?v=2" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180x180.png?v=2" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192x192.png?v=2" />
+    <link rel="apple-touch-icon" sizes="384x384" href="/icons/icon-384x384.png?v=2" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512x512.png?v=2" />
     
     <!-- Microsoft Tiles -->
-    <meta name="msapplication-TileImage" content="/icons/icon-144x144.png?v=1.0.16" />
-    <meta name="msapplication-square70x70logo" content="/icons/icon-72x72.png?v=1.0.16" />
-    <meta name="msapplication-square150x150logo" content="/icons/icon-144x144.png?v=1.0.16" />
-    <meta name="msapplication-wide310x150logo" content="/icons/icon-384x384.png" />
-    <meta name="msapplication-square310x310logo" content="/icons/icon-512x512.png" />
+    <meta name="msapplication-TileImage" content="/icons/icon-144x144.png?v=2" />
+    <meta name="msapplication-square70x70logo" content="/icons/icon-72x72.png?v=2" />
+    <meta name="msapplication-square150x150logo" content="/icons/icon-144x144.png?v=2" />
+    <meta name="msapplication-wide310x150logo" content="/icons/icon-384x384.png?v=2" />
+    <meta name="msapplication-square310x310logo" content="/icons/icon-512x512.png?v=2" />
     
     <script>
       // Emergency fix for corrupted localStorage values - runs before React
@@ -162,35 +211,89 @@
         }
         lastTouchEnd = now;
       }, { passive: false });
+      
+      // Prevent pull-to-refresh behavior
+      let touchStartY = 0;
+      let touchStartX = 0;
+      
+      document.addEventListener('touchstart', function(event) {
+        touchStartY = event.touches[0].clientY;
+        touchStartX = event.touches[0].clientX;
+      }, { passive: true });
+      
+      document.addEventListener('touchmove', function(event) {
+        const touchY = event.touches[0].clientY;
+        const touchX = event.touches[0].clientX;
+        const touchDeltaY = touchY - touchStartY;
+        const touchDeltaX = touchX - touchStartX;
+        
+        // Check if we're at the top of the page and trying to scroll down (pull-to-refresh)
+        const isAtTop = window.scrollY === 0 || document.documentElement.scrollTop === 0;
+        const isPullingDown = touchDeltaY > 0;
+        const isVerticalSwipe = Math.abs(touchDeltaY) > Math.abs(touchDeltaX);
+        
+        // Check if we're inside a scrollable container that should allow scrolling
+        let element = event.target;
+        let isInScrollableContainer = false;
+        
+        while (element && element !== document.body) {
+          const computedStyle = window.getComputedStyle(element);
+          const overflowY = computedStyle.overflowY;
+          
+          if (overflowY === 'auto' || overflowY === 'scroll') {
+            // Check if this element actually has scrollable content
+            if (element.scrollHeight > element.clientHeight) {
+              isInScrollableContainer = true;
+              break;
+            }
+          }
+          element = element.parentElement;
+        }
+        
+        // Prevent pull-to-refresh if:
+        // 1. We're at the top of the page
+        // 2. User is pulling down
+        // 3. It's primarily a vertical swipe
+        // 4. We're not inside a scrollable container that needs scrolling
+        if (isAtTop && isPullingDown && isVerticalSwipe && !isInScrollableContainer) {
+          event.preventDefault();
+        }
+      }, { passive: false });
     </script>
 
     <!-- Open Graph / Facebook -->
-    <meta property="og:title" content="Sogni AI Photobooth" />
+    <meta property="og:title" content="Sogni AI Photobooth | Free AI Headshot Generator & Portrait Maker" />
     <meta
       property="og:description"
-      content="Sogni Photobooth: Capture and transform your photos with AI styles"
+      content="Create stunning AI headshots, portraits, and video portraits with Sogni Photobooth—your free AI portrait generator and anime PFP maker. Transform your photos with 200+ AI styles in seconds, or generate AI videos from your portraits!"
     />
     <meta
       property="og:image"
-      content="https://repository-images.githubusercontent.com/945858402/db2496be-4fcb-4471-ad36-4eed6ffd4a9e"
+      content="https://repository-images.githubusercontent.com/945858402/6ae0abb5-c7cc-42ba-9051-9d644e1f130a"
     />
     <meta property="og:url" content="https://photobooth.sogni.ai/" />
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Sogni AI Photobooth" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@github" />
-    <meta property="twitter:domain" content="https://sogni.ai/" />
+    <meta name="twitter:site" content="@sogni_ai" />
+    <meta property="twitter:domain" content="photobooth.sogni.ai" />
     <meta property="twitter:url" content="https://photobooth.sogni.ai/" />
-    <meta name="twitter:title" content="Sogni-AI/sogni-photobooth: Sogni Photobooth: Capture and transform your photos with AI styles" />
+    <meta name="twitter:title" content="Sogni AI Photobooth | Free AI Headshot & Portrait Generator" />
     <meta
       name="twitter:description"
-      content="Sogni Photobooth: Capture and transform your photos with AI styles"
+      content="Create stunning AI headshots, portraits, video portraits, and anime PFPs with our free AI generator. 200+ styles, instant results! Generate AI videos from your photos."
     />
     <meta
       name="twitter:image"
-      content="https://repository-images.githubusercontent.com/945858402/db2496be-4fcb-4471-ad36-4eed6ffd4a9e"
+      content="https://repository-images.githubusercontent.com/945858402/6ae0abb5-c7cc-42ba-9051-9d644e1f130a"
     />
+    
+    <!-- Additional SEO -->
+    <meta name="author" content="Sogni AI" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://photobooth.sogni.ai/" />
   </head>
   <body>
     <div id="root"></div>
@@ -200,7 +303,7 @@
     <script>
       if ('serviceWorker' in navigator) {
         // Skip service worker in development to prevent caching issues
-        const isLocalDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname.includes('local');
+        const isLocalDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname.includes('local') || location.hostname.includes('192.168') || location.hostname.includes('10.0');
         
         if (!isLocalDev) {
           window.addEventListener('load', () => {

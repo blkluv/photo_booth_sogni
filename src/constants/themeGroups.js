@@ -1,5 +1,6 @@
 // Theme groups for organizing style prompts - now sourced from consolidated prompts.json
 import promptsData from '../prompts.json';
+import { IMAGE_EDIT_PROMPTS_CATEGORY } from './editPrompts';
 
 // Convert the new structure to the old THEME_GROUPS format for compatibility
 export const THEME_GROUPS = {};
@@ -12,29 +13,109 @@ Object.entries(promptsData).forEach(([groupId, group]) => {
   };
 });
 
-// Default state - all groups enabled
+// Helper to check if a theme group is the image edit prompts category
+export const isImageEditPromptsCategory = (groupId) => {
+  return groupId === IMAGE_EDIT_PROMPTS_CATEGORY;
+};
+
+// Get ordered theme group IDs with image-edit-prompts right after favorites
+export const getOrderedThemeGroupIds = () => {
+  const ids = Object.keys(THEME_GROUPS);
+  const favorites = ids.filter(id => id === 'favorites');
+  const personalized = ids.filter(id => id === 'personalized');
+  const imageEdit = ids.filter(id => id === IMAGE_EDIT_PROMPTS_CATEGORY);
+  const rest = ids.filter(id => id !== 'favorites' && id !== 'personalized' && id !== IMAGE_EDIT_PROMPTS_CATEGORY);
+  return [...favorites, ...personalized, ...imageEdit, ...rest];
+};
+
+// Default state - favorites, horror, and image-edit-prompts start unchecked, all other groups enabled
 export const getDefaultThemeGroupState = () => {
   const defaultState = {};
   Object.keys(THEME_GROUPS).forEach(groupId => {
-    defaultState[groupId] = true;
+    // Personalized is enabled by default, favorites/horror/image-edit-prompts start unchecked
+    defaultState[groupId] = (groupId === 'favorites' || groupId === 'horror' || groupId === IMAGE_EDIT_PROMPTS_CATEGORY) ? false : true;
   });
   return defaultState;
 };
 
+/**
+ * Inject a "Personalized" theme group for user's custom prompts.
+ * Called when custom prompts are loaded from the backend.
+ * @param {string[]} promptKeys - Array of custom prompt keys (e.g., ['custom_0', 'custom_1', ...])
+ */
+export const injectPersonalizedThemeGroup = (promptKeys) => {
+  if (promptKeys.length > 0) {
+    THEME_GROUPS['personalized'] = {
+      name: 'Personalized',
+      prompts: promptKeys
+    };
+  } else {
+    delete THEME_GROUPS['personalized'];
+  }
+};
+
+/**
+ * Remove the "Personalized" theme group
+ */
+export const removePersonalizedThemeGroup = () => {
+  delete THEME_GROUPS['personalized'];
+};
+
 // Get all prompts that are enabled based on theme group selections
+// Note: Favorites are stored as promptKeys (e.g., 'animeKawaii') for gallery images,
+// allowing them to be used with Random: All and One of Each generation
 export const getEnabledPrompts = (themeGroupState, allPrompts) => {
   const enabledPromptNames = [];
   
+  // Get blocked prompts from localStorage
+  let blockedPrompts = [];
+  try {
+    const blocked = localStorage.getItem('sogni_blocked_prompts');
+    if (blocked) {
+      blockedPrompts = JSON.parse(blocked);
+    }
+  } catch (e) {
+    console.warn('Error reading blocked prompts:', e);
+  }
+  
   Object.entries(THEME_GROUPS).forEach(([groupId, group]) => {
     if (themeGroupState[groupId]) {
-      enabledPromptNames.push(...group.prompts);
+      if (groupId === 'favorites') {
+        // For favorites, get the prompt keys from localStorage
+        try {
+          const favorites = localStorage.getItem('sogni_favorite_images');
+          if (favorites) {
+            const favoriteIds = JSON.parse(favorites);
+            enabledPromptNames.push(...favoriteIds);
+          }
+        } catch (e) {
+          console.warn('Error reading favorite images:', e);
+        }
+      } else {
+        enabledPromptNames.push(...group.prompts);
+      }
     }
   });
+
+  // Handle personalized prompts even if the theme group hasn't been injected yet
+  // (async race: injectPersonalizedThemeGroup may not have run by generation time)
+  if (themeGroupState['personalized'] && !THEME_GROUPS['personalized']) {
+    Object.keys(allPrompts).forEach(key => {
+      if (key.startsWith('custom_')) {
+        enabledPromptNames.push(key);
+      }
+    });
+  }
   
-  // Filter the allPrompts object to only include enabled prompts
+  // Filter the allPrompts object to only include enabled prompts (and exclude blocked prompts)
   const enabledPrompts = {};
   Object.entries(allPrompts).forEach(([key, value]) => {
-    if (key === 'custom' || key === 'random' || key === 'randomMix' || key === 'oneOfEach' || enabledPromptNames.includes(key)) {
+    // Always include custom and random workflow options if they exist
+    if (key === 'custom' || key === 'random') {
+      enabledPrompts[key] = value;
+    }
+    // Include other prompts only if they're in the enabled list AND not blocked
+    else if (enabledPromptNames.includes(key) && !blockedPrompts.includes(key)) {
       enabledPrompts[key] = value;
     }
   });
@@ -43,20 +124,61 @@ export const getEnabledPrompts = (themeGroupState, allPrompts) => {
 };
 
 // Get prompts in sequential order for "One of each plz" mode
+// Note: Favorites in localStorage are stored as promptKeys (e.g., 'animeKawaii'),
+// which allows them to be looked up in allPrompts for generation
 export const getOneOfEachPrompts = (themeGroupState, allPrompts, count) => {
   const enabledGroups = [];
+  
+  // Get blocked prompts from localStorage
+  let blockedPrompts = [];
+  try {
+    const blocked = localStorage.getItem('sogni_blocked_prompts');
+    if (blocked) {
+      blockedPrompts = JSON.parse(blocked);
+    }
+  } catch (e) {
+    console.warn('Error reading blocked prompts:', e);
+  }
   
   // Get enabled groups in their defined order
   Object.entries(THEME_GROUPS).forEach(([groupId, group]) => {
     if (themeGroupState[groupId]) {
-      enabledGroups.push(group);
+      if (groupId === 'favorites') {
+        // For favorites, get the prompt keys from localStorage dynamically
+        try {
+          const favorites = localStorage.getItem('sogni_favorite_images');
+          if (favorites) {
+            const favoriteIds = JSON.parse(favorites);
+            // Filter out blocked prompts from favorites
+            const unblocked = favoriteIds.filter(id => !blockedPrompts.includes(id));
+            if (unblocked.length > 0) {
+              enabledGroups.push({
+                name: group.name,
+                prompts: unblocked
+              });
+            }
+          }
+        } catch (e) {
+          console.warn('Error reading favorite images for oneOfEach:', e);
+        }
+      } else {
+        // Filter out blocked prompts from group prompts
+        const unblockedPrompts = group.prompts.filter(p => !blockedPrompts.includes(p));
+        if (unblockedPrompts.length > 0) {
+          enabledGroups.push({
+            name: group.name,
+            prompts: unblockedPrompts
+          });
+        }
+      }
     }
   });
   
-  // If no themes are checked or all themes are checked, use alphabetical order from full list
-  if (enabledGroups.length === 0 || enabledGroups.length === Object.keys(THEME_GROUPS).length) {
+  // If no themes are checked, use alphabetical order from full list
+  if (enabledGroups.length === 0) {
     const allPromptKeys = Object.keys(allPrompts)
-      .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix' && key !== 'oneOfEach')
+      .filter(key => key !== 'custom' && key !== 'random' && key !== 'randomMix' && key !== 'oneOfEach' && key !== 'copyImageStyle')
+      .filter(key => !blockedPrompts.includes(key)) // Filter out blocked prompts
       .sort();
     
     const selectedPrompts = [];
@@ -84,6 +206,8 @@ export const getOneOfEachPrompts = (themeGroupState, allPrompts, count) => {
     
     if (allPrompts[promptKey]) {
       selectedPrompts.push(allPrompts[promptKey]);
+    } else {
+      console.warn(`Prompt key "${promptKey}" not found in allPrompts`);
     }
     
     groupIndex = (groupIndex + 1) % enabledGroups.length;

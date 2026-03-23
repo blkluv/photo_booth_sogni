@@ -1,6 +1,7 @@
 /**
  * Handles photo enhancement using Sogni API
  */
+import { fetchS3AsBlob } from '../utils/s3FetchWithFallback';
 
 /**
  * Enhances a photo using Sogni API
@@ -14,6 +15,8 @@
  * @param {Object} options.sogniClient - Sogni client instance
  * @param {(updater: (prev: any[]) => any[]) => void} options.setPhotos - React setState function for photos
  * @param {(projectId: string | null) => void} options.onSetActiveProject - Callback to set active project reference
+ * @param {() => void} options.onOutOfCredits - Callback to trigger out of credits popup
+ * @param {'spark' | 'sogni'} options.tokenType - Payment method to use (spark or sogni)
  * @returns {Promise<void>}
  */
 export const enhancePhoto = async (options) => {
@@ -29,8 +32,10 @@ export const enhancePhoto = async (options) => {
     clearFrameCache,
     clearQrCode, // New option to clear QR codes when enhancement starts
     // onSetActiveProject - not used for enhancement to avoid interfering with main generation
-    useKontext = false,
-    customPrompt = ''
+    useEditModel = false,
+    customPrompt = '',
+    tokenType = 'spark', // Payment method - defaults to spark for backwards compatibility
+    onOutOfCredits // Callback to show out of credits popup
   } = options;
 
   // Input validation
@@ -49,10 +54,15 @@ export const enhancePhoto = async (options) => {
     return;
   }
 
+  // CRITICAL: Check if photo is already enhancing to prevent duplicate calls
+  if (photo.enhancing) {
+    console.warn(`[ENHANCE] Photo #${photoIndex} is already enhancing, ignoring duplicate call`);
+    return;
+  }
+
   let timeoutId; // Declare timeoutId in outer scope
 
   try {
-    console.log(`🚀 [ENHANCE-DEBUG] UPDATED PhotoEnhancer.js loaded! Starting enhancement for photo #${photoIndex}`, { photo, width, height, outputFormat });
     console.log(`[ENHANCE] Photo state:`, {
       enhanced: photo.enhanced,
       hasOriginalEnhancedImage: !!photo.originalEnhancedImage,
@@ -83,11 +93,8 @@ export const enhancePhoto = async (options) => {
       throw new Error(`No image URL found for enhancement. Photo #${photoIndex}, subIndex: ${subIndex}`);
     }
     
-    const response = await fetch(imageUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-    }
-    const imageBlob = await response.blob();
+    // Use S3 fetch with CORS fallback for reliable image loading
+    const imageBlob = await fetchS3AsBlob(imageUrl);
     console.log(`[ENHANCE] Image blob size: ${imageBlob.size} bytes`);
     
     // Set loading state
@@ -140,7 +147,7 @@ export const enhancePhoto = async (options) => {
             ...current,
             loading: false,
             enhancing: false,
-            error: 'ENHANCEMENT FAILED: timeout',
+            error: 'ENHANCEMENT TIMEOUT',
             enhancementError: 'Enhancement timed out. Please try again.',
             enhanceTimeoutId: null
           };
@@ -172,39 +179,42 @@ export const enhancePhoto = async (options) => {
     // Configure project parameters based on model type
     let projectConfig;
     
-    if (useKontext) {
-      // Use Flux.1 Kontext for custom modifications
+    if (useEditModel) {
+      // Use context image edit model (Qwen, Flux, etc.) for custom modifications
       projectConfig = {
+        type: 'image', // Required in SDK v4.x.x
         testnet: false,
-        tokenType: 'spark',
-        modelId: "flux1-dev-kontext_fp8_scaled",
+        tokenType: tokenType,
+        modelId: "qwen_image_edit_2511_fp8_lightning",
         positivePrompt: customPrompt || 'Enhance the image',
         sizePreset: 'custom',
         width,
         height,
-        steps: 24,
-        guidance: 5.5,
-        numberOfImages: 1,
+        steps: 5,
+        guidance: 1, // Qwen Image Edit 2511 Lightning default guidance is 1 (max 2)
+        numberOfMedia: 1,
         outputFormat: outputFormat || 'jpg',
-        sensitiveContentFilter: false,
-        contextImages: [new Uint8Array(arrayBuffer)], // Kontext uses contextImages array
-        sourceType: 'enhancement-kontext', // Track Kontext enhancements separately
+        sensitiveContentFilter: false, // HARDCODED: Context image edit models are not NSFW-aware, always disable filter
+        contextImages: [new Uint8Array(arrayBuffer)], // Context image models use contextImages array
+        sourceType: 'enhancement-context-image-edit', // Track context image enhancements separately
+        // Note: sampler and scheduler omitted - server provides defaults for context image models
       };
     } else {
-      // Use Flux.1 Krea for standard enhancement
+      // Use Z-Image Turbo for standard enhancement
       projectConfig = {
+        type: 'image', // Required in SDK v4.x.x
         testnet: false,
-        tokenType: 'spark',
-        modelId: "flux1-krea-dev_fp8_scaled",
+        tokenType: tokenType,
+        modelId: "z_image_turbo_bf16",
         positivePrompt: `(Extra detailed and contrasty portrait) ${photo.positivePrompt || 'Portrait masterpiece'}`,
         sizePreset: 'custom',
         width,
         height,
-        steps: 24,
-        guidance: 5.5,
-        numberOfImages: 1,
+        steps: 6, // Z-Image Turbo uses fewer steps
+        guidance: 3.5, // Z-Image Turbo default guidance
+        numberOfMedia: 1,
         outputFormat: outputFormat || 'jpg',
-        sensitiveContentFilter: false,
+        sensitiveContentFilter: false, // HARDCODED: Model is not NSFW-aware, always disable filter
         startingImage: new Uint8Array(arrayBuffer),
         startingImageStrength: 0.75,
         sourceType: 'enhancement', // Add sourceType for backend tracking
@@ -212,38 +222,62 @@ export const enhancePhoto = async (options) => {
     }
     
     // Use the same API path as regular generation to get proper upload handling
-    const project = await sogniClient.projects.create(projectConfig);
+    let project;
+    try {
+      project = await sogniClient.projects.create(projectConfig);
+      console.log(`[ENHANCE] Enhancement project created with ID: ${project.id} (not setting as active to avoid interference)`);
+    } catch (createError) {
+      console.error(`[ENHANCE] Project creation failed:`, createError);
       
-      // Wait for upload completion like regular generation does
-      await new Promise((resolve) => {
-        let uploadCompleted = false;
-        
-        const uploadCompleteHandler = () => {
-          if (!uploadCompleted) {
-            uploadCompleted = true;
-            console.log(`[ENHANCE] Starting image upload completed, enhancement can proceed`);
-            project.off('uploadComplete', uploadCompleteHandler);
-            resolve();
-          }
-        };
-        
-        // Listen for upload completion
-        project.on('uploadComplete', uploadCompleteHandler);
-        
-        // Fallback timeout in case upload complete event doesn't fire
-        setTimeout(() => {
-          if (!uploadCompleted) {
-            uploadCompleted = true;
-            console.log(`[ENHANCE] Upload timeout reached, proceeding with enhancement`);
-            project.off('uploadComplete', uploadCompleteHandler);
-            resolve();
-          }
-        }, 5000); // 5 second timeout
+      // Extract error message from various error formats
+      let errorMessage = 'Failed to create enhancement project';
+      if (createError instanceof Error) {
+        errorMessage = createError.message;
+      } else if (typeof createError === 'object' && createError !== null) {
+        if (createError.message) {
+          errorMessage = createError.message;
+        } else if (createError.error) {
+          errorMessage = createError.error;
+        } else if (createError.payload?.message) {
+          errorMessage = createError.payload.message;
+        } else if (createError.payload?.error) {
+          errorMessage = createError.payload.error;
+        }
+      }
+      
+      // Log the full error for debugging
+      console.error(`[ENHANCE] Full error details:`, {
+        error: createError,
+        message: errorMessage,
+        type: typeof createError,
+        keys: createError && typeof createError === 'object' ? Object.keys(createError) : []
       });
+      
+      // Clear timeout
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      
+      // Update UI to show error
+      setPhotos(prev => {
+        const updated = [...prev];
+        if (!updated[photoIndex]) return prev;
+        updated[photoIndex] = {
+          ...updated[photoIndex],
+          enhancing: false,
+          loading: false,
+          enhancementError: errorMessage,
+          error: 'ENHANCEMENT FAILED',
+          enhanceTimeoutId: null
+        };
+        return updated;
+      });
+      
+      return; // Exit early - don't continue with the rest of the function
+    }
       
       // Don't set activeProjectReference for enhancement to avoid interfering with main generation
       // onSetActiveProject(project.id); // Commented out to prevent interference
-      console.log(`[ENHANCE] Enhancement project created with ID: ${project.id} (not setting as active to avoid interference)`);
       
       // Now update with project ID after creation
       setPhotos(prev => {
@@ -263,45 +297,71 @@ export const enhancePhoto = async (options) => {
         
         console.log(`[ENHANCE] Job event received:`, { type, jobId, progress, projectId: project.id });
         
-        // Store job ID when we first see it (on started or progress events)
-        if (jobId && ['started', 'progress'].includes(type)) {
+        // Single state update for started events (store job ID)
+        if (type === 'started' && jobId) {
           setPhotos(prev => {
-            const updated = [...prev];
-            const current = updated[photoIndex];
-            if (!current || !current.enhancing) return prev;
+            const current = prev[photoIndex];
+            if (!current || !current.enhancing || current.currentEnhancementJobId) return prev;
             
-            // Only update if we don't have a job ID yet, or if this is a newer project
-            if (!current.currentEnhancementJobId || current.projectId === project.id) {
-              console.log(`[ENHANCE] Setting job ID for photo #${photoIndex}: ${jobId}`);
-              updated[photoIndex] = {
-                ...current,
-                currentEnhancementJobId: jobId
-              };
-              return updated;
-            }
-            return prev;
+            console.log(`[ENHANCE] Setting job ID for photo #${photoIndex}: ${jobId}`);
+            const updated = [...prev];
+            updated[photoIndex] = {
+              ...current,
+              currentEnhancementJobId: jobId
+            };
+            return updated;
           });
         }
         
-        // Handle progress events
+        // Handle ETA events - prioritize over progress for display
+        if (type === 'eta' && event.eta !== undefined && jobId) {
+          const etaSeconds = typeof event.eta === 'number' ? event.eta : 0;
+          console.log(`[ENHANCE] Job ETA: ${etaSeconds}s remaining`);
+          
+          setPhotos(prev => {
+            const current = prev[photoIndex];
+            if (!current || !current.enhancing) return prev;
+            
+            // Only accept ETA updates for the correct job ID
+            if (current.currentEnhancementJobId && current.currentEnhancementJobId !== jobId) {
+              return prev;
+            }
+            
+            // Check if ETA actually changed to avoid unnecessary updates
+            if (current.enhancementETA === etaSeconds) {
+              return prev;
+            }
+            
+            const updated = [...prev];
+            updated[photoIndex] = {
+              ...current,
+              enhancementETA: etaSeconds
+            };
+            return updated;
+          });
+        }
+        
+        // Handle progress events (only used as fallback if no ETA available)
         if (type === 'progress' && progress !== undefined && jobId) {
           const progressValue = typeof progress === 'number' ? progress : 0;
           const progressPercent = Math.floor(progressValue * 100);
           console.log(`[ENHANCE] Job progress: ${progressPercent}%`);
           
           setPhotos(prev => {
-            const updated = [...prev];
-            const current = updated[photoIndex];
-            if (!current) return prev;
+            const current = prev[photoIndex];
+            if (!current || !current.enhancing) return prev;
             
-            // Debug job ID comparison
-            console.log(`[ENHANCE] Job progress check: current.jobId=${current.currentEnhancementJobId}, event.jobId=${jobId}, match=${current.currentEnhancementJobId === jobId}, enhancing=${current.enhancing}`);
-            
-            // Only accept progress updates for the correct job ID and enhancing photo
-            if (!current.enhancing || (current.currentEnhancementJobId && current.currentEnhancementJobId !== jobId)) {
-              console.log(`[ENHANCE] Ignoring progress update - wrong job ID or not enhancing`);
+            // Only accept progress updates for the correct job ID
+            if (current.currentEnhancementJobId && current.currentEnhancementJobId !== jobId) {
               return prev;
             }
+            
+            // Check if progress actually changed to avoid unnecessary updates
+            if (current.enhancementProgress === progressValue) {
+              return prev;
+            }
+            
+            const updated = [...prev];
             updated[photoIndex] = {
               ...current,
               progress: progressValue,
@@ -318,23 +378,27 @@ export const enhancePhoto = async (options) => {
         const progressValue = typeof progress === 'number' ? progress : 
           (typeof progress === 'object' && progress.progress !== undefined) ? progress.progress : 0;
         
-        console.log('[ENHANCE] Project progress full payload:', { projectId: project.id, progress: progressValue });
         const progressPercent = Math.floor(progressValue * 100);
         console.log(`[ENHANCE] Project progress: ${progressPercent}%`);
         
         setPhotos(prev => {
-          const updated = [...prev];
-          const current = updated[photoIndex];
-          if (!current) return prev;
+          const current = prev[photoIndex];
+          if (!current || !current.enhancing) return prev;
           
-          // Debug project comparison
-          console.log(`[ENHANCE] Project-level progress - Project ID check: current.projectId=${current.projectId}, project.id=${project.id}, match=${current.projectId === project.id}, enhancing=${current.enhancing}`);
+          // Only use project-level progress if we don't have a job ID yet (fallback)
+          if (current.currentEnhancementJobId) return prev;
           
-          // Only accept project-level progress if photo is enhancing and project ID matches (fallback when no job ID)
-          if (!current.enhancing || (current.projectId && current.projectId !== project.id)) {
-            console.log(`[ENHANCE] Ignoring project-level progress update - wrong project or not enhancing`);
+          // Check if progress actually changed to avoid unnecessary updates
+          if (current.enhancementProgress === progressValue) {
             return prev;
           }
+          
+          // Only accept project-level progress if project ID matches
+          if (current.projectId && current.projectId !== project.id) {
+            return prev;
+          }
+          
+          const updated = [...prev];
           updated[photoIndex] = {
             ...current,
             progress: progressValue,
@@ -347,8 +411,14 @@ export const enhancePhoto = async (options) => {
       // Listen for jobCompleted event (not completed)
       project.on('jobCompleted', (job) => {
         console.log('Enhance jobCompleted full payload:', job);
-        console.log(`[ENHANCE] Job completion check: job.id=${job.id}, photoIndex=${photoIndex}`);
-        
+        console.log(`[ENHANCE] Job completion check: job.id=${job.id}, photoIndex=${photoIndex}, isPreview=${job.isPreview}`);
+
+        // Skip preview events - only process final completions
+        if (job.isPreview) {
+          console.log(`[ENHANCE] Skipping preview event for job ${job.id} - waiting for final image`);
+          return;
+        }
+
         // Don't clear activeProjectReference since we didn't set it for enhancement
         // onSetActiveProject(null); // Commented out since we don't set it
         if (job.resultUrl) {
@@ -366,16 +436,22 @@ export const enhancePhoto = async (options) => {
             }
             
             setPhotos(prev => {
-              const updated = [...prev];
-              const current = updated[photoIndex];
+              const current = prev[photoIndex];
               if (!current) return prev;
               
               // Check if this completion is for the current enhancement job
-              console.log(`[ENHANCE] Completion job ID check: current.jobId=${current.currentEnhancementJobId}, job.id=${job.id}, match=${current.currentEnhancementJobId === job.id}`);
               if (current.currentEnhancementJobId && current.currentEnhancementJobId !== job.id) {
-                console.log(`[ENHANCE] Ignoring completion - wrong job ID`);
+                console.log(`[ENHANCE] Ignoring completion - wrong job ID (current: ${current.currentEnhancementJobId}, event: ${job.id})`);
                 return prev;
               }
+              
+              // Prevent duplicate completion updates
+              if (!current.enhancing) {
+                console.log(`[ENHANCE] Ignoring completion - photo is not enhancing anymore`);
+                return prev;
+              }
+              
+              const updated = [...prev];
               const updatedImages = [...current.images];
               const indexToReplace = subIndex < updatedImages.length ? subIndex : updatedImages.length - 1;
               if (indexToReplace >= 0) {
@@ -409,11 +485,16 @@ export const enhancePhoto = async (options) => {
             }
             
             setPhotos(prev => {
-              const updated = [...prev];
-              const current = updated[photoIndex];
+              const current = prev[photoIndex];
               if (!current) return prev;
+              
               // Ignore completion from stale projects
               if (current.projectId && current.projectId !== project.id) return prev;
+              
+              // Prevent duplicate completion updates
+              if (!current.enhancing) return prev;
+              
+              const updated = [...prev];
               const updatedImages = [...current.images];
               const indexToReplace = subIndex < updatedImages.length ? subIndex : updatedImages.length - 1;
               if (indexToReplace >= 0) {
@@ -446,11 +527,16 @@ export const enhancePhoto = async (options) => {
           clearTimeout(timeoutId);
           
           setPhotos(prev => {
-            const updated = [...prev];
-            const current = updated[photoIndex];
+            const current = prev[photoIndex];
             if (!current) return prev;
+            
             // Ignore completion from stale projects
             if (current.projectId && current.projectId !== project.id) return prev;
+            
+            // Prevent duplicate error updates
+            if (!current.enhancing) return prev;
+            
+            const updated = [...prev];
             updated[photoIndex] = {
               ...current,
               loading: false,
@@ -468,19 +554,63 @@ export const enhancePhoto = async (options) => {
         console.error('Enhance jobFailed full payload:', job);
         // Clear timeout since enhancement is failing
         clearTimeout(timeoutId);
+        
+        // Check for insufficient funds error
+        const isInsufficientFunds = job?.error && (
+          job.error.code === 4024 ||
+          (job.error.message && (
+            job.error.message.toLowerCase().includes('insufficient funds') ||
+            (job.error.message.toLowerCase().includes('insufficient') && job.error.message.toLowerCase().includes('credits'))
+          ))
+        );
+        
+        if (isInsufficientFunds) {
+          console.error('[ENHANCE] ❌ Insufficient funds - triggering out of credits popup');
+          
+          // Update photo state with out of credits error
+          setPhotos(prev => {
+            const current = prev[photoIndex];
+            if (!current) return prev;
+            if (current.projectId && current.projectId !== project.id) return prev;
+            if (!current.enhancing) return prev;
+            
+            const updated = [...prev];
+            updated[photoIndex] = {
+              ...current,
+              loading: false,
+              enhancing: false,
+              error: 'INSUFFICIENT CREDITS',
+              enhancementError: 'Insufficient credits. Please replenish your account.',
+              enhanceTimeoutId: null
+            };
+            return updated;
+          });
+          
+          // Trigger out of credits popup
+          if (onOutOfCredits) {
+            onOutOfCredits();
+          }
+          return;
+        }
+        
         // Don't clear activeProjectReference since we didn't set it for enhancement
         // onSetActiveProject(null); // Commented out since we don't set it
         setPhotos(prev => {
-          const updated = [...prev];
-          const current = updated[photoIndex];
+          const current = prev[photoIndex];
           if (!current) return prev;
+          
           // Ignore failures from stale projects
           if (current.projectId && current.projectId !== project.id) return prev;
+          
+          // Prevent duplicate failure updates
+          if (!current.enhancing) return prev;
+          
+          const updated = [...prev];
           updated[photoIndex] = {
             ...current,
             loading: false,
             enhancing: false,
-            error: 'ENHANCEMENT FAILED: processing error',
+            error: 'ENHANCEMENT FAILED',
             enhancementError: 'Enhancement failed during processing. Please try again.',
             enhanceTimeoutId: null
           };
@@ -493,6 +623,37 @@ export const enhancePhoto = async (options) => {
     // Clear timeout since enhancement is failing
     clearTimeout(timeoutId);
     
+    // Check for insufficient funds error
+    const isInsufficientFunds = error?.message && (
+      error.message.toLowerCase().includes('insufficient funds') ||
+      (error.message.toLowerCase().includes('insufficient') && error.message.toLowerCase().includes('credits'))
+    );
+    
+    if (isInsufficientFunds) {
+      console.error('[ENHANCE] ❌ Insufficient funds - triggering out of credits popup');
+      
+      // Update photo state with out of credits error
+      setPhotos(prev => {
+        const updated = [...prev];
+        if (!updated[photoIndex]) return prev;
+        
+        updated[photoIndex] = {
+          ...updated[photoIndex],
+          loading: false,
+          enhancing: false,
+          error: 'INSUFFICIENT CREDITS',
+          enhancementError: 'Insufficient credits. Please replenish your account.'
+        };
+        return updated;
+      });
+      
+      // Trigger out of credits popup
+      if (onOutOfCredits) {
+        onOutOfCredits();
+      }
+      return;
+    }
+    
     setPhotos(prev => {
       const updated = [...prev];
       if (!updated[photoIndex]) return prev;
@@ -501,7 +662,7 @@ export const enhancePhoto = async (options) => {
         ...updated[photoIndex],
         loading: false,
         enhancing: false,
-        error: error?.message && error.message.includes('Insufficient') ? 'ENHANCEMENT FAILED: replenish tokens' : 'ENHANCEMENT FAILED: processing error',
+        error: error?.message && error.message.includes('Insufficient') ? 'INSUFFICIENT TOKENS' : 'ENHANCEMENT FAILED',
         enhancementError: error?.message && error.message.includes('Insufficient') ? 'Insufficient tokens. Please replenish your account.' : `Enhancement failed: ${error?.message || 'Unknown error'}`
       };
       return updated;
@@ -552,9 +713,7 @@ export const undoEnhancement = ({ photoIndex, subIndex, setPhotos, clearFrameCac
 
     // Restore the original image if we have it
     if (photo.originalEnhancedImage) {
-      console.log(`[ENHANCE] Restoring original image: ${photo.originalEnhancedImage.substring(0, 100)}...`);
       const updatedImages = [...photo.images];
-      console.log(`[ENHANCE] Current enhanced image being replaced: ${updatedImages[subIndex]?.substring(0, 100)}...`);
       
       // Make sure we have a valid subIndex
       const indexToRestore = subIndex < updatedImages.length 
@@ -569,12 +728,9 @@ export const undoEnhancement = ({ photoIndex, subIndex, setPhotos, clearFrameCac
       // Store the enhanced image URL for redo functionality BEFORE restoring
       // Prioritize existing enhancedImageUrl, fallback to current image in array
       const enhancedImageUrl = photo.enhancedImageUrl || (indexToRestore >= 0 ? updatedImages[indexToRestore] : null);
-      console.log(`[ENHANCE] Storing enhanced image URL for redo: ${enhancedImageUrl?.substring(0, 100)}...`);
-      console.log(`[ENHANCE] Source: ${photo.enhancedImageUrl ? 'existing enhancedImageUrl' : 'current image in array'}`);
       
       if (indexToRestore >= 0) {
         updatedImages[indexToRestore] = photo.originalEnhancedImage;
-        console.log(`[ENHANCE] Restored image at index ${indexToRestore}`);
       }
       
       updated[photoIndex] = {
@@ -611,9 +767,6 @@ export const undoEnhancement = ({ photoIndex, subIndex, setPhotos, clearFrameCac
  * @returns {void}
  */
 export const redoEnhancement = ({ photoIndex, subIndex, setPhotos, clearFrameCache }) => {
-  console.log(`[ENHANCE] ✅ STARTED redo operation for photo #${photoIndex}`);
-  
-  console.log(`[ENHANCE] Redoing enhancement for photo #${photoIndex}`);
   
   // Clear frame cache for this photo since the image is changing
   if (clearFrameCache) {
@@ -627,9 +780,7 @@ export const redoEnhancement = ({ photoIndex, subIndex, setPhotos, clearFrameCac
     if (!photo) return prev;
 
     // Restore the enhanced image if we have it
-    console.log(`[ENHANCE] Redo check: enhancedImageUrl=${!!photo.enhancedImageUrl}, canRedo=${photo.canRedo}`);
     if (photo.enhancedImageUrl && photo.canRedo) {
-      console.log(`[ENHANCE] Restoring enhanced image: ${photo.enhancedImageUrl.substring(0, 100)}...`);
       const updatedImages = [...photo.images];
       
       // Make sure we have a valid subIndex
@@ -644,7 +795,6 @@ export const redoEnhancement = ({ photoIndex, subIndex, setPhotos, clearFrameCac
 
       if (indexToRestore >= 0) {
         updatedImages[indexToRestore] = photo.enhancedImageUrl;
-        console.log(`[ENHANCE] Restored enhanced image at index ${indexToRestore}`);
       }
       
       // Clear any pending enhancement timeout to prevent false timeout errors during redo
@@ -663,12 +813,6 @@ export const redoEnhancement = ({ photoIndex, subIndex, setPhotos, clearFrameCac
         enhanceTimeoutId: null
       };
       updated[photoIndex] = next;
-      console.log('[ENHANCE] ✅ REDO applied state:', {
-        enhanced: next.enhanced,
-        canRedo: next.canRedo,
-        imageAtIndex: updatedImages[indexToRestore]?.substring(0, 100),
-        enhancedImageUrl: next.enhancedImageUrl?.substring(0, 100)
-      });
     }
     return updated;
   });

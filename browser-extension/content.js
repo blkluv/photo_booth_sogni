@@ -221,7 +221,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       console.log('Style Explorer toggle completed, isOpen:', isOpen);
       
       // Send immediate response, but the popup will get the final confirmation via runtime message
-      sendResponse({ success: true, message: isOpen ? 'Style Explorer opening...' : 'Style Explorer closed' });
+      sendResponse({ success: true, message: isOpen ? 'Vibe Explorer opening...' : 'Vibe Explorer closed' });
     } catch (error) {
       console.error('Error toggling Style Explorer:', error);
       
@@ -554,9 +554,6 @@ function findProfileImages() {
   const seenUrls = new Set(); // Track URLs to prevent duplicates
   const seenElements = new Set(); // Track DOM elements to prevent duplicates
   
-  // Enhanced debugging for Netflix page
-  console.log('🔍 DEBUGGING: Starting profile image search...');
-  console.log('🔍 Current URL:', window.location.href);
   
   // Check for Netflix-specific patterns first
   const netflixHeadshotImages = document.querySelectorAll('img[class*="headshot" i], img[class*="Headshot" i]');
@@ -1885,7 +1882,7 @@ function addStyleSelectorIcon() {
   const icon = document.createElement('div');
   icon.id = 'sogni-style-selector-icon';
   icon.className = 'sogni-style-selector-icon';
-  icon.title = 'Open Sogni Style Explorer';
+  icon.title = 'Open Sogni Vibe Explorer';
   
   // Create image element for the Sogni logo
   const logoImg = document.createElement('img');
@@ -2024,7 +2021,7 @@ async function openStyleExplorer() {
   const closeButton = document.createElement('button');
   closeButton.className = 'sogni-style-explorer-close';
   closeButton.innerHTML = '✕';
-  closeButton.title = 'Close Style Explorer';
+  closeButton.title = 'Close Vibe Explorer';
   closeButton.addEventListener('click', closeStyleExplorer);
   
   // Assemble overlay - just iframe and floating close button

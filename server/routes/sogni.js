@@ -1,5 +1,5 @@
 import express from 'express';
-import { getClientInfo, generateImage, cleanupSogniClient, getSessionClient, disconnectSessionClient, getActiveConnectionsCount, checkIdleConnections, activeConnections, sessionClients, clearInvalidTokens, validateAuthError } from '../services/sogni.js';
+import { getClientInfo, generateImage, generateVideo, generateAudio, cleanupSogniClient, getSessionClient, disconnectSessionClient, getActiveConnectionsCount, checkIdleConnections, activeConnections, sessionClients, clearInvalidTokens, clearMandalaInvalidTokens, validateAuthError } from '../services/sogni.js';
 import { v4 as uuidv4 } from 'uuid';
 import { 
   incrementBatchesGenerated, 
@@ -8,6 +8,7 @@ import {
   incrementPhotosTakenViaCamera,
   incrementPhotosUploadedViaBrowse
 } from '../services/redisService.js';
+import { trackMetric } from '../services/analyticsService.js';
 import { redactProjectResult } from '../utils/logRedaction.js';
 import process from 'process';
 import { Buffer } from 'buffer';
@@ -33,6 +34,15 @@ const SOGNI_CLEANUP_DELAY_MS = 30 * 1000; // 30 seconds
 // Track recent disconnect requests to prevent duplicates
 const recentDisconnectRequests = new Map();
 const DISCONNECT_CACHE_TTL = 3000; // 3 seconds
+
+// Detect if request originates from the Mandala Club domain
+function isMandalaOrigin(req) {
+  const origin = req.headers.origin;
+  if (origin === 'https://mandala.sogni.ai') return true;
+  const referer = req.headers.referer;
+  if (referer && referer.startsWith('https://mandala.sogni.ai/')) return true;
+  return false;
+}
 
 // Middleware to ensure session ID cookie exists
 const ensureSessionId = (req, res, next) => {
@@ -170,13 +180,6 @@ router.get('/status', ensureSessionId, async (req, res) => {
   } catch (error) {
     console.error('Error getting Sogni client status:', error);
     
-    // Enhanced error logging
-    console.log('DEBUG - Error details:', {
-      message: error.message,
-      status: error.status,
-      payload: error.payload,
-      stack: error.stack
-    });
     
     // Check for proxy or timeout issues
     if (error.code === 'ECONNREFUSED') {
@@ -512,9 +515,9 @@ router.post('/cancel/:projectId', ensureSessionId, async (req, res) => {
     // Extract client app ID from header, body, or query parameter
     const clientAppId = req.headers['x-client-app-id'] || req.body.clientAppId || req.query.clientAppId;
     console.log(`Request to cancel project ${projectId} for session ${req.sessionId} with app ID: ${clientAppId || 'none provided'}`);
-    
+
     // Get the existing client for this session
-    const client = await getSessionClient(req.sessionId, clientAppId);
+    const client = await getSessionClient(req.sessionId, clientAppId, isMandalaOrigin(req));
     
     // Cancel the project using the session's client
     await client.projects.cancel(projectId);
@@ -533,6 +536,49 @@ router.post('/cancel/:projectId', ensureSessionId, async (req, res) => {
   } catch (error) {
     console.error(`Error cancelling project ${projectId}:`, error);
     res.status(500).json({ error: 'Failed to cancel project', message: error.message });
+  }
+});
+
+// Cost estimation endpoint
+router.post('/estimate-cost', ensureSessionId, async (req, res) => {
+  try {
+    const {
+      network = 'fast',
+      model,
+      imageCount = 1,
+      previewCount = 10,
+      stepCount = 7,
+      scheduler = 'DPM++ SDE',
+      guidance = 2,
+      contextImages = 0,
+      tokenType = 'spark'
+    } = req.body;
+
+    if (!model) {
+      return res.status(400).json({ error: 'Model is required for cost estimation' });
+    }
+
+    // Get client for this session
+    const clientAppId = req.headers['x-client-app-id'] || req.body.clientAppId || req.query.clientAppId || `user-${req.sessionId}-${Date.now()}`;
+    const client = await getSessionClient(req.sessionId, clientAppId, isMandalaOrigin(req));
+
+    // Call the SDK's estimateCost method
+    const result = await client.projects.estimateCost({
+      network,
+      model,
+      imageCount,
+      previewCount,
+      stepCount,
+      scheduler,
+      guidance,
+      contextImages,
+      tokenType
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error estimating cost:', error);
+    res.status(500).json({ error: 'Failed to estimate cost', message: error.message });
   }
 });
 
@@ -556,26 +602,14 @@ router.post('/generate', ensureSessionId, async (req, res) => {
     } else {
       console.log(`[${localProjectId}] Using provided client app ID: ${clientAppId}`);
     }
-    
+
+    const isMandala = isMandalaOrigin(req);
+
     // Server-side image generation caps
     const selectedModel = req.body.selectedModel;
     const requestedImages = parseInt(req.body.numberImages) || 1;
     
-    // Define FLUX models that have 8 image cap
-    const fluxModelsWithCap = ['flux1-dev-kontext_fp8_scaled', 'flux1-krea-dev_fp8_scaled'];
-    const isFluxModel = fluxModelsWithCap.includes(selectedModel);
-    
-    // Apply caps
-    if (isFluxModel && requestedImages > 8) {
-      console.log(`[${localProjectId}] REJECTED: FLUX model ${selectedModel} requested ${requestedImages} images, max allowed is 8`);
-      return res.status(400).json({
-        error: 'Image generation limit exceeded',
-        message: `FLUX.1 Kontext [dev] and FLUX.1 Krea models are limited to 8 images per project. Requested: ${requestedImages}`,
-        maxAllowed: 8,
-        modelType: 'FLUX'
-      });
-    }
-    
+    // Apply caps - all models share the same 16-image cap
     if (requestedImages > 16) {
       console.log(`[${localProjectId}] REJECTED: Model ${selectedModel} requested ${requestedImages} images, max allowed is 16`);
       return res.status(400).json({
@@ -600,67 +634,85 @@ router.post('/generate', ensureSessionId, async (req, res) => {
       .replace(/\s+/g, ' ') // Normalize multiple spaces to single space
       .trim();
     
-    // Enforce hardcoded worker preferences
+    // Check payment method and premium status
+    const tokenType = req.body.tokenType || 'spark';
+    const isPremiumSpark = req.body.isPremiumSpark === true;
+    
+    // Only apply worker preferences if NOT using non-premium Spark
+    // Worker preferences are a Premium Spark feature
+    const shouldApplyWorkerPreferences = tokenType !== 'spark' || isPremiumSpark;
+    
+    // Enforce hardcoded worker preferences only if allowed
     const hardcodedWorkerPreferences = [];
     
-    // Hardcoded required workers (empty for now)
-    const requiredWorkers = [];
-    if (requiredWorkers.length > 0) {
-      hardcodedWorkerPreferences.push(`--workers=${requiredWorkers.join(',')}`);
-    }
-    
-    // Hardcoded preferred workers
-    const preferredWorkers = ['SPICE.MUST.FLOW'];
-    if (preferredWorkers.length > 0) {
-      hardcodedWorkerPreferences.push(`--preferred-workers=${preferredWorkers.join(',')}`);
-    }
-    
-    // Hardcoded skip workers (maximum 2 values allowed)
-    const skipWorkers = ['freeman123'];
-    // Enforce maximum of 2 skip workers
-    const limitedSkipWorkers = skipWorkers.slice(0, 2);
-    if (limitedSkipWorkers.length > 0) {
-      hardcodedWorkerPreferences.push(`--skip-workers=${limitedSkipWorkers.join(',')}`);
-    }
-    
-    // Log if skip workers were truncated
-    if (skipWorkers.length > 2) {
-      console.log(`[${localProjectId}] WARNING: Skip workers truncated from ${skipWorkers.length} to 2 values. Original: [${skipWorkers.join(', ')}], Limited: [${limitedSkipWorkers.join(', ')}]`);
-    }
-    
-    // Apply hardcoded worker preferences to the prompt
-    if (hardcodedWorkerPreferences.length > 0) {
-      positivePrompt = `${positivePrompt} ${hardcodedWorkerPreferences.join(' ')}`.trim();
+    if (shouldApplyWorkerPreferences) {
+      // Hardcoded required workers (empty for now)
+      const requiredWorkers = [];
+      if (requiredWorkers.length > 0) {
+        hardcodedWorkerPreferences.push(`--workers=${requiredWorkers.join(',')}`);
+      }
+      
+      // Hardcoded preferred workers
+      const preferredWorkers = ['SPICE.MUST.FLOW'];
+      if (preferredWorkers.length > 0) {
+        hardcodedWorkerPreferences.push(`--preferred-workers=${preferredWorkers.join(',')}`);
+      }
+      
+      // Hardcoded skip workers (maximum 2 values allowed)
+      const skipWorkers = ['freeman123'];
+      // Enforce maximum of 2 skip workers
+      const limitedSkipWorkers = skipWorkers.slice(0, 2);
+      if (limitedSkipWorkers.length > 0) {
+        hardcodedWorkerPreferences.push(`--skip-workers=${limitedSkipWorkers.join(',')}`);
+      }
+      
+      // Log if skip workers were truncated
+      if (skipWorkers.length > 2) {
+        console.log(`[${localProjectId}] WARNING: Skip workers truncated from ${skipWorkers.length} to 2 values. Original: [${skipWorkers.join(', ')}], Limited: [${limitedSkipWorkers.join(', ')}]`);
+      }
+      
+      // Apply hardcoded worker preferences to the prompt
+      if (hardcodedWorkerPreferences.length > 0) {
+        positivePrompt = `${positivePrompt} ${hardcodedWorkerPreferences.join(' ')}`.trim();
+      }
+      
+      console.log(`[${localProjectId}] Worker preferences enforced on server side:`, hardcodedWorkerPreferences);
+    } else {
+      console.log(`[${localProjectId}] Worker preferences SKIPPED - using non-premium Spark (Premium Spark required)`);
     }
     
     // Override the request body with the sanitized prompt
     req.body.positivePrompt = positivePrompt;
     
-    console.log(`[${localProjectId}] Worker preferences enforced on server side:`, hardcodedWorkerPreferences);
-    
-    // Track a new batch being generated for metrics
+    // Track a new batch being generated for metrics (both old and new systems)
     await incrementBatchesGenerated();
+    await trackMetric('batches_generated', 1);
     
     // If we have numImages parameter, increment photos generated count
     if (req.body.numberImages && !isNaN(parseInt(req.body.numberImages))) {
       const numberImages = parseInt(req.body.numberImages);
       await incrementPhotosGenerated(numberImages);
+      await trackMetric('photos_generated', numberImages);
       // if the selectedModel is flux it is an enhance job
       if (req.body.selectedModel === 'flux1-schnell-fp8') {
         await incrementPhotosEnhanced();
+        await trackMetric('photos_enhanced', 1);
       }
     } else {
       // Default to 1 if not specified
       await incrementPhotosGenerated(1);
+      await trackMetric('photos_generated', 1);
     }
     
     // Track camera vs file upload based on sourceType parameter
     const sourceType = req.body.sourceType;
     if (sourceType === 'camera') {
       await incrementPhotosTakenViaCamera();
+      await trackMetric('photos_taken_camera', 1);
       console.log(`[${localProjectId}] Tracked camera photo from sourceType parameter`);
     } else if (sourceType === 'upload') {
       await incrementPhotosUploadedViaBrowse();
+      await trackMetric('photos_uploaded_browse', 1);
       console.log(`[${localProjectId}] Tracked uploaded photo from sourceType parameter`);
     }
 
@@ -705,7 +757,7 @@ router.post('/generate', ensureSessionId, async (req, res) => {
       const sseEvent = {
         ...eventDataWithoutJobId,
         projectId: localProjectId, // Standardize on the localProjectId for client-side tracking
-        workerName: eventData.workerName || 'unknown', // Ensure workerName is present
+        workerName: eventData.workerName || 'Worker', // Ensure workerName is present
         progress: typeof eventData.progress === 'number' ? 
                   (eventData.progress > 1 ? eventData.progress / 100 : eventData.progress) : 
                   eventData.progress, // Normalize progress 0-1
@@ -787,16 +839,14 @@ router.post('/generate', ensureSessionId, async (req, res) => {
     };
     
     // Get or create a client for this session, using the client-provided app ID
-    const client = await getSessionClient(req.sessionId, clientAppId);
+    const client = await getSessionClient(req.sessionId, clientAppId, isMandala);
     const params = { ...req.body, clientAppId };
 
-    // console.log(`DEBUG - ${new Date().toISOString()} - [${localProjectId}] Calling Sogni SDK (generateImage function) with params:`, Object.keys(params));
     
     // Helper function to attempt generation with retry on auth failure
     const attemptGeneration = async (clientToUse, isRetry = false) => {
       return generateImage(clientToUse, params, progressHandler, localProjectId)
         .then((sogniResult) => {
-          console.log(`DEBUG - ${new Date().toISOString()} - [${localProjectId}] Sogni SDK (generateImage function) promise resolved.`);
           // Redact potentially large result data from logs
           const redactedResult = redactProjectResult(sogniResult.result);
           console.log(`[${localProjectId}] Sogni generation process finished. Sogni Project ID: ${sogniResult.projectId}, Result:`, JSON.stringify(redactedResult));
@@ -821,31 +871,36 @@ router.post('/generate', ensureSessionId, async (req, res) => {
             console.log(`[${localProjectId}] Potential auth error detected, validating...`);
             
             try {
-              const isRealAuthError = await validateAuthError(error);
-              
+              const isRealAuthError = await validateAuthError(error, isMandala);
+
               if (isRealAuthError) {
                 console.log(`[${localProjectId}] Confirmed auth error, attempting retry with fresh client`);
-                
+
                 // Clear invalid cached tokens
-                clearInvalidTokens();
+                if (isMandala) {
+                  clearMandalaInvalidTokens();
+                } else {
+                  clearInvalidTokens();
+                }
                 
                 // Get the client ID associated with this session
                 const sessionId = req.sessionId;
-                if (sessionId && sessionClients.has(sessionId)) {
-                  const clientId = sessionClients.get(sessionId);
-                  
+                const sessionKey = isMandala ? `${sessionId}:mandala` : `${sessionId}:default`;
+                if (sessionId && sessionClients.has(sessionKey)) {
+                  const clientId = sessionClients.get(sessionKey);
+
                   // Force client cleanup to trigger re-authentication
                   console.log(`[${localProjectId}] Forcing cleanup of client ${clientId} due to auth error`);
                   cleanupSogniClient(clientId);
-                  
+
                   // Remove the session-to-client mapping to force new client creation
-                  sessionClients.delete(sessionId);
+                  sessionClients.delete(sessionKey);
                 }
-                
+
                 try {
                   // Get a fresh client with new authentication
                   console.log(`[${localProjectId}] Creating fresh client for retry...`);
-                  const freshClient = await getSessionClient(sessionId, clientAppId);
+                  const freshClient = await getSessionClient(sessionId, clientAppId, isMandala);
                   
                   // Retry the generation with the fresh client
                   console.log(`[${localProjectId}] Retrying generation with fresh client...`);
@@ -865,24 +920,29 @@ router.post('/generate', ensureSessionId, async (req, res) => {
           
           if (isAuthError) {
             console.log(`[${localProjectId}] Authentication error ${isRetry ? '(retry also failed)' : ''} - will clean up client state`);
-            
+
             // Clear invalid cached tokens
-            clearInvalidTokens();
-            
+            if (isMandala) {
+              clearMandalaInvalidTokens();
+            } else {
+              clearInvalidTokens();
+            }
+
             // Get the client ID associated with this session
             const sessionId = req.sessionId;
-            if (sessionId && sessionClients.has(sessionId)) {
-              const clientId = sessionClients.get(sessionId);
-              
+            const sessionKey = isMandala ? `${sessionId}:mandala` : `${sessionId}:default`;
+            if (sessionId && sessionClients.has(sessionKey)) {
+              const clientId = sessionClients.get(sessionKey);
+
               // Force client cleanup to trigger re-authentication on next request
               console.log(`[${localProjectId}] Forcing cleanup of client ${clientId} due to auth error`);
               cleanupSogniClient(clientId);
-              
+
               // Remove the session-to-client mapping to force new client creation
-              sessionClients.delete(sessionId);
+              sessionClients.delete(sessionKey);
             }
           }
-          
+
           // Re-throw the error to continue with normal error handling
           throw error;
         });
@@ -1011,8 +1071,805 @@ router.post('/generate', ensureSessionId, async (req, res) => {
   }
 });
 
+// ============================================
+// Video Generation
+// ============================================
+
+// CORS preflight for video generation
+router.options('/generate-video', (req, res) => {
+  res.sendStatus(200);
+});
+
+router.post('/generate-video', express.json({ limit: '100mb' }), ensureSessionId, async (req, res) => {
+  const localProjectId = `video-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  console.log(`[${localProjectId}] Starting video generation request for session ${req.sessionId}...`);
+
+  try {
+    let clientAppId = req.headers['x-client-app-id'] || req.body.clientAppId || req.query.clientAppId;
+    if (!clientAppId) {
+      clientAppId = `user-${req.sessionId}-${Date.now()}`;
+    }
+
+    const isMandala = isMandalaOrigin(req);
+
+    // Server-side worker preference enforcement (same as /generate)
+    let positivePrompt = req.body.positivePrompt || '';
+    positivePrompt = positivePrompt
+      .replace(/--workers=[^\s]+/g, '')
+      .replace(/--preferred-workers=[^\s]+/g, '')
+      .replace(/--skip-workers=[^\s]+/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const tokenType = req.body.tokenType || 'spark';
+    const isPremiumSpark = req.body.isPremiumSpark === true;
+    const shouldApplyWorkerPreferences = tokenType !== 'spark' || isPremiumSpark;
+
+    if (shouldApplyWorkerPreferences) {
+      const preferredWorkers = ['SPICE.MUST.FLOW'];
+      const skipWorkers = ['freeman123'];
+      const hardcodedWorkerPreferences = [];
+      if (preferredWorkers.length > 0) {
+        hardcodedWorkerPreferences.push(`--preferred-workers=${preferredWorkers.join(',')}`);
+      }
+      if (skipWorkers.length > 0) {
+        hardcodedWorkerPreferences.push(`--skip-workers=${skipWorkers.slice(0, 2).join(',')}`);
+      }
+      if (hardcodedWorkerPreferences.length > 0) {
+        positivePrompt = `${positivePrompt} ${hardcodedWorkerPreferences.join(' ')}`.trim();
+      }
+    }
+
+    req.body.positivePrompt = positivePrompt;
+
+    // Track metrics
+    await trackMetric('videos_generated', 1);
+
+    // Handle binary data - convert base64 strings back to arrays
+    // The frontend sends referenceImage, referenceImageEnd, referenceVideo, referenceAudio as base64
+    const binaryFields = ['referenceImage', 'referenceImageEnd', 'referenceVideo', 'referenceAudio'];
+    for (const field of binaryFields) {
+      if (req.body[field] && typeof req.body[field] === 'string') {
+        // Decode base64 to Buffer, then to Array for the service
+        const buffer = Buffer.from(req.body[field], 'base64');
+        req.body[field] = Array.from(buffer);
+        console.log(`[${localProjectId}] Decoded ${field}: ${(buffer.length / 1024 / 1024).toFixed(2)}MB`);
+      }
+    }
+
+    let hasReceivedFirstEvent = false;
+    let firstEventResolve = null;
+    const firstEventPromise = new Promise((resolve) => {
+      firstEventResolve = resolve;
+    });
+
+    let lastProgressUpdate = Date.now();
+    const progressHandler = (eventData) => {
+      if (!hasReceivedFirstEvent && (eventData.type === 'queued' || eventData.type === 'started' || eventData.type === 'initiating')) {
+        hasReceivedFirstEvent = true;
+        if (firstEventResolve) {
+          firstEventResolve();
+          firstEventResolve = null;
+        }
+      }
+
+      const now = Date.now();
+      if (now - lastProgressUpdate < 500 && eventData.type === 'progress' && (eventData.progress !== 0 && eventData.progress !== 1)) {
+        return;
+      }
+      lastProgressUpdate = now;
+
+      const { jobId: originalJobId, ...eventDataWithoutJobId } = eventData;
+      const sseEvent = {
+        ...eventDataWithoutJobId,
+        projectId: localProjectId,
+        workerName: eventData.workerName || 'Worker',
+        progress: typeof eventData.progress === 'number' ?
+                  (eventData.progress > 1 ? eventData.progress / 100 : eventData.progress) :
+                  eventData.progress,
+      };
+
+      if (originalJobId !== undefined) {
+        sseEvent.jobId = originalJobId;
+      }
+
+      if (eventData.type === 'queued') {
+        const queuedEvent = {
+          type: 'queued',
+          projectId: localProjectId,
+          queuePosition: eventData.queuePosition,
+        };
+        forwardEventToSSE(localProjectId, clientAppId, queuedEvent, req.sessionId);
+        return;
+      }
+
+      forwardEventToSSE(localProjectId, clientAppId, sseEvent, req.sessionId);
+
+      if (!activeProjects.has(localProjectId)) {
+        if (!pendingProjectEvents.has(localProjectId)) {
+          pendingProjectEvents.set(localProjectId, []);
+        }
+        pendingProjectEvents.get(localProjectId).push({ ...sseEvent, clientAppId });
+
+        const events = pendingProjectEvents.get(localProjectId);
+        if (events.length > 50) {
+          events.splice(0, events.length - 50);
+        }
+
+        if (eventData.type === 'failed' || eventData.type === 'error') {
+          if (!globalThis.pendingProjectErrors) {
+            globalThis.pendingProjectErrors = new Map();
+          }
+          const errorEvent = {
+            type: 'error',
+            projectId: localProjectId,
+            message: (eventData.error && eventData.error.message) || eventData.message || 'Video generation failed',
+            details: eventData.error ? JSON.stringify(eventData.error) : 'Unknown error',
+            errorCode: 'unknown_error',
+            status: 500
+          };
+          globalThis.pendingProjectErrors.set(localProjectId, errorEvent);
+          setTimeout(() => {
+            if (globalThis.pendingProjectErrors) {
+              globalThis.pendingProjectErrors.delete(localProjectId);
+            }
+          }, 30000);
+        }
+
+        setTimeout(() => {
+          if (pendingProjectEvents.has(localProjectId)) {
+            pendingProjectEvents.delete(localProjectId);
+          }
+        }, 2 * 60 * 1000);
+      }
+    };
+
+    const client = await getSessionClient(req.sessionId, clientAppId, isMandala);
+    const params = { ...req.body, clientAppId };
+
+    const attemptGeneration = async (clientToUse, isRetry = false) => {
+      return generateVideo(clientToUse, params, progressHandler, localProjectId)
+        .then((sogniResult) => {
+          console.log(`[${localProjectId}] Video generation finished. Project ID: ${sogniResult.projectId}`);
+        })
+        .catch(async (error) => {
+          console.error(`[${localProjectId}] Video generation failed${isRetry ? ' (retry)' : ''}:`, error);
+
+          const isAuthError = error.status === 401 ||
+                             (error.payload && error.payload.errorCode === 107) ||
+                             error.message?.includes('Invalid token') ||
+                             error.message?.includes('Authentication required');
+
+          if (isAuthError && !isRetry) {
+            try {
+              const isRealAuthError = await validateAuthError(error, isMandala);
+              if (isRealAuthError) {
+                if (isMandala) { clearMandalaInvalidTokens(); } else { clearInvalidTokens(); }
+                const sessionId = req.sessionId;
+                const sessionKey = isMandala ? `${sessionId}:mandala` : `${sessionId}:default`;
+                if (sessionId && sessionClients.has(sessionKey)) {
+                  const clientId = sessionClients.get(sessionKey);
+                  cleanupSogniClient(clientId);
+                  sessionClients.delete(sessionKey);
+                }
+                const freshClient = await getSessionClient(sessionId, clientAppId, isMandala);
+                return await attemptGeneration(freshClient, true);
+              }
+            } catch (validationError) {
+              console.error(`[${localProjectId}] Auth validation failed:`, validationError);
+            }
+          }
+
+          throw error;
+        });
+    };
+
+    attemptGeneration(client)
+      .catch(error => {
+        const isInsufficientFundsError = error.payload?.errorCode === 4024 ||
+                                       error.message?.includes('Insufficient funds') ||
+                                       error.message?.includes('Debit Error');
+
+        if (activeProjects.has(localProjectId)) {
+          const clients = activeProjects.get(localProjectId);
+          let errorMessage = error.message || 'Video generation failed';
+          if (isInsufficientFundsError) {
+            errorMessage = 'Insufficient Sogni credits to generate video. Please add more credits to your account.';
+          }
+
+          const errorEvent = {
+            type: 'error',
+            projectId: localProjectId,
+            message: errorMessage,
+            details: error.toString(),
+            errorCode: isInsufficientFundsError ? 'insufficient_funds' : 'unknown_error',
+            status: error.status || 500,
+            isInsufficientFunds: isInsufficientFundsError
+          };
+          clients.forEach((client) => {
+            sendSSEMessage(client, errorEvent);
+          });
+        } else {
+          if (!globalThis.pendingProjectErrors) {
+            globalThis.pendingProjectErrors = new Map();
+          }
+          globalThis.pendingProjectErrors.set(localProjectId, {
+            type: 'error',
+            projectId: localProjectId,
+            message: error.message || 'Video generation failed',
+            details: error.toString(),
+            errorCode: 'unknown_error',
+            status: error.status || 500
+          });
+          setTimeout(() => {
+            if (globalThis.pendingProjectErrors) {
+              globalThis.pendingProjectErrors.delete(localProjectId);
+            }
+          }, 30000);
+        }
+
+        if (!hasReceivedFirstEvent && firstEventResolve) {
+          firstEventResolve();
+          firstEventResolve = null;
+        }
+      });
+
+    console.log(`[${localProjectId}] Responding immediately to allow fast SSE connection establishment`);
+    res.json({
+      status: 'processing',
+      projectId: localProjectId,
+      message: 'Video generation request received and processing started.',
+      clientAppId: clientAppId
+    });
+  } catch (error) {
+    console.error(`[${localProjectId}] Error in POST /generate-video handler:`, error);
+    res.status(500).json({
+      error: 'Failed to initiate video generation',
+      message: error.message,
+      errorDetails: { name: error.name, message: error.message, stack: error.stack, ...error }
+    });
+  }
+});
+
+// ============================================
+// Audio Generation
+// ============================================
+
+// CORS preflight for audio generation
+router.options('/generate-audio', (req, res) => {
+  res.sendStatus(200);
+});
+
+router.post('/generate-audio', ensureSessionId, async (req, res) => {
+  const localProjectId = `audio-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  console.log(`[${localProjectId}] Starting audio generation request for session ${req.sessionId}...`);
+
+  try {
+    let clientAppId = req.headers['x-client-app-id'] || req.body.clientAppId || req.query.clientAppId;
+    if (!clientAppId) {
+      clientAppId = `user-${req.sessionId}-${Date.now()}`;
+    }
+
+    const isMandala = isMandalaOrigin(req);
+
+    // Track metrics
+    await trackMetric('audio_generated', 1);
+
+    let hasReceivedFirstEvent = false;
+    let firstEventResolve = null;
+    const firstEventPromise = new Promise((resolve) => {
+      firstEventResolve = resolve;
+    });
+
+    let lastProgressUpdate = Date.now();
+    const progressHandler = (eventData) => {
+      if (!hasReceivedFirstEvent && (eventData.type === 'queued' || eventData.type === 'started' || eventData.type === 'initiating')) {
+        hasReceivedFirstEvent = true;
+        if (firstEventResolve) {
+          firstEventResolve();
+          firstEventResolve = null;
+        }
+      }
+
+      const now = Date.now();
+      if (now - lastProgressUpdate < 500 && eventData.type === 'progress' && (eventData.progress !== 0 && eventData.progress !== 1)) {
+        return;
+      }
+      lastProgressUpdate = now;
+
+      const { jobId: originalJobId, ...eventDataWithoutJobId } = eventData;
+      const sseEvent = {
+        ...eventDataWithoutJobId,
+        projectId: localProjectId,
+        workerName: eventData.workerName || 'Worker',
+        progress: typeof eventData.progress === 'number' ?
+                  (eventData.progress > 1 ? eventData.progress / 100 : eventData.progress) :
+                  eventData.progress,
+      };
+
+      if (originalJobId !== undefined) {
+        sseEvent.jobId = originalJobId;
+      }
+
+      if (eventData.type === 'queued') {
+        forwardEventToSSE(localProjectId, clientAppId, {
+          type: 'queued',
+          projectId: localProjectId,
+          queuePosition: eventData.queuePosition,
+        }, req.sessionId);
+        return;
+      }
+
+      forwardEventToSSE(localProjectId, clientAppId, sseEvent, req.sessionId);
+
+      if (!activeProjects.has(localProjectId)) {
+        if (!pendingProjectEvents.has(localProjectId)) {
+          pendingProjectEvents.set(localProjectId, []);
+        }
+        pendingProjectEvents.get(localProjectId).push({ ...sseEvent, clientAppId });
+
+        const events = pendingProjectEvents.get(localProjectId);
+        if (events.length > 50) {
+          events.splice(0, events.length - 50);
+        }
+
+        if (eventData.type === 'failed' || eventData.type === 'error') {
+          if (!globalThis.pendingProjectErrors) {
+            globalThis.pendingProjectErrors = new Map();
+          }
+          globalThis.pendingProjectErrors.set(localProjectId, {
+            type: 'error',
+            projectId: localProjectId,
+            message: (eventData.error && eventData.error.message) || eventData.message || 'Audio generation failed',
+            details: eventData.error ? JSON.stringify(eventData.error) : 'Unknown error',
+            errorCode: 'unknown_error',
+            status: 500
+          });
+          setTimeout(() => {
+            if (globalThis.pendingProjectErrors) {
+              globalThis.pendingProjectErrors.delete(localProjectId);
+            }
+          }, 30000);
+        }
+
+        setTimeout(() => {
+          if (pendingProjectEvents.has(localProjectId)) {
+            pendingProjectEvents.delete(localProjectId);
+          }
+        }, 2 * 60 * 1000);
+      }
+    };
+
+    const client = await getSessionClient(req.sessionId, clientAppId, isMandala);
+    const params = { ...req.body, clientAppId };
+
+    const attemptGeneration = async (clientToUse, isRetry = false) => {
+      return generateAudio(clientToUse, params, progressHandler, localProjectId)
+        .then((sogniResult) => {
+          console.log(`[${localProjectId}] Audio generation finished. Project ID: ${sogniResult.projectId}`);
+        })
+        .catch(async (error) => {
+          console.error(`[${localProjectId}] Audio generation failed${isRetry ? ' (retry)' : ''}:`, error);
+
+          const isAuthError = error.status === 401 ||
+                             (error.payload && error.payload.errorCode === 107) ||
+                             error.message?.includes('Invalid token') ||
+                             error.message?.includes('Authentication required');
+
+          if (isAuthError && !isRetry) {
+            try {
+              const isRealAuthError = await validateAuthError(error, isMandala);
+              if (isRealAuthError) {
+                if (isMandala) { clearMandalaInvalidTokens(); } else { clearInvalidTokens(); }
+                const sessionId = req.sessionId;
+                const sessionKey = isMandala ? `${sessionId}:mandala` : `${sessionId}:default`;
+                if (sessionId && sessionClients.has(sessionKey)) {
+                  const clientId = sessionClients.get(sessionKey);
+                  cleanupSogniClient(clientId);
+                  sessionClients.delete(sessionKey);
+                }
+                const freshClient = await getSessionClient(sessionId, clientAppId, isMandala);
+                return await attemptGeneration(freshClient, true);
+              }
+            } catch (validationError) {
+              console.error(`[${localProjectId}] Auth validation failed:`, validationError);
+            }
+          }
+
+          throw error;
+        });
+    };
+
+    attemptGeneration(client)
+      .catch(error => {
+        const isInsufficientFundsError = error.payload?.errorCode === 4024 ||
+                                       error.message?.includes('Insufficient funds') ||
+                                       error.message?.includes('Debit Error');
+
+        if (activeProjects.has(localProjectId)) {
+          const clients = activeProjects.get(localProjectId);
+          let errorMessage = error.message || 'Audio generation failed';
+          if (isInsufficientFundsError) {
+            errorMessage = 'Insufficient Sogni credits to generate audio. Please add more credits to your account.';
+          }
+
+          const errorEvent = {
+            type: 'error',
+            projectId: localProjectId,
+            message: errorMessage,
+            details: error.toString(),
+            errorCode: isInsufficientFundsError ? 'insufficient_funds' : 'unknown_error',
+            status: error.status || 500,
+            isInsufficientFunds: isInsufficientFundsError
+          };
+          clients.forEach((client) => {
+            sendSSEMessage(client, errorEvent);
+          });
+        } else {
+          if (!globalThis.pendingProjectErrors) {
+            globalThis.pendingProjectErrors = new Map();
+          }
+          globalThis.pendingProjectErrors.set(localProjectId, {
+            type: 'error',
+            projectId: localProjectId,
+            message: error.message || 'Audio generation failed',
+            details: error.toString(),
+            errorCode: 'unknown_error',
+            status: error.status || 500
+          });
+          setTimeout(() => {
+            if (globalThis.pendingProjectErrors) {
+              globalThis.pendingProjectErrors.delete(localProjectId);
+            }
+          }, 30000);
+        }
+
+        if (!hasReceivedFirstEvent && firstEventResolve) {
+          firstEventResolve();
+          firstEventResolve = null;
+        }
+      });
+
+    res.json({
+      status: 'processing',
+      projectId: localProjectId,
+      message: 'Audio generation request received and processing started.',
+      clientAppId: clientAppId
+    });
+  } catch (error) {
+    console.error(`[${localProjectId}] Error in POST /generate-audio handler:`, error);
+    res.status(500).json({
+      error: 'Failed to initiate audio generation',
+      message: error.message,
+      errorDetails: { name: error.name, message: error.message, stack: error.stack, ...error }
+    });
+  }
+});
+
+// ============================================
+// Camera Angle Generation (Multiple Angles LoRA)
+// ============================================
+
+// CORS preflight for camera angle generation
+router.options('/generate-angle', (req, res) => {
+  res.sendStatus(200);
+});
+
+// Generate image from different camera angle using Multiple Angles LoRA
+router.post('/generate-angle', ensureSessionId, async (req, res) => {
+  const localProjectId = `angle-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  console.log(`[${localProjectId}] Starting camera angle generation request for session ${req.sessionId}...`);
+
+  try {
+    // Get or create client app ID
+    let clientAppId = req.headers['x-client-app-id'] || req.body.clientAppId || req.query.clientAppId;
+    if (!clientAppId) {
+      clientAppId = `user-${req.sessionId}-${Date.now()}`;
+      console.log(`[${localProjectId}] Generated unique client app ID for session: ${clientAppId}`);
+    }
+
+    const isMandala = isMandalaOrigin(req);
+
+    // Extract parameters from request
+    const {
+      contextImage, // Base64 data URL or URL string
+      azimuthPrompt,
+      elevationPrompt,
+      distancePrompt,
+      width,
+      height,
+      tokenType = 'spark',
+      loraStrength = 0.9,
+      isPremiumSpark = false
+    } = req.body;
+
+    // Validate required parameters
+    if (!contextImage) {
+      return res.status(400).json({
+        error: 'Missing required parameter',
+        message: 'contextImage is required'
+      });
+    }
+
+    if (!azimuthPrompt || !elevationPrompt || !distancePrompt) {
+      return res.status(400).json({
+        error: 'Missing required parameters',
+        message: 'azimuthPrompt, elevationPrompt, and distancePrompt are required'
+      });
+    }
+
+    // Build the full prompt with activation keyword
+    const fullPrompt = `<sks> ${azimuthPrompt} ${elevationPrompt} ${distancePrompt}`;
+    console.log(`[${localProjectId}] Camera angle prompt: ${fullPrompt}`);
+
+    // Track metrics
+    await incrementBatchesGenerated();
+    await trackMetric('batches_generated', 1);
+    await incrementPhotosGenerated(1);
+    await trackMetric('photos_generated', 1);
+    await trackMetric('camera_angle_generated', 1);
+
+    // Server-side worker preference enforcement (same as /generate)
+    let positivePrompt = fullPrompt;
+    const shouldApplyWorkerPreferences = tokenType !== 'spark' || isPremiumSpark;
+
+    if (shouldApplyWorkerPreferences) {
+      const preferredWorkers = ['SPICE.MUST.FLOW'];
+      const skipWorkers = ['freeman123'];
+      positivePrompt = `${positivePrompt} --preferred-workers=${preferredWorkers.join(',')} --skip-workers=${skipWorkers.join(',')}`.trim();
+      console.log(`[${localProjectId}] Worker preferences applied`);
+    }
+
+    // Track progress events
+    let hasReceivedFirstEvent = false;
+    let firstEventResolve = null;
+    const firstEventPromise = new Promise((resolve) => {
+      firstEventResolve = resolve;
+    });
+
+    let lastProgressUpdate = Date.now();
+    const progressHandler = (eventData) => {
+      // Signal first event received
+      if (!hasReceivedFirstEvent && (eventData.type === 'queued' || eventData.type === 'started' || eventData.type === 'initiating')) {
+        hasReceivedFirstEvent = true;
+        if (firstEventResolve) {
+          firstEventResolve();
+          firstEventResolve = null;
+        }
+      }
+
+      // Throttle progress updates
+      const now = Date.now();
+      if (now - lastProgressUpdate < 500 && eventData.type === 'progress' && eventData.progress !== 0 && eventData.progress !== 1) {
+        return;
+      }
+      lastProgressUpdate = now;
+
+      // Build SSE event
+      const { jobId: originalJobId, ...eventDataWithoutJobId } = eventData;
+      const sseEvent = {
+        ...eventDataWithoutJobId,
+        projectId: localProjectId,
+        workerName: eventData.workerName || 'Worker',
+        progress: typeof eventData.progress === 'number' ?
+                  (eventData.progress > 1 ? eventData.progress / 100 : eventData.progress) :
+                  eventData.progress
+      };
+
+      if (originalJobId !== undefined) {
+        sseEvent.jobId = originalJobId;
+      }
+
+      // Handle queued event
+      if (eventData.type === 'queued') {
+        forwardEventToSSE(localProjectId, clientAppId, {
+          type: 'queued',
+          projectId: localProjectId,
+          queuePosition: eventData.queuePosition
+        }, req.sessionId);
+        return;
+      }
+
+      // Forward all other events
+      forwardEventToSSE(localProjectId, clientAppId, sseEvent, req.sessionId);
+
+      // Store pending events for late connections
+      if (!activeProjects.has(localProjectId)) {
+        if (!pendingProjectEvents.has(localProjectId)) {
+          pendingProjectEvents.set(localProjectId, []);
+        }
+        pendingProjectEvents.get(localProjectId).push({ ...sseEvent, clientAppId });
+
+        const events = pendingProjectEvents.get(localProjectId);
+        if (events.length > 50) {
+          events.splice(0, events.length - 50);
+        }
+
+        // Handle errors
+        if (eventData.type === 'failed' || eventData.type === 'error') {
+          if (!globalThis.pendingProjectErrors) {
+            globalThis.pendingProjectErrors = new Map();
+          }
+          const isInsufficientFundsError = (eventData.error && eventData.error.code === 4024) ||
+                                           (eventData.error && eventData.error.message && eventData.error.message.includes('Insufficient funds'));
+          const errorMessage = isInsufficientFundsError
+            ? 'Insufficient credits to generate images. Please add more credits.'
+            : ((eventData.error && eventData.error.message) || eventData.message || 'Camera angle generation failed');
+
+          globalThis.pendingProjectErrors.set(localProjectId, {
+            type: 'error',
+            projectId: localProjectId,
+            message: errorMessage,
+            errorCode: isInsufficientFundsError ? 'insufficient_funds' : 'unknown_error',
+            isInsufficientFunds: isInsufficientFundsError
+          });
+
+          setTimeout(() => {
+            if (globalThis.pendingProjectErrors) {
+              globalThis.pendingProjectErrors.delete(localProjectId);
+            }
+          }, 30000);
+        }
+
+        // Cleanup pending events after 2 minutes
+        setTimeout(() => {
+          if (pendingProjectEvents.has(localProjectId)) {
+            pendingProjectEvents.delete(localProjectId);
+          }
+        }, 2 * 60 * 1000);
+      }
+    };
+
+    // Get session client
+    const client = await getSessionClient(req.sessionId, clientAppId, isMandala);
+
+    // Prepare context image as buffer
+    let contextImageBuffer;
+    if (contextImage.startsWith('data:')) {
+      // Base64 data URL
+      const base64Data = contextImage.split(',')[1];
+      contextImageBuffer = Buffer.from(base64Data, 'base64');
+    } else if (contextImage.startsWith('http')) {
+      // URL - fetch it
+      const response = await fetch(contextImage);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch context image: ${response.statusText}`);
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      contextImageBuffer = new Uint8Array(arrayBuffer);
+    } else {
+      // Assume it's already base64 without prefix
+      contextImageBuffer = Buffer.from(contextImage, 'base64');
+    }
+
+    // Build project parameters
+    const projectParams = {
+      selectedModel: 'qwen_image_edit_2511_fp8_lightning',
+      positivePrompt: positivePrompt,
+      negativePrompt: '',
+      contextImages: [contextImageBuffer],
+      width: width || 1024,
+      height: height || 1024,
+      numberImages: 1,
+      inferenceSteps: 5,
+      promptGuidance: 1,
+      tokenType: tokenType,
+      outputFormat: 'png',
+      sampler: 'euler',
+      scheduler: 'simple',
+      // LoRA configuration for Multiple Angles (using LoRA IDs, resolved by worker)
+      loras: ['multiple_angles'],
+      loraStrengths: [loraStrength],
+      clientAppId
+    };
+
+    console.log(`[${localProjectId}] Starting camera angle generation with LoRA strength: ${loraStrength}`);
+
+    // Start generation
+    const attemptGeneration = async (clientToUse, isRetry = false) => {
+      return generateImage(clientToUse, projectParams, progressHandler, localProjectId)
+        .then((sogniResult) => {
+          console.log(`[${localProjectId}] Camera angle generation completed. Sogni Project ID: ${sogniResult.projectId}`);
+        })
+        .catch(async (error) => {
+          console.error(`[${localProjectId}] Camera angle generation failed${isRetry ? ' (retry)' : ''}:`, error);
+
+          // Handle auth errors with retry
+          const isAuthError = error.status === 401 ||
+                             (error.payload && error.payload.errorCode === 107) ||
+                             error.message?.includes('Invalid token');
+
+          if (isAuthError && !isRetry) {
+            console.log(`[${localProjectId}] Auth error detected, attempting retry...`);
+            if (isMandala) {
+              clearMandalaInvalidTokens();
+            } else {
+              clearInvalidTokens();
+            }
+
+            const sessionId = req.sessionId;
+            const sessionKey = isMandala ? `${sessionId}:mandala` : `${sessionId}:default`;
+            if (sessionId && sessionClients.has(sessionKey)) {
+              const clientId = sessionClients.get(sessionKey);
+              cleanupSogniClient(clientId);
+              sessionClients.delete(sessionKey);
+            }
+
+            try {
+              const freshClient = await getSessionClient(sessionId, clientAppId, isMandala);
+              return await attemptGeneration(freshClient, true);
+            } catch (retryError) {
+              console.error(`[${localProjectId}] Retry failed:`, retryError);
+            }
+          }
+
+          // Forward error to client
+          const isInsufficientFundsError = error.payload?.errorCode === 4024 ||
+                                           error.message?.includes('Insufficient funds');
+
+          const errorEvent = {
+            type: 'error',
+            projectId: localProjectId,
+            message: isInsufficientFundsError
+              ? 'Insufficient credits. Please add more credits.'
+              : (error.message || 'Camera angle generation failed'),
+            errorCode: isInsufficientFundsError ? 'insufficient_funds' : 'generation_error',
+            isInsufficientFunds: isInsufficientFundsError
+          };
+
+          forwardEventToSSE(localProjectId, clientAppId, errorEvent, req.sessionId);
+
+          throw error;
+        });
+    };
+
+    // Start generation (don't await - let it run async)
+    attemptGeneration(client).catch(error => {
+      console.error(`[${localProjectId}] Unhandled generation error:`, error);
+    });
+
+    // Wait for first event before responding
+    const firstEventTimeout = setTimeout(() => {
+      if (firstEventResolve) {
+        firstEventResolve();
+        firstEventResolve = null;
+      }
+    }, 30000);
+
+    await firstEventPromise;
+    clearTimeout(firstEventTimeout);
+
+    // Return project ID for SSE tracking
+    res.json({
+      success: true,
+      projectId: localProjectId,
+      message: 'Camera angle generation started',
+      clientAppId: clientAppId
+    });
+
+  } catch (error) {
+    console.error(`[${localProjectId}] Error in camera angle generation:`, error);
+    res.status(500).json({
+      error: 'Failed to initiate camera angle generation',
+      message: error.message
+    });
+  }
+});
+
 // Add a health check endpoint to verify server is running
 router.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Status endpoint for connectivity checks
+router.head('/status', (req, res) => {
+  res.status(200).end();
+});
+
+router.get('/status', (req, res) => {
   res.status(200).json({
     status: 'ok',
     timestamp: new Date().toISOString()
@@ -1145,13 +2002,13 @@ router.post('/disconnect', ensureSessionId, async (req, res) => {
     
     if (clientAppId && activeConnections.has(clientAppId)) {
       hasClient = true;
-    } else if (sessionClients.has(req.sessionId)) {
-      const clientId = sessionClients.get(req.sessionId);
-      if (activeConnections.has(clientId)) {
+    } else if (sessionClients.has(`${req.sessionId}:default`) || sessionClients.has(`${req.sessionId}:mandala`) || sessionClients.has(req.sessionId)) {
+      const clientId = sessionClients.get(`${req.sessionId}:default`) || sessionClients.get(`${req.sessionId}:mandala`) || sessionClients.get(req.sessionId);
+      if (clientId && activeConnections.has(clientId)) {
         hasClient = true;
       }
     }
-    
+
     // Only attempt to disconnect if we have a client
     let result = false;
     if (hasClient) {
@@ -1214,13 +2071,13 @@ router.get('/disconnect', ensureSessionId, async (req, res) => {
     
     if (clientAppId && activeConnections.has(clientAppId)) {
       hasClient = true;
-    } else if (sessionClients.has(req.sessionId)) {
-      const clientId = sessionClients.get(req.sessionId);
-      if (activeConnections.has(clientId)) {
+    } else if (sessionClients.has(`${req.sessionId}:default`) || sessionClients.has(`${req.sessionId}:mandala`) || sessionClients.has(req.sessionId)) {
+      const clientId = sessionClients.get(`${req.sessionId}:default`) || sessionClients.get(`${req.sessionId}:mandala`) || sessionClients.get(req.sessionId);
+      if (clientId && activeConnections.has(clientId)) {
         hasClient = true;
       }
     }
-    
+
     // Queue the disconnect operation but don't wait for it
     // This ensures a fast response even during page unload
     if (hasClient) {
@@ -1247,6 +2104,63 @@ router.get('/disconnect', ensureSessionId, async (req, res) => {
   } catch (error) {
     console.error(`Error in GET disconnect for session ${req.sessionId}:`, error);
     res.status(500).send('');
+  }
+});
+
+// Image proxy to bypass CORS for S3 downloads
+router.get('/proxy-image', async (req, res) => {
+  const imageUrl = req.query.url;
+
+  if (!imageUrl) {
+    return res.status(400).json({ error: 'URL parameter is required' });
+  }
+
+  // Only allow proxying from trusted S3 domains
+  const allowedDomains = [
+    'complete-images-production.s3-accelerate.amazonaws.com',
+    'complete-images-staging.s3-accelerate.amazonaws.com',
+    'complete-images-production.s3.amazonaws.com',
+    'complete-images-staging.s3.amazonaws.com',
+    's3.amazonaws.com',
+    's3-accelerate.amazonaws.com'
+  ];
+
+  try {
+    const url = new URL(imageUrl);
+    const isAllowed = allowedDomains.some(domain =>
+      url.hostname === domain || url.hostname.endsWith(`.${domain}`)
+    );
+
+    if (!isAllowed) {
+      console.warn(`[Image Proxy] Blocked request to untrusted domain: ${url.hostname}`);
+      return res.status(403).json({ error: 'Domain not allowed' });
+    }
+
+    console.log(`[Image Proxy] Fetching: ${imageUrl.slice(0, 100)}...`);
+
+    const response = await fetch(imageUrl);
+
+    if (!response.ok) {
+      console.error(`[Image Proxy] Upstream error: ${response.status} ${response.statusText}`);
+      return res.status(response.status).json({
+        error: 'Failed to fetch image',
+        status: response.status
+      });
+    }
+
+    // Get content type from response
+    const contentType = response.headers.get('content-type') || 'application/octet-stream';
+
+    // Stream the response to the client
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+
+    const arrayBuffer = await response.arrayBuffer();
+    res.send(Buffer.from(arrayBuffer));
+
+  } catch (error) {
+    console.error('[Image Proxy] Error:', error);
+    res.status(500).json({ error: 'Failed to proxy image', message: error.message });
   }
 });
 

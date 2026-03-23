@@ -3,28 +3,153 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-An "AI photobooth" web app that allows users to snap a selfie or upload a photo via desktop or mobile, then quickly generate a series of stylised portraits without having to download AI models or have a powerful GPU. This is a demo application powered by the whitelabel Sogni Client SDK and open-sourced to give developers a solid example to fork or reference for their own Sogni Supernet powered applications.
+A full-featured **AI media generation suite** for stylized portraits, video creation, and image editing. Snap a selfie or upload a photo, then generate stunning stylized portraits, animate them into videos, edit with AI-powered transformations, and re-render from any camera angle—all without downloading models or needing a GPU.
+
+**Key Capabilities:**
+- 🎨 **12 AI Models** including SDXL, Qwen Image Edit 2511, and Flux.2
+- 🎬 **Video Generation** with Wan 2.2 (I2V, sound-to-video, dance memes, character replacement)
+- 📐 **3D Camera Angles** via Multiple Angles LoRA (96 angle combinations)
+- 🖌️ **AI Image Editing** with 30+ transformation presets
+- ⚡ **150+ Style Prompts** across 18 categories
+- 🔄 **Batch Processing** up to 256 concurrent generations
+
+This is a demo application powered by the whitelabel Sogni Client SDK, open-sourced for developers to fork or reference for their own Sogni Supernet powered applications.
 
 If you build something cool with the Sogni Client SDK let us know and we'll add it to the growing list of "Sogni Superapps": https://www.sogni.ai/super-apps
 
 Live demo → **https://photobooth.sogni.ai**
 
 <div align="center">
-  <img alt="Photobooth screenshot – webcam mode" src="docs/assets/photobooth-demo-1.png" width="100%"/>
-  <img alt="Photobooth screenshot – style selection"  src="docs/assets/photobooth-demo-2.png" width="100%"/>
-  <img alt="Photobooth screenshot – generated gallery"  src="docs/assets/photobooth-demo-3.png" width="100%"/>
+  <img alt="Photobooth screenshot – webcam mode" src="docs/assets/photobooth-demo-1.png?1" width="100%"/>
+  <img alt="Photobooth screenshot – style selection"  src="docs/assets/photobooth-demo-2.png?1" width="100%"/>
+  <img alt="Photobooth screenshot – generated gallery"  src="docs/assets/photobooth-demo-3.png?1" width="100%"/>
 </div>
 
 ---
 
 ## ✨ Features
-- **State-of-the-art Character Transfer / Identity-Preserving Stylized Synthesis** – keeps your face while transforming the style.
-- **Mobile & Desktop** – webcam support, camera-roll upload, drag-and-drop.
-- **One-Click Local Dev** – Vite + Nodemon + script runner.
-- **Style Presets & Customization** - Pick between 150+ style prompts or write your own. Pick different models and customize model guidance settings.
-- **DePIN Powered** – no model downloads or local GPU needed; up to 64 concurrent jobs on the Sogni Supernet.
-- **Secure Backend** – credentials live only in the Node server; the browser never sees them.
-- **Live Progress** – real-time SSE and per-image progress bars.
+
+### 🎨 Image Generation
+
+**12 AI Models** for diverse generation styles:
+
+| Model | Type | Best For |
+|-------|------|----------|
+| **Sogni.XLT α1** | SDXL Turbo | Fast generation, general purpose |
+| **DreamShaper v2.1** | SDXL Turbo | Artistic styles |
+| **JuggernautXL 9** | SDXL Lightning | Photorealistic portraits |
+| **RealVisXL v4** | SDXL Lightning | Ultra-realistic output |
+| **Qwen Image Edit 2511** | Context-aware | Image transformations & editing |
+| **Qwen Image Edit 2511 Lightning** | Context-aware | Fast image transformations |
+| **Flux.2 Dev** | Flux | Highest quality output |
+
+**150+ Style Prompts** across 18 categories:
+- 🎄 Christmas/Winter (35+ styles) - defrostMode, snowLeopardFur, winterElf, etc.
+- 🎌 Anime/Manga/Chibi - 1990s anime, Ghibli meadow, Jojo stand aura, pixel chibi
+- 🎨 Classical/Vintage - Art Nouveau, Klimt gilded, Van Gogh swirl, Warhol pop
+- 📚 Comics/Caricature - Cel shade 3D, holo trading card, sketch caricature
+- 🚀 Fantasy/Sci-Fi - Cyber glow, mythic mermaid, neon cyberpunk
+- 💄 Glamour - Barbie, satin studio, avant-garde, fashion mag
+- 🎭 Kitsch/Gags - Llama photobomb, clown pastel, kitty swarm
+- 🖼️ Materials/Printmaking - Watercolor bleed, woodcut ink, embroidery stitch
+- 🌈 Neon/Vapor/Glitch - Synthwave grid, vaporwave, prism kaleidoscope
+- 👾 Pixel/NFT/Retro Game - CryptoPunk, Bored Ape, pixel art, arcade vector
+- 📸 Pro/Editorial - Magazine cover, vintage Hollywood, professional headshot
+- 🎉 Raver/Costume - Candy raver, festival color powder, y2k raver kid
+- 🎵 Roleplay - DJ, MC, F1 driver, basketball star, figure skater
+- 🥊 Fighters - Boxer, wrestler, kung fu master, samurai ronin
+- 🎨 Street/Graffiti - Banksy stencil, pop graffiti, punk poster
+- 📖 Storybook/Kidlit - Dragon, astronaut, mermaid cat, viking
+- 🎃 Halloween - Wednesday Addams, dark fairy, pumpkin queen
+- 👻 Horror - Vampire lord, haunted bride, cosmic grim reaper
+
+---
+
+### 🎬 Video Generation (Wan 2.2 14B)
+
+**Image-to-Video (I2V)**
+- Transform still images into dynamic 1-8 second videos
+- Quality presets: Fast (4 steps), Balanced (8 steps), High Quality (20 steps), Pro (30 steps)
+- Resolutions: 480p, 580p, 720p
+- LightX2V variant for 4x faster generation
+
+**Sound-to-Video (S2V)**
+- Generate videos synchronized to audio input
+- Precise audio timing controls (start time, duration)
+- Lip-sync and beat-matching capabilities
+
+**Animate-Move**
+- Reference motion from existing videos
+- Preserve subject identity while animating movement
+- Perfect for dance meme videos and choreography transfer
+
+**Animate-Replace (Character Replacement)**
+- Replace subjects in existing videos using SAM2 coordinate selection
+- Batch video character replacement for montage sequences
+- Maintains video continuity with new subject
+
+**Batch-Transition (Montage Mode)**
+- Generate seamless transitions between multiple images
+- Create montage videos with coordinated segments
+- Sequential image linking for continuous narratives
+
+---
+
+### 📐 Camera Angle Generation (Multiple Angles LoRA)
+
+**3D Position Remapping** using Qwen Image Edit 2511 + Multiple Angles LoRA:
+
+**96 Camera Angle Combinations:**
+- **8 Azimuths**: Front, Front-Right, Right, Back-Right, Back, Back-Left, Left, Front-Left
+- **4 Elevations**: Low-angle (-30°), Eye-level (0°), Elevated (30°), High-angle (60°)
+- **3 Distances**: Close-up, Medium, Wide
+
+**6 Quick Presets:**
+- 3/4 Portrait - Classic flattering angle
+- Profile - Side view
+- Hero Shot - Low-angle dramatic
+- Overhead - Top-down perspective
+- Close-up - Detailed face shot
+- Over Shoulder - Dynamic composition
+
+---
+
+### 🖌️ Image Enhancement & Editing
+
+**Qwen-Powered Transformations** (30+ presets):
+- Style transfers: Lego, Pixar, Simpsons, Minecraft, Fortnite, WoW
+- Art styles: Pop art, Ukiyo-e, tattoo flash, doodle art
+- Effects: Neon glow, claymation, bobblehead, angry expression
+- Additions: Add cats, hats & glasses, clone yourself
+
+**Photo Enhancement**
+- Full image upscaling and enhancement
+- Face-preserving transformations
+- Multiple undo/redo with original baseline preservation
+
+---
+
+### 📱 Core Features
+
+- **Identity-Preserving Synthesis** – keeps your face while transforming the style
+- **Mobile & Desktop** – webcam support, camera-roll upload, drag-and-drop
+- **Aspect Ratios** – Ultra Narrow to Ultra Wide (7 presets including 2:3, 3:4, 1:1, 16:9)
+- **DePIN Powered** – no model downloads; up to 256 concurrent jobs on Sogni Supernet
+- **Real-time Progress** – SSE streaming with per-image progress bars
+- **QR Watermarking** – configurable size, position, and custom URLs
+- **Batch Processing** – up to 256 concurrent images (16 on mobile)
+- **Local Project Storage** – IndexedDB with cloud sync
+- **Stripe Payments** – purchase Spark Points with credit card
+
+---
+
+### 🛠️ Developer Features
+
+- **One-Click Local Dev** – Vite + Nodemon + script runner
+- **Secure Backend** – credentials isolated in Node server
+- **Visual Regression Testing** – Playwright-based screenshot comparison
+- **useEffect Validation** – automated React hook linting
+- **Event Theming** – Halloween, Winter, custom event contexts
 
 > You'll need a free [Sogni account](https://www.sogni.ai) + tokens for inference jobs.
 
@@ -34,11 +159,13 @@ Live demo → **https://photobooth.sogni.ai**
 1. [Quick Start](#-quick-start)
 2. [Project Layout](#-project-layout)
 3. [Configuration](#️-configuration)
-4. [Testing](#-testing)
-5. [Production Build & Deploy](#-production-build--deploy)
-6. [Contributing](#-contributing)
-7. [License](#-license)
-8. [Acknowledgements](#-acknowledgements)
+4. [Stripe Payment Integration](#-stripe-payment-integration)
+5. [Code Quality & Enforcement](#-code-quality--enforcement)
+6. [Testing](#-testing)
+7. [Production Build & Deploy](#-production-build--deploy)
+8. [Contributing](#-contributing)
+9. [License](#-license)
+10. [Acknowledgements](#-acknowledgements)
 
 ---
 
@@ -87,15 +214,35 @@ For the best local development experience, we use Nginx as a reverse proxy to ha
    127.0.0.1 photobooth-api-local.sogni.ai
    ```
 
-**b. Ensure SSL Certificate is Valid:**
-   The Nginx configuration (`scripts/nginx/local.conf`) is set up to use SSL certificates located at:
+**b. Create SSL Certificates:**
+   The Nginx configuration requires SSL certificates for both domains. Create them with this one-liner:
+
+   ```bash
+   # Create SSL directory and generate self-signed certificate
+   mkdir -p /opt/homebrew/etc/nginx/ssl && \
+   cd /opt/homebrew/etc/nginx/ssl && \
+   openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+     -keyout sogni-local.key \
+     -out sogni-local.crt \
+     -subj "/C=US/ST=State/L=City/O=Development/CN=*.sogni.ai" \
+     -addext "subjectAltName=DNS:photobooth-local.sogni.ai,DNS:photobooth-api-local.sogni.ai,DNS:*.sogni.ai"
+   ```
+
+   This creates certificates at:
    - `/opt/homebrew/etc/nginx/ssl/sogni-local.crt`
    - `/opt/homebrew/etc/nginx/ssl/sogni-local.key`
 
-   These certificates **must be valid for both** `photobooth-local.sogni.ai` and `photobooth-api-local.sogni.ai`.
-   If you\'re not using Nginx, you can still run the frontend on http://localhost:5175 and the backend on http://localhost:3001. However, the API calls from the frontend (if accessed via localhost:5175) are configured in `src/config/urls.ts` to also target `https://photobooth-api-local.sogni.ai` by default for the `development` environment, which would require the hosts file and a running Nginx (or direct backend exposure on that domain with valid SSL for that domain).
+   **Browser Certificate Warning:** When you first visit https://photobooth-local.sogni.ai, your browser will show a security warning about the self-signed certificate. Click **"Advanced"** → **"Proceed"** to continue. This is normal for local development.
 
-### 4 · Configure Nginx and Run in dev mode (two terminals)
+   *Optional: To trust the certificate system-wide and avoid the warning:*
+   ```bash
+   sudo security add-trusted-cert -d -r trustRoot \
+     -k /Library/Keychains/System.keychain \
+     /opt/homebrew/etc/nginx/ssl/sogni-local.crt
+   # Restart your browser after running this
+   ```
+
+### 4 · Configure Nginx and Run in dev mode
 
 Before starting the development servers, ensure Nginx is running and configured to use the local setup.
 
@@ -106,16 +253,21 @@ Before starting the development servers, ensure Nginx is running and configured 
    # Run from the project root directory
    cp scripts/nginx/local.conf /opt/homebrew/etc/nginx/servers/photobooth-local.conf
    ```
-   *(Note: You might need `sudo` depending on permissions. Alternatively, you could create a symbolic link instead of copying.)*
 
-**b. Reload Nginx:**
-   Apply the configuration changes by reloading or restarting Nginx.
+**b. Start/Restart Nginx:**
+   Start Nginx to apply the configuration. You'll need to enter your password:
 
    ```bash
-   # Example for Homebrew Nginx
-   brew services restart nginx
-   # Or, using nginx directly:
-   # sudo nginx -s reload
+   # Start Nginx (if not running)
+   sudo nginx
+
+   # Or restart if already running
+   sudo nginx -s reload
+   ```
+
+   Verify Nginx is running:
+   ```bash
+   ps aux | grep nginx | grep -v grep
    ```
 
 **c. Run Development Servers:**
@@ -128,17 +280,38 @@ cd server && npm run dev
 # Terminal 2 – frontend (in project root)
 npm run dev
 ```
-Visit **https://photobooth-local.sogni.ai**. The frontend will make API calls to **https://photobooth-api-local.sogni.ai**.
+
+**d. Access the Application:**
+   Visit **https://photobooth-local.sogni.ai**. The frontend will make API calls to **https://photobooth-api-local.sogni.ai**.
+
+   *Note: Your browser will show a security warning about the self-signed certificate. Click "Advanced" → "Proceed" to continue (see Step 3b above).*
 
 ### Optional script runner
 
-If you prefer not to keep terminals open, you can use the script runner. This will start the services in the background and log to files in the 
+If you prefer not to keep terminals open, you can use the script runner. This will start the services in the background and log to files in the
 `logs/` directory.
 
 ```bash
 ./scripts/run.sh start   # starts front & back in background
 ./scripts/run.sh status  # see logs / ports
 ```
+
+### Troubleshooting Local Setup
+
+**"This site can't be reached" / ERR_CONNECTION_REFUSED:**
+- Make sure both frontend (port 5175) and backend (port 3001) are running
+- Verify Nginx is running: `ps aux | grep nginx | grep -v grep`
+- If Nginx isn't running, start it: `sudo nginx`
+- Check that SSL certificates exist: `ls -la /opt/homebrew/etc/nginx/ssl/`
+
+**ERR_CERT_AUTHORITY_INVALID:**
+- This is expected with self-signed certificates
+- Click "Advanced" → "Proceed" in your browser
+- Or trust the certificate system-wide (see Step 3b above)
+
+**Port already in use:**
+- The `npm run dev` commands automatically kill processes on ports 5175 and 3001
+- If you see errors, manually kill the processes: `npx kill-port 5175 3001`
 
 ---
 
@@ -169,13 +342,21 @@ If you prefer not to keep terminals open, you can use the script runner. This wi
 | `configs/local/*.conf` | Nginx local SSL reverse-proxy |
 | `scripts/nginx/local.conf` | Main Nginx configuration for local development, defining frontend and backend subdomains. Expects SSL certs at `/opt/homebrew/etc/nginx/ssl/`. |
 
-### Analytics Configuration
+### Frontend Environment Variables
 
-The application supports Google Analytics for basic page tracking. To enable it:
+The application uses environment-specific configuration files for frontend settings:
 
-1. Create a `.env.local` file in the project root with the following variables:
+1. Create a `.env.local` file in the project root for local development:
    ```
-   # Google Analytics Configuration
+   # Moderation Password (Required)
+   # Used to protect the /admin/moderate page
+   VITE_MODERATION_PASSWORD=your_secure_password_here
+
+   # Moderation Feature Flag (Optional)
+   # Set to 'false' to disable moderation for rapid testing
+   VITE_MODERATION_ENABLED=false
+
+   # Google Analytics Configuration (Optional)
    # Set to 'false' to disable GA completely
    VITE_GA_ENABLED=true
    # Your Google Analytics measurement ID (e.g., G-XXXXXXXXXX)
@@ -184,12 +365,15 @@ The application supports Google Analytics for basic page tracking. To enable it:
    VITE_GA_DOMAIN=sogni.ai
    ```
 
-2. The analytics implementation:
-   - Respects user privacy by making it easy to disable
-   - Supports cross-subdomain tracking for sogni.ai domains
-   - Only records basic page views by default (camera view, photo gallery, individual photos)
-   - Provides infrastructure for future event tracking if needed
-   - Includes version tracking for better data segmentation
+2. For production builds, create a `.env.production` file with the same variables (set `VITE_MODERATION_ENABLED=true` for production)
+
+3. Important notes:
+   - **Never commit `.env.local` or `.env.production` to Git** - they're in `.gitignore`
+   - All frontend environment variables must be prefixed with `VITE_` to be accessible
+   - The moderation password is required to access `/admin/moderate`
+   - Moderation is enabled by default in production/staging, disabled by default in local
+   - Google Analytics is optional and respects user privacy
+   - Analytics supports cross-subdomain tracking for sogni.ai domains
 
 ### Redis Configuration
 
@@ -213,10 +397,101 @@ The application utilizes Redis for session management and persistence of Twitter
 
 Redis is optional - if not available, the system will use in-memory storage as a fallback.
 
-### SSL & Custom Domain (optional)
-Running Nginx with the provided `scripts/nginx/local.conf` uses SSL certificates (expected at `/opt/homebrew/etc/nginx/ssl/sogni-local.crt` and `sogni-local.key` - see **Quick Start - Step 3b** for creation/validation instructions using `openssl`) so you can use **https://photobooth-local.sogni.ai** for the frontend and **https://photobooth-api-local.sogni.ai** for the backend, with secure cookies and proper CORS handling.
+---
 
-The `./scripts/run.sh nginx` command is deprecated. Manual Nginx configuration and certificate management as described in **Quick Start - Step 3** is the recommended approach for this setup.
+## 💳 Stripe Payment Integration
+
+The photobooth now supports credit card payments via Stripe for purchasing Spark Points. This feature allows authenticated users to buy credits directly within the app.
+
+### Features
+- **Beautiful Payment Modal** - Gradient backgrounds, smooth animations, responsive design
+- **Real-time Balance Updates** - WebSocket-powered balance updates via SDK's DataEntity pattern (no polling!)
+- **Cross-tab Notifications** - BroadcastChannel for purchase completion messages
+- **Direct API Integration** - Calls Sogni API directly via authenticated SDK (same as sogni-web)
+- **Mobile Optimized** - Works seamlessly on mobile and desktop
+
+### Architecture
+```
+Photobooth Frontend → Sogni API (via SDK) → Stripe
+                   ← ← ← ← ← ← ← ← ← ← ← ← ←
+```
+*Calls Sogni API directly using the authenticated SogniClient SDK (same as sogni-web)*
+
+### User Flow
+1. User clicks "Buy Spark" in wallet widget OR triggers "Out of Credits" popup
+2. StripePurchase modal shows available Spark Point packages
+3. User selects a package and clicks "Buy"
+4. Stripe Checkout opens in new window/tab
+5. User completes payment with credit card
+6. Stripe redirects to success page `/spark-purchase-complete/`
+7. Success page broadcasts purchase completion to main app
+8. Stripe webhook updates backend, credits are added to user account
+9. **Balance updates automatically via WebSocket** (SDK's DataEntity 'updated' event)
+10. UI displays new balance in real-time
+
+### Backend Changes Required
+
+The Sogni API backend needs updates to support photobooth redirects. See `STRIPE_INTEGRATION.md` for complete implementation details:
+
+**Key changes needed in `../sogni-api`:**
+1. Add `getPhotoboothBaseUrl()` helper function
+2. Update `StripeService.getRedirectUrl()` to support `redirectType: 'photobooth'`
+3. Update TypeScript interfaces to include `'photobooth'` redirect type
+
+### Testing
+
+Use Stripe test cards:
+- **Success**: `4242 4242 4242 4242`
+- **Decline**: `4000 0000 0000 0002`
+- Use any future expiry date and any 3-digit CVC
+
+### Files
+- **Frontend**: `src/components/stripe/*`, `src/services/stripe.ts`, `src/hooks/useSparkPurchase.ts`
+- **Success Page**: `public/spark-purchase-complete/index.html`
+- **Documentation**: `STRIPE_INTEGRATION.md`
+
+*No backend proxy needed - calls Sogni API directly via SDK*
+
+### Limitations
+- Only available for **authenticated users** (not demo mode)
+- Requires backend changes in `../sogni-api` to be deployed
+- Webhook endpoint must be configured in Stripe dashboard
+
+For complete implementation details, troubleshooting, and deployment guide, see **[STRIPE_INTEGRATION.md](./STRIPE_INTEGRATION.md)**.
+
+---
+
+## 🔍 Code Quality & Enforcement
+
+This project uses **automated validation** to prevent common React bugs, especially around `useEffect` hooks.
+
+### useEffect Validation
+
+**Before making changes to React components:**
+
+```bash
+npm run validate:useeffect
+```
+
+This script scans all React files for common `useEffect` violations:
+- ❌ Functions in dependency arrays (causes infinite re-renders)
+- ❌ Too many dependencies (indicates mixed concerns)
+- ❌ Context functions that don't need to be dependencies
+
+**Required reading:**
+- 📖 `cursor.rules.md` - Complete rules and examples
+- 📋 `USEEFFECT-CHECKLIST.md` - Step-by-step checklist before editing useEffect
+- 📊 `USEEFFECT-ENFORCEMENT.md` - Full enforcement strategy and rationale
+
+**Why this matters:**
+
+A single misplaced dependency can cause bugs like:
+- Settings that auto-deselect after being clicked
+- Infinite render loops
+- Effects running when unrelated state changes
+- Performance degradation from unnecessary re-renders
+
+The validation script catches these issues **before** they make it into the codebase.
 
 ---
 
@@ -276,8 +551,13 @@ Licensed under the **MIT License**.  See [`LICENSE`](LICENSE) for the full text.
 ## 🙏 Acknowledgements
 - **Sogni AI** – for the SDK & Supernet that powers this application. [More "Superapps"](https://www.sogni.ai/super-apps)
 - **Stable Diffusion SDXL** – <https://huggingface.co/docs/diffusers/en/using-diffusers/sdxl>
+- **Wan 2.2** – video generation model for I2V, S2V, and animation workflows
+- **Qwen Image Edit 2511** – context-aware image editing and transformation
+- **Flux** – advanced image generation models (Kontext & Flux.2)
+- **Multiple Angles LoRA** – 3D camera position remapping
 - **ControlNet** – <https://github.com/lllyasviel/ControlNet>
 - **Instant ID** – <https://github.com/instantX-research/InstantID>
+- **SAM2** – segment anything for video subject selection
 - **Cursor AI** – the AI pair-programmer used to vibe-code this sample repo.
 
 For questions, feedback, or support feel free to reach us at **dream@sogni.ai** 

@@ -1,19 +1,27 @@
 import { Settings } from '../types/index';
-import { getModelDefaults, isFluxKontextModel } from '../constants/settings';
+import { getModelDefaults, isContextImageModel } from '../constants/settings';
 
-export function getSettingFromCookie<T>(name: string, defaultValue: T): T {
+export function getSettingFromCookie<T>(name: string, defaultValue: T, isAuthenticated: boolean = false): T {
   try {
-    const value = localStorage.getItem(`sogni_${name}`);
+    // Try localStorage first (logged-in settings), then sessionStorage (logged-out settings)
+    let value = localStorage.getItem(`sogni_${name}`);
+    
+    if (!isAuthenticated && !value) {
+      // If not authenticated, prefer sessionStorage
+      value = sessionStorage.getItem(`sogni_${name}`);
+    }
+    
     if (!value || value === 'undefined' || value === 'null') {
       return defaultValue;
     }
+    
     return JSON.parse(value) as T;
   } catch (e) {
-    console.warn(`Error reading cookie ${name}:`, e);
-    // Clear the corrupted value
+    console.warn(`Error reading setting ${name}:`, e);
+    // Clear the corrupted value from both storages
     try {
       localStorage.removeItem(`sogni_${name}`);
-      console.log(`Cleared corrupted setting: ${name}`);
+      sessionStorage.removeItem(`sogni_${name}`);
     } catch (clearError) {
       console.warn(`Could not clear corrupted setting ${name}:`, clearError);
     }
@@ -21,14 +29,15 @@ export function getSettingFromCookie<T>(name: string, defaultValue: T): T {
   }
 }
 
-export function saveSettingsToCookies(settings: Partial<Settings>): void {
+export function saveSettingsToCookies(settings: Partial<Settings>, isAuthenticated: boolean = false): void {
+  const storage = isAuthenticated ? localStorage : sessionStorage;
+  
   Object.entries(settings).forEach(([key, value]) => {
     try {
       if (value === undefined) {
-        // Remove the setting if value is undefined
-        localStorage.removeItem(`sogni_${key}`);
+        storage.removeItem(`sogni_${key}`);
       } else {
-        localStorage.setItem(`sogni_${key}`, JSON.stringify(value));
+        storage.setItem(`sogni_${key}`, JSON.stringify(value));
       }
     } catch (e) {
       console.warn(`Error saving setting ${key}:`, e);
@@ -37,7 +46,7 @@ export function saveSettingsToCookies(settings: Partial<Settings>): void {
 }
 
 // Model-specific settings management
-const MODEL_SPECIFIC_SETTINGS = ['inferenceSteps', 'scheduler', 'timeStepSpacing', 'promptGuidance', 'guidance', 'numImages'];
+const MODEL_SPECIFIC_SETTINGS = ['inferenceSteps', 'sampler', 'scheduler', 'promptGuidance', 'guidance', 'numImages'];
 
 export function getModelSpecificSetting<T>(modelId: string, settingName: string, defaultValue: T): T {
   try {
@@ -76,18 +85,18 @@ export function saveModelSpecificSettings(modelId: string, settings: Partial<Set
 
 export function getSettingsForModel(modelId: string): Partial<Settings> {
   const modelDefaults = getModelDefaults(modelId);
-  const isFluxKontext = isFluxKontextModel(modelId);
+  const usesContextImages = isContextImageModel(modelId);
   
   return {
     inferenceSteps: getModelSpecificSetting(modelId, 'inferenceSteps', modelDefaults.inferenceSteps),
+    sampler: getModelSpecificSetting(modelId, 'sampler', modelDefaults.sampler),
     scheduler: getModelSpecificSetting(modelId, 'scheduler', modelDefaults.scheduler),
-    timeStepSpacing: getModelSpecificSetting(modelId, 'timeStepSpacing', modelDefaults.timeStepSpacing),
-    promptGuidance: isFluxKontext 
-      ? getSettingFromCookie('promptGuidance', 2) // Use global for non-Flux setting
+    promptGuidance: usesContextImages 
+      ? getSettingFromCookie('promptGuidance', 2) // Use global for SDXL setting
       : getModelSpecificSetting(modelId, 'promptGuidance', modelDefaults.promptGuidance || 2),
-    guidance: isFluxKontext 
+    guidance: usesContextImages 
       ? getModelSpecificSetting(modelId, 'guidance', modelDefaults.guidance)
-      : getSettingFromCookie('guidance', 3), // Use global for non-Flux setting
+      : getSettingFromCookie('guidance', 3), // Use global for SDXL setting
     numImages: getModelSpecificSetting(modelId, 'numImages', modelDefaults.numImages),
   };
 }
@@ -140,11 +149,260 @@ export function saveThemeGroupPreferences(preferences: Record<string, boolean>):
   }
 }
 
+// Favorite images utilities
+export function getFavoriteImages(): string[] {
+  try {
+    const favorites = localStorage.getItem('sogni_favorite_images');
+    if (favorites) {
+      return JSON.parse(favorites) as string[];
+    }
+  } catch (e) {
+    console.warn('Error reading favorite images:', e);
+  }
+  return [];
+}
+
+export function saveFavoriteImages(favorites: string[]): void {
+  try {
+    localStorage.setItem('sogni_favorite_images', JSON.stringify(favorites));
+  } catch (e) {
+    console.warn('Error saving favorite images:', e);
+  }
+}
+
+export function toggleFavoriteImage(photoId: string): boolean {
+  try {
+    console.log('🍪 COOKIE toggleFavoriteImage - photoId:', photoId);
+    const favorites = getFavoriteImages();
+    console.log('🍪 Current favorites from localStorage:', favorites);
+    const index = favorites.indexOf(photoId);
+    let newFavorites: string[];
+    
+    if (index > -1) {
+      // Remove from favorites
+      console.log('🍪 Removing from favorites at index:', index);
+      newFavorites = favorites.filter(id => id !== photoId);
+      saveFavoriteImages(newFavorites);
+      console.log('🍪 After removal:', newFavorites);
+      return false;
+    } else {
+      // Add to favorites
+      console.log('🍪 Adding to favorites');
+      newFavorites = [...favorites, photoId];
+      saveFavoriteImages(newFavorites);
+      console.log('🍪 After adding:', newFavorites);
+      return true;
+    }
+  } catch (e) {
+    console.warn('Error toggling favorite image:', e);
+    return false;
+  }
+}
+
+export function isFavoriteImage(photoId: string): boolean {
+  const favorites = getFavoriteImages();
+  return favorites.includes(photoId);
+}
+
+// Blocked prompts utilities
+export function getBlockedPrompts(): string[] {
+  try {
+    const blocked = localStorage.getItem('sogni_blocked_prompts');
+    if (blocked) {
+      return JSON.parse(blocked) as string[];
+    }
+  } catch (e) {
+    console.warn('Error reading blocked prompts:', e);
+  }
+  return [];
+}
+
+export function saveBlockedPrompts(blocked: string[]): void {
+  try {
+    localStorage.setItem('sogni_blocked_prompts', JSON.stringify(blocked));
+  } catch (e) {
+    console.warn('Error saving blocked prompts:', e);
+  }
+}
+
+export function toggleBlockedPrompt(promptKey: string): boolean {
+  try {
+    console.log('🚫 COOKIE toggleBlockedPrompt - promptKey:', promptKey);
+    const blocked = getBlockedPrompts();
+    console.log('🚫 Current blocked from localStorage:', blocked);
+    const index = blocked.indexOf(promptKey);
+    let newBlocked: string[];
+    
+    if (index > -1) {
+      // Remove from blocked
+      console.log('🚫 Removing from blocked at index:', index);
+      newBlocked = blocked.filter(id => id !== promptKey);
+      saveBlockedPrompts(newBlocked);
+      console.log('🚫 After removal:', newBlocked);
+      return false;
+    } else {
+      // Add to blocked
+      console.log('🚫 Adding to blocked');
+      newBlocked = [...blocked, promptKey];
+      saveBlockedPrompts(newBlocked);
+      console.log('🚫 After adding:', newBlocked);
+      return true;
+    }
+  } catch (e) {
+    console.warn('Error toggling blocked prompt:', e);
+    return false;
+  }
+}
+
+export function isBlockedPrompt(promptKey: string): boolean {
+  const blocked = getBlockedPrompts();
+  return blocked.includes(promptKey);
+}
+
+export function blockPrompt(promptKey: string): void {
+  const blocked = getBlockedPrompts();
+  if (!blocked.includes(promptKey)) {
+    saveBlockedPrompts([...blocked, promptKey]);
+    console.log('🚫 Blocked prompt:', promptKey);
+  }
+}
+
+export function clearBlockedPrompts(): void {
+  try {
+    localStorage.removeItem('sogni_blocked_prompts');
+    console.log('🧹 Cleared all blocked prompts');
+  } catch (e) {
+    console.warn('Error clearing blocked prompts:', e);
+  }
+}
+
+// Demo render tracking utilities for non-authenticated users
+export function hasDoneDemoRender(): boolean {
+  try {
+    const demoRenderDone = localStorage.getItem('sogni_demo_render_done');
+    return demoRenderDone === 'true';
+  } catch (e) {
+    console.warn('Error checking demo render status:', e);
+    return false;
+  }
+}
+
+export function markDemoRenderDone(): void {
+  try {
+    localStorage.setItem('sogni_demo_render_done', 'true');
+    console.log('✅ Marked demo render as done for non-authenticated user');
+  } catch (e) {
+    console.warn('Error marking demo render as done:', e);
+  }
+}
+
+// Clear all session storage settings (used on logout)
+export function clearSessionSettings(): void {
+  try {
+    const keysToRemove: string[] = [];
+    
+    // Find all sogni_ keys in sessionStorage
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key && key.startsWith('sogni_')) {
+        keysToRemove.push(key);
+      }
+    }
+    
+    // Remove them
+    keysToRemove.forEach(key => {
+      sessionStorage.removeItem(key);
+    });
+  } catch (e) {
+    console.warn('Error clearing session settings:', e);
+  }
+}
+
+// Batch video mode tip tracking utilities
+export function hasSeenBatchVideoTip(): boolean {
+  try {
+    return localStorage.getItem('sogni_batch_video_tip_shown') === 'true';
+  } catch (e) {
+    console.warn('Error checking batch video tip status:', e);
+    return false;
+  }
+}
+
+export function markBatchVideoTipShown(): void {
+  try {
+    localStorage.setItem('sogni_batch_video_tip_shown', 'true');
+    console.log('✅ Marked batch video tip as shown');
+  } catch (e) {
+    console.warn('Error marking batch video tip as shown:', e);
+  }
+}
+
+// Simple Pick styles utilities (Vibe Explorer Simple Mode)
+export function getSimplePickStyles(): string[] {
+  try {
+    const styles = localStorage.getItem('sogni_simple_pick_styles');
+    if (styles) {
+      return JSON.parse(styles) as string[];
+    }
+  } catch (e) {
+    console.warn('Error reading simple pick styles:', e);
+  }
+  return [];
+}
+
+export function saveSimplePickStyles(styles: string[]): void {
+  try {
+    localStorage.setItem('sogni_simple_pick_styles', JSON.stringify(styles));
+  } catch (e) {
+    console.warn('Error saving simple pick styles:', e);
+  }
+}
+
+// Vibe Explorer mode utilities (Simple/Advanced toggle)
+export function getVibeExplorerMode(): 'simple' | 'advanced' | 'personalize' {
+  try {
+    const mode = localStorage.getItem('sogni_vibe_explorer_mode');
+    if (mode === 'simple' || mode === 'advanced' || mode === 'personalize') {
+      return mode;
+    }
+  } catch (e) {
+    console.warn('Error reading vibe explorer mode:', e);
+  }
+  return 'simple'; // Default to simple mode
+}
+
+export function saveVibeExplorerMode(mode: 'simple' | 'advanced' | 'personalize'): void {
+  try {
+    localStorage.setItem('sogni_vibe_explorer_mode', mode);
+  } catch (e) {
+    console.warn('Error saving vibe explorer mode:', e);
+  }
+}
+
+// Personalize model type utilities
+export function getPersonalizeModelType(): 'sd' | 'image-edit' {
+  try {
+    const type = localStorage.getItem('sogni_personalize_model_type');
+    if (type === 'sd' || type === 'image-edit') return type;
+  } catch (e) {
+    console.warn('Error reading personalize model type:', e);
+  }
+  return 'image-edit';
+}
+
+export function savePersonalizeModelType(type: 'sd' | 'image-edit'): void {
+  try {
+    localStorage.setItem('sogni_personalize_model_type', type);
+  } catch (e) {
+    console.warn('Error saving personalize model type:', e);
+  }
+}
+
 // Utility function to clean up corrupted localStorage values
 export function cleanupCorruptedSettings(): void {
   try {
     const keysToCheck = [];
-    
+
     // Get all localStorage keys that start with 'sogni_'
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -152,7 +410,7 @@ export function cleanupCorruptedSettings(): void {
         keysToCheck.push(key);
       }
     }
-    
+
     let cleanedCount = 0;
     keysToCheck.forEach(key => {
       try {
@@ -172,7 +430,7 @@ export function cleanupCorruptedSettings(): void {
         console.log(`Cleaned corrupted setting: ${key}`);
       }
     });
-    
+
     if (cleanedCount > 0) {
       console.log(`Cleaned up ${cleanedCount} corrupted localStorage settings`);
     }

@@ -1,9 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
-import { AspectRatioOption, TezDevTheme, OutputFormat } from '../../types/index';
-import { isFluxKontextModel, getModelRanges, getModelDefaults } from '../../constants/settings';
+import { AspectRatioOption, TezDevTheme, OutputFormat, Settings } from '../../types/index';
+import { isQwenImageEditLightningModel, isContextImageModel, getModelRanges, getModelDefaults, DEFAULT_SETTINGS } from '../../constants/settings';
+import { VideoQualityPreset, VideoResolution, VIDEO_CONFIG } from '../../constants/videoSettings';
 import { themeConfigService } from '../../services/themeConfig';
+import { sanitizeUrl, getUrlValidationError } from '../../utils/urlValidation';
+import { useSogniAuth } from '../../services/sogniAuth';
+import { isMobile } from '../../utils/index';
+import { getCustomDimensions } from '../../utils/imageProcessing';
+import { useWallet } from '../../hooks/useWallet';
+import { getTokenLabel } from '../../services/walletService';
 import TagInput from './TagInput';
+import useVideoCostEstimation from '../../hooks/useVideoCostEstimation';
 
 interface AdvancedSettingsProps {
   /** Whether the settings overlay is visible */
@@ -44,7 +53,7 @@ interface AdvancedSettingsProps {
   promptGuidance?: number;
   /** Handler for prompt guidance change */
   onPromptGuidanceChange?: (value: number) => void;
-  /** Guidance value (Flux.1 Kontext specific) */
+  /** Guidance value (Qwen Image Edit specific) */
   guidance?: number;
   /** Handler for guidance change */
   onGuidanceChange?: (value: number) => void;
@@ -60,14 +69,14 @@ interface AdvancedSettingsProps {
   inferenceSteps?: number;
   /** Handler for inference steps change */
   onInferenceStepsChange?: (value: number) => void;
-  /** Scheduler value */
+  /** Sampler value (sampling algorithm: euler, dpmpp_sde, etc.) */
+  sampler?: string;
+  /** Handler for sampler change */
+  onSamplerChange?: (value: string) => void;
+  /** Scheduler value (noise schedule: karras, simple, etc.) */
   scheduler?: string;
   /** Handler for scheduler change */
   onSchedulerChange?: (value: string) => void;
-  /** Time step spacing value */
-  timeStepSpacing?: string;
-  /** Handler for time step spacing change */
-  onTimeStepSpacingChange?: (value: string) => void;
   /** Flash enabled state */
   flashEnabled?: boolean;
   /** Handler for flash enabled change */
@@ -106,10 +115,10 @@ interface AdvancedSettingsProps {
   sensitiveContentFilter?: boolean;
   /** Handler for sensitive content filter change */
   onSensitiveContentFilterChange?: (enabled: boolean) => void;
-  /** Kiosk mode enabled state */
-  kioskMode?: boolean;
-  /** Handler for kiosk mode change */
-  onKioskModeChange?: (enabled: boolean) => void;
+  /** Show splash on inactivity state */
+  showSplashOnInactivity?: boolean;
+  /** Handler for show splash on inactivity change */
+  onShowSplashOnInactivityChange?: (enabled: boolean) => void;
 }
 
 /**
@@ -117,7 +126,20 @@ interface AdvancedSettingsProps {
  */
 export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
   // Get current settings from context if not provided via props
-  const { settings, updateSetting } = useApp();
+  const appContext = useApp();
+  const { settings, updateSetting: baseUpdateSetting, clearImageCaches } = appContext;
+
+  // Get authentication state to check if user is logged in with frontend auth
+  const authState = useSogniAuth();
+
+  // Get wallet info for token type display
+  const { tokenType } = useWallet();
+  const tokenLabel = getTokenLabel(tokenType);
+  
+  // Wrap updateSetting to pass auth state
+  const updateSetting = React.useCallback((key: keyof Settings, value: any) => {
+    baseUpdateSetting(key, value, authState.isAuthenticated);
+  }, [baseUpdateSetting, authState.isAuthenticated]);
   
   // Ref for positive prompt textarea
   const positivePromptRef = useRef<HTMLTextAreaElement>(null);
@@ -126,19 +148,131 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
   const [availableThemes, setAvailableThemes] = useState<Array<{value: string, label: string, defaultAspectRatio?: string}>>([]);
   const [themesLoading, setThemesLoading] = useState(false);
   const [themesError, setThemesError] = useState<string | null>(null);
-
+  
+  // State for collapsible sections
+  const [showPromptsSection, setShowPromptsSection] = useState(true); // Open by default
+  const [showQRSection, setShowQRSection] = useState(false);
+  const [showUISection, setShowUISection] = useState(false);
+  const [showAdvancedSection, setShowAdvancedSection] = useState(false);
+  
+  // Debounced setting updates for QR settings
+  const debouncedSizeUpdate = useRef<NodeJS.Timeout | null>(null);
+  const debouncedMarginUpdate = useRef<NodeJS.Timeout | null>(null);
+  const debouncedUrlUpdate = useRef<NodeJS.Timeout | null>(null);
+  
+  // Local state for real-time slider display and URL input
+  const [localQRSize, setLocalQRSize] = useState(settings.sogniWatermarkSize ?? 100);
+  const [localQRMargin, setLocalQRMargin] = useState(settings.sogniWatermarkMargin ?? 28);
+  const [localQRUrl, setLocalQRUrl] = useState(settings.qrCodeUrl || 'https://qr.sogni.ai');
+  const [qrUrlError, setQrUrlError] = useState<string>('');
+  
+  // Update local state when settings change from external sources
+  useEffect(() => {
+    setLocalQRSize(settings.sogniWatermarkSize ?? 100);
+  }, [settings.sogniWatermarkSize]);
+  
+  useEffect(() => {
+    setLocalQRMargin(settings.sogniWatermarkMargin ?? 26);
+  }, [settings.sogniWatermarkMargin]);
+  
+  useEffect(() => {
+    setLocalQRUrl(settings.qrCodeUrl || 'https://qr.sogni.ai');
+  }, [settings.qrCodeUrl]);
+  
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (debouncedSizeUpdate.current) {
+        clearTimeout(debouncedSizeUpdate.current);
+      }
+      if (debouncedMarginUpdate.current) {
+        clearTimeout(debouncedMarginUpdate.current);
+      }
+      if (debouncedUrlUpdate.current) {
+        clearTimeout(debouncedUrlUpdate.current);
+      }
+    };
+  }, []);
+  
+  // Custom handlers for QR code settings that trigger cache clearing
+  const handleSogniWatermarkChange = useCallback((enabled: boolean) => {
+    updateSetting('sogniWatermark', enabled);
+    // Note: updateSetting now automatically marks this as user-set
+    
+    // Clear caches immediately when toggling QR code overlay on/off
+    clearImageCaches();
+  }, [updateSetting, clearImageCaches]);
+  
+  const handleSogniWatermarkSizeChange = useCallback((size: number) => {
+    // Update local state immediately for responsive UI
+    setLocalQRSize(size);
+    
+    // Clear any existing timeout
+    if (debouncedSizeUpdate.current) {
+      clearTimeout(debouncedSizeUpdate.current);
+    }
+    
+    // Debounce the actual setting update
+    debouncedSizeUpdate.current = setTimeout(() => {
+      updateSetting('sogniWatermarkSize', size);
+      console.log('Debounced QR size update applied:', size);
+    }, 300); // 300ms debounce for smooth slider interaction
+  }, [updateSetting]);
+  
+  const handleSogniWatermarkMarginChange = useCallback((margin: number) => {
+    // Update local state immediately for responsive UI
+    setLocalQRMargin(margin);
+    
+    // Clear any existing timeout
+    if (debouncedMarginUpdate.current) {
+      clearTimeout(debouncedMarginUpdate.current);
+    }
+    
+    // Debounce the actual setting update
+    debouncedMarginUpdate.current = setTimeout(() => {
+      updateSetting('sogniWatermarkMargin', margin);
+      console.log('Debounced QR margin update applied:', margin);
+    }, 300); // 300ms debounce for smooth slider interaction
+  }, [updateSetting]);
+  
+  const handleQRUrlChange = useCallback((url: string) => {
+    // Update local state immediately for responsive UI
+    setLocalQRUrl(url);
+    
+    // Validate URL and show error if invalid
+    const error = getUrlValidationError(url);
+    setQrUrlError(error);
+    
+    // Clear any existing timeout
+    if (debouncedUrlUpdate.current) {
+      clearTimeout(debouncedUrlUpdate.current);
+    }
+    
+    // Only update setting if URL is valid
+    if (!error) {
+      // Debounce the actual setting update
+      debouncedUrlUpdate.current = setTimeout(() => {
+        const sanitized = sanitizeUrl(url);
+        if (sanitized) {
+          updateSetting('qrCodeUrl', sanitized);
+          // Clear caches when URL changes to regenerate QR code
+           
+          clearImageCaches();
+          console.log('Debounced QR URL update applied:', sanitized);
+        }
+      }, 500); // 500ms debounce for URL input
+    }
+  }, [updateSetting, clearImageCaches]);
 
   const {
     visible,
     onClose,
     autoFocusPositivePrompt = false,
-    positivePrompt = '',
+    // Values now read from settings context directly to avoid stale props after generation
+    // positivePrompt, stylePrompt, negativePrompt, seed - using settings.xxx instead
     onPositivePromptChange,
-    stylePrompt = '',
     onStylePromptChange,
-    negativePrompt = '',
     onNegativePromptChange,
-    seed = '',
     onSeedChange,
     modelOptions = [],
     selectedModel = '',
@@ -155,10 +289,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
     onControlNetGuidanceEndChange,
     inferenceSteps,
     onInferenceStepsChange,
+    sampler,
+    onSamplerChange,
     scheduler,
     onSchedulerChange,
-    timeStepSpacing,
-    onTimeStepSpacingChange,
     flashEnabled = true,
     onFlashEnabledChange,
     keepOriginalPhoto = false,
@@ -174,17 +308,20 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
     onAspectRatioChange,
     tezdevTheme,
     onTezDevThemeChange,
-    outputFormat = 'jpg',
+    outputFormat,
     onOutputFormatChange,
-    sensitiveContentFilter = false,
-    onSensitiveContentFilterChange,
-    kioskMode = false,
-    onKioskModeChange,
+    // sensitiveContentFilter now read from settings context directly
+    showSplashOnInactivity = false,
+    onShowSplashOnInactivityChange,
   } = props;
 
   // Determine the current model for getting defaults and ranges
   const currentModel = selectedModel || settings.selectedModel || '';
-  const modelDefaults = getModelDefaults(currentModel);
+
+  // Check if user is logged in with frontend auth to allow higher image limits and different defaults
+  const isLoggedInWithFrontendAuth = authState.isAuthenticated && authState.authMode === 'frontend';
+  const modelDefaults = getModelDefaults(currentModel, isLoggedInWithFrontendAuth);
+  const modelRanges = getModelRanges(currentModel, isLoggedInWithFrontendAuth);
 
   // Auto-focus positive prompt when requested
   useEffect(() => {
@@ -196,30 +333,148 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
       }, 150);
     }
   }, [visible, autoFocusPositivePrompt]);
-  const modelRanges = getModelRanges(currentModel);
 
   // Apply defaults to props that weren't provided
   const finalNumImages = numImages ?? modelDefaults.numImages ?? 8;
+  
+  // Effect to clamp numImages when auth state changes and limits change
+  useEffect(() => {
+    const maxImages = modelRanges.numImages?.max || 16;
+    if (finalNumImages > maxImages) {
+      onNumImagesChange?.(maxImages);
+    }
+  }, [isLoggedInWithFrontendAuth, currentModel, finalNumImages, modelRanges.numImages?.max, onNumImagesChange]);
   const finalPromptGuidance = promptGuidance ?? modelDefaults.promptGuidance ?? 2;
   const finalGuidance = guidance ?? modelDefaults.guidance ?? 3;
   const finalControlNetStrength = controlNetStrength ?? modelDefaults.controlNetStrength ?? 0.7;
   const finalControlNetGuidanceEnd = controlNetGuidanceEnd ?? modelDefaults.controlNetGuidanceEnd ?? 0.6;
   const finalInferenceSteps = inferenceSteps ?? modelDefaults.inferenceSteps ?? 7;
-  const finalScheduler = scheduler ?? modelDefaults.scheduler ?? 'DPM++ SDE';
-  const finalTimeStepSpacing = timeStepSpacing ?? modelDefaults.timeStepSpacing ?? 'Karras';
+  const finalSampler = sampler ?? modelDefaults.sampler ?? 'DPM++ SDE';
+  const finalScheduler = scheduler ?? modelDefaults.scheduler ?? 'Karras';
 
-  // Check if current model is Flux.1 Kontext
-  const isFluxKontext = isFluxKontextModel(currentModel);
+  // Check if current model uses context images (Qwen, Flux) vs ControlNet (SDXL)
+  const usesContextImages = isContextImageModel(currentModel);
+  const isQwenLightning = isQwenImageEditLightningModel(currentModel);
   
 
 
   const currentAspectRatio = aspectRatio || settings.aspectRatio;
   const currentTezDevTheme = tezdevTheme || settings.tezdevTheme;
   const currentOutputFormat = outputFormat || settings.outputFormat;
-  const currentSensitiveContentFilter = sensitiveContentFilter !== undefined ? sensitiveContentFilter : settings.sensitiveContentFilter;
+  // Always use settings from context to avoid stale props issue after image generation
+  const currentSensitiveContentFilter = settings.sensitiveContentFilter;
   
   // State for collapsible Advanced Model Settings section
   const [showAdvancedModelSettings, setShowAdvancedModelSettings] = React.useState(false);
+
+  // State for collapsible Video Generation section
+  const [showVideoSettings, setShowVideoSettings] = React.useState(false);
+
+  // Video settings from context - ensure valid defaults
+  const validVideoQualityOptions = ['fast', 'balanced', 'quality', 'pro'] as const;
+  const currentVideoResolution = settings.videoResolution || '480p';
+  const rawVideoQuality = settings.videoQuality;
+  const currentVideoQuality = rawVideoQuality && validVideoQualityOptions.includes(rawVideoQuality as typeof validVideoQualityOptions[number])
+    ? rawVideoQuality
+    : 'fast';
+
+  // Get dimensions based on current aspect ratio for video cost estimation
+  // Memoize to prevent unnecessary re-renders and hook recreations
+  const videoDimensions = React.useMemo(() => {
+    return getCustomDimensions(currentAspectRatio);
+  }, [currentAspectRatio]);
+
+  // Video cost estimation for each resolution at current quality
+  // These will be cached and only refetch when quality changes
+  const videoCost480p = useVideoCostEstimation({
+    imageWidth: videoDimensions.width,
+    imageHeight: videoDimensions.height,
+    resolution: '480p',
+    quality: currentVideoQuality,
+    fps: settings.videoFramerate || 16,
+    duration: settings.videoDuration || 5,
+    enabled: authState.isAuthenticated
+  });
+
+  const videoCost580p = useVideoCostEstimation({
+    imageWidth: videoDimensions.width,
+    imageHeight: videoDimensions.height,
+    resolution: '580p',
+    quality: currentVideoQuality,
+    fps: settings.videoFramerate || 16,
+    duration: settings.videoDuration || 5,
+    enabled: authState.isAuthenticated
+  });
+
+  const videoCost720p = useVideoCostEstimation({
+    imageWidth: videoDimensions.width,
+    imageHeight: videoDimensions.height,
+    resolution: '720p',
+    quality: currentVideoQuality,
+    fps: settings.videoFramerate || 16,
+    duration: settings.videoDuration || 5,
+    enabled: authState.isAuthenticated
+  });
+
+  // Helper to format cost with both token and USD
+  const formatVideoCost = (tokenCost: number | null, costInUSD: number | null): string => {
+    // Handle null or missing costs
+    if (tokenCost === null || tokenCost === undefined) return '';
+
+    let result = ` ${tokenCost.toFixed(2)} ${tokenLabel}`;
+
+    // Add USD in parentheses if available
+    if (costInUSD !== null && costInUSD !== undefined && !isNaN(costInUSD)) {
+      const roundedUSD = Math.round(costInUSD * 100) / 100;
+      result += ` (~$${roundedUSD.toFixed(2)})`;
+    }
+
+    return result;
+  };
+
+  // Helper function to calculate time estimates based on resolution, duration, and fps
+  // Base times are for 480p at 5s duration at 16fps, increase by 25% for 580p, and 25% more for 720p
+  // Scale by duration ratio (3s = 0.6x, 5s = 1.0x, 7s = 1.4x)
+  // Scale by fps (32fps takes 10% longer than 16fps)
+  const getVideoTimeEstimate = (quality: VideoQualityPreset, resolution: VideoResolution, duration: number = 5, fps: number = 16): string => {
+    const baseEstimates: Record<VideoQualityPreset, { min: number; max: number; label: string }> = {
+      fast: { min: 12, max: 20, label: 's' },
+      balanced: { min: 25, max: 40, label: 's' },
+      quality: { min: 180, max: 240, label: 'min' },  // 3-4 min at 480p
+      pro: { min: 360, max: 540, label: 'min' }       // 6-9 min at 480p
+    };
+
+    const base = baseEstimates[quality];
+    let multiplier = 1;
+
+    // Apply resolution multiplier
+    if (resolution === '580p') {
+      multiplier = 1.25;
+    } else if (resolution === '720p') {
+      multiplier = 1.5625; // 1.25 * 1.25
+    }
+
+    // Apply duration multiplier relative to 5s baseline
+    const durationMultiplier = duration / 5;
+    multiplier *= durationMultiplier;
+
+    // Apply fps multiplier (32fps takes 10% longer)
+    const fpsMultiplier = fps === 32 ? 1.1 : 1.0;
+    multiplier *= fpsMultiplier;
+
+    const minTime = Math.round(base.min * multiplier);
+    const maxTime = Math.round(base.max * multiplier);
+
+    // Format the output
+    if (base.label === 's') {
+      return `~${minTime}-${maxTime}s`;
+    } else {
+      // Convert seconds to minutes
+      const minMinutes = Math.floor(minTime / 60);
+      const maxMinutes = Math.ceil(maxTime / 60);
+      return `~${minMinutes}-${maxMinutes} min`;
+    }
+  };
 
   const handleAspectRatioChange = (newAspectRatio: AspectRatioOption) => {
     // Use the provided handler or fallback to context
@@ -318,25 +573,22 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
   };
 
   const handleSensitiveContentFilterChange = (enabled: boolean) => {
-    // Use the provided handler or fallback to context
-    if (onSensitiveContentFilterChange) {
-      onSensitiveContentFilterChange(enabled);
-    } else {
-      updateSetting('sensitiveContentFilter', enabled);
-    }
+    // Always use context's updateSetting to avoid stale props issue after image generation
+    // The prop handler pattern was causing inputs to become unresponsive
+    updateSetting('sensitiveContentFilter', enabled);
   };
 
 
-  const handleKioskModeChange = (enabled: boolean) => {
+  const handleShowSplashOnInactivityChange = (enabled: boolean) => {
     // Use the provided handler or fallback to context
-    if (onKioskModeChange) {
-      onKioskModeChange(enabled);
+    if (onShowSplashOnInactivityChange) {
+      onShowSplashOnInactivityChange(enabled);
     } else {
-      updateSetting('kioskMode', enabled);
+      updateSetting('showSplashOnInactivity', enabled);
     }
   };
 
-  return (
+  return createPortal(
     <div className={`control-overlay ${visible ? 'visible' : ''}`} style={{ position: 'fixed', zIndex: 99999 }}>
       <div className="control-overlay-content">
         <h2 className="settings-title" data-text="Photobooth Settings">Photobooth Settings</h2>
@@ -350,7 +602,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
 
         {/* Aspect Ratio selector */}
         <div className="control-option">
-          <label className="control-label">Aspect Ratio:</label>
+          <label className="control-label">Aspect Ratio</label>
           <div className="aspect-ratio-controls">
             <button 
               className={`aspect-ratio-button ${currentAspectRatio === 'ultranarrow' ? 'active' : ''}`}
@@ -445,7 +697,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
           <div className="model-group">
             {/* Main Image Model selector */}
             <div className="control-option model-main">
-              <label className="control-label">Image Model:</label>
+              <label className="control-label">Image Model</label>
               <select
                 className="model-select"
                 onChange={(e) => {
@@ -487,7 +739,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
             {showAdvancedModelSettings && (
               <div className="advanced-subsection">
                 {/* Prompt Guidance slider - different ranges for different models */}
-                {isFluxKontext ? (
+                {usesContextImages ? (
                   <div className="advanced-control">
                     <label className="advanced-label">Prompt Guidance:</label>
                     <div className="advanced-input-group">
@@ -521,8 +773,8 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
                   </div>
                 )}
 
-                {/* ControlNet settings - only show for non-Flux models */}
-                {!isFluxKontext && (
+                {/* ControlNet settings - only show for SDXL models (not context image models) */}
+                {!usesContextImages && (
                   <>
                     {/* ControlNet Strength slider */}
                     <div className="advanced-control">
@@ -566,8 +818,8 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
                   <div className="advanced-input-group">
                     <input
                       type="range"
-                      min={modelRanges.inferenceSteps?.min || (isFluxKontext ? 18 : 4)}
-                      max={modelRanges.inferenceSteps?.max || (isFluxKontext ? 40 : 10)}
+                      min={modelRanges.inferenceSteps?.min || 4}
+                      max={modelRanges.inferenceSteps?.max || (isQwenLightning ? 8 : (usesContextImages ? 50 : 10))}
                       step={modelRanges.inferenceSteps?.step || 1}
                       value={finalInferenceSteps}
                       onChange={(e) => onInferenceStepsChange?.(Number(e.target.value))}
@@ -577,37 +829,41 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
                   </div>
                 </div>
 
-                {/* Scheduler selector */}
-                <div className="advanced-control">
-                  <label className="advanced-label">Scheduler:</label>
-                  <select
-                    className="advanced-select"
-                    onChange={(e) => onSchedulerChange?.(e.target.value)}
-                    value={finalScheduler}
-                  >
-                    {(modelRanges.schedulerOptions || []).map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {/* Sampler selector - hidden for Qwen Image Edit 2511 Lightning (server provides defaults) */}
+                {!isQwenLightning && (
+                  <div className="advanced-control">
+                    <label className="advanced-label">Sampler:</label>
+                    <select
+                      className="advanced-select"
+                      onChange={(e) => onSamplerChange?.(e.target.value)}
+                      value={finalSampler}
+                    >
+                      {(modelRanges.samplerOptions || []).map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
-                {/* Time Step Spacing selector */}
-                <div className="advanced-control">
-                  <label className="advanced-label">Time Step Spacing:</label>
-                  <select
-                    className="advanced-select"
-                    onChange={(e) => onTimeStepSpacingChange?.(e.target.value)}
-                    value={finalTimeStepSpacing}
-                  >
-                    {(modelRanges.timeStepSpacingOptions || []).map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {/* Scheduler selector - hidden for Qwen Image Edit 2511 Lightning (server provides defaults) */}
+                {!isQwenLightning && (
+                  <div className="advanced-control">
+                    <label className="advanced-label">Scheduler:</label>
+                    <select
+                      className="advanced-select"
+                      onChange={(e) => onSchedulerChange?.(e.target.value)}
+                      value={finalScheduler}
+                    >
+                      {(modelRanges.schedulerOptions || []).map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -615,11 +871,11 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
 
         {/* Number of images slider */}
         <div className="control-option">
-          <label className="control-label">Number of Images:</label>
+          <label className="control-label">Number of Images</label>
           <input
             type="range"
             min={modelRanges.numImages?.min || 1}
-            max={modelRanges.numImages?.max || (isFluxKontext ? 8 : 32)}
+            max={modelRanges.numImages?.max || (isMobile() ? 16 : 32)}
             step={modelRanges.numImages?.step || 1}
             value={finalNumImages}
             onChange={(e) => onNumImagesChange?.(Number(e.target.value))}
@@ -628,108 +884,122 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
           <span className="slider-value">{finalNumImages}</span>
         </div>
       
+        {/* Prompts & Creativity Section - Collapsible */}
+        <div className="settings-section-group">
+          <div className="advanced-toggle-wrapper">
+            <button 
+              className="advanced-toggle-subtle"
+              onClick={() => setShowPromptsSection(!showPromptsSection)}
+              type="button"
+            >
+              <span className="toggle-text">Prompts & Creativity</span>
+              <span className={`toggle-chevron ${showPromptsSection ? 'expanded' : ''}`}>
+                ›
+              </span>
+            </button>
+          </div>
+          
+          {showPromptsSection && (
+            <div className="advanced-subsection">
               {/* Positive Prompt */}
               <div className="control-option">
-          <label className="control-label" style={{
-            color: autoFocusPositivePrompt ? '#3b82f6' : undefined,
-            fontWeight: autoFocusPositivePrompt ? '600' : undefined
-          }}>
-            Positive Prompt: {autoFocusPositivePrompt && <span style={{ color: '#3b82f6', fontSize: '12px' }}>✨ Ready to edit</span>}
-          </label>
-          <textarea
-            ref={positivePromptRef}
-            className="custom-style-input"
-            placeholder="Describe what you want to see..."
-            value={positivePrompt}
-            onChange={(e) => onPositivePromptChange?.(e.target.value)}
-            rows={3}
-            style={{
-              border: autoFocusPositivePrompt ? '2px solid #3b82f6' : undefined,
-              boxShadow: autoFocusPositivePrompt ? '0 0 0 3px rgba(59, 130, 246, 0.1)' : undefined,
-              transition: 'all 0.2s ease'
-            }}
-          />
-        </div>
+                <label className="control-label" style={{
+                  color: autoFocusPositivePrompt ? '#3b82f6' : undefined,
+                  fontWeight: autoFocusPositivePrompt ? '600' : undefined
+                }}>
+                  Positive Prompt {autoFocusPositivePrompt && <span style={{ color: '#3b82f6', fontSize: '12px' }}>✨ Ready to edit</span>}
+                </label>
+                <textarea
+                  ref={positivePromptRef}
+                  className="custom-style-input"
+                  placeholder="Describe what you want to see..."
+                  value={settings.positivePrompt || ''}
+                  onChange={(e) => {
+                    // Use prop handler if available (for extra logic like auto-switching to custom style)
+                    // Otherwise fall back to context's updateSetting
+                    if (onPositivePromptChange) {
+                      onPositivePromptChange(e.target.value);
+                    } else {
+                      updateSetting('positivePrompt', e.target.value);
+                    }
+                  }}
+                  rows={3}
+                  style={{
+                    border: autoFocusPositivePrompt ? '2px solid #3b82f6' : undefined,
+                    boxShadow: autoFocusPositivePrompt ? '0 0 0 3px rgba(59, 130, 246, 0.1)' : undefined,
+                    transition: 'all 0.2s ease'
+                  }}
+                  autoComplete="off"
+                  autoCapitalize="off"
+                  data-form-type="other"
+                />
+              </div>
 
-        {/* Style Prompt */}
-        <div className="control-option">
-          <label className="control-label">Style Prompt:</label>
-          <textarea
-            className="custom-style-input"
-            placeholder="Additional style modifier (optional, appended to positive prompt)"
-            value={stylePrompt}
-            onChange={(e) => onStylePromptChange?.(e.target.value)}
-            rows={2}
-          />
-        </div>
+              {/* Style Prompt */}
+              <div className="control-option">
+                <label className="control-label">Style Prompt</label>
+                <textarea
+                  className="custom-style-input"
+                  placeholder="Additional style modifier (optional, appended to positive prompt)"
+                  value={settings.stylePrompt || ''}
+                  onChange={(e) => {
+                    if (onStylePromptChange) {
+                      onStylePromptChange(e.target.value);
+                    } else {
+                      updateSetting('stylePrompt', e.target.value);
+                    }
+                  }}
+                  rows={2}
+                  autoComplete="off"
+                  autoCapitalize="off"
+                  data-form-type="other"
+                />
+              </div>
 
-        {/* Negative Prompt */}
-        <div className="control-option">
-          <label className="control-label">Negative Prompt:</label>
-          <textarea
-            className="custom-style-input"
-            placeholder="lowres, worst quality, low quality"
-            value={negativePrompt}
-            onChange={(e) => onNegativePromptChange?.(e.target.value)}
-            rows={2}
-          />
-        </div>
+              {/* Negative Prompt */}
+              <div className="control-option">
+                <label className="control-label">Negative Prompt</label>
+                <textarea
+                  className="custom-style-input"
+                  placeholder="lowres, worst quality, low quality"
+                  value={settings.negativePrompt || ''}
+                  onChange={(e) => {
+                    if (onNegativePromptChange) {
+                      onNegativePromptChange(e.target.value);
+                    } else {
+                      updateSetting('negativePrompt', e.target.value);
+                    }
+                  }}
+                  rows={2}
+                  autoComplete="off"
+                  autoCapitalize="off"
+                  data-form-type="other"
+                />
+              </div>
 
-        {/* Seed */}
-        <div className="control-option">
-          <label className="control-label">Seed (leave blank for random):</label>
-          <input
-            type="number"
-            min={0}
-            max={4294967295}
-            className="custom-style-input"
-            placeholder="Random"
-            value={seed}
-            onChange={(e) => onSeedChange?.(e.target.value)}
-          />
-        </div>
-
-
-
-        {/* Event Theme selector */}
-        <div className="control-option">
-          <label className="control-label">Event Theme:</label>
-          {themesLoading ? (
-            <div className="model-select" style={{ color: '#666', fontStyle: 'italic' }}>
-              Loading themes...
+              {/* Seed */}
+              <div className="control-option">
+                <label className="control-label">Seed (leave blank for random)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={4294967295}
+                  className="custom-style-input"
+                  placeholder="Random"
+                  value={settings.seed || ''}
+                  onChange={(e) => {
+                    if (onSeedChange) {
+                      onSeedChange(e.target.value);
+                    } else {
+                      updateSetting('seed', e.target.value);
+                    }
+                  }}
+                />
+              </div>
             </div>
-          ) : themesError ? (
-            <div className="model-select" style={{ color: '#666', fontStyle: 'italic' }}>
-              No themes available
-            </div>
-          ) : (
-            <select
-              className="model-select"
-              onChange={(e) => void handleTezDevThemeChange(e.target.value as TezDevTheme)}
-              value={currentTezDevTheme}
-            >
-              {availableThemes.map(theme => (
-                <option key={theme.value} value={theme.value}>
-                  {theme.label}
-                </option>
-              ))}
-              <option value="off">Off</option>
-            </select>
           )}
         </div>
 
-        {/* Output Type selector */}
-        <div className="control-option">
-          <label className="control-label">Output Type:</label>
-          <select
-            className="model-select"
-            onChange={(e) => handleOutputFormatChange(e.target.value as OutputFormat)}
-            value={currentOutputFormat}
-          >
-            <option value="png">PNG</option>
-            <option value="jpg">JPG</option>
-          </select>
-        </div>
 
         {/* Sensitive Content Filter toggle */}
         <div className="control-option checkbox">
@@ -742,122 +1012,537 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
           <label htmlFor="sensitive-content-filter-toggle" className="control-label">Sensitive Content Filter</label>
         </div>
 
-        {/* Sogni Watermark toggle */}
-        <div className="control-option checkbox">
-          <input
-            type="checkbox"
-            id="sogni-watermark-toggle"
-            checked={settings.sogniWatermark}
-            onChange={(e) => updateSetting('sogniWatermark', e.target.checked)}
-          />
-          <label htmlFor="sogni-watermark-toggle" className="control-label">Sogni watermark</label>
-        </div>
-
-        {/* Flash toggle */}
-        <div className="control-option checkbox">
-          <input
-            type="checkbox"
-            id="flash-toggle"
-            checked={flashEnabled}
-            onChange={(e) => onFlashEnabledChange?.(e.target.checked)}
-          />
-          <label htmlFor="flash-toggle" className="control-label">Flash</label>
-        </div>
-
-        {/* Keep original photo toggle */}
-        <div className="control-option checkbox">
-          <input
-            type="checkbox"
-            id="keep-original-toggle"
-            checked={keepOriginalPhoto}
-            onChange={(e) => onKeepOriginalPhotoChange?.(e.target.checked)}
-          />
-          <label htmlFor="keep-original-toggle" className="control-label">Show Original Image In Gallery</label>
-        </div>
-        
-        {/* Sound toggle */}
-        <div className="control-option checkbox">
-          <input
-            type="checkbox"
-            id="sound-toggle"
-            checked={soundEnabled}
-            onChange={(e) => onSoundEnabledChange?.(e.target.checked)}
-          />
-          <label htmlFor="sound-toggle" className="control-label">Sound Effects</label>
-        </div>
-        
-        {/* Slothicorn Animation toggle */}
-        <div className="control-option checkbox">
-          <input
-            type="checkbox"
-            id="slothicorn-toggle"
-            checked={slothicornAnimationEnabled}
-            onChange={(e) => onSlothicornAnimationEnabledChange?.(e.target.checked)}
-          />
-          <label htmlFor="slothicorn-toggle" className="control-label">Slothicorn Animation</label>
-        </div>
-        
-        {/* Background Animations toggle */}
-        <div className="control-option checkbox">
-          <input
-            type="checkbox"
-            id="background-animations-toggle"
-            checked={backgroundAnimationsEnabled}
-            onChange={(e) => onBackgroundAnimationsEnabledChange?.(e.target.checked)}
-          />
-          <label htmlFor="background-animations-toggle" className="control-label">Background Animations</label>
-        </div>
-        
-        {/* Worker Preferences - DISABLED (hardcoded on server) */}
-        <div className="control-option worker-preference-section disabled">
-          <label className="control-label">Required<br/>Workers</label>
-          <TagInput
-            tags={settings.requiredWorkers || []}
-            onTagsChange={() => {}} // Disabled - no-op function
-            placeholder="Managed by server configuration"
-            className="disabled"
-            disabled={true}
-          />
-          <div className="control-description">
-            Required workers are managed by server configuration and cannot be changed
+        {/* QR Code & Watermark Section - Collapsible */}
+        <div className="settings-section-group">
+          <div className="advanced-toggle-wrapper">
+            <button 
+              className="advanced-toggle-subtle"
+              onClick={() => setShowQRSection(!showQRSection)}
+              type="button"
+            >
+              <span className="toggle-text">QR Code & Watermark</span>
+              <span className={`toggle-chevron ${showQRSection ? 'expanded' : ''}`}>
+                ›
+              </span>
+            </button>
           </div>
+          
+          {showQRSection && (
+            <div className="advanced-subsection">
+              {/* QR Code Watermark toggle */}
+              <div className="control-option checkbox">
+                <input
+                  type="checkbox"
+                  id="sogni-watermark-toggle"
+                  checked={settings.sogniWatermark}
+                  onChange={(e) => handleSogniWatermarkChange(e.target.checked)}
+                />
+                <label htmlFor="sogni-watermark-toggle" className="control-label">Overlay QR Code</label>
+              </div>
+
+              {/* QR Code Size - only show when watermark is enabled */}
+              {settings.sogniWatermark && (
+                <div className="control-option">
+                  <label htmlFor="qr-size-slider" className="control-label">QR Code Size {localQRSize}px</label>
+                  <input
+                    type="range"
+                    id="qr-size-slider"
+                    min="50"
+                    max="150"
+                    step="5"
+                    value={localQRSize}
+                    onChange={(e) => handleSogniWatermarkSizeChange(parseInt(e.target.value) || 94)}
+                    className="slider"
+                  />
+                </div>
+              )}
+
+              {/* QR Code Margin - only show when watermark is enabled */}
+              {settings.sogniWatermark && (
+                <div className="control-option">
+                  <label htmlFor="qr-margin-slider" className="control-label">QR Code Margin: {localQRMargin}px</label>
+                  <input
+                    type="range"
+                    id="qr-margin-slider"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={localQRMargin}
+                    onChange={(e) => handleSogniWatermarkMarginChange(parseInt(e.target.value) || 16)}
+                    className="slider"
+                  />
+                </div>
+              )}
+
+              {/* QR Code Margin Starts Inside Frame toggle - only show when watermark is enabled */}
+              {settings.sogniWatermark && (
+                <div className="control-option checkbox">
+                  <input
+                    type="checkbox"
+                    id="qr-margin-inside-frame-toggle"
+                    checked={settings.qrCodeMarginStartsInsideFrame ?? false}
+                    onChange={(e) => {
+                      updateSetting('qrCodeMarginStartsInsideFrame', e.target.checked);
+                      // Clear caches when positioning logic changes to regenerate QR code
+                      clearImageCaches();
+                    }}
+                  />
+                  <label htmlFor="qr-margin-inside-frame-toggle" className="control-label">QR Code Margin Starts Inside Frame</label>
+                </div>
+              )}
+
+              {/* QR Code URL - only show when watermark is enabled */}
+              {settings.sogniWatermark && (
+                <div className="control-option">
+                  <label htmlFor="qr-url-input" className="control-label">QR Code URL</label>
+                  <input
+                    type="url"
+                    id="qr-url-input"
+                    value={localQRUrl}
+                    onChange={(e) => handleQRUrlChange(e.target.value)}
+                    placeholder="https://example.com"
+                    className={`url-input ${qrUrlError ? 'error' : ''}`}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: qrUrlError ? '2px solid #ff4444' : '2px solid #333',
+                      borderRadius: '6px',
+                      backgroundColor: '#1a1a1a',
+                      color: '#fff',
+                      fontSize: '14px',
+                      fontFamily: 'monospace'
+                    }}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck="false"
+                    data-form-type="other"
+                  />
+                  {qrUrlError && (
+                    <div className="error-message" style={{
+                      color: '#ff4444',
+                      fontSize: '12px',
+                      marginTop: '4px',
+                      fontStyle: 'italic'
+                    }}>
+                      {qrUrlError}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* QR Code Position - only show when watermark is enabled */}
+              {settings.sogniWatermark && (
+                <div className="control-option">
+                  <label className="control-label">QR Code Position:</label>
+                  <select
+                    className="model-select"
+                    onChange={(e) => {
+                      const position = e.target.value as 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+                      updateSetting('sogniWatermarkPosition', position);
+                      // Clear caches when position changes to regenerate QR code
+                      clearImageCaches();
+                    }}
+                    value={settings.sogniWatermarkPosition || 'top-right'}
+                  >
+                    <option value="top-right">Top Right</option>
+                    <option value="top-left">Top Left</option>
+                    <option value="bottom-right">Bottom Right</option>
+                    <option value="bottom-left">Bottom Left</option>
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        <div className="control-option worker-preference-section disabled">
-          <label className="control-label">Preferred<br/>Workers</label>
-          <TagInput
-            tags={settings.preferWorkers}
-            onTagsChange={() => {}} // Disabled - no-op function
-            placeholder="Managed by server configuration"
-            className="disabled"
-            disabled={true}
-          />
-          <div className="control-description">
-            Preferred workers are managed by server configuration and cannot be changed
+        {/* UI & Effects Section - Collapsible */}
+        <div className="settings-section-group">
+          <div className="advanced-toggle-wrapper">
+            <button 
+              className="advanced-toggle-subtle"
+              onClick={() => setShowUISection(!showUISection)}
+              type="button"
+            >
+              <span className="toggle-text">UI & Effects</span>
+              <span className={`toggle-chevron ${showUISection ? 'expanded' : ''}`}>
+                ›
+              </span>
+            </button>
           </div>
-        </div>
+          
+          {showUISection && (
+            <div className="advanced-subsection">
+              {/* Flash toggle */}
+              <div className="control-option checkbox">
+                <input
+                  type="checkbox"
+                  id="flash-toggle"
+                  checked={flashEnabled}
+                  onChange={(e) => onFlashEnabledChange?.(e.target.checked)}
+                />
+                <label htmlFor="flash-toggle" className="control-label">Flash</label>
+              </div>
 
-        <div className="control-option worker-preference-section">
-          <label className="control-label">Skip<br/>Workers</label>
-          <TagInput
-            tags={settings.skipWorkers}
-            onTagsChange={(tags) => updateSetting('skipWorkers', tags)}
-            placeholder="Type worker name and press Enter..."
-          />
-          <div className="control-description">
-            These workers will be avoided when processing your images
+              {/* Keep original photo toggle */}
+              <div className="control-option checkbox">
+                <input
+                  type="checkbox"
+                  id="keep-original-toggle"
+                  checked={keepOriginalPhoto}
+                  onChange={(e) => onKeepOriginalPhotoChange?.(e.target.checked)}
+                />
+                <label htmlFor="keep-original-toggle" className="control-label">Show Original Image In Gallery</label>
+              </div>
+              
+              {/* Sound toggle */}
+              <div className="control-option checkbox">
+                <input
+                  type="checkbox"
+                  id="sound-toggle"
+                  checked={soundEnabled}
+                  onChange={(e) => onSoundEnabledChange?.(e.target.checked)}
+                />
+                <label htmlFor="sound-toggle" className="control-label">Sound Effects</label>
+              </div>
+              
+              {/* Slothicorn Animation toggle */}
+              <div className="control-option checkbox">
+                <input
+                  type="checkbox"
+                  id="slothicorn-toggle"
+                  checked={slothicornAnimationEnabled}
+                  onChange={(e) => onSlothicornAnimationEnabledChange?.(e.target.checked)}
+                />
+                <label htmlFor="slothicorn-toggle" className="control-label">Slothicorn Animation</label>
+              </div>
+              
+              {/* Background Animations toggle */}
+              <div className="control-option checkbox">
+                <input
+                  type="checkbox"
+                  id="background-animations-toggle"
+                  checked={backgroundAnimationsEnabled}
+                  onChange={(e) => onBackgroundAnimationsEnabledChange?.(e.target.checked)}
+                />
+                <label htmlFor="background-animations-toggle" className="control-label">Background Animations</label>
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* Video Generation Section - Collapsible (only show for authenticated users) */}
+        {authState.isAuthenticated && (
+          <div className="settings-section-group" id="video-settings-section">
+            <div className="advanced-toggle-wrapper">
+              <button
+                className="advanced-toggle-subtle"
+                onClick={() => setShowVideoSettings(!showVideoSettings)}
+                type="button"
+              >
+                <span className="toggle-text" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                  🎥 Video Generation
+                  <span style={{
+                    background: 'linear-gradient(135deg, #ff6b6b, #ffa502)',
+                    color: 'white',
+                    fontSize: '10px',
+                    fontWeight: 'bold',
+                    padding: '2px 6px',
+                    borderRadius: '8px',
+                    animation: 'pulse 2s ease-in-out infinite'
+                  }}>NEW</span>
+                </span>
+                <span className={`toggle-chevron ${showVideoSettings ? 'expanded' : ''}`}>
+                  ›
+                </span>
+              </button>
+            </div>
+
+            {showVideoSettings && (
+              <div className="advanced-subsection">
+                <div className="control-description" style={{ marginBottom: '12px', opacity: 0.8 }}>
+                  Transform your photos into 5-second motion videos using AI.
+                </div>
+
+                {/* Video Resolution selector */}
+                <div className="control-option">
+                  <label className="control-label">Resolution:</label>
+                  <select
+                    className="model-select"
+                    onChange={(e) => updateSetting('videoResolution', e.target.value as VideoResolution)}
+                    value={currentVideoResolution}
+                  >
+                    <option key="480p" value="480p">
+                      480p - {formatVideoCost(videoCost480p.cost, videoCost480p.costInUSD)}
+                    </option>
+                    <option key="580p" value="580p">
+                      580p - {formatVideoCost(videoCost580p.cost, videoCost580p.costInUSD)}
+                    </option>
+                    <option key="720p" value="720p">
+                      720p - {formatVideoCost(videoCost720p.cost, videoCost720p.costInUSD)}
+                    </option>
+                  </select>
+                </div>
+
+                {/* Video Quality selector */}
+                <div className="control-option">
+                  <label className="control-label">Quality:</label>
+                  <select
+                    className="model-select"
+                    onChange={(e) => updateSetting('videoQuality', e.target.value as VideoQualityPreset)}
+                    value={currentVideoQuality}
+                  >
+                    <option value="fast">Fast - Quick generation ({getVideoTimeEstimate('fast', currentVideoResolution, settings.videoDuration || 5, settings.videoFramerate || 16)})</option>
+                    <option value="balanced">Balanced - Good balance ({getVideoTimeEstimate('balanced', currentVideoResolution, settings.videoDuration || 5, settings.videoFramerate || 16)})</option>
+                    <option value="quality">High Quality - Slower ({getVideoTimeEstimate('quality', currentVideoResolution, settings.videoDuration || 5, settings.videoFramerate || 16)})</option>
+                    <option value="pro">Pro - Maximum quality ({getVideoTimeEstimate('pro', currentVideoResolution, settings.videoDuration || 5, settings.videoFramerate || 16)})</option>
+                  </select>
+                </div>
+                <div className="control-description" style={{ marginTop: '-8px', marginBottom: '12px', marginLeft: '8px' }}>
+                  Higher quality = longer generation time and higher cost
+                </div>
+
+                {/* Video Framerate selector */}
+                <div className="control-option">
+                  <label className="control-label">Framerate:</label>
+                  <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'white' }}>
+                      <input
+                        type="radio"
+                        name="videoFramerate"
+                        value="16"
+                        checked={(settings.videoFramerate || 16) === 16}
+                        onChange={() => updateSetting('videoFramerate', 16)}
+                        style={{ cursor: 'pointer' }}
+                      />
+                      16 fps
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'white' }}>
+                      <input
+                        type="radio"
+                        name="videoFramerate"
+                        value="32"
+                        checked={(settings.videoFramerate || 16) === 32}
+                        onChange={() => updateSetting('videoFramerate', 32)}
+                        style={{ cursor: 'pointer' }}
+                      />
+                      32 fps
+                    </label>
+                  </div>
+                </div>
+                <div className="control-description" style={{ marginTop: '-8px', marginBottom: '12px', marginLeft: '8px' }}>
+                  32 fps is smoother but costs more
+                </div>
+
+                {/* Video Duration slider */}
+                <div className="control-option">
+                  <label className="control-label">Duration: {settings.videoDuration || VIDEO_CONFIG.defaultDuration}s</label>
+                  <input
+                    type="range"
+                    min={VIDEO_CONFIG.minDuration}
+                    max={VIDEO_CONFIG.maxDuration}
+                    step={VIDEO_CONFIG.durationStep}
+                    value={settings.videoDuration || VIDEO_CONFIG.defaultDuration}
+                    onChange={(e) => updateSetting('videoDuration', parseFloat(e.target.value))}
+                    className="slider-input"
+                  />
+                </div>
+                <div className="control-description" style={{ marginTop: '-8px', marginBottom: '12px', marginLeft: '8px' }}>
+                  Longer videos take more time and cost more (1-8 seconds)
+                </div>
+
+                {/* Video Positive Motion Prompt */}
+                <div className="control-option" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
+                  <label className="control-label">Positive Motion Prompt:</label>
+                  <textarea
+                    value={settings.videoPositivePrompt || ''}
+                    onChange={(e) => updateSetting('videoPositivePrompt', e.target.value)}
+                    placeholder="e.g., smooth camera pan, cinematic motion"
+                    rows={2}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      color: 'white',
+                      fontSize: '13px',
+                      resize: 'vertical',
+                      minHeight: '50px',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
+                <div className="control-description" style={{ marginTop: '-8px', marginBottom: '12px', marginLeft: '8px' }}>
+                  Optional guidance for motion style
+                </div>
+
+                {/* Video Negative Motion Prompt */}
+                <div className="control-option" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
+                  <label className="control-label">Negative Motion Prompt:</label>
+                  <textarea
+                    value={settings.videoNegativePrompt || ''}
+                    onChange={(e) => updateSetting('videoNegativePrompt', e.target.value)}
+                    placeholder="e.g., static, frozen, blurry, distorted"
+                    rows={2}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      color: 'white',
+                      fontSize: '13px',
+                      resize: 'vertical',
+                      minHeight: '50px',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
+                <div className="control-description" style={{ marginTop: '-8px', marginBottom: '12px', marginLeft: '8px' }}>
+                  Optional - things to avoid in the video
+                </div>
+
+                {/* Video Transition Prompt */}
+                <div className="control-option" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
+                  <label className="control-label">Transition Video Prompt:</label>
+                  <textarea
+                    value={settings.videoTransitionPrompt ?? DEFAULT_SETTINGS.videoTransitionPrompt ?? ''}
+                    onChange={(e) => updateSetting('videoTransitionPrompt', e.target.value)}
+                    placeholder="Prompt for transition videos between images..."
+                    rows={4}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      color: 'white',
+                      fontSize: '13px',
+                      resize: 'vertical',
+                      minHeight: '80px',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
+                <div className="control-description" style={{ marginTop: '-8px', marginBottom: '12px', marginLeft: '8px' }}>
+                  Prompt used for batch transition videos (connecting images in sequence)
+                </div>
+              </div>
+            )}
           </div>
-        </div>
+        )}
 
-        {/* Kiosk Mode toggle */}
-        <div className="control-option checkbox">
-          <input
-            type="checkbox"
-            id="kiosk-mode-toggle"
-            checked={kioskMode || settings.kioskMode}
-            onChange={(e) => handleKioskModeChange(e.target.checked)}
-          />
-          <label htmlFor="kiosk-mode-toggle" className="control-label">Kiosk Mode</label>
+        {/* Advanced Features Section - Collapsible */}
+        <div className="settings-section-group">
+          <div className="advanced-toggle-wrapper">
+            <button 
+              className="advanced-toggle-subtle"
+              onClick={() => setShowAdvancedSection(!showAdvancedSection)}
+              type="button"
+            >
+              <span className="toggle-text">Advanced Features</span>
+              <span className={`toggle-chevron ${showAdvancedSection ? 'expanded' : ''}`}>
+                ›
+              </span>
+            </button>
+          </div>
+          
+          {showAdvancedSection && (
+            <div className="advanced-subsection">
+              {/* Event Theme selector */}
+              <div className="control-option">
+                <label className="control-label">Event Theme:</label>
+                {themesLoading ? (
+                  <div className="model-select" style={{ color: '#666', fontStyle: 'italic' }}>
+                    Loading themes...
+                  </div>
+                ) : themesError ? (
+                  <div className="model-select" style={{ color: '#666', fontStyle: 'italic' }}>
+                    No themes available
+                  </div>
+                ) : (
+                  <select
+                    className="model-select"
+                    onChange={(e) => void handleTezDevThemeChange(e.target.value as TezDevTheme)}
+                    value={currentTezDevTheme}
+                  >
+                    {availableThemes.map(theme => (
+                      <option key={theme.value} value={theme.value}>
+                        {theme.label}
+                      </option>
+                    ))}
+                    <option value="off">Off</option>
+                  </select>
+                )}
+              </div>
+
+              {/* Output Type selector */}
+              <div className="control-option">
+                <label className="control-label">Output Type:</label>
+                <select
+                  className="model-select"
+                  onChange={(e) => handleOutputFormatChange(e.target.value as OutputFormat)}
+                  value={currentOutputFormat}
+                >
+                  <option value="png">PNG</option>
+                  <option value="jpg">JPG</option>
+                </select>
+              </div>
+
+              {/* Worker Preferences - Show all options when user is logged in with frontend auth (spending own credits) */}
+              {authState.isAuthenticated && authState.authMode === 'frontend' && (
+                <>
+                  <div className="control-option worker-preference-section">
+                    <label className="control-label">Required Workers</label>
+                    <TagInput
+                      tags={settings.requiredWorkers}
+                      onTagsChange={(tags) => updateSetting('requiredWorkers', tags)}
+                      placeholder="Type worker name and press Enter..."
+                    />
+                    <div className="control-description">
+                      Only these workers will be used for processing your images
+                    </div>
+                  </div>
+
+                  <div className="control-option worker-preference-section">
+                    <label className="control-label">Preferred Workers</label>
+                    <TagInput
+                      tags={settings.preferWorkers}
+                      onTagsChange={(tags) => updateSetting('preferWorkers', tags)}
+                      placeholder="Type worker name and press Enter..."
+                    />
+                    <div className="control-description">
+                      These workers will be prioritized when processing your images
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="control-option worker-preference-section">
+                <label className="control-label">Skip Workers</label>
+                <TagInput
+                  tags={settings.skipWorkers}
+                  onTagsChange={(tags) => updateSetting('skipWorkers', tags)}
+                  placeholder="Type worker name and press Enter..."
+                />
+                <div className="control-description">
+                  These workers will be avoided when processing your images
+                </div>
+              </div>
+
+              {/* Kiosk Mode toggle (splash on inactivity + hide upload) */}
+              <div className="control-option checkbox">
+                <input
+                  type="checkbox"
+                  id="splash-inactivity-toggle"
+                  checked={showSplashOnInactivity || settings.showSplashOnInactivity}
+                  onChange={(e) => handleShowSplashOnInactivityChange(e.target.checked)}
+                />
+                <label htmlFor="splash-inactivity-toggle" className="control-label">Kiosk Mode</label>
+              </div>
+            </div>
+          )}
         </div>
         
         {/* Reset settings button */}
@@ -870,13 +1555,21 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = (props) => {
           </button>
         </div>
         
-        {/* Version information */}
+        {/* Version information and Analytics button */}
         <div className="version-info">
-          Sogni Photobooth v{import.meta.env.APP_VERSION || '1.0.1'}
+          <span>Sogni Photobooth v{import.meta.env.APP_VERSION || '1.0.1'}</span>
+          <button 
+            className="view-analytics-btn"
+            onClick={() => window.location.hash = '#analytics'}
+            title="View Analytics Dashboard"
+          >
+            📊 View Analytics
+          </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
-export default AdvancedSettings; 
+export default memo(AdvancedSettings); 
