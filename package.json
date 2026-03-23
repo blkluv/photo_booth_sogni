@@ -35,7 +35,6 @@
     "@sogni-ai/sogni-client": "^4.1.0-alpha.4",
     "@types/qrcode": "^1.5.5",
     "@types/uuid": "^10.0.0",
-    "canvas": "^2.11.2",
     "chart.js": "^4.5.0",
     "concurrently": "^8.2.2",
     "cookie-session": "^2.1.0",
